@@ -33,9 +33,9 @@ int Database::get_int(const std::string& sql) const
 	throw "effbf28c";
 }
 
-array Database::get_ints(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
+alg::array Database::get_ints(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
 {
-	array result;
+	alg::array result;
 	Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
 	while (stmt.step() == SQLITE_ROW)
 		result.emplace_back(stmt.column_int(0));
@@ -57,9 +57,9 @@ void Database::sqlite3_prepare_v100(const std::string& sql, sqlite3_stmt** ppStm
 		throw MyException(0xda6ab7f6U, "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code));
 }
 
-std::vector<Deg> Database::load_gen_degs(const std::string& table_name) const
+std::vector<alg::Deg> Database::load_gen_degs(const std::string& table_name) const
 {
-	std::vector<Deg> gen_degs;
+	std::vector<alg::Deg> gen_degs;
 	Statement stmt(*this, "SELECT s, t, v FROM " + table_name + " ORDER BY gen_id;");
 	while (stmt.step() == SQLITE_ROW)
 		gen_degs.emplace_back(stmt.column_int(0), stmt.column_int(1), stmt.column_int(2));
@@ -67,9 +67,9 @@ std::vector<Deg> Database::load_gen_degs(const std::string& table_name) const
 	return gen_degs;
 }
 
-Poly1d Database::load_gen_diffs(const std::string& table_name) const
+alg::Poly1d Database::load_gen_diffs(const std::string& table_name) const
 {
-	Poly1d diffs;
+	alg::Poly1d diffs;
 	Statement stmt(*this, "SELECT gen_diff FROM " + table_name + " ORDER BY gen_id;");
 	while (stmt.step() == SQLITE_ROW)
 		diffs.push_back(str_to_Poly(stmt.column_str(0)));
@@ -77,9 +77,9 @@ Poly1d Database::load_gen_diffs(const std::string& table_name) const
 	return diffs;
 }
 
-Poly1d Database::load_gen_reprs(const std::string& table_name) const
+alg::Poly1d Database::load_gen_reprs(const std::string& table_name) const
 {
-	Poly1d reprs;
+	alg::Poly1d reprs;
 	Statement stmt(*this, "SELECT repr FROM " + table_name + " ORDER BY gen_id;");
 	while (stmt.step() == SQLITE_ROW)
 		reprs.push_back(str_to_Poly(stmt.column_str(0)));
@@ -87,9 +87,9 @@ Poly1d Database::load_gen_reprs(const std::string& table_name) const
 	return reprs;
 }
 
-Poly1d Database::load_gen_images(const std::string& table_name, const std::string& column_name, int t_max) const
+alg::Poly1d Database::load_gen_images(const std::string& table_name, const std::string& column_name, int t_max) const
 {
-	Poly1d reprs;
+	alg::Poly1d reprs;
 	Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY gen_id;");
 	while (stmt.step() == SQLITE_ROW)
 		reprs.push_back(str_to_Poly(stmt.column_str(0)));
@@ -97,14 +97,14 @@ Poly1d Database::load_gen_images(const std::string& table_name, const std::strin
 	return reprs;
 }
 
-Mon2d Database::load_leading_terms(const std::string& table_name, int t_max) const
+alg::Mon2d Database::load_leading_terms(const std::string& table_name, int t_max) const
 {
-	Mon2d leadings;
+	alg::Mon2d leadings;
 	Statement stmt(*this, "SELECT leading_term FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Mon mon(str_to_Mon(stmt.column_str(0)));
+		alg::Mon mon(str_to_Mon(stmt.column_str(0)));
 		if (size_t(mon[0].gen) >= leadings.size())
 			leadings.resize(size_t(mon[0].gen) + 1);
 		leadings[mon[0].gen].push_back(mon);
@@ -113,51 +113,51 @@ Mon2d Database::load_leading_terms(const std::string& table_name, int t_max) con
 	return leadings;
 }
 
-Poly1d Database::load_gb(const std::string& table_name, int t_max) const
+alg::Poly1d Database::load_gb(const std::string& table_name, int t_max) const
 {
-	Poly1d gb;
+	alg::Poly1d gb;
 	Statement stmt(*this, "SELECT leading_term, basis FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
 	while (stmt.step() == SQLITE_ROW) {
-		Mon lead(str_to_Mon(stmt.column_str(0)));
-		Poly basis(str_to_Poly(stmt.column_str(1)));
-		Poly g = add(basis, { lead });
+		alg::Mon lead(str_to_Mon(stmt.column_str(0)));
+		alg::Poly basis(str_to_Poly(stmt.column_str(1)));
+		alg::Poly g = add(basis, { lead });
 		gb.push_back(std::move(g));
 	}
 	std::cout << "gb loaded from " << table_name << ", size=" << gb.size() << '\n';
 	return gb;
 }
 
-std::map<Deg, int> Database::load_indices(const std::string& table_name, int t_max) const
+std::map<alg::Deg, int> Database::load_indices(const std::string& table_name, int t_max) const
 {
-	std::map<Deg, int> result;
+	std::map<alg::Deg, int> result;
 	Statement stmt(*this, "SELECT s, t, v, min(base_id) FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " GROUP BY s, t, v;");
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg d = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::Deg d = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
 		result[d] = stmt.column_int(3);
 	}
 	std::cout << "indices loaded from " << table_name << ", size=" << count << '\n';
 	return result;
 }
 
-std::map<Deg, Mon1d> Database::load_basis(const std::string& table_name, int t_max) const
+std::map<alg::Deg, alg::Mon1d> Database::load_basis(const std::string& table_name, int t_max) const
 {
-	std::map<Deg, Mon1d> basis;
+	std::map<alg::Deg, alg::Mon1d> basis;
 	Statement stmt(*this, "SELECT s, t, v, mon FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;");
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg d = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::Deg d = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
 		basis[d].push_back(str_to_Mon(stmt.column_str(3)));
 	}
 	std::cout << "basis loaded from " << table_name << ", size=" << count << '\n';
 	return basis;
 }
 
-std::map<Deg, array2d> Database::load_mon_diffs_ind(const std::string& table_name, int t_max, int withnull /* = false */) const
+std::map<alg::Deg, alg::array2d> Database::load_mon_diffs_ind(const std::string& table_name, int t_max, int withnull /* = false */) const
 {
-	std::map<Deg, array2d> diffs_ind;
+	std::map<alg::Deg, alg::array2d> diffs_ind;
 	std::string sql;
 	if (!withnull)
 		sql = "SELECT s, t, v, diff FROM " + table_name + (t_max == -1 ? "WHERE " : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
@@ -168,7 +168,7 @@ std::map<Deg, array2d> Database::load_mon_diffs_ind(const std::string& table_nam
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
 		if (stmt.column_type(3) == SQLITE_TEXT)
 			diffs_ind[deg].push_back(str_to_array(stmt.column_str(3)));
 		else
@@ -178,31 +178,31 @@ std::map<Deg, array2d> Database::load_mon_diffs_ind(const std::string& table_nam
 	return diffs_ind;
 }
 
-std::map<Deg, Poly1d> Database::load_mon_diffs(const std::string& table_name, const std::map<Deg, Mon1d>& basis, int r, int t_max) const
+std::map<alg::Deg, alg::Poly1d> Database::load_mon_diffs(const std::string& table_name, const std::map<alg::Deg, alg::Mon1d>& basis, int r, int t_max) const
 {
-	std::map<Deg, Poly1d> diffs;
+	std::map<alg::Deg, alg::Poly1d> diffs;
 	std::string sql = t_max == -1 ? "SELECT s, t, v, diff FROM " + table_name + " WHERE diff IS NOT NULL ORDER BY mon_id;" :
 		"SELECT s, t, v, diff FROM " + table_name + " WHERE t<=" + std::to_string(t_max) + " AND diff IS NOT NULL ORDER BY mon_id;";
 	Statement stmt(*this, sql);
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
-		array diff_index = str_to_array(stmt.column_str(3));
-		diffs[deg].push_back(diff_index.empty() ? Poly{} : indices_to_Poly(std::move(diff_index), basis.at(deg + Deg{ 1, 0, -r })));
+		alg::Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::array diff_index = str_to_array(stmt.column_str(3));
+		diffs[deg].push_back(diff_index.empty() ? alg::Poly{} : indices_to_Poly(std::move(diff_index), basis.at(deg + alg::Deg{ 1, 0, -r })));
 	}
 	std::cout << "diffs loaded from " << table_name << ", size=" << count << '\n';
 	return diffs;
 }
 
-std::map<Deg, BasisComplex> Database::load_basis_ss(const std::string& table_name, int r, int t_max) const
+std::map<alg::Deg, BasisComplex> Database::load_basis_ss(const std::string& table_name, int r, int t_max) const
 {
-	std::map<Deg, BasisComplex> basis_ss;
+	std::map<alg::Deg, BasisComplex> basis_ss;
 	Statement stmt(*this, "SELECT s, t, v, level, base FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
 		int level = stmt.column_int(3);
 		if (level <= r)
 			basis_ss[deg].boundaries.push_back(str_to_array(stmt.column_str(4)));
@@ -213,21 +213,21 @@ std::map<Deg, BasisComplex> Database::load_basis_ss(const std::string& table_nam
 	return basis_ss;
 }
 
-std::map<Deg, Staircase> Database::load_basis_ss(const std::string& table_name, int t_max) const
+std::map<alg::Deg, Staircase> Database::load_basis_ss(const std::string& table_name, int t_max) const
 {
-	std::map<Deg, Staircase> basis_ss;
+	std::map<alg::Deg, Staircase> basis_ss;
 	Statement stmt(*this, "SELECT s, t, v, level, base, diff FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
 	int count = 0;
 	while (stmt.step() == SQLITE_ROW) {
 		++count;
-		Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
+		alg::Deg deg = { stmt.column_int(0), stmt.column_int(1), stmt.column_int(2) };
 		int level = stmt.column_int(3);
-		array base = str_to_array(stmt.column_str(4));
+		alg::array base = str_to_array(stmt.column_str(4));
 
 		basis_ss[deg].basis_ind.push_back(std::move(base));
 		basis_ss[deg].levels.push_back(level);
 		if (stmt.column_type(5) == SQLITE_TEXT) {
-			array diff = str_to_array(stmt.column_str(5));
+			alg::array diff = str_to_array(stmt.column_str(5));
 			basis_ss[deg].diffs_ind.push_back(diff);
 		}
 		else
@@ -237,7 +237,7 @@ std::map<Deg, Staircase> Database::load_basis_ss(const std::string& table_name, 
 	return basis_ss;
 }
 
-void Database::save_generators(const std::string& table_name, const std::vector<Deg>& gen_degs, const Poly1d& gen_reprs, size_t i_start) const
+void Database::save_generators(const std::string& table_name, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_reprs, size_t i_start) const
 {
 	Statement stmt_update_generators(*this, "INSERT INTO " + table_name + " (gen_id, repr, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
 
@@ -254,7 +254,7 @@ void Database::save_generators(const std::string& table_name, const std::vector<
 #endif
 }
 
-void Database::save_gen_images(const std::string& table_name, const std::string& column_name, const Poly1d& gen_images) const
+void Database::save_gen_images(const std::string& table_name, const std::string& column_name, const alg::Poly1d& gen_images) const
 {
 	Statement stmt_update_generators(*this, "Update " + table_name + " SET " + column_name + "=?1 WHERE gen_id=?2;");
 
@@ -268,12 +268,12 @@ void Database::save_gen_images(const std::string& table_name, const std::string&
 #endif
 }
 
-void Database::save_gb(const std::string& table_name, const Poly1d& gb, const std::vector<Deg>& gen_degs, size_t i_start) const
+void Database::save_gb(const std::string& table_name, const alg::Poly1d& gb, const std::vector<alg::Deg>& gen_degs, size_t i_start) const
 {
 	Statement stmt_update_relations(*this, "INSERT INTO " + table_name + " (leading_term, basis, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
 
 	for (size_t i = i_start; i < gb.size(); ++i) {
-		Deg deg = get_deg(gb[i], gen_degs);
+		alg::Deg deg = get_deg(gb[i], gen_degs);
 		stmt_update_relations.bind_str(1, Mon_to_str(gb[i].front()));
 		stmt_update_relations.bind_str(2, Poly_to_str(gb[i].begin() + 1, gb[i].end()));
 		stmt_update_relations.bind_int(3, deg.s);
@@ -286,7 +286,7 @@ void Database::save_gb(const std::string& table_name, const Poly1d& gb, const st
 #endif
 }
 
-void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon1d>& basis) const
+void Database::save_basis(const std::string& table_name, const std::map<alg::Deg, alg::Mon1d>& basis) const
 {
 	Statement stmt(*this, "INSERT INTO " + table_name + " (mon, s, t, v) VALUES (?1, ?2, ?3, ?4);");
 
@@ -306,7 +306,7 @@ void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon
 #endif
 }
 
-void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon1d>& basis, const std::map<Deg, array2d>& mon_reprs) const
+void Database::save_basis(const std::string& table_name, const std::map<alg::Deg, alg::Mon1d>& basis, const std::map<alg::Deg, alg::array2d>& mon_reprs) const
 {
 	Statement stmt(*this, "INSERT INTO " + table_name + " (mon, repr, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
 
@@ -327,7 +327,7 @@ void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon
 #endif
 }
 
-void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon1d>& basis, const std::map<Deg, Poly1d>& mon_reprs) const
+void Database::save_basis(const std::string& table_name, const std::map<alg::Deg, alg::Mon1d>& basis, const std::map<alg::Deg, alg::Poly1d>& mon_reprs) const
 {
 	Statement stmt(*this, "INSERT INTO " + table_name + " (mon, repr, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
 
@@ -346,7 +346,7 @@ void Database::save_basis(const std::string& table_name, const std::map<Deg, Mon
 #endif
 }
 
-void Database::save_basis_ss(const std::string& table_name, const std::map<Deg, Staircase>& basis_ss) const
+void Database::save_basis_ss(const std::string& table_name, const std::map<alg::Deg, Staircase>& basis_ss) const
 {
 	Statement stmt(*this, "INSERT INTO " + table_name + " (base, diff, level, s, t, v, base_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);");
 
@@ -354,7 +354,7 @@ void Database::save_basis_ss(const std::string& table_name, const std::map<Deg, 
 	for (const auto& [deg, basis_ss_d] : basis_ss) {
 		for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
 			stmt.bind_str(1, array_to_str(basis_ss_d.basis_ind[i]));
-			if (basis_ss_d.diffs_ind[i] == array{ -1 })
+			if (basis_ss_d.diffs_ind[i] == alg::array{ -1 })
 				stmt.bind_null(2);
 			else
 				stmt.bind_str(2, array_to_str(basis_ss_d.diffs_ind[i]));
@@ -372,16 +372,16 @@ void Database::save_basis_ss(const std::string& table_name, const std::map<Deg, 
 #endif
 }
 
-void Database::update_basis_ss(const std::string& table_name, const std::map<Deg, Staircase>& basis_ss) const
+void Database::update_basis_ss(const std::string& table_name, const std::map<alg::Deg, Staircase>& basis_ss) const
 {
-	std::map<Deg, int> indices = load_indices(table_name, -1);
+	std::map<alg::Deg, int> indices = load_indices(table_name, -1);
 	Statement stmt(*this, "UPDATE " + table_name + " SET base=?1, diff=?2, level=?3 WHERE base_id=?4;");
 
 	int count = 0;
 	for (const auto& [deg, basis_ss_d] : basis_ss) {
 		for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
 			stmt.bind_str(1, array_to_str(basis_ss_d.basis_ind[i]));
-			if (basis_ss_d.diffs_ind[i] == array{ -1 })
+			if (basis_ss_d.diffs_ind[i] == alg::array{ -1 })
 				stmt.bind_null(2);
 			else
 				stmt.bind_str(2, array_to_str(basis_ss_d.diffs_ind[i]));
@@ -450,7 +450,7 @@ void Statement::step_and_reset() const
 }
 
 /* Find the index of mon in basis, assuming that mon is in basis and basis is sorted. */
-inline int get_index(const Mon1d& basis, const Mon& mon)
+inline int get_index(const alg::Mon1d& basis, const alg::Mon& mon)
 {
 	auto first = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifdef _DEBUG
@@ -462,23 +462,23 @@ inline int get_index(const Mon1d& basis, const Mon& mon)
 	return int(first - basis.begin());
 }
 
-array Poly_to_indices(const Poly& poly, const Mon1d& basis)
+alg::array Poly_to_indices(const alg::Poly& poly, const alg::Mon1d& basis)
 {
-	array result;
-	for (const Mon& mon : poly)
+	alg::array result;
+	for (const alg::Mon& mon : poly)
 		result.push_back(get_index(basis, mon));
 	return result;
 }
 
-Poly indices_to_Poly(const array& indices, const Mon1d& basis)
+alg::Poly indices_to_Poly(const alg::array& indices, const alg::Mon1d& basis)
 {
-	Poly result;
+	alg::Poly result;
 	for (int i : indices)
 		result.push_back(basis[i]);
 	return result;
 }
 
-std::string array_to_str(array::const_iterator pbegin, array::const_iterator pend)
+std::string array_to_str(alg::array::const_iterator pbegin, alg::array::const_iterator pend)
 {
 	std::stringstream ss;
 	for (auto p = pbegin; p < pend; p++) {
@@ -489,11 +489,11 @@ std::string array_to_str(array::const_iterator pbegin, array::const_iterator pen
 	return ss.str();
 }
 
-array str_to_array(const char* str_mon)
+alg::array str_to_array(const char* str_mon)
 {
-	array result;
+	alg::array result;
 	if (str_mon[0] == '\0')
-		return array();
+		return alg::array();
 	std::stringstream ss(str_mon);
 	while (ss.good()) {
 		int i;
@@ -505,7 +505,7 @@ array str_to_array(const char* str_mon)
 	return result;
 }
 
-std::string Mon_to_str(MonInd pbegin, MonInd pend)
+std::string Mon_to_str(alg::MonInd pbegin, alg::MonInd pend)
 {
 	std::stringstream ss;
 	for (auto p = pbegin; p < pend; p++) {
@@ -516,9 +516,9 @@ std::string Mon_to_str(MonInd pbegin, MonInd pend)
 	return ss.str();
 }
 
-Mon str_to_Mon(const char* str_mon)
+alg::Mon str_to_Mon(const char* str_mon)
 {
-	Mon result;
+	alg::Mon result;
 	if (str_mon[0] == '\0')
 		return {};
 	std::stringstream ss(str_mon);
@@ -532,7 +532,7 @@ Mon str_to_Mon(const char* str_mon)
 	return result;
 }
 
-std::string Poly_to_str(Poly::const_iterator pbegin, Poly::const_iterator pend) /* Warning: assume the algebra is connected */
+std::string Poly_to_str(alg::Poly::const_iterator pbegin, alg::Poly::const_iterator pend) /* Warning: assume the algebra is connected */
 {
 	std::stringstream ss;
 	if (pbegin + 1 == pend && pbegin->empty()) {
@@ -551,9 +551,9 @@ std::string Poly_to_str(Poly::const_iterator pbegin, Poly::const_iterator pend) 
 	return ss.str();
 }
 
-Poly str_to_Poly(const char* str_poly) /* Warning: assume the algebra is connected */
+alg::Poly str_to_Poly(const char* str_poly) /* Warning: assume the algebra is connected */
 {
-	Poly result;
+	alg::Poly result;
 	if (str_poly[0] == '\0')
 		return result; /* Return 0 as a polynomial */
 	else if (strcmp(str_poly, ";") == 0) {

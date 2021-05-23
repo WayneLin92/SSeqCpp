@@ -5,6 +5,8 @@
 #include <iostream>
 #endif
 
+namespace alg {
+
 Mon mul(const Mon& mon1, const Mon& mon2)
 {
 	Mon result;
@@ -102,7 +104,7 @@ Poly pow(const Poly& poly, int n)
 	return result;
 }
 
-bool divides(const Mon& mon1, const Mon& mon2)
+bool divisible(const Mon& mon1, const Mon& mon2)
 {
 	MonInd k = mon1.begin(), l = mon2.begin();
 	while (k != mon1.end() && l != mon2.end()) {
@@ -226,4 +228,6 @@ Poly get_diff(const Poly& poly, const Poly1d& diffs)
 		}
 	}
 	return result;
+}
+
 }

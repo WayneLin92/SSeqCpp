@@ -2,7 +2,7 @@
 
 /*********** FUNCTIONS **********/
 
-void dump_MonPow(std::ostream& sout, const GenPow& p)
+void dump_MonPow(std::ostream& sout, const alg::GenPow& p)
 {
 	sout << "x_";
 	if (0 <= p.gen && p.gen < 10)
