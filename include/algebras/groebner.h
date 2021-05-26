@@ -6,7 +6,7 @@
 #define GROEBNER_H
 
 #include "algebras.h"
-#include <iostream> ////
+//#include <iostream> ////
 #include <map>
 #include <memory>
 
@@ -20,7 +20,7 @@
 /**
  * The number of threads used in multithreading.
  */
-constexpr int kNumThreads = 5;
+constexpr int kNumThreads = 4;
 #endif
 
 // /**
@@ -31,16 +31,11 @@ constexpr int kNumThreads = 5;
 
 /**
  * The namespace `grbn` encapsulates classes and functions for 
- * Groebner bases 
+ * Groebner bases.
+ * 
+ * The default monomial ordering is the revlex.
  */
 namespace grbn {
-
-/**
- * The auxiliary class `GbBuffer` is a set of
- * polynomials to be added to a groebner basis.
- * The polynomials are grouped by degrees.
- */
-using GbBuffer = std::map<int, alg::Poly1d>;
 
 /**
  * The class `GbLeadCache` is used to speed up
@@ -51,8 +46,7 @@ using GbBuffer = std::map<int, alg::Poly1d>;
 using GbLeadCache = std::map<int, alg::array>;
 
 /**
- * The class `GbLeadCache` consists of a Groebner basis
- * and its cache.
+ * The class `GbWithCache` consists of a Groebner basis and its cache.
  */
 class GbWithCache
 {
@@ -60,17 +54,46 @@ public:
 	GbWithCache() = default;
 	GbWithCache(alg::Poly1d gb1) : gb(std::move(gb1)) { 
 		for (int i = 0; i < (int)gb.size(); ++i)
-			lc[gb[i][0].back().gen].push_back(i);
+			lc[gb[i].front().back().gen].push_back(i);
 	}
 public:
 	auto begin() const { return gb.begin(); }
 	auto end() const { return gb.end(); }
 	auto size() const { return gb.size(); }
-	void push_back(alg::Poly g) { lc[g[0].back().gen].push_back((int)gb.size()); gb.push_back(std::move(g)); }
+	void push_back(alg::Poly g) { lc[g.front().back().gen].push_back((int)gb.size()); gb.push_back(std::move(g)); }
 public:
 	alg::Poly1d gb;
 	GbLeadCache lc;
 };
+
+/**
+ * The class `GbLexWithCache` consists of a Groebner basis and its cache.
+ * The leading term is the maximum one in lexicographical ordering.
+ */
+class GbLexWithCache
+{
+public:
+	GbLexWithCache() = default;
+	GbLexWithCache(alg::Poly1d gb1) : gb(std::move(gb1)) { 
+		for (int i = 0; i < (int)gb.size(); ++i)
+			lc[gb[i].back().back().gen].push_back(i);
+	}
+public:
+	auto begin() const { return gb.begin(); }
+	auto end() const { return gb.end(); }
+	auto size() const { return gb.size(); }
+	void push_back(alg::Poly g) { lc[g.back().back().gen].push_back((int)gb.size()); gb.push_back(std::move(g)); }
+public:
+	alg::Poly1d gb;
+	GbLeadCache lc;
+};
+
+/**
+ * The auxiliary class `GbBuffer` is a set of
+ * polynomials to be added to a groebner basis.
+ * The polynomials are grouped by degrees.
+ */
+using GbBuffer = std::map<int, alg::Poly1d>;
 
 /**
  * A virtual type of elements in `GbBufferV2`,
@@ -97,7 +120,7 @@ struct GcdBufferEle : BaseBufferEle
 	alg::Mon gcd_; int i1_, i2_;
 	GcdBufferEle(alg::Mon gcd, int i1, int i2) : gcd_(std::move(gcd)), i1_(i1), i2_(i2) {};
 	alg::Poly GetPoly(const alg::Poly1d& gb) override {
-		alg::Poly result = gb[i1_] * div(gb[i2_][0], gcd_) + gb[i2_] * div(gb[i1_][0], gcd_);
+		alg::Poly result = gb[i1_] * div(gb[i2_].front(), gcd_) + gb[i2_] * div(gb[i1_].front(), gcd_);
 		alg::Mon{}.swap(gcd_); /* Deallocate */
 		return result;
 	}
@@ -115,6 +138,9 @@ struct PolyBufferEle : BaseBufferEle
 };
 /**
  * This groebner buffer type is designed to save the memory.
+ * @see BaseBufferEle
+ * 
+ * This type only supports revlex ordering.
  */
 using GbBufferV2 = std::map<int, std::vector<std::unique_ptr<BaseBufferEle>>>;
 
@@ -190,11 +216,11 @@ alg::Poly subs(const alg::Poly& poly, FnType map, const GbType& gb)
 bool gcd_nonzero(const alg::Mon& mon1, const alg::Mon& mon2);
 
 /**
- * generate buffer in degree `t_min <= t <= t_max`
+ * Generate buffer in degree `t_min <= t <= t_max`
  */
 GbBuffer GenerateBuffer(const alg::Poly1d& gb, const alg::array& gen_degs, const alg::array& gen_degs1, int t_min, int t_max);
 /**
- * generate buffer in degree `t_min <= t <= t_max`
+ * Generate buffer in degree `t_min <= t <= t_max`
  */
 GbBufferV2 GenerateBufferV2(const alg::Poly1d& gb, const alg::array& gen_degs, const alg::array& gen_degs1, int t_min, int t_max);
 
@@ -224,11 +250,11 @@ std::vector<std::pair<int, alg::Poly>> _BatchNewBufferElements(const GbType& gb,
 {
 	std::vector<std::pair<int, alg::Poly>> result;
 	for (auto pg = gb.begin() + i_start; pg < gb.end(); pg += kNumThreads) {
-		if (gcd_nonzero(rel[0], pg->front()) && !(rel[0][0].gen < 0 && pg->front()[0].gen < 0 && rel[0][0].gen != pg->front()[0].gen)) {
-			alg::Mon lcm = LCM(rel[0], pg->front());
+		if (gcd_nonzero(rel.front(), pg->front()) && !(rel.front()[0].gen < 0 && pg->front()[0].gen < 0 && rel.front()[0].gen != pg->front()[0].gen)) {
+			alg::Mon lcm = LCM(rel.front(), pg->front());
 			int deg_new_rel = _get_deg(lcm);
 			if (deg_max == -1 || deg_new_rel <= deg_max) {
-				alg::Poly new_rel = rel * div(lcm, rel[0]) + (*pg) * div(lcm, pg->front());
+				alg::Poly new_rel = rel * div(lcm, rel.front()) + (*pg) * div(lcm, pg->front());
 				if (!new_rel.empty())
 					result.push_back(std::make_pair(deg_new_rel, std::move(new_rel)));
 			}
@@ -244,8 +270,8 @@ std::vector<std::pair<int, GcdBufferEle>> _BatchNewBufferElementsV2(const GbType
 {
 	std::vector<std::pair<int, GcdBufferEle>> result;
 	for (auto pg = gb.begin() + i_start; pg < gb.end(); pg += kNumThreads) {
-		if (gcd_nonzero(rel[0], pg->front()) && !(rel[0][0].gen < 0 && pg->front()[0].gen < 0 && rel[0][0].gen != pg->front()[0].gen)) {
-			alg::Mon gcd = GCD(rel[0], pg->front());
+		if (gcd_nonzero(rel.front(), pg->front()) && !(rel.front()[0].gen < 0 && pg->front()[0].gen < 0 && rel.front()[0].gen != pg->front()[0].gen)) {
+			alg::Mon gcd = GCD(rel.front(), pg->front());
 			int deg_new_rel = deg + _get_deg(pg->front()) - _get_deg(gcd);
 			if (deg_max == -1 || deg_new_rel <= deg_max)
 				result.push_back(std::make_pair(deg_new_rel, GcdBufferEle(std::move(gcd), (int)(pg - gb.begin()), (int)gb.size())));
@@ -272,7 +298,7 @@ void AddRelsB(GbType& gb, BufferType& buffer, FnType _get_deg, int deg, int deg_
 	auto p_buffer = buffer.begin();
 	for (; p_buffer != buffer.end() && (deg == -1 || p_buffer->first <= deg); ++p_buffer) {
 		/* Reduce relations from buffer in degree `p_buffer->first` */
-		std::cout << "t=" << p_buffer->first << '\n'; ////
+		//std::cout << "t=" << p_buffer->first << '\n'; ////
 		alg::Poly1d rels;
 #ifndef GROEBNER_MULTITHREAD /* Singlethreading */
 		for (auto& poly : p_buffer->second) {
@@ -285,7 +311,7 @@ void AddRelsB(GbType& gb, BufferType& buffer, FnType _get_deg, int deg, int deg_
 					return Reduce(std::move(poly)->GetPoly(gb.gb), gb);
 			}();
 			for (alg::Poly& rel1 : rels)
-				if (std::binary_search(rel.begin(), rel.end(), rel1[0]))
+				if (std::binary_search(rel.begin(), rel.end(), rel1.front()))
 					rel += rel1;
 			if (!rel.empty())
 				rels.push_back(std::move(rel));
@@ -299,7 +325,7 @@ void AddRelsB(GbType& gb, BufferType& buffer, FnType _get_deg, int deg, int deg_
 			futures[i].wait();
 		for (auto& rel : rels_tmp) {
 			for (alg::Poly& rel1 : rels)
-				if (std::binary_search(rel.begin(), rel.end(), rel1[0]))
+				if (std::binary_search(rel.begin(), rel.end(), rel1.front()))
 					rel += rel1;
 			if (!rel.empty())
 				rels.push_back(std::move(rel));
@@ -311,18 +337,18 @@ void AddRelsB(GbType& gb, BufferType& buffer, FnType _get_deg, int deg, int deg_
 			if (!rel.empty()) {
 #ifndef GROEBNER_MULTITHREAD /* Singlethreading */
 				for (auto pg = gb.begin(); pg != gb.end(); ++pg) {
-					if (gcd_nonzero(rel[0], pg->front()) && !(rel[0][0].gen < 0 && pg->front()[0].gen < 0 && rel[0][0].gen != pg->front()[0].gen)) {
+					if (gcd_nonzero(rel.front(), pg->front()) && !(rel.front()[0].gen < 0 && pg->front()[0].gen < 0 && rel.front()[0].gen != pg->front()[0].gen)) {
 						if constexpr (std::is_same<BufferType, GbBuffer>::value) {
-							alg::Mon lcm = LCM(rel[0], pg->front());
+							alg::Mon lcm = LCM(rel.front(), pg->front());
 							int deg_new_rel = _get_deg(lcm);
 							if (deg_max == -1 || deg_new_rel <= deg_max) {
-								alg::Poly new_rel = rel * div(lcm, rel[0]) + (*pg) * div(lcm, pg->front());
+								alg::Poly new_rel = rel * div(lcm, rel.front()) + (*pg) * div(lcm, pg->front());
 								if (!new_rel.empty())
 									buffer[deg_new_rel].push_back(std::move(new_rel));
 							}
 						}
 						else { /* BufferType == GbBufferV2 */
-							alg::Mon gcd = GCD(rel[0], pg->front());
+							alg::Mon gcd = GCD(rel.front(), pg->front());
 							int deg_new_rel = p_buffer->first + _get_deg(pg->front()) - _get_deg(gcd);
 							if (deg_max == -1 || deg_new_rel <= deg_max)
 								buffer[deg_new_rel].push_back(std::make_unique<GcdBufferEle>(std::move(gcd), (int)(pg - gb.begin()), (int)gb.size()));
@@ -378,7 +404,7 @@ void AddRels(GbType& gb, alg::Poly1d rels, FnType _get_deg, int deg_max)
 	BufferType buffer;
 	for (alg::Poly& rel : rels) {
 		if (!rel.empty()) {
-			int deg = _get_deg(rel[0]);
+			int deg = _get_deg(rel.front());
 			if constexpr (std::is_same<BufferType, GbBufferV2>::value)
 				buffer[deg].push_back(std::make_unique<PolyBufferEle>(std::move(rel)));
 			else
@@ -436,7 +462,7 @@ alg::Poly2d& indecomposables(const GbType& gb, alg::Poly2d& vectors, const alg::
 		for (int i = 0; i < basis_degs.size(); ++i)
 			if (!v[i].empty())
 				rel += v[i] * alg::Mon{ {-i - 1, 1} };
-		degs.push_back(get_deg(rel[0], gen_degs, basis_degs));
+		degs.push_back(get_deg(rel.front(), gen_degs, basis_degs));
 		rels.push_back(std::move(rel));
 	}
 	alg::array indices = range((int)vectors.size());
@@ -489,7 +515,7 @@ alg::Poly2d ann_seq(const GbType& gb, const alg::Poly1d& polys, const alg::array
 
 	/* Extract linear relations from gb1 */
 	for (const alg::Poly& g : gb1) {
-		if (g[0][0].gen < 0) {
+		if (g.front()[0].gen < 0) {
 			alg::Poly1d ann;
 			ann.resize(N);
 			for (const alg::Mon& m : g) {

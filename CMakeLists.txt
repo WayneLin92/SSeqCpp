@@ -25,15 +25,21 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+    set(BUILD_DOXYGEN OFF)
+
+    # Testing
+    include(CTest)
+
     # The executable code is here
     add_subdirectory(ss)
     add_subdirectory(HAX)
+    add_subdirectory(tests)
 
     # Docs only available if this is the main app
     find_package(Doxygen)
-    if(Doxygen_FOUND)
+    if(Doxygen_FOUND AND BUILD_DOXYGEN)
         add_subdirectory(docs)
     else()
-        message(STATUS "Doxygen not found, not building docs")
+        message(STATUS "Not building docs")
     endif()
 endif()
