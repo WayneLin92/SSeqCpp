@@ -237,6 +237,23 @@ std::map<alg::Deg, Staircase> Database::load_basis_ss(const std::string& table_n
 	return basis_ss;
 }
 
+void Database::save_generators(const std::string& table_name, const std::vector<std::string>& gen_names, const std::vector<alg::Deg>& gen_degs) const
+{
+	Statement stmt_update_generators(*this, "INSERT INTO " + table_name + " (gen_id, gen_name, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
+
+	for (size_t i = 0; i < gen_degs.size(); ++i) {
+		stmt_update_generators.bind_int(1, (int)i);
+		stmt_update_generators.bind_str(2, gen_names[i]);
+		stmt_update_generators.bind_int(3, gen_degs[i].s);
+		stmt_update_generators.bind_int(4, gen_degs[i].t);
+		stmt_update_generators.bind_int(5, gen_degs[i].v);
+		stmt_update_generators.step_and_reset();
+	}
+#ifdef DATABASE_SAVE_LOGGING
+	std::cout << gen_degs.size() << " generators are inserted into " + table_name + "!\n";
+#endif
+}
+
 void Database::save_generators(const std::string& table_name, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_reprs, size_t i_start) const
 {
 	Statement stmt_update_generators(*this, "INSERT INTO " + table_name + " (gen_id, repr, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");

@@ -21,7 +21,7 @@ struct DgaBasis1
 template<typename GbType>
 alg::Poly get_image(const alg::Poly& poly, const alg::Poly1d& gen_reprs, const GbType& gb)
 {
-	return grbn::subs(poly, [&gen_reprs](int i) {return gen_reprs[i]; }, gb);
+	return alg::subs(poly, [&gen_reprs](int i) {return gen_reprs[i]; }, gb);
 }
 
 std::map<alg::Deg, DgaBasis1> load_dga_basis(const Database& db, const std::string& table_name, int r, int t_max);
@@ -33,9 +33,9 @@ void SaveGb(const Database& db, const std::string& table_name, const alg::Poly1d
 void get_basis_B(const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X, alg::Mon1d& basis_B, const alg::Deg& deg);
 void get_basis_with_diff_B(const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X, alg::Mon1d& basis_B, alg::Poly1d& mon_diffs_B, const alg::Deg& deg);
 /* Assume poly is a boundary. Return the chain with it as boundary */
-alg::Poly d_inv(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& diffs, const grbn::GbWithCache& gb, const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X);
+alg::Poly d_inv(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& diffs, const alg::Groebner& gb, const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X);
 /* Assume poly is a cycle. Return the homology class */
-alg::Poly proj(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_diffs, const grbn::GbWithCache& gb, const std::map<alg::Deg, DgaBasis1>& basis_A,
+alg::Poly proj(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_diffs, const alg::Groebner& gb, const std::map<alg::Deg, DgaBasis1>& basis_A,
 	const std::map<alg::Deg, DgaBasis1>& basis_X, const alg::Poly1d& gen_reprs, std::map<alg::Deg, alg::Mon1d>& basis_H);
 
 /* assume that the sequence map_gen_id is increasing */

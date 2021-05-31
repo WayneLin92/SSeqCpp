@@ -146,7 +146,7 @@ void get_basis_with_diff_B(const std::map<alg::Deg, DgaBasis1>& basis_A, const s
 	}
 }
 
-alg::Poly d_inv(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& diffs, const grbn::GbWithCache& gb, const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X)
+alg::Poly d_inv(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& diffs, const alg::Groebner& gb, const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X)
 {
 	if (poly.empty())
 		return {};
@@ -160,13 +160,13 @@ alg::Poly d_inv(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, co
 	std::sort(basis_in_result.begin(), basis_in_result.end());
 	alg::array2d map_diff;
 	for (const alg::Mon& mon : basis_in_result)
-		map_diff.push_back(Poly_to_indices(grbn::Reduce(get_diff(mon, diffs), gb), basis_in_poly));
+		map_diff.push_back(Poly_to_indices(alg::Reduce(get_diff(mon, diffs), gb), basis_in_poly));
 	alg::array2d image, kernel, g;
 	lina::SetLinearMap(map_diff, image, kernel, g);
 	return indices_to_Poly(lina::GetImage(image, g, Poly_to_indices(poly, basis_in_poly)), basis_in_result);
 }
 
-alg::Poly proj(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_diffs, const grbn::GbWithCache& gb, const std::map<alg::Deg, DgaBasis1>& basis_A,
+alg::Poly proj(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_diffs, const alg::Groebner& gb, const std::map<alg::Deg, DgaBasis1>& basis_A,
 	const std::map<alg::Deg, DgaBasis1>& basis_X, const alg::Poly1d& gen_reprs_H, std::map<alg::Deg, alg::Mon1d>& basis_H) //
 {
 	if (poly.empty())
@@ -182,7 +182,7 @@ alg::Poly proj(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs, con
 
 	alg::array2d map_diff;
 	for (const alg::Mon& mon : basis_d1)
-		map_diff.push_back(Poly_to_indices(grbn::Reduce(get_diff(mon, gen_diffs), gb), basis_d)); //
+		map_diff.push_back(Poly_to_indices(alg::Reduce(get_diff(mon, gen_diffs), gb), basis_d)); //
 	alg::array2d image = lina::GetSpace(map_diff);
 
 	alg::array2d map_repr;

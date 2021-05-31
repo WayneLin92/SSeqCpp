@@ -24,10 +24,13 @@ using array4d = std::vector<array3d>;
  * A factor of a monomial which represents a power of a generator.
  */
 struct GenPow {
-	int gen; /**< ID for the generator */
-	int exp; /**< Exponent */
-	GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor */
-	/** The operator < defines the monomial ordering */
+	int gen; /**< ID for the generator. */
+	int exp; /**< Exponent. */
+	GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
+	/**
+	 * The operator < defines the monomial ordering.
+	 * TODO: reverse the < operator and refactor the databases.
+	 */
 	bool operator<(const GenPow& rhs) const { return gen > rhs.gen || (gen == rhs.gen && exp < rhs.exp); }
 	/** The operator = */
 	bool operator==(const GenPow& rhs) const { return gen == rhs.gen && exp == rhs.exp; }

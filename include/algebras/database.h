@@ -1,5 +1,9 @@
-#ifndef DATABSE_H
-#define DATABSE_H
+/** \file database.h
+ * A component for interaction with a database.
+ * TODO: template member functions
+ */
+#ifndef DATABASE_H
+#define DATABASE_H
 
 #define DATABASE_SAVE_LOGGING /* This is a switch to print what are saved to the database */
 
@@ -57,6 +61,7 @@ public:
 	std::map<alg::Deg, BasisComplex> load_basis_ss(const std::string& table_name_ss, int r, int t_max) const; /* load E_r-cycles and E_r-boundaries */
 	std::map<alg::Deg, Staircase> load_basis_ss(const std::string& table_name_ss, int t_max) const;
 public:
+	void save_generators(const std::string& table_name, const std::vector<std::string>& gen_names, const std::vector<alg::Deg>& gen_degs) const;
 	void save_generators(const std::string& table_name, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_reprs, size_t i_start) const;
 	void save_generators(const std::string& table_name, const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gen_reprs) const { save_generators(table_name, gen_degs, gen_reprs, 0); }
 	void save_gen_images(const std::string& table_name, const std::string& column_name, const alg::Poly1d& gen_images) const;
@@ -105,4 +110,4 @@ inline std::string Poly_to_str(const alg::Poly& poly) { return Poly_to_str(poly.
 alg::Poly indices_to_Poly(const alg::array& indices, const alg::Mon1d& basis);
 alg::array Poly_to_indices(const alg::Poly& poly, const alg::Mon1d& basis);
 
-#endif /* DATABSE_H */
+#endif /* DATABASE_H */

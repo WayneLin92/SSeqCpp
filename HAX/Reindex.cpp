@@ -70,7 +70,7 @@ void DeleteDecomposableGenerators()
 
 	std::vector<alg::Deg> gen_degs = db.load_gen_degs(table_name + "_generators");
 	alg::Poly1d gen_reprs = db.load_gen_reprs(table_name + "_generators");
-	grbn::GbWithCache gb;
+	grbn::Groebner gb;
 	gb = db.load_gb(table_name + "_relations", 189);
 
 	std::vector<alg::Deg> gen_degs1;
