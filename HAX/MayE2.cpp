@@ -1,524 +1,708 @@
 #include "MayE2.h"
-#include "algebras/linalg.h"
 #include "algebras/benchmark.h"
-#include "algebras/myexception.h"
+#include "algebras/linalg.h"
+#include "algebras/myio.h"
 
-#define MULTITHREAD
-#define BENCHMARK
-
-#ifdef MULTITHREAD
-#include <future>
-#endif
-
-alg::array ReduceToIndices(alg::Poly poly, const alg::Groebner& gb, const alg::Mon1d& basis)
+/**
+ * The algebra X can have infinitely many gradings with values in Z[Z].
+ * We call an element of Z[Z] a signature.
+ */
+struct Signature
 {
-	alg::array result;
-	auto pbegin = poly.begin(); auto pend = poly.end();
-	while (pbegin != pend) {
-		auto first = std::lower_bound(basis.begin(), basis.end(), *pbegin);
-		if (first != basis.end() && !(*pbegin < *first)) {
-			result.push_back(int(first - basis.begin()));
-			++pbegin;
-		}
-		else {
-			auto pGb = gb.begin();
-			for (; pGb != gb.end(); ++pGb)
-				if (divisible(pGb->front(), *pbegin))
-					break;
-			alg::Mon q = div(*pbegin, pGb->front());
-			alg::Poly rel1 = mul(*pGb, q);
-			alg::Poly poly1;
-			std::set_symmetric_difference(pbegin, pend, rel1.begin(), rel1.end(),
-				std::back_inserter(poly1));
-			poly = std::move(poly1);
-			pbegin = poly.begin(); pend = poly.end();
-		}
-	}
-	return result;
+    alg::array deg;
+    Signature() = default;
+    Signature(int s, int t)
+    {
+        for (int i = 0; i < s; ++i)
+            deg.push_back(0);
+        for (int i = 0; i < t - s; ++i)
+            deg.push_back(1);
+    }
+    auto size() const
+    {
+        return deg.size();
+    }
+    auto& operator[](size_t index) const
+    {
+        return deg[index];
+    }
+    Signature operator+(const Signature& rhs) const
+    {
+        Signature result;
+        if (this->size() > rhs.size()) {
+            result.deg = this->deg;
+            for (size_t i = 0; i < rhs.deg.size(); ++i) {
+                result.deg[i] += rhs[i];
+            }
+        }
+        else {
+            result.deg = rhs.deg;
+            for (size_t i = 0; i < this->size(); ++i) {
+                result.deg[i] += this->deg[i];
+            }
+        }
+        return result;
+    }
+    Signature operator-(const Signature& rhs) const
+    {
+        Signature result;
+        if (this->size() >= rhs.size()) {
+            result.deg = this->deg;
+            for (size_t i = 0; i < rhs.deg.size(); ++i) {
+                result.deg[i] -= rhs[i];
+            }
+        }
+        else {
+            std::cerr << "Error: "
+                      << "a=" << deg << " "
+                      << "b=" << rhs.deg << '\n';
+            throw MyException(0x15205197U, "a-b=negative signature.");
+        }
+        while (!result.deg.empty() && !result.deg.back())
+            result.deg.pop_back();
+        return result;
+    }
+    Signature operator*(int rhs) const
+    {
+        Signature result;
+        if (rhs < 0)
+            throw MyException(0x822f8715U, "Negative signature.");
+        else if (rhs == 0)
+            return result;
+        result.deg = this->deg;
+        for (size_t i = 0; i < this->size(); ++i)
+            result.deg[i] *= rhs;
+        return result;
+    }
+    int operator/(const Signature& rhs) const
+    {
+        if (this->size() < rhs.size()) {
+            return 0;
+        }
+        else {
+            int min = INT_MAX;
+            for (size_t i = 0; i < rhs.size(); ++i) {
+                if (rhs[i] && this->deg[i] / rhs[i] < min)
+                    min = this->deg[i] / rhs[i];
+            }
+            return min;
+        }
+    }
+    bool operator==(const Signature& rhs) const
+    {
+        return this->deg == rhs.deg;
+    }
+};
+
+std::ostream& operator<<(std::ostream& sout, const Signature& sig)
+{
+    sout << sig.deg;
+    return sout;
 }
 
-/* Add rels from gb in degree `t` to gb1 */
-void AddRelsFromGb(const alg::Groebner& gb, const alg::array& gen_degs, alg::Groebner& gb1, alg::Groebner::BufferV2& buffer1, int t, int t_max)
+/* m is a sparse vector while [p1, p2) is a dense vector starting with index `index` */
+bool divisible(const alg::Mon& m, alg::array::const_iterator p1, alg::array::const_iterator p2, size_t index)
 {
-	/* Add relations from gb to gb1 */
-	auto p1 = std::lower_bound(gb.begin(), gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t; });
-	auto p2 = std::lower_bound(p1, gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t + 1; });
-	for (auto pg = p1; pg != p2; ++pg)
-		buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(*pg));
-	alg::AddRelsB(gb1, buffer1, gen_degs, t, t_max);
+    for (alg::MonInd p = m.begin(); p != m.end(); ++p)
+        if (p->exp > *(p1 + (size_t(p->gen) - index)))
+            return false;
+    return true;
 }
 
-/* Add reindexed rels from gb in degree `t` to gb1 */
-void AddRelsFromGb(const alg::Groebner& gb, const alg::array& gen_degs, alg::Groebner& gb1, alg::Groebner::BufferV2& buffer1, const alg::array& gen_degs1, const alg::array& map_gen_id, int t, int t_max)
+/**
+ * Return a basis in degree `deg`.
+ * @param leadings Leadings[i] is all monomials starting with generator g_i.
+ * @param gen_sigs This gives the signatures of generators and also the number of generators considered in this function.
+ * @param sig The signature of the basis.
+ */
+alg::Mon1d get_basis(const alg::Mon2d& leadings, const std::vector<Signature>& gen_sigs, Signature sig)
 {
-	/* Add relations from gb to gb1 */
-	auto p1 = std::lower_bound(gb.begin(), gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t; });
-	auto p2 = std::lower_bound(p1, gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t + 1; });
-	for (auto pg = p1; pg != p2; ++pg)
-		buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(reindex(*pg, map_gen_id)));
-	alg::AddRelsB(gb1, buffer1, gen_degs1, t, t_max);
+    alg::Mon1d result;
+    alg::array mon_dense;
+    mon_dense.resize(gen_sigs.size());
+    size_t index = mon_dense.size() - 1;
+
+    while (true) {
+        // std::cout << "index=" << index << '\n';  //
+        mon_dense[index] = INT_MAX;
+        int e_max = INT_MAX;
+        for (const alg::Mon& lead : leadings[index])
+            if (divisible(lead, mon_dense.begin() + index, mon_dense.end(), index) && lead[0].exp - 1 < e_max)
+                e_max = lead[0].exp - 1;
+        e_max = std::min({ e_max, sig / gen_sigs[index] });
+        // std::cout << "e_max=" << e_max << '\n';  //
+        mon_dense[index] = e_max;
+        // std::cout << sig.deg << ' ' << gen_sigs[index].deg << '\n';  //
+        sig = sig - gen_sigs[index] * e_max;
+
+        bool move_right = false;
+        if (!sig.deg.empty()) {
+            if (index > 0)
+                index--;
+            else
+                move_right = true;
+        }
+        else {
+            alg::Mon mon;
+            for (size_t i = index; i < mon_dense.size(); ++i)
+                if (mon_dense[i])
+                    mon.emplace_back(int(i), mon_dense[i]);
+            result.push_back(std::move(mon));
+            if (index > 0 && e_max > 0) {
+                sig = sig + gen_sigs[index];  //
+                mon_dense[index--]--;
+            }
+            else
+                move_right = true;
+        }
+        if (move_right) {
+            for (sig = sig + gen_sigs[index] * mon_dense[index], ++index; index < mon_dense.size() && mon_dense[index] == 0; ++index)
+                ;
+            if (index == mon_dense.size()) {
+                // std::cout << "mon_dense=" << mon_dense << '\n';  //
+                break;
+            }
+            else {
+                sig = sig + gen_sigs[index];
+                mon_dense[index--]--;
+            }
+        }
+    }
+    return result;
 }
 
-/* compute ann * polys = 0 in degree t */
-alg::Poly2d ExtendAnn(const alg::Groebner& gb, const alg::array& gen_degs, alg::Groebner& gb1, alg::Groebner::BufferV2& buffer1, const alg::Poly1d& polys, const alg::array& deg_polys, int t, int t_max) // Copy polys by value
+std::vector<std::pair<alg::array, alg::array>> Hp(int a, int b);
+
+/**
+ * Iterator of (S, T) such that $h_{ST}\in \sH_{a,b-1}$.
+ */
+std::vector<std::pair<alg::array, alg::array>> H(int a, int b)
 {
-	/* Add relations from gb to gb1 */
-	auto p1 = std::lower_bound(gb.begin(), gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t; });
-	auto p2 = std::lower_bound(p1, gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t + 1; });
-	for (auto pg = p1; pg != p2; ++pg)
-		buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(*pg));
-
-	/* Add relations Xi=polys[i] to gb1 */
-	int N = (int)polys.size();
-	for (int i = N - 1; i >= 0; --i) {
-		if (deg_polys[i] != t)
-			break;
-		alg::Poly p = polys[i];
-		p.push_back({ {-i - 1, 1} });
-		buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(std::move(p)));
-	}
-	alg::AddRelsB(gb1, buffer1, alg::FnGetDegV2{ gen_degs, deg_polys }, t, t_max);
-
-	alg::Poly2d result;
-	if (polys.empty())
-		return result;
-
-	/* Extract linear relations from gb1 */
-	for (auto pg = gb1.gb.rbegin(); pg != gb1.gb.rend(); ++pg) {
-		if (get_deg(pg->front(), gen_degs, deg_polys) != t)
-			break;
-		if (pg->front()[0].gen < 0) {
-			alg::Poly1d ann;
-			ann.resize(N);
-			for (const alg::Mon& m : *pg) {
-				alg::MonInd p = m.begin();
-				for (; p != m.end() && p->gen < 0; ++p);
-				alg::Mon m1(m.begin(), p), m2(p, m.end());
-				ann[size_t(-m1[0].gen) - 1] += alg::Reduce(mul(alg::subs({ div(m1, { {m1[0].gen, 1} }) }, [&polys](int i) {return polys[size_t(-i) - 1]; }, gb), m2), gb);
-			}
-			result.push_back(std::move(ann));
-		}
-	}
-
-	/* Add commutators to linear relations */
-	for (int i = 0; i < N; ++i) {
-		for (int j = i + 1; j < N; ++j) {
-			if (deg_polys[i] + deg_polys[j] == t) {
-				alg::Poly1d result_i;
-				result_i.resize(N);
-				result_i[i] = polys[j];
-				result_i[j] = polys[i];
-				result.push_back(std::move(result_i));
-			}
-		}
-	}
-
-	return result;
+    std::vector<std::pair<alg::array, alg::array>> result;
+    if (b - a == 0 || (b - a) % 2)
+        return result;
+    for (auto [S, T] : Hp(a + 1, b - 1)) {
+        S.insert(S.begin(), a);
+        T.insert(T.end(), b - 1);
+        result.push_back(std::make_pair(std::move(S), std::move(T)));
+    }
+    return result;
 }
 
-/* Remove decomposables */
-void Indecomposables(const alg::Groebner& gb, const alg::array& gen_degs, alg::Groebner& gb1, alg::Groebner::BufferV2& buffer1, alg::Poly2d& vectors, const alg::array& basis_degs, int t, int t_max)
+/**
+ * Iterator of (S, T) such that $h_{ST}\in \sH^\prime_{a,b-1}$.
+ */
+std::vector<std::pair<alg::array, alg::array>> Hp(int a, int b)
 {
-	/* Add relations from gb to gb1 */
-	auto p1 = std::lower_bound(gb.begin(), gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t; });
-	auto p2 = std::lower_bound(p1, gb.end(), t, [&gen_degs](const alg::Poly& g, int t) {return get_deg(g, gen_degs) < t + 1; });
-	for (auto pg = p1; pg != p2; ++pg)
-		buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(*pg));
-	alg::AddRelsB(gb1, buffer1, alg::FnGetDegV2{ gen_degs, basis_degs }, t, t_max);
-
-	/* Convert each vector v to a relation \\sum vi x_{-i-1} */
-	for (size_t j = 0; j < vectors.size(); ++j) {
-		alg::Poly rel;
-		for (int i = 0; i < basis_degs.size(); ++i)
-			if (!vectors[j][i].empty())
-				rel += vectors[j][i] * alg::Mon{ {-i - 1, 1} };
-		rel = alg::Reduce(std::move(rel), gb1);
-		if (!rel.empty())
-			buffer1[t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(std::move(rel)));
-		else
-			vectors[j].clear();
-	}
-	alg::AddRelsB(gb1, buffer1, alg::FnGetDegV2{ gen_degs, basis_degs }, t, t_max);
-
-	/* Keep only the indecomposables in `vectors` */
-	alg::RemoveEmptyElements(vectors);
+    std::vector<std::pair<alg::array, alg::array>> result;
+    if ((b - a) % 2)
+        return result;
+    if (b - a == 0) {
+        result.push_back(std::make_pair(alg::array{}, alg::array{}));
+        return result;
+    }
+    for (int i = a + 2; i < b + 2; i += 2) {
+        for (auto [S1, T1] : H(a, i)) {
+            for (auto [S2, T2] : Hp(i, b)) {
+                alg::array S, T;
+                std::merge(S1.begin(), S1.end(), S2.begin(), S2.end(), std::back_inserter(S));
+                std::merge(T1.begin(), T1.end(), T2.begin(), T2.end(), std::back_inserter(T));
+                result.push_back(std::make_pair(S, T));
+            }
+        }
+    }
+    return result;
 }
 
-std::map<alg::Deg, alg::Mon1d> ExtendBasis(const std::vector<alg::Deg>& gen_degs, const alg::Mon2d& leadings, std::map<alg::Deg, alg::Mon1d>& basis, int t)
+/**
+ * Return the short name for $h_{S, T}$.
+ *
+ * Here we assume that len(S) >= 1;
+ */
+std::string get_name(const alg::array& S)
 {
-	std::map<alg::Deg, alg::Mon1d> basis_t;
-	if (t == 0) {
-		basis_t[alg::Deg{ 0, 0, 0 }].push_back({});
-		return basis_t;
-	}
-	for (int gen_id = (int)gen_degs.size() - 1; gen_id >= 0; --gen_id) {
-		int t1 = t - gen_degs[gen_id].t;
-		if (t1 >= 0) {
-			auto p1_basis = basis.lower_bound(alg::Deg{ 0, t1, 0 });
-			auto p2_basis = basis.lower_bound(alg::Deg{ 0, t1 + 1, 0 });
-			for (auto p_basis = p1_basis; p_basis != p2_basis; ++p_basis) {
-				for (auto p_m = p_basis->second.begin(); p_m != p_basis->second.end(); ++p_m) {
-					if (p_m->empty() || gen_id <= p_m->front().gen) {
-						alg::Mon mon(mul(*p_m, { {gen_id, 1} }));
-						if ((size_t)gen_id >= leadings.size() || std::none_of(leadings[gen_id].begin(), leadings[gen_id].end(),
-							[&mon](const alg::Mon& _m) { return divisible(_m, mon); }))
-							basis_t[p_basis->first + gen_degs[gen_id]].push_back(std::move(mon));
-					}
-				}
-			}
-		}
-	}
-	return basis_t;
+    if (S.size() < 1)
+        throw MyException(0xc56fc560, "get_name(S): S.size() < 1)");
+    std::string result = "h_" + std::to_string(S[0]);
+    if (S.size() > 1) {
+        result += "(";
+        for (size_t i = 1; i < S.size(); ++i) {
+            if (i < S.size() - 1)
+                result += std::to_string(S[i] - S[0]) + ",";
+            else
+                result += std::to_string(S[i] - S[0]) + ")";
+        }
+    }
+    return result;
 }
 
-/* Compute relations in HB where B=A[X] in degrees (s, t, v) with fixed t and v2s=v+2*s */
-alg::Poly1d FindRels(std::map<alg::Deg, alg::Mon1d>& basis_HB, const std::map<alg::Deg, DgaBasis1>& basis_A, const std::map<alg::Deg, DgaBasis1>& basis_X, const alg::Groebner& gb_A, const alg::Poly1d& gen_reprs_B,
-	int t, int v2s, const alg::array& v_s)
+/**
+ * Return the short name for $h_{S, T - {max(T)} | n}$.
+ *
+ * Here we assume that len(S) >= 2;
+ */
+std::string get_name(const alg::array& S, int n)
 {
-	alg::Mon1d basis_B_s; /* in deg s */
-	alg::Poly1d diffs_B_s; /* in deg s + 1 */
-	alg::Mon1d basis_B_sm1; /* in deg s - 1 */
-	alg::Poly1d diffs_B_sm1; /* in deg s */
-	alg::Poly1d result;
-	for (size_t i = 0; i < v_s.size(); ++i) {
-		int s = v_s[i];
-		alg::Deg d = { s, t, v2s - 2 * s };
-		if (i > 0 && v_s[i - 1] == s - 1) {
-			std::swap(basis_B_sm1, basis_B_s); basis_B_s.clear();
-			std::swap(diffs_B_sm1, diffs_B_s); diffs_B_s.clear();
-		}
-		else {
-			get_basis_with_diff_B(basis_A, basis_X, basis_B_sm1, diffs_B_sm1, d - alg::Deg{ 1, 0, -2 });
-		}
-		if (i < v_s.size() - 1 && v_s[i + 1] == s + 1)
-			get_basis_with_diff_B(basis_A, basis_X, basis_B_s, diffs_B_s, d);
-		else
-			get_basis_B(basis_A, basis_X, basis_B_s, d);
-		std::sort(basis_B_s.begin(), basis_B_s.end());
-
-		alg::array2d map_diff;
-		for (alg::Poly& diff : diffs_B_sm1)
-			map_diff.push_back(ReduceToIndices(diff, gb_A, basis_B_s)); // Profiler: t=100, 5650
-		alg::array2d image_diff = lina::GetSpace(map_diff);
-
-		alg::array2d map_repr;
-		for (const alg::Mon& mon : basis_HB[d]) {
-			alg::array repr = lina::Residue(image_diff, Poly_to_indices(get_image({ mon }, gen_reprs_B, gb_A), basis_B_s));
-			map_repr.push_back(std::move(repr));
-		}
-		alg::array2d image_repr, kernel_repr, g_repr;
-		lina::SetLinearMap(map_repr, image_repr, kernel_repr, g_repr);
-
-		for (const alg::array& rel_indices : kernel_repr)
-			result.push_back(indices_to_Poly(rel_indices, basis_HB[d]));
-		for (const alg::array& rel_indices : kernel_repr)
-			basis_HB[d][rel_indices[0]].clear();
-
-		alg::RemoveEmptyElements(basis_HB[d]);
-	}
-	return result;
+    std::string result = "r_{" + std::to_string(S[0]) + std::to_string(n) + "}";
+    if (S.size() > 1) {
+        result += "(";
+        for (size_t i = 1; i < S.size(); ++i) {
+            if (i < S.size() - 1)
+                result += std::to_string(S[i] - S[0]) + ",";
+            else
+                result += std::to_string(S[i] - S[0]) + ")";
+        }
+    }
+    return result;
 }
 
-void generate_HB(const Database& db, int t_max, int t_max_compute=-1, bool drop_existing=false)
+Signature get_sig(const alg::array& S, const alg::array& T)
 {
-	/*# Load data */
-	size_t index_x = (size_t)db.get_int("SELECT COUNT(*) FROM A_generators;") - 1; /* the gen_id of Xn is index_x + n */
-	size_t n = (size_t)db.get_int("SELECT COUNT(*) FROM B_generators;") - index_x - 1;
-#ifdef BENCHMARK
-	n = 6;
-#endif
-	int t_min;
-	if (drop_existing)
-		t_min = 0;
-	else {
-		try { t_min = db.get_int("SELECT MAX(t) FROM HA1_basis;") + 1; } ////
-		catch (MyException&) { t_min = 0; }
-	}
-	std::vector<alg::Deg> gen_degs_B = db.load_gen_degs("B_generators");
-	alg::Poly1d gen_diffs_B = db.load_gen_diffs("B_generators");
-	alg::Groebner gb_A0 = db.load_gb("A_relations", t_max);
-	const std::map<alg::Deg, DgaBasis1> basis_A0 = load_dga_basis(db, "A_basis", 2, t_max);
-	std::vector<std::map<alg::Deg, DgaBasis1>> basis_X;
-
-	/* Data that needs to be updated */
-	std::vector<std::vector<alg::Deg>> gen_degs_HA;
-	std::vector<alg::array> gen_degs_t_HA; /* derived from gen_degs_HA */
-	std::vector<alg::Poly1d> gen_reprs_HA;
-	std::vector<alg::Groebner> gb_HA;
-	std::vector<alg::Mon2d> leadings_HA; /* derived from gb_HA */
-	std::vector<alg::Groebner::BufferV2> buffer_HA(n + 1); /* derived from gb_HA */
-	std::vector<std::map<alg::Deg, alg::Mon1d>> basis_HA;
-	std::vector<alg::Poly1d> y;
-	std::vector<alg::array> t_y;
-	std::vector<alg::array> map_gen_id; /* new gen_id of HA[i] in HA[i+1] */
-
-	std::vector<alg::Groebner> gb_HA_ann_c;
-	std::vector<alg::Groebner> gb_HA_ind_y;
-	std::vector<alg::Groebner> gb_HA_ann_y;
-	std::vector<alg::Groebner> gb_HA_ind_a;
-	std::vector<alg::Groebner::BufferV2> buffer_HA_ann_c(n); /* derived from gb_HA_ann_c */
-	std::vector<alg::Groebner::BufferV2> buffer_HA_ind_y(n); /* derived from gb_HA_ind_y */
-	std::vector<alg::Groebner::BufferV2> buffer_HA_ann_y(n); /* derived from gb_HA_ann_y */
-	std::vector<alg::Groebner::BufferV2> buffer_HA_ind_a(n); /* derived from gb_HA_ind_a */
-	for (int i = 0; i <= n; ++i) {
-		std::string table_prefix = i == 0 ? "HA" : "HA" + std::to_string(i);
-
-		/* Load gen_degs_HA */
-		try { db.execute_cmd("CREATE TABLE " + table_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-		catch (MyException&) {}
-		if (i > 0 && drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_generators;");
-		gen_degs_HA.push_back(db.load_gen_degs(table_prefix + "_generators"));
-
-		/* Initialize gen_degs_t_HA */
-		gen_degs_t_HA.push_back({});
-		for (auto p = gen_degs_HA.back().begin(); p < gen_degs_HA.back().end(); ++p)
-			gen_degs_t_HA.back().push_back(p->t);
-
-		/* Load gen_reprs_HA */
-		gen_reprs_HA.push_back(db.load_gen_reprs(table_prefix + "_generators"));
-
-		/* Load gb_HA */
-		try { db.execute_cmd("CREATE TABLE " + table_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-		catch (MyException&) {}
-		if (i > 0 && drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_relations;");
-		gb_HA.push_back(db.load_gb(table_prefix + "_relations", t_max));
-
-		/* Initialize leadings_HA */
-		leadings_HA.push_back({});
-
-		/* Generate buffer_HA */
-		buffer_HA[i] = i == 0 ? alg::Groebner::BufferV2{} : alg::GenerateBufferV2(gb_HA[i].gb, gen_degs_t_HA[i], {}, t_min, t_max);
-
-		/* Load basis_HA */
-		try { db.execute_cmd("CREATE TABLE " + table_prefix + "_basis  (mon_id INTEGER PRIMARY KEY, mon TEXT NOT NULL UNIQUE, diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-		catch (MyException&) {}
-		if (drop_existing && i > 0) db.execute_cmd("DELETE FROM " + table_prefix + "_basis;");
-		basis_HA.push_back(db.load_basis(table_prefix + "_basis", t_max));
-
-		/* Load basis_X */
-		basis_X.push_back(load_basis_X(db, "X" + std::to_string(i) + "_basis", t_max, 2));
-
-		if (i < n){
-			/* Load y and t_y */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_y  (y TEXT, t SMALLINT);"); }
-			catch (MyException&) {}
-			y.push_back({}); t_y.push_back({});
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_y;");
-			load_y(db, table_prefix + "_y", y.back(), t_y.back());
-
-			/* Load map_gen_id */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_map_gen_id  (gen_id INT);"); }
-			catch (MyException&) {}
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_map_gen_id;");
-			map_gen_id.push_back(db.get_ints(table_prefix + "_map_gen_id", "gen_id"));
-
-			/* Load gb_HA_ann_c */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_ann_c_gb (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-			catch (MyException&) {}
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_ann_c_gb;");
-			gb_HA_ann_c.push_back(db.load_gb(table_prefix + "_ann_c_gb", t_max));
-
-			/* Load gb_HA_ann_y */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_ann_y_gb (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-			catch (MyException&) {}
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_ann_y_gb;");
-			gb_HA_ann_y.push_back(db.load_gb(table_prefix + "_ann_y_gb", t_max));
-
-			/* Load gb_HA_ind_y */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_ind_y_gb (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-			catch (MyException&) {}
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_ind_y_gb;");
-			gb_HA_ind_y.push_back(db.load_gb(table_prefix + "_ind_y_gb", t_max));
-
-			/* Load gb_HA_ind_a */
-			try { db.execute_cmd("CREATE TABLE " + table_prefix + "_ind_a_gb (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);"); }
-			catch (MyException&) {}
-			if (drop_existing) db.execute_cmd("DELETE FROM " + table_prefix + "_ind_a_gb;");
-			gb_HA_ind_a.push_back(db.load_gb(table_prefix + "_ind_a_gb", t_max));
-
-			int t_x = gen_degs_B[index_x + i + 1].t; /* x = x_{i + 1} */
-			buffer_HA_ann_c[i] = alg::GenerateBufferV2(gb_HA_ann_c[i].gb, gen_degs_t_HA[i], { gen_degs_B[index_x + i + 1].t }, t_min, t_max);
-			buffer_HA_ind_y[i] = alg::GenerateBufferV2(gb_HA_ind_y[i].gb, gen_degs_t_HA[i], { gen_degs_B[index_x + i + 1].t }, t_min, t_max);
-			buffer_HA_ann_y[i] = alg::GenerateBufferV2(gb_HA_ann_y[i].gb, gen_degs_t_HA[i], t_y[i], t_min - t_x, t_max - t_x);
-			buffer_HA_ind_a[i] = alg::GenerateBufferV2(gb_HA_ind_a[i].gb, gen_degs_t_HA[i], t_y[i], t_min - t_x, t_max - t_x);
-		}
-	}
-
-	/*# Compute */
-	alg::Poly1d c(n); /* dx[i+1] = c[i] */
-	for (size_t i = 0; i < (size_t)n; ++i) {
-		int t_x = gen_degs_B[index_x + i + 1].t; /* x = x_{i + 1} */
-		if (t_min > t_x)
-			c[i] = proj(gen_diffs_B[index_x + i + 1], gen_degs_B, gen_diffs_B, gb_A0, basis_A0, basis_X[i], gen_reprs_HA[i], basis_HA[i]);
-	}
-	int t_m = t_max_compute == -1 ? t_max : t_max_compute;
-	for (int t = t_min; t <= t_m; ++t) {
-		std::cout << "\033[0;32m" << "t=" << t << "\033[0m\n";
-		db.begin_transaction();
-		for (size_t i = 0; i < (size_t)n; ++i) {
-			/*## Compute ann(c) and ann(y) */
-			/* Add x_{-1}=c to gb_HA_ann_c in order to compute ann_HA(c) */
-
-			std::string table_prefix = i == 0 ? "HA" : "HA" + std::to_string(i);
-			std::string table_H_prefix = "HA" + std::to_string(i + 1);
-			alg::Deg deg_x = gen_degs_B[index_x + i + 1];
-			int t_x = deg_x.t; /* x = x_{i + 1} */
-			if (t == t_x) {
-				c[i] = proj(gen_diffs_B[index_x + i + 1], gen_degs_B, gen_diffs_B, gb_A0, basis_A0, basis_X[i], gen_reprs_HA[i], basis_HA[i]);
-				buffer_HA[i + 1][t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(c[i]));
-				alg::AddRelsB(gb_HA[i + 1], buffer_HA[i + 1], gen_degs_t_HA[i + 1], t, t_max); /* Add relation dx=0 */
-			}
-
-			alg::Poly2d y_new; /* annilators of c in gb_HA[i] in degree t - t_x */
-			std::map<alg::Deg, alg::Mon1d> basis_t;
-
-			int gen_degs_HA_t_start = (int)gen_degs_HA[i + 1].size(); /* starting index of generators of HA[i+1] in t */
-			int gb_HA_t_start = (int)gb_HA[i + 1].size(); /* starting index of relations in t */
-			int map_gen_id_t_start = (int)map_gen_id[i].size(); /* starting index of gen_id in HA[i] in t */
-			auto p1_degs = std::lower_bound(gen_degs_HA[i].begin(), gen_degs_HA[i].end(), t, [](alg::Deg d, int t_) {return d.t < t_; });
-			auto p2_degs = std::lower_bound(p1_degs, gen_degs_HA[i].end(), t + 1, [](alg::Deg d, int t_) {return d.t < t_; });
-			for (auto p_degs = p1_degs; p_degs != p2_degs; ++p_degs) { /* Add generators from HA[i] to HA[i + 1] */
-				map_gen_id[i].push_back((int)gen_degs_HA[i + 1].size());
-				gen_degs_HA[i + 1].push_back(*p_degs);
-				gen_degs_t_HA[i + 1].push_back(gen_degs_HA[i + 1].back().t);
-				gen_reprs_HA[i + 1].push_back(gen_reprs_HA[i][p_degs - gen_degs_HA[i].begin()]);
-			}
-			AddRelsFromGb(gb_HA[i], gen_degs_t_HA[i], gb_HA[i + 1], buffer_HA[i + 1], gen_degs_t_HA[i + 1], map_gen_id[i], t, t_max); /* Add relations of HA[i] to HA[i+1] */
-			if (t < t_x) {
-				AddRelsFromGb(gb_HA[i], gen_degs_t_HA[i], gb_HA_ann_c[i], buffer_HA_ann_c[i], t, t_max);
-				AddRelsFromGb(gb_HA[i], gen_degs_t_HA[i], gb_HA_ann_y[i], buffer_HA_ann_y[i], t - t_x, t_max);
-				leadings_HA[i + 1].clear();
-				leadings_HA[i + 1].resize(gen_degs_HA[i + 1].size());
-				for (const alg::Poly& g : gb_HA[i + 1])
-					leadings_HA[i + 1][g[0][0].gen].push_back(g[0]);
-				basis_t = ExtendBasis(gen_degs_HA[i + 1], leadings_HA[i + 1], basis_HA[i + 1], t);
-			}
-			else {
-				y_new = ExtendAnn(gb_HA[i], gen_degs_t_HA[i], gb_HA_ann_c[i], buffer_HA_ann_c[i], { c[i] }, { t_x }, t, t_max);
-				Indecomposables(gb_HA[i], gen_degs_t_HA[i], gb_HA_ind_y[i], buffer_HA_ind_y[i], y_new, { t_x }, t, t_max);
-				for (auto& yi : y_new) {
-					y[i].push_back(yi[0]);
-					t_y[i].push_back(t - t_x);
-				}
-				save_y(db, table_prefix + "_y", y_new, t - t_x);
-
-				alg::Poly2d a = ExtendAnn(gb_HA[i], gen_degs_t_HA[i], gb_HA_ann_y[i], buffer_HA_ann_y[i], y[i], t_y[i], t - t_x, t_max - t_x);
-				Indecomposables(gb_HA[i], gen_degs_t_HA[i], gb_HA_ind_a[i], buffer_HA_ind_a[i], a, t_y[i], t - t_x, t_max - t_x);
-
-				/* Add new generators to HA[i+1] */
-				alg::Poly1d cy_inv;
-				for (const alg::Poly1d& yk : y_new) {
-					alg::Poly cyk = c[i] * yk[0];
-					alg::Poly cyk_repr = get_image(cyk, gen_reprs_HA[i], gb_A0);
-					cy_inv.push_back(d_inv(cyk_repr, gen_degs_B, gen_diffs_B, gb_A0, basis_A0, basis_X[i]));
-				}
-				if (t == t_x * 2) { /* Add [x^2] */
-					gen_degs_HA[i + 1].push_back(deg_x * 2);
-					gen_degs_t_HA[i + 1].push_back(gen_degs_HA[i + 1].back().t);
-					gen_reprs_HA[i + 1].push_back({ {{int(index_x + i + 1), 2}} });
-				}
-				for (size_t j = 0; j < y_new.size(); ++j) { /* Add [xy+d^{-1}(cy)] */
-					gen_degs_HA[i + 1].push_back(deg_x + get_deg(y_new[j][0], gen_degs_HA[i]));
-					gen_degs_t_HA[i + 1].push_back(gen_degs_HA[i + 1].back().t);
-					gen_reprs_HA[i + 1].push_back(alg::Mon{ {int(index_x + i + 1), 1} } * get_image(y_new[j][0], gen_reprs_HA[i], gb_A0) + cy_inv[j]);
-				}
-
-				/* Add new relations to HA[i + 1]. Compute degrees of relations first. */
-				std::map<int, alg::array> rel_degs; /* Degrees of relations */
-				alg::array range_gen_degs_HA = alg::range((int)gen_degs_HA[i + 1].size());
-				alg::array range_g = lina::AddVectors(range_gen_degs_HA, map_gen_id[i]);
-				for (size_t j = 0; j < range_g.size(); ++j) {
-					alg::Poly check = gen_reprs_HA[i + 1][range_g[j]] + alg::Poly{ {{int(index_x + i + 1), 2}} };
-					if (check.empty()) {
-						range_g.erase(range_g.begin() + j); /* Want indices of gj. Remove the index of [x^2]. */
-						break;
-					}
-				}
-				for (size_t j = 0; j < range_g.size(); ++j)
-					for (size_t k = j; k < range_g.size(); ++k) {
-						alg::Deg deg_gjgk = gen_degs_HA[i + 1][range_g[j]] + gen_degs_HA[i + 1][range_g[k]]; /* alg::Deg of [xy_j][xy_k] */
-						if (deg_gjgk.t == t)
-							rel_degs[deg_gjgk.v + 2 * deg_gjgk.s].push_back(deg_gjgk.s);
-					}
-				for (const alg::Poly1d& ak : a)
-					for (size_t j = 0; j < range_g.size(); ++j)
-						if (!ak[j].empty()) {
-							alg::Deg deg_akgj = get_deg(ak[j], gen_degs_HA[i]) + gen_degs_HA[i + 1][range_g[j]]; /* alg::Deg of a_{kj}[xy_j] */
-							rel_degs[deg_akgj.v + 2 * deg_akgj.s].push_back(deg_akgj.s);
-							break;
-						}
-				for (auto& [v1, list_s] : rel_degs) {
-					std::sort(list_s.begin(), list_s.end());
-					list_s.erase(std::unique(list_s.begin(), list_s.end()), list_s.end());
-				}
-
-				/* Compute relations */
-				leadings_HA[i + 1].clear();
-				leadings_HA[i + 1].resize(gen_degs_HA[i + 1].size());
-				for (const alg::Poly& g : gb_HA[i + 1])
-					leadings_HA[i + 1][g[0][0].gen].push_back(g[0]);
-				basis_t = ExtendBasis(gen_degs_HA[i + 1], leadings_HA[i + 1], basis_HA[i + 1], t);
-#ifndef MULTITHREAD
-				for (auto& [v2s, v_s] : rel_degs) {
-					alg::Poly1d rels = FindRels(basis_t, basis_A0, basis_X[i + 1], gb_A0, gen_reprs_HA[i + 1], t, v2s, v_s);
-					for (alg::Poly& rel : rels) // Change return type
-						buffer_HA[i + 1][t].push_back(std::make_unique<grbn::PolyBufferEle<alg::Groebner>>>(std::move(rel)));
-				}
-#else
-				std::vector<std::future<alg::Poly1d>> futures;
-				for (auto& [v2s, v_s] : rel_degs) {
-					futures.push_back(std::async(std::launch::async, FindRels, std::ref(basis_t), std::ref(basis_A0), std::ref(basis_X[i + 1]), std::ref(gb_A0), 
-						std::ref(gen_reprs_HA[i + 1]), t, v2s, std::ref(v_s)));
-				}
-				for (size_t j = 0; j < futures.size(); ++j) {
-					futures[j].wait();
-					std::cout << "t=" << t << ", i=" << i << ", completed thread=" << j + 1 << '/' << futures.size() << "          \r";
-					for (auto& rel : futures[j].get())
-						buffer_HA[i + 1][t].push_back(std::make_unique<alg::PolyBufferEle<alg::Groebner>>(std::move(rel)));
-				}
-#endif
-				alg::AddRelsB(gb_HA[i + 1], buffer_HA[i + 1], gen_degs_t_HA[i + 1], t, t_max);
-			}
-
-			/* Save data */
-			db.save_generators(table_H_prefix + "_generators", gen_degs_HA[i + 1], gen_reprs_HA[i + 1], gen_degs_HA_t_start);
-			db.save_gb(table_H_prefix + "_relations", gb_HA[i + 1].gb, gen_degs_HA[i + 1], gb_HA_t_start);
-			db.save_basis(table_H_prefix + "_basis", basis_t); basis_HA[i + 1].merge(basis_t);
-			save_map_gen_id(db, table_prefix + "_map_gen_id", map_gen_id[i], map_gen_id_t_start);
-			SaveGb(db, table_prefix + "_ann_c_gb", gb_HA_ann_c[i].gb, gen_degs_t_HA[i], { t_x }, t);
-			SaveGb(db, table_prefix + "_ind_y_gb", gb_HA_ind_y[i].gb, gen_degs_t_HA[i], { t_x }, t);
-			SaveGb(db, table_prefix + "_ann_y_gb", gb_HA_ann_y[i].gb, gen_degs_t_HA[i], t_y[i], t - t_x);
-			SaveGb(db, table_prefix + "_ind_a_gb", gb_HA_ind_a[i].gb, gen_degs_t_HA[i], t_y[i], t - t_x);
-		}
-		db.end_transaction();
-	}
+    Signature result;
+    for (size_t i = 0; i < S.size(); ++i)
+        result = result + Signature(S[i], T[i]);
+    return result;
 }
 
-int main_test_51e8aa0a(int argc, char** argv)
+int get_id(int i, int j)
 {
-	Database db(R"(C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\database\E4t_benchmark.db)");
-	 
-	return 0;
+    return (19 - i) * i / 2 + (j - i - 1);
 }
 
-int main_benchmark_E4t100(int argc, char** argv)
+alg::Poly get_repr(const alg::array& S, alg::array T)
 {
-	Database db(R"(C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\database\E4t_benchmark.db)");
-	Timer timer;
-	int t_max = 100;
-	generate_HB(db, t_max, -1, true);
-	return 0;
+    alg::Poly result;
+    do {
+        bool nonzero = true;
+        for (size_t i = 0; i < S.size(); ++i)
+            if (S[i] > T[i])
+                nonzero = false;
+        if (nonzero) {
+            alg::Mon m;
+            for (size_t i = 0; i < S.size(); ++i)
+                m.push_back({ get_id(S[i], T[i]), 1 });
+            result += alg::Poly{ m };
+        }
+    } while (std::next_permutation(T.begin(), T.end()));
+    return result;
+}
+
+alg::Poly get_repr(const alg::array& S, const alg::array& T, int n)
+{
+    alg::Poly result;
+    int m = T.back();
+    for (int k = m; k < n; ++k) {
+        alg::array T1(T);
+        T1.back() = k;
+        do {
+            bool nonzero = true;
+            for (size_t i = 0; i < S.size(); ++i)
+                if (S[i] > T1[i])
+                    nonzero = false;
+            if (nonzero) {
+                alg::Mon m;
+                for (size_t i = 0; i < S.size(); ++i)
+                    m.push_back({ get_id(S[i], T1[i]), 1 });
+                m.push_back({ get_id(k, n), 1 });
+                result += alg::Poly{ m };
+            }
+        } while (std::next_permutation(T1.begin(), T1.end()));
+    }
+    return result;
+}
+
+/**
+ * Return the bit length of t.
+ */
+int bit_length(int t)
+{
+    int bits;
+    unsigned var = (t < 0) ? -t : t;
+    for (bits = 0; var != 0; ++bits)
+        var >>= 1;
+    return bits;
+}
+
+/**
+ * Compute the signature of repr which is a polynomials in X9.
+ * @param poly A polynomial in X9.
+ * @param gen_degs_X9 Degrees of generators of X9.
+ */
+Signature get_sig(const alg::Poly& poly, const std::vector<alg::Deg>& gen_degs_X9)
+{
+    Signature result;
+    for (alg::MonInd p = poly[0].begin(); p != poly[0].end(); ++p) {
+        alg::Deg deg = gen_degs_X9[p->gen];
+        int j = bit_length(deg.t);
+        int i = j - (deg.v + 1);
+        result = result + Signature(i, j) * p->exp;
+    }
+    return result;
+}
+
+/**
+ * Compute the signature of repr which is a polynomials.
+ * @param poly A polynomial.
+ * @param gen_sigs Signatures of generators in poly.
+ */
+Signature get_sig(const alg::Poly& poly, const std::vector<Signature>& gen_sigs)
+{
+    Signature result;
+    for (alg::MonInd p = poly[0].begin(); p != poly[0].end(); ++p)
+        result = result + gen_sigs[p->gen] * p->exp;
+    return result;
+}
+
+/**
+ * Solve the extension problem for `rel`.
+ *
+ * Search for all basis in A in the right degree and determine for which p such that rel+p=0.
+ * If such p does not exist, return 1.
+ * If such p is not unique, return 2.
+ * Otherwise, modify rel and return 0.
+ */
+bool solve_extension(alg::Poly& rel, const std::vector<std::string>& gen_names, const alg::Poly1d& gen_repr, const std::vector<Signature>& gen_sigs, const alg::Mon2d& leadings,
+                     const std::vector<alg::Deg>& gen_degs_X9, const alg::GroebnerLex& gb_B9)
+{
+
+    std::cout << "rel=";
+    dump_PolyV2(std::cout, rel, gen_names);
+    std::cout << '\n';
+
+    alg::Poly repr_rel = alg::Reduce(alg::subs(rel, gen_repr), gb_B9);
+    if (repr_rel.empty())
+        return true;
+    Signature sig_rel = get_sig(repr_rel, gen_degs_X9);
+
+    // std::cout << "leadings=" << leadings << '\n';
+    // std::cout << "gen_sigs=";
+    // dump_vector(std::cout, gen_sigs, "[", ", ", "]");
+    // std::cout << '\n';
+    // std::cout << "sig_rel=" << sig_rel << '\n';
+
+    alg::Mon1d basis = get_basis(leadings, gen_sigs, sig_rel);
+
+    // std::cout << "basis=(";
+    // for (const auto& b : basis) {
+    //     dump_MonV2(std::cout, b, gen_names);
+    //     std::cout << ", ";
+    // }
+    // std::cout << ")\n";
+
+    // std::cout << "repr_basis=(";
+    lina::array2d fx;
+    for (const auto& m : basis) {
+        alg::Poly repr_m = alg::Reduce(alg::subs({ m }, gen_repr), gb_B9);
+        // std::cout << repr_m << "=";
+        fx.push_back(alg::hash1d(repr_m));
+        // std::cout << alg::hash1d(repr_m) << ", ";
+    }
+    // std::cout << ")\n";
+    // std::cout << "repr_rel=" << repr_rel << '=' << alg::hash1d(repr_rel) << '\n';
+    fx.push_back(alg::hash1d(repr_rel));
+
+    lina::array2d image, kernel, g;
+    lina::SetLinearMap(fx, image, kernel, g);
+    // std::cout << "kernel[0]=" << kernel[0] << ' ' << kernel[0].back() << ' ' << basis.size() << '\n';
+    if (kernel.size() != 1 || kernel[0].back() != (int)basis.size()) {
+        if (kernel.empty())
+            std::cerr << "Bug: no solution to the extension problem.\n";
+        else {
+            if (kernel[0].back() != (int)basis.size()) {
+                alg::Poly k;
+                for (size_t i = 0; i < kernel[0].size(); ++i)
+                    k += alg::Poly{ basis[kernel[0][i]] };
+
+                std::cerr << "k=";
+                dump_PolyV2(std::cerr, k, gen_names);
+                std::cerr << '\n';
+                std::cerr << "Unexpected solution.\n";
+            }
+            else {
+                std::cerr << "basis.size()=" << basis.size() << '\n';
+                std::cerr << "kernel[0]=" << kernel[0] << '\n';
+                std::cerr << "kernel[1]=" << kernel[1] << '\n';
+                alg::Poly ext1 = rel;
+                alg::Poly ext2 = rel;
+                for (size_t i = 0; i < kernel[0].size() - 1; ++i)
+                    ext1 += alg::Poly{ basis[kernel[0][i]] };
+                for (size_t i = 0; i < kernel[1].size() - 1; ++i)
+                    ext2 += alg::Poly{ basis[kernel[1][i]] };
+
+                std::cerr << "ext1=";
+                dump_PolyV2(std::cerr, ext1, gen_names);
+                std::cerr << '\n';
+
+                ext1 = alg::Reduce(alg::subs(ext1, gen_repr), gb_B9);
+                std::cerr << "Reduce(repr(ext1))=" << ext1 << '\n';
+
+                std::cerr << "ext2=";
+                dump_PolyV2(std::cerr, ext2, gen_names);
+                std::cerr << '\n';
+
+                std::cerr << "Bug: nonunique solutions to the extension problem.\n";
+            }
+        }
+        return false;
+    }
+    for (size_t i = 0; i < kernel[0].size() - 1; ++i)
+        rel += alg::Poly{ basis[kernel[0][i]] };
+    return true;
+}
+
+/**
+ * Compute HX_{nm} where X_{nm} is the polynomial DGA generated by R<=R_{n-m, n}.
+ */
+int generate_Xnm(int n, int m, bool drop_existing = true)
+{
+    Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
+    std::string table_prefix;
+    if (m - 1 == 0)
+        table_prefix = std::string("HX") + std::to_string(n - 1);
+    else
+        table_prefix = std::string("HX") + std::to_string(n) + std::to_string(m - 1);
+    std::string table1_prefix = std::string("HX") + std::to_string(n) + std::to_string(m);  //
+
+    try {
+        db.execute_cmd("CREATE TABLE " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+        db.execute_cmd("CREATE TABLE " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+    }
+    catch (MyException&) {
+    }
+
+    if (drop_existing) {
+        db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
+        db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
+    }
+
+    std::cout << "A=" << table_prefix << '\n';
+    std::cout << "B=" << table1_prefix << '\n';
+
+    alg::Deg deg_x = { 1, (1 << n) - (1 << (n - m)), m - 1 };
+    int id_x = get_id(n - m, n);
+    Signature sig_x = Signature(n - m, n);
+
+    std::cout << "id_x=" << id_x << '\n';
+
+    std::vector<alg::Deg> gen_degs = db.load_gen_degs(table_prefix + "_generators");
+    alg::array gen_degs_t;
+    for (auto p = gen_degs.begin(); p < gen_degs.end(); ++p)
+        gen_degs_t.push_back(p->t);
+    std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
+    alg::Poly1d gen_reprs = db.load_gen_reprs(table_prefix + "_generators");
+    alg::Groebner gb = db.load_gb(table_prefix + "_relations", -1);
+
+    std::vector<alg::Deg> gen_degs_X9 = db.load_gen_degs("X9_generators");
+    alg::Poly1d gen_diffs_E1 = db.load_gen_diffs("X9_generators");
+
+    alg::Groebner gb1 = gb;
+    std::vector<Signature> gen_sigs;
+    for (size_t i = 0; i < gen_reprs.size(); ++i)
+        gen_sigs.push_back(get_sig(gen_reprs[i], gen_degs_X9));
+
+    Database db_B9("/Users/weinanlin/MyData/Math_AlgTop/databases/B9.db");
+    alg::GroebnerLex gb_B9 = db_B9.load_gb("B" + std::to_string(n) + std::to_string(m) + "_relations", -1);
+
+    if (m == 1) {
+        /* Add h_{n-1} */
+        gen_degs.push_back(gen_degs_X9[id_x]);
+        gen_names.push_back("h_" + std::to_string(n - 1));
+        gen_reprs.push_back({ { { id_x, 1 } } });
+    }
+    else {
+        /* # Compute new generators */
+        alg::Poly c;
+        if (m == 2) {
+            std::string gen_name = "h_" + std::to_string(n - 2);
+            auto p = std::find(gen_names.begin(), gen_names.end(), gen_name);
+            if (p == gen_names.end()) {
+                std::cerr << "Bug: do not find the class $h_{n-2}$\n";
+                std::cerr << "gen_name=" << gen_name << '\n';
+                std::cerr << "gen_names=";
+                dump_vector(std::cerr, gen_names, "(", ", ", ")");
+                std::cerr << '\n';
+                return 1;
+            }
+            int gen_id = int(p - gen_names.begin());
+            c = alg::Poly{ { { gen_id, 1 }, { (int)gen_degs.size() - 1, 1 } } }; /* dx = h_{n-2}h_{n-3} */
+        }
+        else {
+            std::string gen_name = "r_{" + std::to_string(n - m) + std::to_string(n) + "}";
+            auto p = std::find(gen_names.begin(), gen_names.end(), gen_name);
+            if (p == gen_names.end()) {
+                std::cerr << "Bug: do not find the boundary class $r_{n-m, n}$\n";
+                std::cerr << "gen_name=" << gen_name << '\n';
+                std::cerr << "gen_names=";
+                dump_vector(std::cerr, gen_names, "(", ", ", ")");
+                std::cerr << '\n';
+                return 1;
+            }
+            int gen_id = int(p - gen_names.begin());
+            c = alg::Poly{ { { gen_id, 1 } } }; /* dx = c */
+        }
+        alg::Poly2d y2d = alg::ann_seq(gb, { c }, gen_degs_t, -1); /* y=ann(c) */
+        alg::Poly1d y;
+        for (alg::Poly1d& v : y2d)
+            y.push_back(std::move(v[0]));
+        std::cout << "y=" << y << '\n';
+        std::cout << "y.size()=" << y.size() << '\n';
+
+        /* Create the list of expected new indecomposables */
+        std::vector<std::string> new_gen_names;
+        std::vector<Signature> new_gen_sigs;
+        std::vector<alg::Poly> new_gen_reprs;
+
+        for (auto [S, T] : H(n - m, n + 1)) {
+            new_gen_names.push_back(get_name(S));
+            new_gen_sigs.push_back(get_sig(S, T));
+            new_gen_reprs.push_back(get_repr(S, T));
+        }
+        for (int i = n - m - 1; i >= 0; i -= 2) {
+            for (auto [S, T] : H(i, n - m + 1)) {
+                new_gen_names.push_back(get_name(S, n));
+                new_gen_sigs.push_back(get_sig(S, T) + sig_x);
+                new_gen_reprs.push_back(get_repr(S, T, n));
+            }
+        }
+
+        std::cout << "Expected new generators like h_i(S): ";
+        dump_vector(std::cout, new_gen_names, "(", ", ", ")");
+        std::cout << '\n';
+
+        if (y.size() != new_gen_names.size()) {
+            std::cerr << "Bug: unexpected Indecomposables among y.\n";
+            return 2;
+        }
+
+        /* Add [x^2] */
+        gen_degs.push_back(gen_degs_X9[id_x] * 2);
+        gen_degs_t.push_back(gen_degs.back().t);
+        gen_names.push_back("b_{" + std::to_string(n - m) + std::to_string(n) + "}");
+        gen_reprs.push_back({ { { id_x, 2 } } });
+
+        std::cout << "generator " << gen_names.back() << " added\n";
+
+        /* Add [xy+d^{-1}(cy)] */
+        alg::array indices_y; /* Indices in new_gen_names corresponding to y */
+        for (auto& yi : y) {
+            Signature sig_gi = get_sig(yi, gen_sigs) + sig_x;
+            bool found = false;
+            for (size_t i = 0; i < new_gen_sigs.size(); ++i) {
+                if (sig_gi == new_gen_sigs[i]) {
+                    indices_y.push_back(i);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                std::cerr << "Surprise: unexpected indecomposables:" << yi << '\n';
+                std::cerr << "sig_gi=" << sig_gi << '\n';
+                std::cerr << "new_gen_sigs=";
+                dump_vector(std::cerr, new_gen_sigs, "(", ", ", ")");
+                std::cerr << '\n';
+                std::cerr << "new_gen_names=";
+                dump_vector(std::cerr, new_gen_names, "(", ", ", ")");
+                std::cerr << '\n';
+                return 3;
+            }
+        }
+
+        for (size_t i = 0; i < indices_y.size(); ++i) {
+            gen_degs.push_back(get_deg(y[i], gen_degs) + deg_x);
+            gen_degs_t.push_back(gen_degs.back().t);
+            gen_names.push_back(new_gen_names[indices_y[i]]);
+            gen_reprs.push_back(new_gen_reprs[indices_y[i]]);
+        }
+
+        std::cout << indices_y.size() << " generators added\n";
+
+        /* # Compute the relations */
+
+        /* Add relation c=0 */
+        alg::AddRels(gb, { c }, gen_degs_t, -1);
+
+        std::cout << "c=0 added\n";
+
+        alg::Mon2d leadings;
+        leadings.resize(gen_sigs.size());
+        for (const auto& g : gb)
+            leadings[g[0][0].gen].push_back(g[0]);
+
+        /* Add relations gi * gj = b * yi * yj + [...] */
+        alg::Poly1d new_relations;
+        for (size_t i = 0; i < y.size(); ++i) {
+            for (size_t j = i; j < y.size(); ++j) {
+                int id_gi = (int)gen_degs.size() - (int)y.size() + i;
+                int id_gj = (int)gen_degs.size() - (int)y.size() + j;
+                int id_b = (int)gen_degs.size() - (int)y.size() - 1;
+                alg::Poly gi = alg::Poly{ { { id_gi, 1 } } };
+                alg::Poly gj = alg::Poly{ { { id_gj, 1 } } };
+                alg::Poly b = alg::Poly{ { { id_b, 1 } } };
+                alg::Poly rel = gi * gj + b * y[i] * y[j];
+                if (!solve_extension(rel, gen_names, gen_reprs, gen_sigs, leadings, gen_degs_X9, gb_B9)) {
+                    return 4;
+                }
+                else {
+                    std::cout << "Extended to rel=";
+                    dump_PolyV2(std::cout, rel, gen_names);
+                    std::cout << "\n\n";
+                    new_relations.push_back(std::move(rel));
+                }
+            }
+        }
+
+        std::cout << "Relations gi * gj = b * yi * yj + [...] added\n";
+
+        /* Add relations a1 g1 + ... + ak gk = [...] */
+        alg::Poly2d a = alg::ann_seq(gb, y, gen_degs_t, -1);
+        std::cout << "a.size()=" << a.size() << '\n';
+
+        for (const auto& ai : a) {
+            alg::Poly rel;
+            for (size_t j = 0; j < ai.size(); ++j) {
+                int id_gj = (int)gen_degs.size() - (int)y.size() + j;
+                alg::Poly gj = alg::Poly{ { { id_gj, 1 } } };
+                rel += ai[j] * gj;
+            }
+            if (!solve_extension(rel, gen_names, gen_reprs, gen_sigs, leadings, gen_degs_X9, gb_B9)) {
+                return 5;
+            }
+            else {
+                std::cout << "Extended to rel=";
+                dump_PolyV2(std::cout, rel, gen_names);
+                std::cout << "\n\n";
+                new_relations.push_back(std::move(rel));
+            }
+        }
+
+        std::cout << "Relations a1 g1 + ... + ak gk = [...] added\n";
+
+        std::sort(new_relations.begin(), new_relations.end(), [&gen_degs](const alg::Poly& rel1, const alg::Poly& rel2) { return alg::get_deg(rel1, gen_degs) < alg::get_deg(rel2, gen_degs); });
+        alg::AddRels(gb, new_relations, gen_degs_t, -1);
+    }
+
+    db.begin_transaction();
+    db.save_generators(table1_prefix + "_generators", gen_names, gen_degs, gen_reprs);
+    db.save_gb(table1_prefix + "_relations", gb.gb, gen_degs);
+    db.end_transaction();
+
+    return 0;
 }
 
 int main(int argc, char** argv)
 {
-#ifdef BENCHMARK
-	return main_benchmark_E4t100(argc, argv);
-#else
-	Database db(R"(C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\database\E4t.db)");
-	Timer timer;
-	int t_max = 189;
-	generate_HB(db, t_max, -1, false);
-	return 0;
-#endif
+    Timer timer;
+
+    for (int n = 8; n <= 9; ++n) {
+        for (int m = 1; m <= n; ++m) {
+            if (generate_Xnm(n, m, true))
+                return 1;
+            std::cout << "\n-----------\n";
+        }
+        ReorderHX(n, true);
+    }
+
+    // generate_Xnm(5, 2, true);
+
+    return 0;
 }

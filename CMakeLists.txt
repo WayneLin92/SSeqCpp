@@ -7,6 +7,8 @@ project(
     LANGUAGES CXX
 )
 
+set(BUILD_DOXYGEN ON)
+
 # The compiled library code is here
 add_subdirectory(src)
 add_subdirectory(thirdparty/sqlite3)
@@ -24,8 +26,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Set the output directory
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-    set(BUILD_DOXYGEN OFF)
 
     # Testing
     include(CTest)

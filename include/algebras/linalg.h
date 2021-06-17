@@ -12,11 +12,11 @@
 #include <algorithm>
 #include <iterator>
 
+namespace lina {
+
 using array = std::vector<int>;
 using array2d = std::vector<array>;
 using array2dIt = array2d::const_iterator;
-
-namespace lina {
 
 /* Add two compressed vectors */
 inline array AddVectors(const array& v1, const array& v2) {

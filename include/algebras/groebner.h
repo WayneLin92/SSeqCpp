@@ -42,7 +42,6 @@ using GbBuffer = std::map<int, Poly1d>;
 /**
  * A virtual type of elements used in Groebner buffer V2,
  * which is designed to save the memory.
- * @see @Groebner::BufferV2
  * 
  * The subclass `GcdBufferEle` stores the indices of
  * two elements of `gb` and cache the GCD of them and
@@ -51,6 +50,8 @@ using GbBuffer = std::map<int, Poly1d>;
  * 
  * The subclass `PolyBufferEle` directly stores the polynomial
  * to be added to `gb`.
+ * 
+ * @see GbBuffer::BufferV2
  */
 template<typename GbType>
 struct BaseBufferEle {
@@ -206,6 +207,23 @@ Poly subs(const Poly& poly, FnType map, const GbType& gb)
 		Poly fm = { {} };
 		for (MonInd p = m.begin(); p != m.end(); ++p)
 			fm = Reduce(mul(fm, pow(map(p->gen), p->exp, gb)), gb);
+		result = add(result, fm);
+	}
+	return result;
+}
+
+/**
+ * Specialization.
+ * @see subs(const Poly&, FnType, const GbType&)
+ */
+template <typename GbType>
+Poly subs(const Poly& poly, const Poly1d& map, const GbType& gb)
+{
+	Poly result;
+	for (const Mon& m : poly) {
+		Poly fm = { {} };
+		for (MonInd p = m.begin(); p != m.end(); ++p)
+			fm = Reduce(mul(fm, pow(map[p->gen], p->exp, gb)), gb);
 		result = add(result, fm);
 	}
 	return result;

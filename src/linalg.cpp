@@ -1,7 +1,7 @@
 #include "linalg.h"
 #include "myexception.h"
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 #include <iostream>
 #endif
 
@@ -169,7 +169,7 @@ array GetImage(array2dIt spaceV_first, array2dIt spaceV_last, array2dIt f_first,
 			v = AddVectors(v, *p_Vi);
 			result = AddVectors(result, *p_fi);
 		}
-#ifdef _DEBUG
+#ifndef NDEBUG
 	if (!v.empty()) {
 		throw MyException(0x6a4fe8a1U, "v is not in spaceV");
 	}
@@ -181,7 +181,7 @@ array2d QuotientSpace(const array2d& spaceV, const array2d& spaceW)
 {
 	array2d quotient;
 	size_t dimQuo = spaceV.size() - spaceW.size();
-#ifdef _DEBUG
+#ifndef NDEBUG
 	for (size_t i = 0; i < spaceV.size(); i++)
 #else
 	for (size_t i = 0; i < spaceV.size() && quotient.size() < dimQuo; i++)
@@ -191,7 +191,7 @@ array2d QuotientSpace(const array2d& spaceV, const array2d& spaceW)
 		if (!v1.empty())
 			quotient.push_back(std::move(v1));
 	}
-#ifdef _DEBUG
+#ifndef NDEBUG
 	if (quotient.size() != dimQuo) {
 		std::cerr << "W is not a subspace of V!\n";
 		throw "cec7f701";

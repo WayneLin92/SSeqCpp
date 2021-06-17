@@ -1,118 +1,129 @@
-#include "main_E4t.h"
-#include "benchmark.h"
+#include "MayE2.h"
+#include "algebras/benchmark.h"
 
-alg::Poly reindex_v2(const alg::Poly& poly, alg::array map_gen_id)
+bool is_bij(const alg::Deg& deg)
 {
-	alg::Poly result;
-	for (const alg::Mon& m : poly) {
-		alg::Mon m1;
-		for (alg::GenPow ge : m)
-			m1.push_back({ map_gen_id[ge.gen], ge.exp });
-		std::sort(m1.begin(), m1.end(), [](const alg::GenPow& lhs, const alg::GenPow& rhs) {return lhs.gen < rhs.gen; });
-		result.push_back(m1);
-	}
-	std::sort(result.begin(), result.end());
-	return result;
+    if (deg.s == 2 && deg.t % 2 == 0 && deg.v % 2 == 0) {
+        int t = deg.t / 2;
+        int v = deg.v / 2;
+        int j = bit_length(t);
+        int i = j - (v + 1);
+        if ((1 << j) - (1 << i) == t)
+            return true;
+    }
+    return false;
+}
+
+bool compare(const alg::Deg& d1, const alg::Deg& d2)
+{
+    if (is_bij(d1) < is_bij(d2))
+        return true;
+    else if (is_bij(d1) == is_bij(d2)) {
+        if (d1.s < d2.s) {
+            return true;
+        }
+        else if (d1.s == d2.s) {
+            if (d1.v < d2.v) {
+                return true;
+            }
+            else if (d1.v == d2.v) {
+                if (d1.t < d2.t)
+                    return true;
+            }
+        }
+    }
+    return false;
 }
 
 /* This function reorders the generator by t and reproduce the Groebner basis */
-std::pair<alg::array, alg::Poly1d> ReorderGens(const std::vector<alg::Deg>& gen_degs, const alg::Poly1d& gb, int t_max)
+std::pair<alg::array, alg::Poly1d> ReorderGens(const std::vector<alg::Deg>& gen_degs, const alg::Groebner& gb, int t_max)
 {
-	alg::array map_gen_id_inv = grbn::range((int)gen_degs.size()); /* the i`th new generator is the old map_gen_id_inv[i]`th generator */
-	std::sort(map_gen_id_inv.begin(), map_gen_id_inv.end(), [&gen_degs](int i, int j) {return gen_degs[i].t < gen_degs[j].t; });
-	alg::array map_gen_id; map_gen_id.resize(gen_degs.size()); /* the i`th old generator becomes the map_gen_id[i]`th generator */
-	alg::array gen_degs_new;
-	for (int i = 0; i < (int)gen_degs.size(); ++i) {
-		map_gen_id[map_gen_id_inv[i]] = i;
-		gen_degs_new.push_back(gen_degs[map_gen_id_inv[i]].t);
-	}
+    alg::array map_gen_id_inv = alg::range((int)gen_degs.size()); /* the i`th new generator is the old map_gen_id_inv[i]`th generator */
+    std::sort(map_gen_id_inv.begin(), map_gen_id_inv.end(), [&gen_degs](int i, int j) { return compare(gen_degs[i], gen_degs[j]); });
+    alg::array map_gen_id;
+    map_gen_id.resize(gen_degs.size()); /* Generator id change: i -> map_gen_id[i] */
+    alg::array gen_degs_new;
+    for (int i = 0; i < (int)gen_degs.size(); ++i) {
+        map_gen_id[map_gen_id_inv[i]] = i;
+        gen_degs_new.push_back(gen_degs[map_gen_id_inv[i]].t);
+    }
 
-	grbn::GbBuffer buffer;
-	for (const alg::Poly& g : gb)
-		buffer[get_deg_t(g, gen_degs)].push_back(reindex_v2(g, map_gen_id));
-	alg::Poly1d gb_new;
-	grbn::AddRelsB(gb_new, buffer, gen_degs_new, -1, t_max);
-	return std::make_pair(std::move(map_gen_id_inv), std::move(gb_new));
+    alg::GbBuffer buffer;
+    for (const alg::Poly& g : gb)
+        buffer[get_deg_t(g, gen_degs)].push_back(alg::subs(g, map_gen_id));
+    alg::Groebner gb_new;
+    alg::AddRelsB(gb_new, buffer, gen_degs_new, -1, t_max);
+    return std::make_pair(std::move(map_gen_id_inv), std::move(gb_new.gb));
 }
 
-void ReorderHA()
+/* Reorder and remove decomposables */
+void ReorderHX(int n, bool drop_existing /*= true */)
 {
-	Database db(R"(C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\database\E4t.db)");
-	int t_max = 200;
+    Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
+    std::string table_prefix = "HX" + std::to_string(n) + std::to_string(n);
+    std::string table1_prefix = "HX" + std::to_string(n);
 
-	std::vector<alg::Deg> gen_degs_HA = db.load_gen_degs("HA_generators");
-	alg::Poly1d gen_reprs_HA = db.load_gen_reprs("HA_generators");
-	alg::Poly1d gb_HA = db.load_gb("HA_relations", t_max);
-	auto [map_gen_id_inv, gb_new] = ReorderGens(gen_degs_HA, gb_HA, t_max);
+    try {
+        db.execute_cmd("CREATE TABLE " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+        db.execute_cmd("CREATE TABLE " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+    }
+    catch (MyException&) {
+    }
 
-	std::vector<alg::Deg> gen_degs_HA_new;
-	alg::Poly1d gen_reprs_HA_new;
-	for (int i = 0; i < (int)gen_degs_HA.size(); ++i) {
-		gen_degs_HA_new.push_back(gen_degs_HA[map_gen_id_inv[i]]);
-		gen_reprs_HA_new.push_back(gen_reprs_HA[map_gen_id_inv[i]]);
-	}
+    if (drop_existing) {
+        db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
+        db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
+    }
 
-	db.execute_cmd("DELETE FROM HA_generators_ordered;");
-	db.execute_cmd("DELETE FROM HA_relations_ordered;");
+    std::cout << "A=" << table_prefix << '\n';
+    std::cout << "B=" << table1_prefix << '\n';
 
-	db.begin_transaction();
-	db.save_generators("HA_generators_ordered", gen_degs_HA_new, gen_reprs_HA_new);
-	db.save_gb("HA_relations_ordered", gb_new, gen_degs_HA_new);
-	db.end_transaction();
-}
+    /* Reorder and produce gen_degs1, gen_names1, gen_reprs1, gb1 */
+    std::vector<alg::Deg> gen_degs = db.load_gen_degs(table_prefix + "_generators");
+    std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
+    alg::Poly1d gen_reprs = db.load_gen_reprs(table_prefix + "_generators");
+    alg::Groebner gb = db.load_gb(table_prefix + "_relations", -1);
+    auto [map_gen_id_inv, gb1] = ReorderGens(gen_degs, gb, -1);
 
-void DeleteDecomposableGenerators()
-{
-	Timer timer;
-	Database db(R"(C:\Users\lwnpk\Documents\MyProgramData\Math_AlgTop\database\E4t.db)");
-	std::string table_name = "HA3";
-	int t_max = 189;
+    std::vector<alg::Deg> gen_degs1;
+    std::vector<std::string> gen_names1;
+    alg::Poly1d gen_reprs1;
+    for (int i = 0; i < (int)gen_degs.size(); ++i) {
+        gen_degs1.push_back(gen_degs[map_gen_id_inv[i]]);
+        gen_names1.push_back(gen_names[map_gen_id_inv[i]]);
+        gen_reprs1.push_back(gen_reprs[map_gen_id_inv[i]]);
+    }
 
-	std::vector<alg::Deg> gen_degs = db.load_gen_degs(table_name + "_generators");
-	alg::Poly1d gen_reprs = db.load_gen_reprs(table_name + "_generators");
-	grbn::Groebner gb;
-	gb = db.load_gb(table_name + "_relations", 189);
+    /* Delete decomposables and produce gen_degs2, gen_names2, gen_reprs2, gb2 */
+    std::vector<alg::Deg> gen_degs2;
+    std::vector<std::string> gen_names2;
+    alg::Poly1d gen_reprs2;
+    alg::Poly1d gb2;
 
-	std::vector<alg::Deg> gen_degs1;
-	alg::array gen_degs1_t;
-	alg::Poly1d gen_reprs1;
-	alg::Poly1d gb1;
+    alg::array indices_decomposables;
+    alg::array map_gen_id1(gen_degs1.size());
+    int count = 0;
+    for (int i = 0; i < (int)gen_degs1.size(); ++i) {
+        if (alg::Reduce({ { { i, 1 } } }, gb1) != alg::Poly{ { { i, 1 } } }) {
+            indices_decomposables.push_back(i);
+            ++count;
+            map_gen_id1[i] = -1;
+        }
+        else {
+            map_gen_id1[i] = i - count;
+            gen_degs2.push_back(gen_degs1[i]);
+            gen_names2.push_back(gen_names1[i]);
+            gen_reprs2.push_back(gen_reprs1[i]);
+        }
+    }
+    std::cout << "num of decomposables = " << indices_decomposables.size() << '\n';
 
-	alg::array indices_decomposables;
-	alg::array map_gen_id(gen_degs.size());
-	int count = 0;
-	for (int i = 0; i < (int)gen_degs.size(); ++i) {
-		if (grbn::Reduce({ {{i, 1}} }, gb) != alg::Poly{ {{i, 1}} }) {
-			indices_decomposables.push_back(i);
-			++count;
-			map_gen_id[i] = -1;
-		}
-		else {
-			map_gen_id[i] = i - count;
-			gen_degs1.push_back(gen_degs[i]);
-			gen_degs1_t.push_back(gen_degs[i].t);
-			gen_reprs1.push_back(gen_reprs[i]);
-		}
-	}
-	std::cout << "num of decomposables = " << indices_decomposables.size() << '\n';
+    for (const alg::Poly& g : gb1)
+        if (!std::binary_search(indices_decomposables.begin(), indices_decomposables.end(), g[0][0].gen))
+            gb2.push_back(alg::subs(g, map_gen_id1));
 
-	for (const alg::Poly& g : gb)
-		if (!std::binary_search(indices_decomposables.begin(), indices_decomposables.end(), g[0][0].gen))
-			gb1.push_back(reindex(g, map_gen_id));
-
-	std::string table_name1 = "E4t";
-
-	db.execute_cmd("DELETE FROM " + table_name1 + "_generators;");
-	db.execute_cmd("DELETE FROM " + table_name1 + "_relations;");
-
-	db.begin_transaction();
-	db.save_generators(table_name1 + "_generators", gen_degs1, gen_reprs1);
-	db.save_gb(table_name1 + "_relations", gb1, gen_degs1);
-	db.end_transaction();
-}
-
-int main_generate_Reindex(int argc, char** argv)
-{
-	DeleteDecomposableGenerators();
-	return 0;
+    db.begin_transaction();
+    db.save_generators(table1_prefix + "_generators", gen_names2, gen_degs2, gen_reprs2);
+    db.save_gb(table1_prefix + "_relations", gb2, gen_degs2);
+    db.end_transaction();
 }

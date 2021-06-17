@@ -1,4 +1,4 @@
-add_executable(MayE2 MayE2.cpp utilities2.cpp MayE2.h)
+add_executable(MayE2 MayE2.cpp Reindex.cpp MayE2.h)
 target_compile_features(MayE2 PRIVATE cxx_std_17)
 target_include_directories(MayE2 PRIVATE ../include)
 target_link_libraries(MayE2 PRIVATE algebras)

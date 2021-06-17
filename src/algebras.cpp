@@ -1,7 +1,7 @@
 #include "algebras.h"
 #include <iterator>
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 #include <iostream>
 #endif
 
@@ -35,7 +35,7 @@ Mon div(const Mon& mon1, const Mon& mon2)
 	while (k != mon1.end() && l != mon2.end()) {
 		if (k->gen < l->gen)
 			result.push_back(*k++);
-#ifdef _DEBUG
+#ifndef NDEBUG
 		else if (k->gen > l->gen){
 			std::cout << "mon1/mon2 not divisible!\n";
 			throw "1227de8e";
@@ -49,14 +49,14 @@ Mon div(const Mon& mon1, const Mon& mon2)
 			k++;
 			l++;
 		}
-#ifdef _DEBUG
+#ifndef NDEBUG
 		else {
 			std::cout << "mon1/mon2 not divisible!\n";
 			throw "a9c74ef9";
 		}
 #endif
 	}
-#ifdef _DEBUG
+#ifndef NDEBUG
 	if (l != mon2.end()) {
 		std::cout << "mon1/mon2 not divisible!\n";
 		throw "6cdd66bd";

@@ -4,10 +4,7 @@
 #include "algebras.h"
 #include "myparser.h"
 
-/********** STRUCTS AND CLASSES **********/
-
-/********** FUNCTIONS **********/
-
+// clang-format off
 /* arrays */
 inline void load_array(std::istream& sin, alg::array& mon) { load_vector(sin, mon, "(", ",", ")"); }
 inline void load_array2d(std::istream& sin, alg::array2d& poly) { load_vector(sin, poly, "[", ",", "]", load_array); }
@@ -31,11 +28,18 @@ inline void dump_Poly(std::ostream& sout, const alg::Poly& poly) { if (poly.empt
 inline void dump_Poly1d(std::ostream& sout, const alg::Poly1d& polys) { dump_vector(sout, polys, "(", ", ", ")", dump_Poly); }
 inline void dump_Poly2d(std::ostream& sout, const alg::Poly2d& polys) { dump_vector(sout, polys, "[", ", ", "]", dump_Poly1d); }
 
+
+void dump_MonPowV2(std::ostream& sout, const alg::GenPow& p, const std::vector<std::string>& gen_names);
+void dump_MonV2(std::ostream& sout, const alg::Mon& mon, const std::vector<std::string>& gen_names);
+void dump_PolyV2(std::ostream& sout, const alg::Poly& poly, const std::vector<std::string>& gen_names);
+
 inline std::ostream& operator<<(std::ostream& sout, const alg::Deg& d) { sout << '(' << d.s << ',' << d.t << ',' << d.v << ')'; return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::GenPow& p) { dump_MonPow(sout, p); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Mon& mon) { dump_Mon(sout, mon); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Poly& poly) { dump_Poly(sout, poly); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Poly1d& polys) { dump_Poly1d(sout, polys); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Poly2d& polys) { dump_Poly2d(sout, polys); return sout; }
+
+// clang-format on
 
 #endif /* MYIO_H */
