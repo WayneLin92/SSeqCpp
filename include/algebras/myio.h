@@ -40,6 +40,11 @@ inline std::ostream& operator<<(std::ostream& sout, const alg::Poly& poly) { dum
 inline std::ostream& operator<<(std::ostream& sout, const alg::Poly1d& polys) { dump_Poly1d(sout, polys); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Poly2d& polys) { dump_Poly2d(sout, polys); return sout; }
 
+inline alg::Poly GetPolyByName(const std::vector<std::string>& gen_names, const std::string& gn)
+{
+    return alg::Poly{{{(int)(std::find(gen_names.begin(), gen_names.end(), gn) - gen_names.begin()), 1}}};
+}
+
 // clang-format on
 
 #endif /* MYIO_H */

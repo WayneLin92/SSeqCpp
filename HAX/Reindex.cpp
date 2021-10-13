@@ -14,6 +14,13 @@ bool is_bij(const alg::Deg& deg)
     return false;
 }
 
+int odd_part(int t)
+{
+    while (t % 2 == 0)
+        t /= 2;
+    return t;
+}
+
 bool compare(const alg::Deg& d1, const alg::Deg& d2)
 {
     if (is_bij(d1) < is_bij(d2))
@@ -23,12 +30,13 @@ bool compare(const alg::Deg& d1, const alg::Deg& d2)
             return true;
         }
         else if (d1.s == d2.s) {
-            if (d1.v < d2.v) {
+            if (odd_part(d1.t) < odd_part(d2.t))
                 return true;
-            }
-            else if (d1.v == d2.v) {
+            else if (odd_part(d1.t) == odd_part(d2.t)) {
                 if (d1.t < d2.t)
                     return true;
+                else
+                    return false;
             }
         }
     }
@@ -36,7 +44,7 @@ bool compare(const alg::Deg& d1, const alg::Deg& d2)
 }
 
 /* This function reorders the generator by t and reproduce the Groebner basis */
-std::pair<alg::array, alg::Poly1d> ReorderGens(const std::vector<alg::Deg>& gen_degs, const alg::Groebner& gb, int t_max)
+std::pair<alg::array, alg::Poly1d> ReorderGens(const std::vector<alg::Deg>& gen_degs, const alg::Groebner& gb, int s_max)
 {
     alg::array map_gen_id_inv = alg::range((int)gen_degs.size()); /* the i`th new generator is the old map_gen_id_inv[i]`th generator */
     std::sort(map_gen_id_inv.begin(), map_gen_id_inv.end(), [&gen_degs](int i, int j) { return compare(gen_degs[i], gen_degs[j]); });
@@ -45,21 +53,21 @@ std::pair<alg::array, alg::Poly1d> ReorderGens(const std::vector<alg::Deg>& gen_
     alg::array gen_degs_new;
     for (int i = 0; i < (int)gen_degs.size(); ++i) {
         map_gen_id[map_gen_id_inv[i]] = i;
-        gen_degs_new.push_back(gen_degs[map_gen_id_inv[i]].t);
+        gen_degs_new.push_back(gen_degs[map_gen_id_inv[i]].s);
     }
 
     alg::GbBuffer buffer;
     for (const alg::Poly& g : gb)
-        buffer[get_deg_t(g, gen_degs)].push_back(alg::subs(g, map_gen_id));
+        buffer[get_deg(g, gen_degs).s].push_back(alg::subs(g, map_gen_id));
     alg::Groebner gb_new;
-    alg::AddRelsB(gb_new, buffer, gen_degs_new, -1, t_max);
+    alg::AddRelsB(gb_new, buffer, gen_degs_new, s_max, s_max);
     return std::make_pair(std::move(map_gen_id_inv), std::move(gb_new.gb));
 }
 
 /* Reorder and remove decomposables */
-void ReorderHX(int n, bool drop_existing /*= true */)
+void ReorderHX(int n, int s_max)
 {
-    Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
+    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
     std::string table_prefix = "HX" + std::to_string(n) + std::to_string(n);
     std::string table1_prefix = "HX" + std::to_string(n);
 
@@ -70,10 +78,8 @@ void ReorderHX(int n, bool drop_existing /*= true */)
     catch (MyException&) {
     }
 
-    if (drop_existing) {
-        db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
-        db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
-    }
+    db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
+    db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
 
     std::cout << "A=" << table_prefix << '\n';
     std::cout << "B=" << table1_prefix << '\n';
@@ -82,8 +88,10 @@ void ReorderHX(int n, bool drop_existing /*= true */)
     std::vector<alg::Deg> gen_degs = db.load_gen_degs(table_prefix + "_generators");
     std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
     alg::Poly1d gen_reprs = db.load_gen_reprs(table_prefix + "_generators");
-    alg::Groebner gb = db.load_gb(table_prefix + "_relations", -1);
-    auto [map_gen_id_inv, gb1] = ReorderGens(gen_degs, gb, -1);
+    alg::Groebner gb = db.load_gb_s(table_prefix + "_relations", s_max);
+    auto [map_gen_id_inv, gb1] = ReorderGens(gen_degs, gb, s_max);
+
+    std::cout << "gb1.size()=" << gb1.size() << '\n';
 
     std::vector<alg::Deg> gen_degs1;
     std::vector<std::string> gen_names1;

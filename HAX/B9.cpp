@@ -19,7 +19,7 @@ int main()
         }
     }
     alg::GroebnerLex gb;
-    Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/B9.db");
+    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/B9.db");
 
     for (int n = 1; n <= n_max; ++n) {
         for (int m = 1; m <= n; ++m) {

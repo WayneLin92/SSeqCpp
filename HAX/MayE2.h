@@ -6,7 +6,7 @@
 #include "algebras/myexception.h"
 #include <iostream>
 
-void ReorderHX(int n, bool drop_existing = true);
+void ReorderHX(int n, int s_max);
 int bit_length(int t);
 
 #endif /* _MAY_E2_H_ */

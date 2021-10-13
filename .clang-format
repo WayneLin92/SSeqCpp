@@ -50,7 +50,7 @@ BraceWrapping:
   # 函数定义后面
   AfterFunction:	true
   # 命名空间定义后面
-  AfterNamespace:	true
+  AfterNamespace:	false
   # ObjC定义后面
   AfterObjCDeclaration:	true
   # struct定义后面
