@@ -1,67 +1,36 @@
 /** \file algebras.h
  * A Component for monomials and polynomials over $F_2$.
- * All are capsuled in the `namespace alg`.
- *
- * TODO: Don't use std::pair.
+ * All are incapsulated in the `namespace alg`.
  */
 
 #ifndef ALGEBRAS_H
 #define ALGEBRAS_H
 
+#include "myexception.h"
+#include "utility.h"
 #include <queue>
 
 /**
- * The namespace `alg` provide the basis types for monomials and polynomials.
+ * The namespace `alg` provides the basis types for monomials and polynomials.
  * and vectors of them
  */
-namespace alg
-{
+namespace alg {
 
 using array = std::vector<int>;
 using array2d = std::vector<array>;
 using array3d = std::vector<array2d>;
 using array4d = std::vector<array3d>;
 
-/**
- * A factor of a monomial which represents a power of a generator.
- */
-struct GenPow
-{
-    int gen;                                 /**< ID for the generator. */
-    int exp;                                 /**< Exponent. */
-    GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
-    /**
-     * The operator < defines the monomial ordering.
-     * TODO: reverse the < operator and refactor the databases.
-     */
-    bool operator<(const GenPow& rhs) const
-    {
-        return gen > rhs.gen || (gen == rhs.gen && exp < rhs.exp);
-    }
-    /** The operator = */
-    bool operator==(const GenPow& rhs) const
-    {
-        return gen == rhs.gen && exp == rhs.exp;
-    }
-};
-using Mon = std::vector<GenPow>;
-using Poly = std::vector<Mon>;
-using Poly1d = std::vector<Poly>;
-using Poly2d = std::vector<Poly1d>;
-using Mon1d = std::vector<Mon>;
-using Mon2d = std::vector<Mon1d>;
-using MonInd = Mon::const_iterator;
-
-/** A class for tri-graded algebra.
+/** The 3d grading for the May spectral sequence.
+ *
  * v is the complement degree of the May degree.
+ * $v(R_{ij})=j-i-1$.
  * Degrees are ordered by t, s, v.
  */
-struct Deg
+struct MayDeg
 {
     int s, t, v;
-    Deg() = default;
-    Deg(int s_, int t_, int v_) : s(s_), t(t_), v(v_){};
-    bool operator<(const Deg& rhs) const
+    bool operator<(const MayDeg& rhs) const
     {
         if (t < rhs.t)
             return true;
@@ -74,45 +43,96 @@ struct Deg
         }
         return false;
     };
-    Deg operator+(const Deg& rhs) const
+    MayDeg operator+(const MayDeg& rhs) const
     {
-        return Deg({ s + rhs.s, t + rhs.t, v + rhs.v });
+        return MayDeg{s + rhs.s, t + rhs.t, v + rhs.v};
     };
-    Deg operator-(const Deg& rhs) const
+    MayDeg operator-(const MayDeg& rhs) const
     {
-        return Deg({ s - rhs.s, t - rhs.t, v - rhs.v });
+        return MayDeg{s - rhs.s, t - rhs.t, v - rhs.v};
     };
-    Deg& operator+=(const Deg& rhs)
+    MayDeg& operator+=(const MayDeg& rhs)
     {
         s += rhs.s;
         t += rhs.t;
         v += rhs.v;
         return *this;
     };
-    Deg& operator-=(const Deg& rhs)
+    MayDeg& operator-=(const MayDeg& rhs)
     {
         s -= rhs.s;
         t -= rhs.t;
         v -= rhs.v;
         return *this;
     };
-    bool operator==(const Deg& rhs) const
+    bool operator==(const MayDeg& rhs) const
     {
         return v == rhs.v && s == rhs.s && t == rhs.t;
     };
-    bool operator!=(const Deg& rhs) const
+    bool operator!=(const MayDeg& rhs) const
     {
         return t != rhs.t || s != rhs.s || v != rhs.v;
     };
-    Deg operator*(int rhs) const
+    MayDeg operator*(int rhs) const
     {
-        return Deg({ s * rhs, t * rhs, v * rhs });
+        return MayDeg{s * rhs, t * rhs, v * rhs};
     };
 };
+using MayDeg1d = std::vector<MayDeg>;
 
-/** \defgroup Operations Algebraic operations
- * --------------------------------------------- @{
+/********************************************************
+ *                      Monomials
+ ********************************************************/
+/** \defgroup Monomials Monomials
+ * ------------------------------------------- @{
  */
+
+/**
+ * A factor of a monomial which represents a power of a generator.
+ */
+struct GenPow
+{
+    unsigned int gen;                        /**< ID for the generator. */
+    int exp;                                 /**< Exponent. */
+    GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
+    /**
+     * The operator< helps defining a monomial ordering.
+     */
+    bool operator<(const GenPow& rhs) const
+    {
+        return gen > rhs.gen || (gen == rhs.gen && exp < rhs.exp);
+    }
+    /** The operator == */
+    bool operator==(const GenPow& rhs) const
+    {
+        return gen == rhs.gen && exp == rhs.exp;
+    }
+};
+using Mon = std::vector<GenPow>;
+using Mon1d = std::vector<Mon>;
+using Mon2d = std::vector<Mon1d>;
+using MonInd = Mon::const_iterator;
+
+/**
+ * Obtain the degree of a monomial given the degrees of generators.
+ */
+inline int GetDeg(const Mon& mon, const array& gen_degs)
+{
+    int result = 0;
+    for (MonInd p = mon.begin(); p != mon.end(); ++p)
+        result += gen_degs[p->gen] * p->exp;
+    return result;
+};
+/**
+ * Obtain the May degree of a monomial given the May degrees of generators.
+ */
+inline MayDeg GetMayDeg(const Mon& mon, const MayDeg1d& gen_maydegs)
+{
+    MayDeg result{0, 0, 0};
+    for (MonInd p = mon.begin(); p != mon.end(); ++p)
+        result += gen_maydegs[p->gen] * p->exp;
+    return result;
+};
 
 Mon mul(const Mon& mon1, const Mon& mon2);
 /**
@@ -120,15 +140,7 @@ Mon mul(const Mon& mon1, const Mon& mon2);
  * It requires that mon2 divides mon1.
  */
 Mon div(const Mon& mon1, const Mon& mon2);
-Poly add(const Poly& poly1, const Poly& poly2);
-Poly mul(const Poly& poly, const Mon& mon);
-inline Poly mul(const Mon& mon, const Poly& poly)
-{
-    return mul(poly, mon);
-}
-Poly mul(const Poly& poly1, const Poly& poly2);
 Mon pow(const Mon& m, int e);
-Poly pow(const Poly& poly, int n);
 /**
  * Return if m1 divides m2.
  */
@@ -147,128 +159,184 @@ Mon GCD(const Mon& m1, const Mon& m2);
  */
 Mon LCM(const Mon& m1, const Mon& m2);
 
-/** @} -------------------------------------- */
+/** @} ---------------------------------------- */
 
-/** \defgroup Operators Operator overloadings
+/********************************************************
+ *                      Polynomials
+ ********************************************************/
+/** \defgroup Polynomials Polynomials
  * ------------------------------------------- @{
  */
 
-inline Poly operator+(const Poly& lhs, const Poly& rhs)
+/**
+ * Lexicographical monomial ordering
+ */
+struct CmpLex
 {
-    return add(lhs, rhs);
-}
-inline Poly& operator+=(Poly& lhs, const Poly& rhs)
+    static constexpr std::string_view name = "CmpLex";
+    static bool cmp(const Mon& m1, const Mon& m2)
+    {
+        return m1 > m2;
+    }
+
+    static bool cmp_ranges(MonInd m1begin, MonInd m1end, MonInd m2begin, MonInd m2end)
+    {
+        return std::lexicographical_compare(m2begin, m2end, m1begin, m1end);
+    }
+};
+
+/**
+ * Reversed lexicographical monomial ordering
+ */
+struct CmpRevlex
 {
-    lhs = add(lhs, rhs);
-    return lhs;
-}
-inline Poly operator*(const Poly& lhs, const Poly& rhs)
+    static constexpr std::string_view name = "CmpRevlex";
+    static bool cmp(const Mon& m1, const Mon& m2)
+    {
+        return m1 < m2;
+    }
+
+    static bool cmp_ranges(MonInd m1begin, MonInd m1end, MonInd m2begin, MonInd m2end)
+    {
+        return std::lexicographical_compare(m1begin, m1end, m2begin, m2end);
+    }
+};
+
+/**
+ * Polynomial with a monomial ordering as the template argument
+ */
+template <typename FnCmp>
+struct Polynomial
 {
-    return mul(lhs, rhs);
-}
-inline Poly operator*(const Poly& lhs, const Mon& rhs)
+    Mon1d data;
+
+    static Polynomial<FnCmp> Unit()
+    {
+        return Polynomial<FnCmp>{{{}}};
+    }
+
+    static Polynomial<FnCmp> Gen(int index)
+    {
+        return Polynomial<FnCmp>{{{{index, 1}}}};
+    }
+
+    static Polynomial<FnCmp> GenExp(int index, int exp)
+    {
+        if (exp > 0)
+            return Polynomial<FnCmp>{{{{index, exp}}}};
+        else if (exp == 0)
+            return Polynomial<FnCmp>{{
+                {},
+            }};
+        else
+            throw MyException(0x20eb6831U, "Negative exponent.");
+    }
+
+    static Polynomial<FnCmp> Sort(Mon1d data)
+    {
+        Polynomial<FnCmp> result = {std::move(data)};
+        std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+        return result;
+    }
+
+    const Mon& GetLead() const
+    {
+        return data.front();
+    }
+
+    int GetDeg(const array& gen_degs) const
+    {
+        if (data.empty())
+            return -10000;
+        else
+            return alg::GetDeg(data.front(), gen_degs);
+    }
+
+    MayDeg GetMayDeg(const MayDeg1d& gen_degs) const
+    {
+        if (data.empty())
+            return MayDeg{-10000, -10000, -10000};
+        else
+            return alg::GetMayDeg(data.front(), gen_degs);
+    }
+
+    Polynomial<FnCmp> Square() const
+    {
+        Polynomial<FnCmp> result;
+        for (const Mon& m : data)
+            result.data.push_back(pow(m, 2));
+        return result;
+    }
+
+    bool operator==(const Polynomial<FnCmp>& rhs) const
+    {
+        return data == rhs.data;
+    }
+    explicit operator bool() const
+    {
+        return !data.empty();
+    }
+    Polynomial<FnCmp> operator+(const Polynomial<FnCmp>& rhs) const
+    {
+        Polynomial<FnCmp> result;
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), FnCmp::cmp);
+        return result;
+    }
+    Polynomial<FnCmp>& operator+=(const Polynomial<FnCmp>& rhs)
+    {
+        Polynomial<FnCmp> tmp;
+        std::swap(data, tmp.data);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), FnCmp::cmp);
+        return *this;
+    }
+    Polynomial<FnCmp> operator*(const Mon& rhs) const
+    {
+        Polynomial<FnCmp> result;
+        for (const Mon& m : data)
+            result.data.push_back(mul(m, rhs));
+        return result;
+    }
+    Polynomial<FnCmp> operator*(const Polynomial<FnCmp>& rhs) const
+    {
+        Polynomial<FnCmp> result;
+        for (size_t k = 0; k <= data.size() + rhs.data.size() - 2; ++k) {
+            size_t i_min = k - rhs.data.size() + 1;
+            size_t i_max = std::min(data.size() - 1, k);
+            for (size_t i = 0; i <= i_max; ++i)
+                result.data.push_back(mul(data[i], rhs.data[k - i]));
+        }
+        std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+        return result;
+    }
+};
+using PolyLex = Polynomial<CmpLex>;
+using PolyLex1d = std::vector<PolyLex>;
+using PolyRevlex = Polynomial<CmpRevlex>;
+using PolyRevlex1d = std::vector<PolyRevlex>;
+
+/**
+ * A fast algorithm that computes
+ * `poly ** n`
+ */
+template <typename FnCmp>
+Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n)
 {
-    return mul(lhs, rhs);
-}
-inline Poly operator*(const Mon& lhs, const Poly& rhs)
-{
-    return mul(lhs, rhs);
-}
-inline Mon operator/(const Mon& lhs, const Mon& rhs)
-{
-    return div(lhs, rhs);
+    using Poly = Polynomial<FnCmp>;
+    Poly result = Poly::Unit();
+    if (n == 0)
+        return result;
+    Poly power = poly;
+    while (n) {
+        if (n % 2 != 0)
+            result = result * power;
+        n >>= 1;
+        if (n)
+            power = power.Square();
+    }
+    return result;
 }
 
 /** @} ---------------------------------------- */
-
-inline int get_deg(const Mon& mon)
-{
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += p->exp;
-    return result;
-};
-inline int get_deg(const Mon& mon, const array& gen_degs)
-{
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen] * p->exp;
-    return result;
-};
-/**
- * The function computes the degree of a monomial.
- * `gen_degs1` specifies the degrees of generators of negative ids.
- * More specifically, `gen_degs1[i]` is the degree of the generator of id `-(i+1)`.
- */
-inline int get_deg(const Mon& mon, const array& gen_degs, const array& gen_degs1)
-{
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += (p->gen >= 0 ? gen_degs[p->gen] : gen_degs1[size_t(-p->gen) - 1]) * p->exp;
-    return result;
-}
-inline Deg get_deg(const Mon& mon, const std::vector<Deg>& gen_degs)
-{
-    Deg result({ 0, 0, 0 });
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen] * p->exp;
-    return result;
-};
-inline int get_deg_t(const Mon& mon, const std::vector<Deg>& gen_degs)
-{
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen].t * p->exp;
-    return result;
-};
-
-inline int get_deg(const Poly& poly)
-{
-    return poly.empty() ? -10000 : get_deg(poly[0]);
-};
-inline int get_deg(const Poly& poly, const array& gen_degs)
-{
-    return poly.empty() ? -10000 : get_deg(poly[0], gen_degs);
-}
-inline int get_deg(const Poly& poly, const array& gen_degs, const array& gen_degs1)
-{
-    return poly.empty() ? -10000 : get_deg(poly[0], gen_degs, gen_degs1);
-}
-inline Deg get_deg(const Poly& poly, const std::vector<Deg>& gen_degs)
-{
-    return poly.empty() ? Deg({ -10000, -10000, -10000 }) : get_deg(poly[0], gen_degs);
-}
-inline int get_deg_t(const Poly& poly, const std::vector<Deg>& gen_degs)
-{
-    return poly.empty() ? -10000 : get_deg_t(poly[0], gen_degs);
-}
-
-/**
- * A functor which computes the degree of a monomial.
- */
-struct FnGetDeg
-{
-    const array& gen_degs;
-    int operator()(const Mon& mon) const
-    {
-        return get_deg(mon, gen_degs);
-    }
-};
-/**
- * A functor which computes the degree of a monomial.
- *
- * `gen_degs1` is for the degrees of generators with negative id.
- * @see get_deg(const Mon&, const array&, const array&).
- */
-struct FnGetDegV2
-{
-    const array& gen_degs;
-    const array& gen_degs1;
-    int operator()(const Mon& mon) const
-    {
-        return get_deg(mon, gen_degs, gen_degs1);
-    }
-};
 
 /**
  * Hash a monomial.
@@ -277,8 +345,8 @@ inline size_t hash(const Mon& mon)
 {
     std::size_t seed = 0;
     for (auto& ge : mon) {
-        seed ^= ge.gen + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= ge.exp + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= (size_t)ge.gen + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= (size_t)ge.exp + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
     return seed;
 }
@@ -286,7 +354,7 @@ inline size_t hash(const Mon& mon)
 /**
  * Convert a polynomial to an array of hashes of the monomials.
  */
-inline array hash1d(const Poly& poly)
+inline array hash1d(const Mon1d& poly)
 {
     array result;
     for (auto& mon : poly)
@@ -299,26 +367,50 @@ inline array hash1d(const Poly& poly)
  * Compute the differential of a monomial.
  * `diffs` is the array $(dg_i)$.
  */
-Poly get_diff(const Mon& mon, const Poly1d& diffs);
+template <typename FnCmp>
+Polynomial<FnCmp> GetDiff(const Mon& mon, const std::vector<Polynomial<FnCmp>>& diffs)
+{
+    using Poly = Polynomial<FnCmp>;
+    Poly result;
+    for (MonInd k = mon.begin(); k != mon.end(); ++k) {
+        if (k->exp % 2)
+            result += diffs[k->gen] * div(mon, {{k->gen, 1}});
+    }
+    return result;
+}
 /**
  * Compute the differential of a polynomial.
  * `diffs` is the array $(dg_i)$.
  */
-Poly get_diff(const Poly& poly, const Poly1d& diffs);
+template <typename FnCmp>
+Polynomial<FnCmp> GetDiff(const Polynomial<FnCmp>& poly, const std::vector<Polynomial<FnCmp>>& diffs)
+{
+    using Poly = Polynomial<FnCmp>;
+    Poly result;
+    for (const Mon& mon : poly.data) {
+        for (MonInd k = mon.begin(); k != mon.end(); ++k) {
+            if (k->exp % 2)
+                result += diffs[k->gen] * div(mon, {{k->gen, 1}});
+        }
+    }
+    return result;
+}
 
 /**
  * Replace the generators in `poly` with elements given in `map`.
  * @param poly The polynomial to be substituted.
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
-inline Poly subs(const Poly& poly, const Poly1d& map)
+template <typename FnCmp>
+Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map)
 {
+    using Poly = Polynomial<FnCmp>;
     Poly result;
-    for (const Mon& m : poly) {
-        Poly fm = { {} };
+    for (const Mon& m : data) {
+        Poly fm = {{}};
         for (MonInd p = m.begin(); p != m.end(); ++p)
-            fm = mul(fm, pow(map[p->gen], p->exp));
-        result = add(result, fm);
+            fm = fm * pow(map[p->gen], p->exp);
+        result += fm;
     }
     return result;
 }
@@ -327,19 +419,24 @@ inline Poly subs(const Poly& poly, const Poly1d& map)
  * @param poly The polynomial to be substituted.
  * @param map_gen_id `map_gen_id[i]` is the new id that substitutes the old id `i`.
  */
-inline Poly subs(const Poly& poly, const array& map_gen_id)
+template <typename FnCmp>
+Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
 {
+    using Poly = Polynomial<FnCmp>;
     Poly result;
-    for (const Mon& m : poly) {
+    for (const Mon& m : data) {
         Mon m1;
         for (GenPow ge : m)
-            m1.push_back({ map_gen_id[ge.gen], ge.exp });
+            m1.push_back({map_gen_id[ge.gen], ge.exp});
         std::sort(m1.begin(), m1.end(), [](const GenPow& lhs, const GenPow& rhs) { return lhs.gen < rhs.gen; });
-        result.push_back(m1);
+        result.data.push_back(m1);
     }
-    std::sort(result.begin(), result.end());
+    std::sort(result.data.begin(), result.data.end(), FnCmp::cmp); 
     return result;
 }
+
+array Poly2Indices(const Mon1d& poly, const Mon1d& basis);
+Mon1d Indices2Poly(const array& indices, const Mon1d& basis);
 
 }  // namespace alg
 

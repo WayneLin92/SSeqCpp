@@ -24,25 +24,21 @@ inline std::ostream& operator<<(std::ostream& sout, const alg::array3d& polys) {
 /* algebras */
 void dump_MonPow(std::ostream& sout, const alg::GenPow& p);
 inline void dump_Mon(std::ostream& sout, const alg::Mon& mon) { dump_vector(sout, mon, "", "", "", dump_MonPow); }
-inline void dump_Poly(std::ostream& sout, const alg::Poly& poly) { if (poly.empty()) sout << '0'; else dump_vector(sout, poly, "", "+", "", dump_Mon); }
-inline void dump_Poly1d(std::ostream& sout, const alg::Poly1d& polys) { dump_vector(sout, polys, "(", ", ", ")", dump_Poly); }
-inline void dump_Poly2d(std::ostream& sout, const alg::Poly2d& polys) { dump_vector(sout, polys, "[", ", ", "]", dump_Poly1d); }
-
+inline void dump_Poly(std::ostream& sout, const alg::Mon1d& poly) { if (poly.empty()) sout << '0'; else dump_vector(sout, poly, "", "+", "", dump_Mon); }
 
 void dump_MonPowV2(std::ostream& sout, const alg::GenPow& p, const std::vector<std::string>& gen_names);
 void dump_MonV2(std::ostream& sout, const alg::Mon& mon, const std::vector<std::string>& gen_names);
-void dump_PolyV2(std::ostream& sout, const alg::Poly& poly, const std::vector<std::string>& gen_names);
+void dump_PolyV2(std::ostream& sout, const alg::Mon1d& poly, const std::vector<std::string>& gen_names);
 
-inline std::ostream& operator<<(std::ostream& sout, const alg::Deg& d) { sout << '(' << d.s << ',' << d.t << ',' << d.v << ')'; return sout; }
+inline std::ostream& operator<<(std::ostream& sout, const alg::MayDeg& d) { sout << '(' << d.s << ',' << d.t << ',' << d.v << ')'; return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::GenPow& p) { dump_MonPow(sout, p); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Mon& mon) { dump_Mon(sout, mon); return sout; }
-inline std::ostream& operator<<(std::ostream& sout, const alg::Poly& poly) { dump_Poly(sout, poly); return sout; }
-inline std::ostream& operator<<(std::ostream& sout, const alg::Poly1d& polys) { dump_Poly1d(sout, polys); return sout; }
-inline std::ostream& operator<<(std::ostream& sout, const alg::Poly2d& polys) { dump_Poly2d(sout, polys); return sout; }
+inline std::ostream& operator<<(std::ostream& sout, const alg::Mon1d& poly) { dump_Poly(sout, poly); return sout; }
 
-inline alg::Poly GetPolyByName(const std::vector<std::string>& gen_names, const std::string& gn)
+template<typename FnCmp>
+inline alg::Polynomial<FnCmp> GetPolyByName(const std::vector<std::string>& gen_names, const std::string& gn)
 {
-    return alg::Poly{{{(int)(std::find(gen_names.begin(), gen_names.end(), gn) - gen_names.begin()), 1}}};
+    return alg::Polynomial<FnCmp>::Gen((int)(std::find(gen_names.begin(), gen_names.end(), gn) - gen_names.begin()));
 }
 
 // clang-format on

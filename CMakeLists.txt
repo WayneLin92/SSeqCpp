@@ -11,7 +11,6 @@ set(BUILD_DOXYGEN ON)
 
 # The compiled library code is here
 add_subdirectory(src)
-add_subdirectory(thirdparty/sqlite3)
 
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

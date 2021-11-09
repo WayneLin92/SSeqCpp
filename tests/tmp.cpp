@@ -1,6 +1,9 @@
+#include "algebras/benchmark.h"
 #include "algebras/database.h"
 #include "algebras/groebner.h"
 #include "algebras/myio.h"
+#include "algebras/utility.h"
+#include <execution>
 
 void compare_computations()
 {
@@ -17,8 +20,8 @@ void compare_computations()
     alg::array map_gen_id_inv(gen_names.size());
     for (size_t i = 0; i < gen_names.size(); ++i) {
         size_t new_index = std::find(gen_names_py.begin(), gen_names_py.end(), gen_names[i]) - gen_names_py.begin();
-        map_gen_id[i] = new_index;
-        map_gen_id_inv[new_index] = i;
+        map_gen_id[i] = (int)new_index;
+        map_gen_id_inv[new_index] = (int)i;
     }
 
     int count = 0;
@@ -48,7 +51,7 @@ void compute_ann()
         gen_degs_s.push_back(p->s);
 
     alg::Poly x = GetPolyByName(gen_names, "h_0(1,3)");
-    alg::Poly2d a2d = alg::ann_seq(gb, { x }, gen_degs_s, s_max);
+    alg::Poly2d a2d = alg::ann_seq(gb, {x}, gen_degs_s, s_max);
     alg::Poly1d a;
     for (alg::Poly1d& v : a2d)
         a.push_back(std::move(v[0]));
@@ -87,8 +90,87 @@ void compute()
     std::cout << '\n';
 }
 
+void benchmark_old()
+{
+    int n_max = 8;
+    alg::array gen_degs;
+    for (int d = 1; d <= n_max; d++) {
+        for (int i = 0; i <= n_max - d; i++) {
+            int j = i + d;
+            gen_degs.push_back((1 << j) - (1 << i));
+        }
+    }
+    alg::Poly1d rels;
+    for (int d = 2; d <= n_max; d++) {
+        for (int i = 0; i <= n_max - d; i++) {
+            int j = i + d;
+            alg::Poly rel;
+            for (int k = i + 1; k < j; k++) {
+                int a = (1 << k) - (1 << i);
+                int b = (1 << j) - (1 << k);
+                auto p1 = std::find(gen_degs.begin(), gen_degs.end(), a);
+                auto p2 = std::find(gen_degs.begin(), gen_degs.end(), b);
+                int index1 = int(p1 - gen_degs.begin());
+                int index2 = int(p2 - gen_degs.begin());
+                rel = add(rel, alg::Poly{{{index1, 1}}} * alg::Poly{{{index2, 1}}});
+            }
+            rels.push_back(std::move(rel));
+        }
+    }
+
+    alg::Groebner gb;
+    std::sort(rels.begin(), rels.end(), [&gen_degs](const alg::Poly& p1, const alg::Poly& p2) { return alg::get_deg(p1, gen_degs) < get_deg(p2, gen_degs); });
+    alg::AddRelsV2(gb, std::move(rels), gen_degs, -1);
+    size_t answer = 163;
+    std::cout << "old: " << gb.size() << "==" << answer << '\n';
+}
+
+void benchmark_new()
+{
+    using FnCmp = alg::CmpLex;
+    using Poly = alg::Polynomial<FnCmp>;
+    using Poly1d = std::vector<Poly>;
+    using Gb = alg::Groebner<FnCmp>;
+    constexpr auto GenExp = Poly::GenExp;
+    int n_max = 9;
+    alg::array gen_degs;
+    for (int i = 0; i < n_max; ++i) {
+        for (int j = i + 1; j <= n_max; ++j) {
+            gen_degs.push_back((1 << j) - (1 << i));
+        }
+    }
+    Poly1d rels;
+    for (int d = 2; d <= n_max; d++) {
+        for (int i = 0; i <= n_max - d; i++) {
+            int j = i + d;
+            Poly rel;
+            for (int k = i + 1; k < j; k++) {
+                int a = (1 << k) - (1 << i);
+                int b = (1 << j) - (1 << k);
+                auto p1 = std::find(gen_degs.begin(), gen_degs.end(), a);
+                auto p2 = std::find(gen_degs.begin(), gen_degs.end(), b);
+                int index1 = int(p1 - gen_degs.begin());
+                int index2 = int(p2 - gen_degs.begin());
+                rel += GenExp(index1, 1) * GenExp(index2, 1);
+            }
+            rels.push_back(std::move(rel));
+        }
+    }
+
+    Gb gb;
+    std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.Deg(gen_degs) < p2.Deg(gen_degs); });
+    alg::AddRels(gb, std::move(rels), gen_degs, -1);
+    size_t answer = 163;
+    std::cout << "new: " << gb.size() << "==" << answer << '\n';
+}
+
 int main()
 {
-    compute_ann();
+    Timer timer;
+    int n = 1;
+    for (int i = 0; i < n; ++i)
+        benchmark_new();
+    std::cout << timer.Elapsed() / n << '\n';
+
     return 0;
 }

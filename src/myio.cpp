@@ -37,7 +37,7 @@ void dump_MonV2(std::ostream& sout, const alg::Mon& mon, const std::vector<std::
     }
 }
 
-void dump_PolyV2(std::ostream& sout, const alg::Poly& poly, const std::vector<std::string>& gen_names)
+void dump_PolyV2(std::ostream& sout, const alg::Mon1d& poly, const std::vector<std::string>& gen_names)
 {
     if (poly.empty()) {
         sout << '0';

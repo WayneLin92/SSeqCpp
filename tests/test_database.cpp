@@ -4,6 +4,5 @@
 #include "algebras/database.h"
 
 TEST_CASE( "Save and load from database", "[database]" ) {
-    
     REQUIRE( 0 == 0 );
 }

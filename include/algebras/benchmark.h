@@ -1,8 +1,12 @@
-#pragma once
+#ifndef BENCHMARK_INCLUDED
+#define BENCHMARK_INCLUDED
 
 #include <chrono>
 #include <iostream>
 
+/**
+* The class `Timer` is used for benchmark
+*/
 class Timer {
 public:
     Timer() : elapsed_recent(0), bPrinted(false) { saved_time = std::chrono::system_clock::now(); }
@@ -32,3 +36,5 @@ private:
     std::chrono::duration<double> elapsed_recent;
     bool bPrinted;
 };
+
+#endif
