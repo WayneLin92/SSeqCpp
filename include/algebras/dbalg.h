@@ -10,6 +10,8 @@
 #include "myio.h"
 #include <map>
 #include <sstream>
+#include <chrono>
+#include <ctime>
 
 namespace alg {
 
@@ -32,7 +34,7 @@ struct Staircase
 
 namespace myio {
 
-class DbAlg : public myio::Database
+class DbAlg : public Database
 {
     using MayDeg = alg::MayDeg;
     using MayDeg1d = alg::MayDeg1d;
@@ -55,7 +57,7 @@ private:
     const char* VERSION = "0.0"; /** Version of this class */
     std::string version_;        /** Version of the class who created the opened database */
     std::string mo_;             /** Monomial ordering */
-    std::string mod_date_;       /** Latest modification date */
+    std::string date_;       /** Latest modification date */
 
 public:
     DbAlg() = default;
@@ -154,32 +156,32 @@ public:
     MayDeg1d load_gen_maydegs(const std::string& table_name) const;
     std::vector<std::string> load_gen_names(const std::string& table_name) const
     {
-        return get_column_str(table_name, "gen_name", "");
+        return get_column_str(table_name, "gen_name", "ORDER BY gen_id");
     }
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_diffs(const std::string& table_name) const
     {
-        return get_column_Poly<FnCmp>(table_name, "gen_diff", "");
+        return get_column_Poly<FnCmp>(table_name, "gen_diff", "ORDER BY gen_id");
     }
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_reprs(const std::string& table_name) const
     {
-        return get_column_Poly<FnCmp>(table_name, "repr", "");
+        return get_column_Poly<FnCmp>(table_name, "repr", "ORDER BY gen_id");
     }
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_images(const std::string& table_name, const std::string& column_name, int t_max) const
     {
-        return get_column_Poly<FnCmp>(table_name, column_name, (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)));
+        return get_column_Poly<FnCmp>(table_name, column_name, (t_max == -1 ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY gen_id");
     }
     Mon2d load_leading_terms(const std::string& table_name, int t_max) const; /* The leading monomials are grouped by the first generator */
     template <typename FnCmp>
     Poly1d<FnCmp> load_gb(const std::string& table_name, int t_max) const
     {
         Poly1d<FnCmp> gb;
-        myio::Statement stmt(*this, "SELECT leading_term, basis FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+        Statement stmt(*this, "SELECT leading_term, basis FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
         while (stmt.step() == MYSQLITE_ROW) {
             Polynomial<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
-            Polynomial<FnCmp> basis = Polynomial<FnCmp>{Deserialize<Mon1d>(stmt.column_str(1))};
+            Polynomial<FnCmp> basis = Polynomial<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1))); ////
 
             Polynomial<FnCmp> g = basis + lead;
             gb.push_back(std::move(g));
@@ -216,7 +218,7 @@ public:
     {
         std::map<MayDeg, Poly1d<FnCmp>> result;
         std::string sql = "SELECT s, t, v, diff FROM " + table_name + (t_max == -1 ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
-        myio::Statement stmt(*this, sql);
+        Statement stmt(*this, sql);
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
             ++count;
@@ -232,9 +234,9 @@ public:
 
 public:
     template <typename T, typename FnMap>
-    void save_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, int i_start) const
+    void save_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
     {
-        myio::Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
+        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
         for (size_t i = i_start; i < column.size(); ++i) {
             stmt.bind_str(1, map(column[i]));
             stmt.bind_int(2, (int)i);
@@ -243,9 +245,10 @@ public:
         if (bLogging_)
             std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";
     }
-    void save_gen_degs(const std::string& table_name, const std::vector<MayDeg>& gen_degs) const
+    void save_gen_maydegs(const std::string& table_name, const std::vector<MayDeg>& gen_degs) const
     {
-        myio::Statement stmt(*this, "INSERT INTO " + table_name + " (s, t, v, gen_id) VALUES (?1, ?2, ?3, ?4);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_name + " (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+        Statement stmt(*this, "INSERT INTO " + table_name + " (s, t, v, gen_id) VALUES (?1, ?2, ?3, ?4);");
 
         for (size_t i = 0; i < gen_degs.size(); ++i) {
             stmt.bind_int(1, gen_degs[i].s);
@@ -277,7 +280,9 @@ public:
     template <typename FnCmp>
     void save_gb(const std::string& table_name, const Groebner<FnCmp>& gb, const std::vector<MayDeg>& gen_degs, size_t i_start = 0) const
     {
-        myio::Statement stmt(*this, "INSERT INTO " + table_name + " (leading_term, basis, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_name + " (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+
+        Statement stmt(*this, "INSERT INTO " + table_name + " (leading_term, basis, s, t, v) VALUES (?1, ?2, ?3, ?4, ?5);");
 
         for (size_t i = i_start; i < gb.size(); ++i) {
             MayDeg deg = gb[i].GetMayDeg(gen_degs);
@@ -288,6 +293,28 @@ public:
             stmt.bind_int(5, deg.v);
             stmt.step_and_reset();
         }
+
+        execute_cmd("CREATE TABLE IF NOT EXISTS info (key TEXT PRIMARY KEY, value TEXT);");
+        execute_cmd("DELETE FROM info;");
+
+        Statement stmt1(*this, "INSERT INTO info (key, value) VALUES (?1, ?2);");
+        stmt1.bind_str(1, "version");
+        stmt1.bind_str(2, VERSION);
+        stmt1.step_and_reset();
+
+        stmt1.bind_str(1, "mo");
+        stmt1.bind_str(2, std::string(FnCmp::name));
+        stmt1.step_and_reset();
+
+        stmt1.bind_str(1, "date");
+        std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        stmt1.bind_str(2, std::ctime(&now));
+        stmt1.step_and_reset();
+
+        stmt1.bind_str(1, "grading");
+        stmt1.bind_str(2, "t,s,v");
+        stmt1.step_and_reset();
+
         if (bLogging_)
             std::cout << gb.size() - i_start << " relations are inserted into " + table_name + "!\n";
     }
@@ -295,7 +322,7 @@ public:
     template <typename T, typename FnMap>
     void save_groups(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::map<MayDeg, std::vector<T>>& groups, FnMap map) const
     {
-        myio::Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
+        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
 
         int count = 0;
         for (auto& [deg, v] : groups) {
@@ -311,7 +338,8 @@ public:
     }
     void save_basis(const std::string& table_name, const std::map<MayDeg, Mon1d>& basis) const
     {
-        myio::Statement stmt(*this, "INSERT INTO " + table_name + " (mon, s, t, v) VALUES (?1, ?2, ?3, ?4);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_name + " (mon_id INTEGER PRIMARY KEY, mon TEXT NOT NULL, diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+        Statement stmt(*this, "INSERT INTO " + table_name + " (mon, s, t, v) VALUES (?1, ?2, ?3, ?4);");
 
         int count = 0;
         for (auto& [deg, basis_d] : basis) {

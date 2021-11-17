@@ -1,4 +1,5 @@
 #include "myio.h"
+#include <sstream>
 
 /*********** FUNCTIONS **********/
 
@@ -48,4 +49,11 @@ void dump_PolyV2(std::ostream& sout, const alg::Mon1d& poly, const std::vector<s
             sout << '+';
         dump_MonV2(sout, *i, gen_names);
     }
+}
+
+std::string StrPoly(const alg::Mon1d& poly, const std::vector<std::string>& gen_names)
+{
+    std::ostringstream s;
+    dump_PolyV2(s, poly, gen_names);
+    return s.str();
 }

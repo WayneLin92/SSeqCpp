@@ -1,15 +1,15 @@
-#include "algdb.h"
+#include "dbalg.h"
 #include <iostream>
 #include <sqlite3.h>
 
 namespace myio {
 
-DbAlg::DbAlg(const char* filename) : myio::Database(filename), bLogging_(true)
+DbAlg::DbAlg(const char* filename) : Database(filename), bLogging_(true)
 {
     try {
-        version_ = get_str(std::string("SELECT value FROM info WHERE name=\"version\""));
-        mo_ = get_str(std::string("SELECT value FROM info WHERE name=\"mo\""));
-        mod_date_ = get_str(std::string("SELECT value FROM info WHERE name=\"date\""));
+        version_ = get_str(std::string("SELECT value FROM info WHERE key=\"version\""));
+        mo_ = get_str(std::string("SELECT value FROM info WHERE key=\"mo\""));
+        date_ = get_str(std::string("SELECT value FROM info WHERE key=\"date\""));
     }
     catch (MyException&) {
     }
@@ -40,7 +40,7 @@ std::string DbAlg::Serialize(const Mon& obj)
 std::string DbAlg::Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend) /* Warning: the algebra should be connected */
 {
     std::ostringstream ss;
-    if (pbegin + 1 == pend && pbegin->empty()) {
+    if (pend - pbegin == 1 && pbegin->empty()) {
         ss << ';';
         return ss.str();
     }
@@ -64,7 +64,7 @@ alg::array2d DbAlg::get_column_array(const std::string& table_name, const std::s
 alg::MayDeg1d DbAlg::load_gen_maydegs(const std::string& table_name) const
 {
     std::vector<MayDeg> gen_degs;
-    myio::Statement stmt(*this, "SELECT s, t, v FROM " + table_name + " ORDER BY gen_id;");
+    Statement stmt(*this, "SELECT s, t, v FROM " + table_name + " ORDER BY gen_id;");
     while (stmt.step() == SQLITE_ROW)
         gen_degs.push_back({stmt.column_int(0), stmt.column_int(1), stmt.column_int(2)});
     std::cout << "gen_degs loaded from " << table_name << ", size=" << gen_degs.size() << '\n';
@@ -74,7 +74,7 @@ alg::MayDeg1d DbAlg::load_gen_maydegs(const std::string& table_name) const
 alg::Mon2d DbAlg::load_leading_terms(const std::string& table_name, int t_max) const
 {
     Mon2d leadings;
-    myio::Statement stmt(*this, "SELECT leading_term FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+    Statement stmt(*this, "SELECT leading_term FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -90,7 +90,7 @@ alg::Mon2d DbAlg::load_leading_terms(const std::string& table_name, int t_max) c
 std::map<alg::MayDeg, int> DbAlg::load_indices(const std::string& table_name, int t_max) const
 {
     std::map<MayDeg, int> result;
-    myio::Statement stmt(*this, "SELECT s, t, v, min(base_id) FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " GROUP BY s, t, v;");
+    Statement stmt(*this, "SELECT s, t, v, min(base_id) FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " GROUP BY s, t, v;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -125,7 +125,7 @@ std::map<alg::MayDeg, alg::array2d> DbAlg::load_mon_diffs_ind_with_null(const st
 std::map<alg::MayDeg, alg::BasisComplex> DbAlg::load_basis_ss(const std::string& table_name, int r, int t_max) const
 {
     std::map<MayDeg, alg::BasisComplex> basis_ss;
-    myio::Statement stmt(*this, "SELECT s, t, v, level, base FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
+    Statement stmt(*this, "SELECT s, t, v, level, base FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -143,7 +143,7 @@ std::map<alg::MayDeg, alg::BasisComplex> DbAlg::load_basis_ss(const std::string&
 std::map<alg::MayDeg, alg::Staircase> DbAlg::load_basis_ss(const std::string& table_name, int t_max) const
 {
     std::map<MayDeg, alg::Staircase> basis_ss;
-    myio::Statement stmt(*this, "SELECT s, t, v, level, base, diff FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
+    Statement stmt(*this, "SELECT s, t, v, level, base, diff FROM " + table_name + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -166,7 +166,7 @@ std::map<alg::MayDeg, alg::Staircase> DbAlg::load_basis_ss(const std::string& ta
 
 void DbAlg::save_ss(const std::string& table_name, const std::map<alg::MayDeg, alg::Staircase>& basis_ss) const
 {
-    myio::Statement stmt(*this, "INSERT INTO " + table_name + " (base, diff, level, s, t, v, base_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);");
+    Statement stmt(*this, "INSERT INTO " + table_name + " (base, diff, level, s, t, v, base_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);");
 
     int count = 0;
     for (const auto& [deg, basis_ss_d] : basis_ss) {
@@ -192,7 +192,7 @@ void DbAlg::save_ss(const std::string& table_name, const std::map<alg::MayDeg, a
 void DbAlg::update_ss(const std::string& table_name, const std::map<alg::MayDeg, alg::Staircase>& basis_ss) const
 {
     std::map<MayDeg, int> indices = load_indices(table_name, -1);
-    myio::Statement stmt(*this, "UPDATE " + table_name + " SET base=?1, diff=?2, level=?3 WHERE base_id=?4;");
+    Statement stmt(*this, "UPDATE " + table_name + " SET base=?1, diff=?2, level=?3 WHERE base_id=?4;");
 
     int count = 0;
     for (const auto& [deg, basis_ss_d] : basis_ss) {

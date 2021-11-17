@@ -24,6 +24,7 @@ namespace detail {
      * this function replaces f with f + g * (f[i]/g[0]).
      *
      * We tried our best to reduce the memory allocations.
+     * TODO: use log
      */
     template <typename FnCmp>
     void Reduce(Polynomial<FnCmp>& f, const Polynomial<FnCmp>& g, const size_t index)
@@ -123,7 +124,7 @@ public:
     Poly Reduce(Poly poly) const
     {
         size_t index = 0;
-        while (index != poly.data.size()) {
+        while (index < poly.data.size()) {
             int gb_index = [&]() {
                 for (const auto& p : poly.data[index]) {
                     if (lc.find(p.gen) != lc.end()) {
@@ -134,8 +135,9 @@ public:
                 }
                 return -1;
             }();
-            if (gb_index != -1)
+            if (gb_index != -1) {
                 alg::detail::Reduce(poly, data[gb_index], index);
+            }
             else
                 ++index;
         }
@@ -155,6 +157,10 @@ public: /* Convenient interfaces for the member `gb` */
     {
         lc[g.GetLead().back().gen].push_back((int)data.size());
         data.push_back(std::move(g));
+    }
+    bool operator==(const Groebner<FnCmp>& rhs) const
+    {
+        return data == rhs.data;
     }
 };
 
@@ -225,26 +231,24 @@ void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial
         /* Add these relations */
         buffer_new_rels.resize(gb.size() + rels_d.size());
         for (auto& rel : rels_d) {
-            if (rel) {
-                ut::Range range2(0, (int)gb.size());
-                std::for_each(std::execution::seq, range2.begin(), range2.end(), [&gb, &buffer_new_rels, &rel, pred, _get_deg, d, deg_max](int i) {
-                    if (detail::HasGCD(rel.GetLead(), gb[i].GetLead()) && pred(rel.GetLead(), gb[i].GetLead())) {
-                        Mon gcd = GCD(rel.GetLead(), gb[i].GetLead());
-                        int deg_new_rel = d + _get_deg(gb[i].GetLead()) - _get_deg(gcd);
-                        if (deg_new_rel <= deg_max || deg_max == -1)
-                            buffer_new_rels[i] = std::make_pair(deg_new_rel, GbBufferEle{std::move(gcd), i, (int)gb.size()});
-                        else
-                            buffer_new_rels[i].first = -1;
-                    }
+            ut::Range range2(0, (int)gb.size());
+            std::for_each(std::execution::seq, range2.begin(), range2.end(), [&gb, &buffer_new_rels, &rel, pred, _get_deg, d, deg_max](int i) {
+                if (detail::HasGCD(rel.GetLead(), gb[i].GetLead()) && pred(rel.GetLead(), gb[i].GetLead())) {
+                    Mon gcd = GCD(rel.GetLead(), gb[i].GetLead());
+                    int deg_new_rel = d + _get_deg(gb[i].GetLead()) - _get_deg(gcd);
+                    if (deg_new_rel <= deg_max || deg_max == -1)
+                        buffer_new_rels[i] = std::make_pair(deg_new_rel, GbBufferEle{std::move(gcd), i, (int)gb.size()});
                     else
                         buffer_new_rels[i].first = -1;
-                });
-                for (size_t i = 0; i < gb.size(); ++i) {
-                    if (buffer_new_rels[i].first != -1)
-                        buffer[buffer_new_rels[i].first].push_back(std::move(buffer_new_rels[i].second));
                 }
-                gb.push_back(std::move(rel));
+                else
+                    buffer_new_rels[i].first = -1;
+            });
+            for (size_t i = 0; i < gb.size(); ++i) {
+                if (buffer_new_rels[i].first != -1)
+                    buffer[buffer_new_rels[i].first].push_back(std::move(buffer_new_rels[i].second));
             }
+            gb.push_back(std::move(rel));
         }
     }
     buffer.erase(buffer.begin(), p_buffer);
@@ -339,7 +343,7 @@ GbBuffer GenerateBuffer(const alg::Groebner<FnCmp>& gb, const array& gen_degs, i
  * Algorithms that use Groebner basis
  **********************************************************/
 
-constexpr unsigned int GEN_IDEAL = 0x80000000;
+constexpr int GEN_IDEAL = 0x40000000;
 /**
  * Revlex on extra generators and FnCmp on the rest
  */
@@ -347,11 +351,11 @@ template <typename FnCmp>
 struct CmpIdeal
 {
     using submo = FnCmp;
-    static constexpr std::string_view name = "CmpIdeal";
+    static constexpr std::string_view name = "Ideal";
     static bool cmp(const Mon& m1, const Mon& m2)
     {
-        auto mid1 = std::lower_bound(m1.begin(), m1.end(), GEN_IDEAL, [](const GenPow& p, unsigned int g) { return p.gen < g; });
-        auto mid2 = std::lower_bound(m2.begin(), m2.end(), GEN_IDEAL, [](const GenPow& p, unsigned int g) { return p.gen < g; });
+        auto mid1 = std::lower_bound(m1.begin(), m1.end(), GEN_IDEAL, [](const GenPow& p, int g) { return p.gen < g; });
+        auto mid2 = std::lower_bound(m2.begin(), m2.end(), GEN_IDEAL, [](const GenPow& p, int g) { return p.gen < g; });
         if (CmpRevlex::cmp_ranges(mid1, m1.end(), mid2, m2.end()))
             return true;
         else if (std::equal(mid1, m1.end(), mid2, m2.end())) {
@@ -371,7 +375,7 @@ namespace detail {
             [&gen_degs, &gen_degs_y](const Mon& mon) {
                 int result = 0;
                 for (MonInd p = mon.begin(); p != mon.end(); ++p)
-                    result += ((p->gen & GEN_IDEAL) ? gen_degs[p->gen] : gen_degs_y[p->gen - GEN_IDEAL]) * p->exp;
+                    result += ((p->gen & GEN_IDEAL) ? gen_degs_y[p->gen - GEN_IDEAL] : gen_degs[p->gen]) * p->exp;
                 return result;
             },
             deg, deg_max);
@@ -406,10 +410,9 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner
     array degs;
     for (const auto& v : vectors) {
         PolyI rel;
-        int d;
         for (size_t i = 0; i < basis_degs.size(); ++i)
             if (v[i])
-                rel += PolyI::Sort((v[i] * Mon{{GEN_IDEAL + i, 1}}).data);
+                rel += PolyI::Sort((v[i] * Mon{{GEN_IDEAL + (int)i, 1}}).data);
         for (size_t i = 0; i < basis_degs.size(); ++i) {
             if (v[i]) {
                 degs.push_back(v[i].GetDeg(gen_degs) + basis_degs[i]);
@@ -426,10 +429,12 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner
     GbBuffer buffer;
     int deg_max = degs[indices.back()];
     for (int i : indices) {
+        detail::AddRelsIdeal(gbI, buffer, {}, gen_degs, basis_degs, degs[i], deg_max);
         PolyI rel = gbI.Reduce(rels[i]);
-        if (!rel)
+        if (rel)
+            detail::AddRelsIdeal(gbI, buffer, {std::move(rel)}, gen_degs, basis_degs, degs[i], deg_max);
+        else
             vectors[i].clear();
-        detail::AddRelsIdeal(gbI, buffer, {rel}, gen_degs, basis_degs, degs[i], deg_max);
     }
 
     /* Keep only the indecomposables in `vectors` */
@@ -443,7 +448,7 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner
  * The result is truncated by `deg<=deg_max`.
  */
 template <typename FnCmp>
-std::vector<std::vector<alg::Polynomial<FnCmp>>> ann_seq(const Groebner<FnCmp>& gb, const std::vector<alg::Polynomial<FnCmp>>& polys, const array& gen_degs, int deg_max)
+std::vector<std::vector<alg::Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<alg::Polynomial<FnCmp>>& polys, const array& gen_degs, int deg_max)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -477,10 +482,10 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>> ann_seq(const Groebner<FnCmp>& 
             Poly1d ann;
             ann.resize(n);
             for (const Mon& m : g.data) {
-                auto mid = std::lower_bound(m.begin(), m.end(), GEN_IDEAL, [](const GenPow& p, unsigned int g) { return p.gen < g; });
+                auto mid = std::lower_bound(m.begin(), m.end(), GEN_IDEAL, [](const GenPow& p, int g) { return p.gen < g; });
                 Mon m1(m.begin(), mid), m2(mid, m.end());
                 ann[m2.front().gen - GEN_IDEAL] += gb.Reduce(subs(
-                                                                 {div(m2, {{m2.front().gen, 1}})}, [&polys](int i) { return polys[i - GEN_IDEAL]; }, gb)
+                                                                 {div(m2, {{(int)m2.front().gen, 1}})}, [&polys](int i) { return polys[i - GEN_IDEAL]; }, gb)
                                                              * m1);
             }
             result.push_back(std::move(ann));

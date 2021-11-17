@@ -16,6 +16,8 @@ set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/utility.h"
 )
 
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+
 add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp ${HEADER_LIST})
 
 target_include_directories(algebras PRIVATE ../include/algebras)

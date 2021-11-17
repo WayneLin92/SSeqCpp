@@ -270,9 +270,9 @@ int get_id(int i, int j)
     return (19 - i) * i / 2 + (j - i - 1);
 }
 
-alg::PolyRevlex get_repr(const alg::array& S, alg::array T)
+alg::PolyLex get_repr(const alg::array& S, alg::array T)
 {
-    alg::PolyRevlex result;
+    alg::PolyLex result;
     do {
         bool nonzero = true;
         for (size_t i = 0; i < S.size(); ++i)
@@ -282,15 +282,15 @@ alg::PolyRevlex get_repr(const alg::array& S, alg::array T)
             alg::Mon m;
             for (size_t i = 0; i < S.size(); ++i)
                 m.push_back({get_id(S[i], T[i]), 1});
-            result += alg::PolyRevlex{{std::move(m)}};
+            result += alg::PolyLex{{std::move(m)}};
         }
     } while (std::next_permutation(T.begin(), T.end()));
     return result;
 }
 
-alg::PolyRevlex get_repr(const alg::array& S, const alg::array& T, int n)
+alg::PolyLex get_repr(const alg::array& S, const alg::array& T, int n)
 {
-    alg::PolyRevlex result;
+    alg::PolyLex result;
     int m = T.back();
     for (int k = m; k < n; ++k) {
         alg::array T1(T);
@@ -305,7 +305,7 @@ alg::PolyRevlex get_repr(const alg::array& S, const alg::array& T, int n)
                 for (size_t i = 0; i < S.size(); ++i)
                     m.push_back({get_id(S[i], T1[i]), 1});
                 m.push_back({get_id(k, n), 1});
-                result += alg::PolyRevlex{{m}};
+                result += alg::PolyLex{{m}};
             }
         } while (std::next_permutation(T1.begin(), T1.end()));
     }
@@ -346,7 +346,7 @@ Signature get_sig(const alg::PolyLex& poly, const std::vector<alg::MayDeg>& gen_
  * @param poly A polynomial.
  * @param gen_sigs Signatures of generators in poly.
  */
-Signature get_sig(const alg::PolyLex& poly, const std::vector<Signature>& gen_sigs)
+Signature get_sig(const alg::PolyRevlex& poly, const std::vector<Signature>& gen_sigs)
 {
     Signature result;
     for (alg::MonInd p = poly.GetLead().begin(); p != poly.GetLead().end(); ++p)
@@ -358,20 +358,17 @@ Signature get_sig(const alg::PolyLex& poly, const std::vector<Signature>& gen_si
  * Solve the extension problem for `rel`.
  *
  * Search for all basis in A in the right degree and determine for which p such that rel+p=0.
- * If such p does not exist, return 1.
- * If such p is not unique, return 2.
- * Otherwise, modify rel and return 0.
+ * If such p does not exist, return false.
+ * If such p is not unique, return false.
+ * Otherwise, modify rel and return true.
  */
 bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_names, const alg::PolyLex1d& gen_repr, const std::vector<Signature>& gen_sigs, const alg::Mon2d& leadings,
                      const std::vector<alg::MayDeg>& gen_degs_X9, const alg::GroebnerLex& gb_B9)
 {
-
-    std::cout << "rel=";
-    dump_PolyV2(std::cout, rel.data, gen_names);
-    std::cout << '\n';
+    std::cout << "rel=" << StrPoly(rel.data, gen_names) << '\n';
 
     alg::PolyLex repr_rel = gb_B9.Reduce(alg::subs(rel.data, gen_repr));
-    if (repr_rel)
+    if (!repr_rel)
         return true;
     Signature sig_rel = get_sig(repr_rel, gen_degs_X9);
 
@@ -383,23 +380,23 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
 
     alg::Mon1d basis = get_basis(leadings, gen_sigs, sig_rel);
 
-    // std::cout << "basis=(";
-    // for (const auto& b : basis) {
-    //     dump_MonV2(std::cout, b, gen_names);
-    //     std::cout << ", ";
-    // }
-    // std::cout << ")\n";
+     /*std::cout << "basis=(";
+     for (const auto& b : basis) {
+         dump_MonV2(std::cout, b, gen_names);
+         std::cout << ", ";
+     }
+     std::cout << ")\n";*/
 
-    // std::cout << "repr_basis=(";
+    //std::cout << "repr_basis=("; //
     lina::array2d fx;
     for (const auto& m : basis) {
         alg::PolyLex repr_m = gb_B9.Reduce(alg::subs({m}, gen_repr));
-        // std::cout << repr_m << "=";
+        //std::cout << repr_m.data << "="; //
         fx.push_back(alg::hash1d(repr_m.data));
-        // std::cout << alg::hash1d(repr_m) << ", ";
+        //std::cout << alg::hash1d(repr_m.data) << ", "; //
     }
-    // std::cout << ")\n";
-    // std::cout << "repr_rel=" << repr_rel << '=' << alg::hash1d(repr_rel) << '\n';
+    //std::cout << ")\n"; //
+    //std::cout << "repr_rel=" << repr_rel.data << '=' << alg::hash1d(repr_rel.data) << '\n'; //
     fx.push_back(alg::hash1d(repr_rel.data));
 
     lina::array2d image, kernel, g;
@@ -414,9 +411,8 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
                 for (size_t i = 0; i < kernel[0].size(); ++i)
                     k += alg::PolyRevlex{{basis[kernel[0][i]]}};
 
-                std::cerr << "k=";
-                dump_PolyV2(std::cerr, k.data, gen_names);
-                std::cerr << '\n';
+                std::cerr << "k=" << StrPoly(k.data, gen_names) << '\n';
+                std::cerr << "repr_k=" << gb_B9.Reduce(alg::subs(k.data, gen_repr)).data << '\n';
                 std::cerr << "Unexpected solution.\n";
             }
             else {
@@ -430,16 +426,12 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
                 for (size_t i = 0; i < kernel[1].size() - 1; ++i)
                     ext2 += alg::PolyRevlex{{basis[kernel[1][i]]}};
 
-                std::cerr << "ext1=";
-                dump_PolyV2(std::cerr, ext1.data, gen_names);
-                std::cerr << '\n';
+                std::cerr << "ext1=" << StrPoly(ext1.data, gen_names) << '\n'; 
 
                 auto ext1_repr = gb_B9.Reduce(alg::subs(ext1.data, gen_repr));
                 std::cerr << "Reduce(repr(ext1))=" << ext1_repr.data << '\n';
 
-                std::cerr << "ext2=";
-                dump_PolyV2(std::cerr, ext2.data, gen_names);
-                std::cerr << '\n';
+                std::cerr << "ext2=" << StrPoly(ext2.data, gen_names) << '\n';
 
                 std::cerr << "Bug: nonunique solutions to the extension problem.\n";
             }
@@ -454,9 +446,9 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
 /**
  * Compute HX_{nm} where X_{nm} is the polynomial DGA generated by R<=R_{n-m, n}.
  */
-int generate_Xnm(int n, int m, int s_max)
+int generate_Xnm(int n, int m, int t_max)
 {
-    alg::DbAlg db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
+    myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/HX9.db");
     std::string table_prefix;
     if (m - 1 == 0)
         table_prefix = std::string("HX") + std::to_string(n - 1);
@@ -464,18 +456,13 @@ int generate_Xnm(int n, int m, int s_max)
         table_prefix = std::string("HX") + std::to_string(n) + std::to_string(m - 1);
     std::string table1_prefix = std::string("HX") + std::to_string(n) + std::to_string(m);  //
 
-    try {
-        db.execute_cmd("CREATE TABLE " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-        db.execute_cmd("CREATE TABLE " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-    }
-    catch (MyException&) {
-    }
-
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
-
     std::cout << "A=" << table_prefix << '\n';
     std::cout << "B=" << table1_prefix << '\n';
+
+    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
+    db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
+    db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
 
     alg::MayDeg deg_x = {1, (1 << n) - (1 << (n - m)), m - 1};
     int id_x = get_id(n - m, n);
@@ -483,34 +470,34 @@ int generate_Xnm(int n, int m, int s_max)
 
     std::cout << "id_x=" << id_x << '\n';
 
-    std::vector<alg::MayDeg> gen_degs = db.load_gen_degs(table_prefix + "_generators");
-    alg::array gen_degs_s;
+    std::vector<alg::MayDeg> gen_degs = db.load_gen_maydegs(table_prefix + "_generators");
+    alg::array gen_degs_t;
     for (auto p = gen_degs.begin(); p < gen_degs.end(); ++p)
-        gen_degs_s.push_back(p->s);
+        gen_degs_t.push_back(p->t);
     std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
-    alg::Poly1d gen_reprs = db.load_gen_reprs(table_prefix + "_generators");
-    alg::Groebner gb = db.load_gb_s(table_prefix + "_relations", s_max);
+    alg::PolyLex1d gen_reprs = db.load_gen_reprs<alg::CmpLex>(table_prefix + "_generators");
+    alg::GroebnerRevlex gb = db.load_gb<alg::CmpRevlex>(table_prefix + "_relations", t_max);
 
-    std::vector<alg::MayDeg> gen_degs_X9 = db.load_gen_degs("X9_generators");
-    alg::Poly1d gen_diffs_E1 = db.load_gen_diffs("X9_generators");
+    std::vector<alg::MayDeg> gen_degs_X9 = db.load_gen_maydegs("X9_generators");
+    alg::PolyLex1d gen_diffs_E1 = db.load_gen_diffs<alg::CmpLex>("X9_generators");
 
     alg::Groebner gb1 = gb;
     std::vector<Signature> gen_sigs;
     for (size_t i = 0; i < gen_reprs.size(); ++i)
         gen_sigs.push_back(get_sig(gen_reprs[i], gen_degs_X9));
 
-    alg::Database db_B9("/Users/weinanlin/MyData/Math_AlgTop/databases/B9.db");
-    alg::GroebnerLex gb_B9 = db_B9.load_gb_s("B" + std::to_string(n) + std::to_string(m) + "_relations", s_max);
+    myio::DbAlg db_B9("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/B9.db");
+    alg::GroebnerLex gb_B9 = db_B9.load_gb<alg::CmpLex>("B" + std::to_string(n) + std::to_string(m) + "_relations", t_max);
 
     if (m == 1) {
         /* Add h_{n-1} */
         gen_degs.push_back(gen_degs_X9[id_x]);
         gen_names.push_back("h_" + std::to_string(n - 1));
-        gen_reprs.push_back({{{id_x, 1}}});
+        gen_reprs.push_back(alg::PolyLex::Gen(id_x));
     }
     else {
         /* # Compute new generators */
-        alg::Poly c;
+        alg::PolyRevlex c;
         if (m == 2) {
             std::string gen_name = "h_" + std::to_string(n - 2);
             auto p = std::find(gen_names.begin(), gen_names.end(), gen_name);
@@ -523,7 +510,7 @@ int generate_Xnm(int n, int m, int s_max)
                 return 1;
             }
             int gen_id = int(p - gen_names.begin());
-            c = alg::Poly{{{gen_id, 1}, {(int)gen_degs.size() - 1, 1}}}; /* dx = h_{n-2}h_{n-3} */
+            c = alg::PolyRevlex::Gen(gen_id) * alg::PolyRevlex::Gen((int)gen_degs.size() - 1); /* dx = c = h_{n-2}h_{n-1} */
         }
         else {
             std::string gen_name = "r_{" + std::to_string(n - m) + std::to_string(n) + "}";
@@ -537,20 +524,20 @@ int generate_Xnm(int n, int m, int s_max)
                 return 1;
             }
             int gen_id = int(p - gen_names.begin());
-            c = alg::Poly{{{gen_id, 1}}}; /* dx = c */
+            c = alg::PolyRevlex::Gen(gen_id); /* dx = c */
         }
 
-        alg::Poly2d y2d = alg::ann_seq(gb, {c}, gen_degs_s, s_max); /* y=ann(c) */
-        alg::Poly1d y;
-        for (alg::Poly1d& v : y2d)
+        std::vector<alg::PolyRevlex1d> y2d = alg::AnnSeq(gb, {c}, gen_degs_t, t_max); /* y=ann(c) */
+        alg::PolyRevlex1d y;
+        for (alg::PolyRevlex1d& v : y2d)
             y.push_back(std::move(v[0]));
-        std::cout << "y=" << y << '\n';
+        // std::cout << "y=" << y << '\n';
         std::cout << "y.size()=" << y.size() << '\n';
 
         /* Create the list of expected new indecomposables */
         std::vector<std::string> new_gen_names;
         std::vector<Signature> new_gen_sigs;
-        std::vector<alg::Poly> new_gen_reprs;
+        std::vector<alg::PolyLex> new_gen_reprs;
 
         for (auto [S, T] : H(n - m, n + 1)) {
             new_gen_names.push_back(get_name(S));
@@ -571,14 +558,19 @@ int generate_Xnm(int n, int m, int s_max)
 
         if (y.size() != new_gen_names.size()) {
             std::cerr << "Bug: unexpected Indecomposables among y.\n";
+            for (size_t i = 0; i < y.size(); ++i) {
+                std::cerr << "y[" << i << "]=";
+                dump_PolyV2(std::cerr, y[i].data, gen_names);
+                std::cerr << '\n';
+            }
             return 2;
         }
 
         /* Add [x^2] */
         gen_degs.push_back(gen_degs_X9[id_x] * 2);
-        gen_degs_s.push_back(gen_degs.back().s);
+        gen_degs_t.push_back(gen_degs.back().t);
         gen_names.push_back("b_{" + std::to_string(n - m) + std::to_string(n) + "}");
-        gen_reprs.push_back({{{id_x, 2}}});
+        gen_reprs.push_back(alg::PolyLex::GenExp(id_x, 2));
 
         std::cout << "generator " << gen_names.back() << " added\n";
 
@@ -595,7 +587,7 @@ int generate_Xnm(int n, int m, int s_max)
                 }
             }
             if (!found) {
-                std::cerr << "Surprise: unexpected indecomposables:" << yi << '\n';
+                std::cerr << "Surprise: unexpected indecomposables:" << yi.data << '\n';
                 std::cerr << "sig_gi=" << sig_gi << '\n';
                 std::cerr << "new_gen_sigs=";
                 dump_vector(std::cerr, new_gen_sigs, "(", ", ", ")");
@@ -608,8 +600,8 @@ int generate_Xnm(int n, int m, int s_max)
         }
 
         for (size_t i = 0; i < indices_y.size(); ++i) {
-            gen_degs.push_back(get_deg(y[i], gen_degs) + deg_x);
-            gen_degs_s.push_back(gen_degs.back().s);
+            gen_degs.push_back(y[i].GetMayDeg(gen_degs) + deg_x);
+            gen_degs_t.push_back(gen_degs.back().t);
             gen_names.push_back(new_gen_names[indices_y[i]]);
             gen_reprs.push_back(new_gen_reprs[indices_y[i]]);
         }
@@ -619,49 +611,48 @@ int generate_Xnm(int n, int m, int s_max)
         /* # Compute the relations */
 
         /* Add relation c=0 */
-        alg::AddRels(gb, {c}, gen_degs_s, s_max);
-
-        std::cout << "c=0 added\n";
+        std::cout << "Adding c=" << StrPoly(c.data, gen_names) << "=0\n";
+        alg::AddRels(gb, {c}, gen_degs_t, t_max);
 
         alg::Mon2d leadings;
         leadings.resize(gen_sigs.size());
-        for (const auto& g : gb)
-            leadings[g[0][0].gen].push_back(g[0]);
+        for (const auto& g : gb.data)
+            leadings[g.GetLead()[0].gen].push_back(g.GetLead());
 
         /* Add relations gi * gj = b * yi * yj + [...] */
-        alg::Poly1d new_relations;
+        std::cout << "Adding relations gi * gj = b * yi * yj + [...]\n";
+        alg::PolyRevlex1d new_relations;
+        int id_b = (int)gen_degs.size() - (int)y.size() - 1;
+        alg::PolyRevlex b = alg::PolyRevlex::Gen(id_b);
         for (size_t i = 0; i < y.size(); ++i) {
+            int id_gi = (int)gen_degs.size() - (int)y.size() + (int)i;
+            alg::PolyRevlex gi = alg::PolyRevlex::Gen(id_gi);
             for (size_t j = i; j < y.size(); ++j) {
-                int id_gi = (int)gen_degs.size() - (int)y.size() + (int)i;
                 int id_gj = (int)gen_degs.size() - (int)y.size() + (int)j;
-                int id_b = (int)gen_degs.size() - (int)y.size() - 1;
-                alg::Poly gi = alg::Poly{{{id_gi, 1}}};
-                alg::Poly gj = alg::Poly{{{id_gj, 1}}};
-                alg::Poly b = alg::Poly{{{id_b, 1}}};
-                alg::Poly rel = gi * gj + b * y[i] * y[j];
-                if (!solve_extension(rel, gen_names, gen_reprs, gen_sigs, leadings, gen_degs_X9, gb_B9)) {
-                    return 4;
-                }
-                else {
-                    std::cout << "Extended to rel=";
-                    dump_PolyV2(std::cout, rel, gen_names);
-                    std::cout << "\n\n";
-                    new_relations.push_back(std::move(rel));
+                if (gen_degs_t[id_gi] + gen_degs_t[id_gj] <= t_max) {
+                    alg::PolyRevlex gj = alg::PolyRevlex::Gen(id_gj);
+                    alg::PolyRevlex rel = gi * gj + b * y[i] * y[j];
+                    if (!solve_extension(rel, gen_names, gen_reprs, gen_sigs, leadings, gen_degs_X9, gb_B9)) {
+                        return 4;
+                    }
+                    else {
+                        std::cout << "Extended to rel=" << StrPoly(rel.data, gen_names) << "\n\n";
+                        new_relations.push_back(std::move(rel));
+                    }
                 }
             }
         }
 
-        std::cout << "Relations gi * gj = b * yi * yj + [...] added\n";
-
         /* Add relations a1 g1 + ... + ak gk = [...] */
-        alg::Poly2d a = alg::ann_seq(gb, y, gen_degs_s, s_max);
+        std::cout << "Adding relations a1 g1 + ... + ak gk = [...]\n";
+        std::vector<alg::PolyRevlex1d> a = alg::AnnSeq(gb, y, gen_degs_t, t_max);
         std::cout << "a.size()=" << a.size() << '\n';
 
         for (const auto& ai : a) {
-            alg::Poly rel;
+            alg::PolyRevlex rel;
             for (size_t j = 0; j < ai.size(); ++j) {
-                int id_gj = (int)gen_degs.size() - (int)y.size() + j;
-                alg::Poly gj = alg::Poly{{{id_gj, 1}}};
+                int id_gj = (int)gen_degs.size() - (int)y.size() + (int)j;
+                alg::PolyRevlex gj = alg::PolyRevlex::Gen(id_gj);
                 rel += ai[j] * gj;
             }
             if (!solve_extension(rel, gen_names, gen_reprs, gen_sigs, leadings, gen_degs_X9, gb_B9)) {
@@ -669,21 +660,23 @@ int generate_Xnm(int n, int m, int s_max)
             }
             else {
                 std::cout << "Extended to rel=";
-                dump_PolyV2(std::cout, rel, gen_names);
+                dump_PolyV2(std::cout, rel.data, gen_names);
                 std::cout << "\n\n";
                 new_relations.push_back(std::move(rel));
             }
         }
 
-        std::cout << "Relations a1 g1 + ... + ak gk = [...] added\n";
-
-        std::sort(new_relations.begin(), new_relations.end(), [&gen_degs](const alg::Poly& rel1, const alg::Poly& rel2) { return alg::get_deg(rel1, gen_degs) < alg::get_deg(rel2, gen_degs); });
-        alg::AddRels(gb, new_relations, gen_degs_s, s_max);
+        std::sort(new_relations.begin(), new_relations.end(), [&gen_degs](const alg::PolyRevlex& rel1, const alg::PolyRevlex& rel2) { return rel1.GetMayDeg(gen_degs) < rel2.GetMayDeg(gen_degs); });
+        alg::AddRels(gb, new_relations, gen_degs_t, t_max);
     }
 
     db.begin_transaction();
-    db.save_generators(table1_prefix + "_generators", gen_names, gen_degs, gen_reprs);
-    db.save_gb(table1_prefix + "_relations", gb.gb, gen_degs);
+
+    db.save_gen_maydegs(table1_prefix + "_generators", gen_degs);
+    db.save_gen_names(table1_prefix + "_generators", gen_names);
+    db.save_gen_reprs(table1_prefix + "_generators", gen_reprs, 0);
+    db.save_gb(table1_prefix + "_relations", gb, gen_degs);
+
     db.end_transaction();
 
     return 0;
@@ -693,17 +686,19 @@ int main(int argc, char** argv)
 {
     Timer timer;
 
-    // for (int n = 9; n <= 9; ++n) {
-    //     for (int m = 1; m <= n; ++m) {
-    //         if (generate_Xnm(n, m, 12))
-    //             return 1;
-    //         std::cout << "\n-----------\n";
-    //     }
-    //     ReorderHX(n, 12);
-    // }
+    for (int n = 1; n <= 9; ++n) {
+        for (int m = 1; m <= n; ++m) {
+            if (generate_Xnm(n, m, 1024))
+                return 1;
+            std::cout << "\n-----------\n";
+        }
+        ReorderHX(n, 1024);
+        std::cout << "\n-----------\n";
+        std::cout << "-----------\n";
+    }
 
-    // generate_Xnm(9, 3, 12);
-    ReorderHX(9, 12);
+    //generate_Xnm(9, 3, 1024);
+    //ReorderHX(2, 1024);
 
     return 0;
 }

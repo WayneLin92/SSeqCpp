@@ -92,7 +92,7 @@ using MayDeg1d = std::vector<MayDeg>;
  */
 struct GenPow
 {
-    unsigned int gen;                        /**< ID for the generator. */
+    int gen;                                 /**< ID for the generator. */
     int exp;                                 /**< Exponent. */
     GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
     /**
@@ -173,7 +173,7 @@ Mon LCM(const Mon& m1, const Mon& m2);
  */
 struct CmpLex
 {
-    static constexpr std::string_view name = "CmpLex";
+    static constexpr std::string_view name = "Lex";
     static bool cmp(const Mon& m1, const Mon& m2)
     {
         return m1 > m2;
@@ -190,7 +190,7 @@ struct CmpLex
  */
 struct CmpRevlex
 {
-    static constexpr std::string_view name = "CmpRevlex";
+    static constexpr std::string_view name = "Revlex";
     static bool cmp(const Mon& m1, const Mon& m2)
     {
         return m1 < m2;
@@ -272,6 +272,10 @@ struct Polynomial
     {
         return data == rhs.data;
     }
+    bool operator!=(const Polynomial<FnCmp>& rhs) const
+    {
+        return !(data == rhs.data);
+    }
     explicit operator bool() const
     {
         return !data.empty();
@@ -299,13 +303,21 @@ struct Polynomial
     Polynomial<FnCmp> operator*(const Polynomial<FnCmp>& rhs) const
     {
         Polynomial<FnCmp> result;
-        for (size_t k = 0; k <= data.size() + rhs.data.size() - 2; ++k) {
-            size_t i_min = k - rhs.data.size() + 1;
-            size_t i_max = std::min(data.size() - 1, k);
-            for (size_t i = 0; i <= i_max; ++i)
+        for (int k = 0; k <= (int)data.size() + (int)rhs.data.size() - 2; ++k) {
+            int i_min = std::max(k - (int)rhs.data.size() + 1, 0);
+            int i_max = std::min((int)data.size() - 1, k);
+            for (int i = i_min; i <= i_max; ++i)
                 result.data.push_back(mul(data[i], rhs.data[k - i]));
         }
         std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+        for (size_t i = 1; i < result.data.size(); ++i) {
+            if (result.data[i] == result.data[i - 1]) {
+                result.data[i].clear();
+                result.data[i - 1].clear();
+                ++i;
+            }
+        }
+        ut::RemoveEmptyElements(result.data);
         return result;
     }
 };
@@ -407,7 +419,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& 
     using Poly = Polynomial<FnCmp>;
     Poly result;
     for (const Mon& m : data) {
-        Poly fm = {{}};
+        Poly fm = Poly::Unit();
         for (MonInd p = m.begin(); p != m.end(); ++p)
             fm = fm * pow(map[p->gen], p->exp);
         result += fm;
@@ -431,7 +443,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
         std::sort(m1.begin(), m1.end(), [](const GenPow& lhs, const GenPow& rhs) { return lhs.gen < rhs.gen; });
         result.data.push_back(m1);
     }
-    std::sort(result.data.begin(), result.data.end(), FnCmp::cmp); 
+    std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
     return result;
 }
 

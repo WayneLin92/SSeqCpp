@@ -30,6 +30,8 @@ void dump_MonPowV2(std::ostream& sout, const alg::GenPow& p, const std::vector<s
 void dump_MonV2(std::ostream& sout, const alg::Mon& mon, const std::vector<std::string>& gen_names);
 void dump_PolyV2(std::ostream& sout, const alg::Mon1d& poly, const std::vector<std::string>& gen_names);
 
+std::string StrPoly(const alg::Mon1d& poly, const std::vector<std::string>& gen_names);
+
 inline std::ostream& operator<<(std::ostream& sout, const alg::MayDeg& d) { sout << '(' << d.s << ',' << d.t << ',' << d.v << ')'; return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::GenPow& p) { dump_MonPow(sout, p); return sout; }
 inline std::ostream& operator<<(std::ostream& sout, const alg::Mon& mon) { dump_Mon(sout, mon); return sout; }
