@@ -124,16 +124,13 @@ alg::Mon1d get_basis(const alg::Mon2d& leadings, const std::vector<Signature>& g
     size_t index = mon_dense.size() - 1;
 
     while (true) {
-        // std::cout << "index=" << index << '\n';  //
-        mon_dense[index] = INT_MAX;
+        mon_dense[index] = INT_MAX;  
         int e_max = INT_MAX;
         for (const alg::Mon& lead : leadings[index])
             if (divisible(lead, mon_dense.begin() + index, mon_dense.end(), index) && lead[0].exp - 1 < e_max)
                 e_max = lead[0].exp - 1;
         e_max = std::min({e_max, sig / gen_sigs[index]});
-        // std::cout << "e_max=" << e_max << '\n';  //
         mon_dense[index] = e_max;
-        // std::cout << sig.deg << ' ' << gen_sigs[index].deg << '\n';  //
         sig = sig - gen_sigs[index] * e_max;
 
         bool move_right = false;
@@ -160,7 +157,6 @@ alg::Mon1d get_basis(const alg::Mon2d& leadings, const std::vector<Signature>& g
             for (sig = sig + gen_sigs[index] * mon_dense[index], ++index; index < mon_dense.size() && mon_dense[index] == 0; ++index)
                 ;
             if (index == mon_dense.size()) {
-                // std::cout << "mon_dense=" << mon_dense << '\n';  //
                 break;
             }
             else {
@@ -380,23 +376,23 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
 
     alg::Mon1d basis = get_basis(leadings, gen_sigs, sig_rel);
 
-     /*std::cout << "basis=(";
-     for (const auto& b : basis) {
-         dump_MonV2(std::cout, b, gen_names);
-         std::cout << ", ";
-     }
-     std::cout << ")\n";*/
+    /*std::cout << "basis=(";
+    for (const auto& b : basis) {
+        dump_MonV2(std::cout, b, gen_names);
+        std::cout << ", ";
+    }
+    std::cout << ")\n";*/
 
-    //std::cout << "repr_basis=("; //
+    // std::cout << "repr_basis=("; //
     lina::array2d fx;
     for (const auto& m : basis) {
         alg::PolyLex repr_m = gb_B9.Reduce(alg::subs({m}, gen_repr));
-        //std::cout << repr_m.data << "="; //
+        // std::cout << repr_m.data << "="; //
         fx.push_back(alg::hash1d(repr_m.data));
-        //std::cout << alg::hash1d(repr_m.data) << ", "; //
+        // std::cout << alg::hash1d(repr_m.data) << ", "; //
     }
-    //std::cout << ")\n"; //
-    //std::cout << "repr_rel=" << repr_rel.data << '=' << alg::hash1d(repr_rel.data) << '\n'; //
+    // std::cout << ")\n"; //
+    // std::cout << "repr_rel=" << repr_rel.data << '=' << alg::hash1d(repr_rel.data) << '\n'; //
     fx.push_back(alg::hash1d(repr_rel.data));
 
     lina::array2d image, kernel, g;
@@ -413,6 +409,7 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
 
                 std::cerr << "k=" << StrPoly(k.data, gen_names) << '\n';
                 std::cerr << "repr_k=" << gb_B9.Reduce(alg::subs(k.data, gen_repr)).data << '\n';
+                std::cerr << "deg(k)=" << alg::GetDegT(alg::subs(k.data, gen_repr).data.front(), gen_degs_X9) << '\n';
                 std::cerr << "Unexpected solution.\n";
             }
             else {
@@ -426,7 +423,7 @@ bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_n
                 for (size_t i = 0; i < kernel[1].size() - 1; ++i)
                     ext2 += alg::PolyRevlex{{basis[kernel[1][i]]}};
 
-                std::cerr << "ext1=" << StrPoly(ext1.data, gen_names) << '\n'; 
+                std::cerr << "ext1=" << StrPoly(ext1.data, gen_names) << '\n';
 
                 auto ext1_repr = gb_B9.Reduce(alg::subs(ext1.data, gen_repr));
                 std::cerr << "Reduce(repr(ext1))=" << ext1_repr.data << '\n';
@@ -614,10 +611,9 @@ int generate_Xnm(int n, int m, int t_max)
         std::cout << "Adding c=" << StrPoly(c.data, gen_names) << "=0\n";
         alg::AddRels(gb, {c}, gen_degs_t, t_max);
 
-        alg::Mon2d leadings;
-        leadings.resize(gen_sigs.size());
-        for (const auto& g : gb.data)
-            leadings[g.GetLead()[0].gen].push_back(g.GetLead());
+        alg::Mon2d leadings(gen_sigs.size());  // TODO: group by the last generator
+        for (size_t i = 0; i < gb.data.size(); ++i)
+            leadings[gb.data[i].GetLead()[0].gen].push_back(gb.data[i].GetLead());
 
         /* Add relations gi * gj = b * yi * yj + [...] */
         std::cout << "Adding relations gi * gj = b * yi * yj + [...]\n";
@@ -645,7 +641,7 @@ int generate_Xnm(int n, int m, int t_max)
 
         /* Add relations a1 g1 + ... + ak gk = [...] */
         std::cout << "Adding relations a1 g1 + ... + ak gk = [...]\n";
-        std::vector<alg::PolyRevlex1d> a = alg::AnnSeq(gb, y, gen_degs_t, t_max);
+        std::vector<alg::PolyRevlex1d> a = alg::AnnSeq(gb, y, gen_degs_t, t_max - deg_x.t);
         std::cout << "a.size()=" << a.size() << '\n';
 
         for (const auto& ai : a) {
@@ -698,7 +694,7 @@ int main(int argc, char** argv)
     }
 
     //generate_Xnm(9, 3, 1024);
-    //ReorderHX(2, 1024);
+    // ReorderHX(2, 1024);
 
     return 0;
 }

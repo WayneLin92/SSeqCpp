@@ -6,6 +6,7 @@
 #define GROEBNER_H
 
 #include "algebras.h"
+#include "linalg.h"
 #include <execution>
 #include <map>
 #include <memory>
@@ -144,6 +145,16 @@ public:
         return poly;
     }
 
+    /* Leadings[i] is the monomials that end with generator i. */
+    Mon2d GetLeadings(size_t gens_size) const
+    {
+        alg::Mon2d result;
+        result.resize(gens_size);
+        for (size_t i = 0; i < data.size(); ++i)
+            result[data[i].GetLead().back().gen].push_back(data[i].GetLead());
+        return result;
+    }
+
 public: /* Convenient interfaces for the member `gb` */
     auto size() const
     {
@@ -170,7 +181,7 @@ struct GbBufferEle
     int i1, i2;
 
     template <typename FnCmp>
-    Polynomial<FnCmp> GetPoly(const Groebner<FnCmp>& gb)
+    Polynomial<FnCmp> GetPoly(const Groebner<FnCmp>& gb) const
     {
         return gb[i1] * div(gb[i2].GetLead(), gcd) + gb[i2] * div(gb[i1].GetLead(), gcd);
     }
@@ -194,11 +205,13 @@ void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial
 
     std::map<int, PPoly1d> rels_graded;
     for (const auto& rel : rels) {
-        int d = _get_deg(rel.GetLead());
-        if (d <= deg || deg == -1) {
-            rels_graded[d].push_back(&rel);
-            if (buffer.find(d) == buffer.end())
-                buffer[d] = {};
+        if (rel) {
+            int d = _get_deg(rel.GetLead());
+            if (d <= deg || deg == -1) {
+                rels_graded[d].push_back(&rel);
+                if (buffer.find(d) == buffer.end())
+                    buffer[d] = {};
+            }
         }
     }
     std::vector<std::pair<int, GbBufferEle>> buffer_new_rels;
@@ -255,11 +268,17 @@ void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial
 }
 
 template <typename FnCmp>
+void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, const array& gen_degs, int deg, int deg_max)
+{
+    AddRels(
+        gb, buffer, rels, [](const Mon&, const Mon&) { return true; }, [&gen_degs](const Mon& mon) { return GetDeg(mon, gen_degs); }, deg, deg_max);
+}
+
+template <typename FnCmp>
 void AddRels(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, const array& gen_degs, int deg)
 {
     GbBuffer buffer;
-    AddRels(
-        gb, buffer, rels, [](const Mon&, const Mon&) { return true; }, [&gen_degs](const Mon& mon) { return GetDeg(mon, gen_degs); }, deg, deg);
+    AddRels(gb, buffer, rels, gen_degs, deg, deg);
 }
 
 /**
@@ -292,7 +311,7 @@ Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n, const Groebner<FnCmp
  * @param gb A Groebner basis.
  */
 template <typename FnCmp, typename FnMap>
-Polynomial<FnCmp> subs(const Mon1d& data, FnMap map, const Groebner<FnCmp>& gb)
+Polynomial<FnCmp> SubsMGb(const Mon1d& data, FnMap map, const Groebner<FnCmp>& gb)
 {
     using Poly = Polynomial<FnCmp>;
     Poly result;
@@ -307,12 +326,12 @@ Polynomial<FnCmp> subs(const Mon1d& data, FnMap map, const Groebner<FnCmp>& gb)
 
 /**
  * Specialization.
- * @see subs(const Poly&, FnType, const GbType&)
+ * @see SubsMGb(const Poly&, FnType, const GbType&)
  */
 template <typename FnCmp>
-Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map, const Groebner<FnCmp>& gb)
+Polynomial<FnCmp> SubsMGb(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map, const Groebner<FnCmp>& gb)
 {
-    return subs(
+    return SubsMGb(
         data, [&map](int i) { return map[i]; }, gb);
 }
 
@@ -343,7 +362,8 @@ GbBuffer GenerateBuffer(const alg::Groebner<FnCmp>& gb, const array& gen_degs, i
  * Algorithms that use Groebner basis
  **********************************************************/
 
-constexpr int GEN_IDEAL = 0x40000000;
+inline constexpr int GEN_IDEAL = 0x4000000;
+inline constexpr int GEN_SUB = 0x2000000;
 /**
  * Revlex on extra generators and FnCmp on the rest
  */
@@ -366,11 +386,59 @@ struct CmpIdeal
     }
 };
 
+/*
+ * The monomial ordering that computes the homology.
+ */
+template <typename FnCmp>
+struct CmpHomology
+{
+    using submo = FnCmp;
+    static constexpr std::string_view name = "Homology";
+    inline static array gen_degs;
+    static bool cmp(const Mon& m1, const Mon& m2)
+    {
+        auto m1_mid1 = std::lower_bound(m1.begin(), m1.end(), GEN_SUB, [](const GenPow& p, int g) { return p.gen < g; });
+        auto m1_mid2 = std::lower_bound(m1_mid1, m1.end(), GEN_IDEAL + GEN_SUB, [](const GenPow& p, int g) { return p.gen < g; });
+        auto m2_mid1 = std::lower_bound(m2.begin(), m2.end(), GEN_SUB, [](const GenPow& p, int g) { return p.gen < g; });
+        auto m2_mid2 = std::lower_bound(m2_mid1, m2.end(), GEN_IDEAL + GEN_SUB, [](const GenPow& p, int g) { return p.gen < g; });
+        int d1 = detail::GetDeg(m1.begin(), m1_mid1, gen_degs);
+        int d2 = detail::GetDeg(m1.begin(), m1_mid1, gen_degs);
+        if (d1 > d2)
+            return true;
+        else if (d1 == d2) {
+            if (FnCmp::cmp_ranges(m1.begin(), m1_mid1, m2.begin(), m2_mid1))
+                return true;
+            else if (std::equal(m1.begin(), m1_mid1, m2.begin(), m2_mid1)) {
+                if (CmpRevlex::cmp_ranges(m1_mid2, m1.end(), m2_mid2, m2.end()))
+                    return true;
+                else if (std::equal(m1_mid2, m1.end(), m2_mid2, m2.end())) {
+                    if (CmpRevlex::cmp_ranges(m1_mid1, m1_mid2, m2_mid1, m2_mid2))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+};
+
 namespace detail {
     template <typename FnCmp>
     void AddRelsIdeal(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, const array& gen_degs, const array& gen_degs_y, int deg, int deg_max)
     {
-        alg::AddRels(
+        AddRels(
+            gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return !(m1.back().gen & GEN_IDEAL) && !(m2.back().gen & GEN_IDEAL); },
+            [&gen_degs, &gen_degs_y](const Mon& mon) {
+                int result = 0;
+                for (MonInd p = mon.begin(); p != mon.end(); ++p)
+                    result += ((p->gen & GEN_IDEAL) ? gen_degs_y[p->gen - GEN_IDEAL] : gen_degs[p->gen]) * p->exp;
+                return result;
+            },
+            deg, deg_max);
+    }
+    template <typename FnCmp>
+    void AddRelsModule(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, const array& gen_degs, const array& gen_degs_y, int deg, int deg_max)
+    {
+        AddRels(
             gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return !((m1.back().gen & GEN_IDEAL) && (m2.back().gen & GEN_IDEAL) && (m1.back().gen != m2.back().gen)); },
             [&gen_degs, &gen_degs_y](const Mon& mon) {
                 int result = 0;
@@ -380,6 +448,35 @@ namespace detail {
             },
             deg, deg_max);
     }
+    template <typename FnCmp>
+    void AddRelsHomology(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, const MayDeg1d& gen_degs, const MayDeg1d& gen_degs_x, const MayDeg1d& gen_degs_b, int deg, int deg_max)
+    {
+        AddRels(
+            gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return true; },
+            [&gen_degs, &gen_degs_x, &gen_degs_b](const Mon& mon) {
+                int result = 0;
+                for (MonInd p = mon.begin(); p != mon.end(); ++p) {
+                    if (p->gen & GEN_IDEAL) {
+                        result += gen_degs_b[p->gen - GEN_IDEAL - GEN_SUB].t * p->exp;
+                    }
+                    else if (p->gen & GEN_SUB)
+                        result += gen_degs_x[p->gen - GEN_SUB].t * p->exp;
+                    else
+                        result += gen_degs[p->gen].t * p->exp;
+                    // result += ((p->gen & GEN_IDEAL) ? gen_degs_b[p->gen - GEN_IDEAL - GEN_SUB].t : ((p->gen & GEN_SUB) ? gen_degs_x[p->gen - GEN_SUB].t : gen_degs[p->gen].t)) * p->exp;
+                }
+                return result;
+            },
+            deg, deg_max);
+    }
+
+    inline int GetDeg(const MonInd mon_begin, const MonInd mon_end, const array& gen_degs)
+    {
+        int result = 0;
+        for (MonInd p = mon_begin; p != mon_end; ++p)
+            result += gen_degs[p->gen] * p->exp;
+        return result;
+    };
 }  // namespace detail
 
 /**
@@ -393,7 +490,7 @@ namespace detail {
  * The degree of the basis of $R^n$ is determined by `basis_degs`.
  */
 template <typename FnCmp>
-std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCmp>& gb, std::vector<std::vector<alg::Polynomial<FnCmp>>>& vectors, const array& gen_degs, const array& basis_degs)
+std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCmp>& gb, std::vector<std::vector<Polynomial<FnCmp>>>& vectors, const array& gen_degs, const array& basis_degs)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -408,37 +505,43 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner
     /* Convert each vector v into a relation \\sum v_iy_i */
     PolyI1d rels;
     array degs;
-    for (const auto& v : vectors) {
+    for (auto& v : vectors) {
         PolyI rel;
         for (size_t i = 0; i < basis_degs.size(); ++i)
             if (v[i])
-                rel += PolyI::Sort((v[i] * Mon{{GEN_IDEAL + (int)i, 1}}).data);
+                rel += PolyI::Sort((v[i] * GenPow::Mon(GEN_IDEAL + (int)i)).data);
         for (size_t i = 0; i < basis_degs.size(); ++i) {
             if (v[i]) {
                 degs.push_back(v[i].GetDeg(gen_degs) + basis_degs[i]);
                 break;
             }
         }
-        rels.push_back(std::move(rel));
-    }
-    array indices = ut::range((int)vectors.size());
-    std::sort(indices.begin(), indices.end(), [&degs](int i, int j) { return degs[i] < degs[j]; });
-
-    /* Add relations ordered by degree to gb1 */
-    GbI gbI = gb.ExtendMO<CmpIdeal<FnCmp>>();
-    GbBuffer buffer;
-    int deg_max = degs[indices.back()];
-    for (int i : indices) {
-        detail::AddRelsIdeal(gbI, buffer, {}, gen_degs, basis_degs, degs[i], deg_max);
-        PolyI rel = gbI.Reduce(rels[i]);
         if (rel)
-            detail::AddRelsIdeal(gbI, buffer, {std::move(rel)}, gen_degs, basis_degs, degs[i], deg_max);
+            rels.push_back(std::move(rel));
         else
-            vectors[i].clear();
+            v.clear();
     }
-
-    /* Keep only the indecomposables in `vectors` */
     ut::RemoveEmptyElements(vectors);
+    if (!vectors.empty()) {
+        array indices = ut::range((int)vectors.size());
+        std::sort(indices.begin(), indices.end(), [&degs](int i, int j) { return degs[i] < degs[j]; });
+
+        /* Add relations ordered by degree to gb1 */
+        GbI gbI = gb.ExtendMO<CmpIdeal<FnCmp>>();
+        GbBuffer buffer;
+        int deg_max = degs[indices.back()];
+        for (int i : indices) {
+            detail::AddRelsModule(gbI, buffer, {}, gen_degs, basis_degs, degs[i], deg_max);
+            PolyI rel = gbI.Reduce(rels[i]);
+            if (rel)
+                detail::AddRelsModule(gbI, buffer, {std::move(rel)}, gen_degs, basis_degs, degs[i], deg_max);
+            else
+                vectors[i].clear();
+        }
+
+        /* Keep only the indecomposables in `vectors` */
+        ut::RemoveEmptyElements(vectors);
+    }
     return vectors;
 }
 
@@ -448,7 +551,7 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>>& Indecomposables(const Groebner
  * The result is truncated by `deg<=deg_max`.
  */
 template <typename FnCmp>
-std::vector<std::vector<alg::Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<alg::Polynomial<FnCmp>>& polys, const array& gen_degs, int deg_max)
+std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& polys, const array& gen_degs, int deg_max)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -483,9 +586,9 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& g
             ann.resize(n);
             for (const Mon& m : g.data) {
                 auto mid = std::lower_bound(m.begin(), m.end(), GEN_IDEAL, [](const GenPow& p, int g) { return p.gen < g; });
-                Mon m1(m.begin(), mid), m2(mid, m.end());
-                ann[m2.front().gen - GEN_IDEAL] += gb.Reduce(subs(
-                                                                 {div(m2, {{(int)m2.front().gen, 1}})}, [&polys](int i) { return polys[i - GEN_IDEAL]; }, gb)
+                Mon m1(m.begin(), mid), m2(mid, m.end());  // TODO: improve
+                ann[m2.front().gen - GEN_IDEAL] += gb.Reduce(SubsMGb(
+                                                                 {div(m2, GenPow::Mon(m2.front().gen))}, [&polys](int i) { return polys[i - GEN_IDEAL]; }, gb)
                                                              * m1);
             }
             result.push_back(std::move(ann));
@@ -509,6 +612,170 @@ std::vector<std::vector<alg::Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& g
     return result;
 }
 
+template <typename FnCmp>
+std::map<MayDeg, Mon1d> ExtendBasis(const Mon2d& leadings, const MayDeg1d& gen_degs, std::map<MayDeg, Mon1d>& basis, int t)
+{
+    std::map<MayDeg, Mon1d> basis_t;
+    if (t == 0) {
+        basis[MayDeg{0, 0, 0}].push_back({});
+        return basis_t;
+    }
+    for (int gen_id = 0; gen_id < (int)gen_degs.size(); ++gen_id) {
+        int t1 = t - gen_degs[gen_id].t;
+        if (t1 >= 0) {
+            auto basis_t1_begin = basis.lower_bound(MayDeg{0, t1, 0});
+            auto basis_t1_end = basis.lower_bound(MayDeg{0, t1 + 1, 0});
+            for (auto p_basis = basis_t1_begin; p_basis != basis_t1_end; ++p_basis) {
+                for (auto p_m = p_basis->second.begin(); p_m != p_basis->second.end(); ++p_m) {
+                    if (p_m->empty() || gen_id >= p_m->back().gen) {
+                        Mon mon = mul(*p_m, GenPow::Mon(gen_id));
+                        if (std::none_of(leadings[gen_id].begin(), leadings[gen_id].end(), [&mon](const Mon& _m) { return divisible(_m, mon); }))
+                            basis_t[p_basis->first + gen_degs[gen_id]].push_back(std::move(mon));
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto& p : basis_t)
+        std::sort(p.second.begin(), p.second.end(), FnCmp::cmp);
+    return basis_t;
+}
+
+template <typename FnCmp>
+void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, std::vector<std::string>& gen_names, const std::vector<Polynomial<FnCmp>>& gen_diffs, const MayDeg& deg_diff, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h,
+              std::vector<std::string>& gen_names_h, std::vector<Polynomial<FnCmp>>& gen_repr_h, int t_max)
+{
+    using Poly = Polynomial<FnCmp>;
+    using Poly1d = std::vector<Poly>;
+    using PolyH = Polynomial<CmpHomology<FnCmp>>;
+    using PolyH1d = std::vector<PolyH>;
+    using Gb = Groebner<FnCmp>;
+    using GbH = Groebner<CmpHomology<FnCmp>>;
+
+    Gb gb_AoAZ = gb;
+    GbBuffer buffer_AoAZ;
+    Mon2d leadings_AoAZ = gb_AoAZ.GetLeadings(gen_degs.size());
+    size_t gb_AoAZ_old_size = gb_AoAZ.size();
+    std::map<MayDeg, Mon1d> basis_AoAZ;
+    std::vector<const Mon*> basis_AoAZ_flat;
+    std::vector<Poly> diff_basis_AoAZ_flat;
+    basis_AoAZ[MayDeg{0, 0, 0}].push_back({});
+
+    CmpHomology<FnCmp>::gen_degs.clear();
+    for (const auto& deg : gen_degs)
+        CmpHomology<FnCmp>::gen_degs.push_back(deg.t);
+    Groebner<CmpHomology<FnCmp>> gb_H = gb.ExtendMO<CmpHomology<FnCmp>>();
+    GbBuffer buffer_h;
+    MayDeg1d gen_degs_b;
+    Poly1d gen_reprs_b; /* dm_i = b_i */
+
+    int deg_t_allX = 0;
+    for (auto& deg : gen_degs)
+        deg_t_allX += deg.t;
+    std::cout << "deg_t_allX=" << deg_t_allX << '\n';
+
+    for (int t = 1; t_max == -1 || t <= t_max; ++t) {
+        std::cout << "t=" << t << '\n';  //
+        PolyH1d rels_h_t;
+        Poly1d rels_AoAZ_t;
+        if (t <= deg_t_allX) {
+            /* Find m_i, b_i and x_i */
+            for (size_t i = gb_AoAZ_old_size; i < gb_AoAZ.data.size(); ++i)
+                leadings_AoAZ[gb_AoAZ[i].GetLead().back().gen].push_back(gb_AoAZ[i].GetLead());
+            gb_AoAZ_old_size = gb_AoAZ.size();
+            std::map<MayDeg, Mon1d> basis_AoAZ_t = ExtendBasis<FnCmp>(leadings_AoAZ, gen_degs, basis_AoAZ, t);
+            for (auto& [deg, b_deg] : basis_AoAZ_t) {
+                array2d map_diff;
+                for (const Mon& m : b_deg) {
+                    Poly diff_m = gb.Reduce(GetDiff(m, gen_diffs));
+                    map_diff.push_back(alg::hash1d(diff_m.data));
+                }
+                array2d image_diff, kernel_diff, g_diff;
+                lina::SetLinearMap(map_diff, image_diff, kernel_diff, g_diff);
+
+                /* Add x_i and the relations for x_i */
+                for (const array& k : kernel_diff) {
+                    gen_names_h.push_back("x_{" + std::to_string(gen_degs_h.size()) + "}");
+                    gen_degs_h.push_back(deg);
+                    gen_repr_h.push_back({Indices2Poly(k, b_deg)});
+                    rels_AoAZ_t.push_back(gen_repr_h.back());
+                    rels_h_t.push_back(PolyH({gen_repr_h.back().data}) + PolyH::Gen(GEN_SUB + (int)gen_degs_h.size() - 1));
+                    b_deg[k.front()].clear();
+                }
+                ut::RemoveEmptyElements(b_deg);
+
+                /* Add b_i, m_i and the relation dm_i = b_i */
+                std::vector<Mon1d::iterator> toBeRemoved;
+                MayDeg d_dm = deg + deg_diff;
+                for (const Mon& m : b_deg) {
+                    basis_AoAZ_flat.push_back(&m);
+                    diff_basis_AoAZ_flat.push_back(gb.Reduce(GetDiff(m, gen_diffs)));
+                    auto& dm = diff_basis_AoAZ_flat.back();
+                    if (dm) {
+                        rels_AoAZ_t.push_back(dm);
+                        auto lead_dm = dm.GetLead();
+                        auto ptr = std::lower_bound(basis_AoAZ_t[d_dm].begin(), basis_AoAZ_t[d_dm].end(), lead_dm, FnCmp::cmp);
+                        if (ptr != basis_AoAZ_t[d_dm].end() && (*ptr == lead_dm))
+                            toBeRemoved.push_back(ptr);
+                    }
+                    gen_degs_b.push_back(deg);
+                    rels_h_t.push_back(PolyH({dm.data}) + PolyH::Gen(GEN_SUB + GEN_IDEAL + (int)gen_degs_b.size() - 1));
+                }
+                if (!toBeRemoved.empty()) {
+                    for (auto p : toBeRemoved)
+                        p->clear();
+                    ut::RemoveEmptyElements(basis_AoAZ_t[d_dm]);
+                }
+            }
+            basis_AoAZ.merge(basis_AoAZ_t);
+            AddRels(gb_AoAZ, buffer_AoAZ, rels_AoAZ_t, CmpHomology<FnCmp>::gen_degs, t, t_max);
+            rels_AoAZ_t.clear();
+        }
+        else {
+            if (buffer_h.empty())
+                break;
+        }
+        /* Find  y_i */
+        size_t i_start_t = gb_H.size();
+        detail::AddRelsHomology(gb_H, buffer_h, rels_h_t, gen_degs, gen_degs_h, gen_degs_b, t, t_max);
+        rels_h_t.clear();
+
+        for (size_t i = i_start_t; i < gb_H.size(); ++i) {
+            const auto& lead = gb_H[i].GetLead();
+            if ((lead.front().gen & GEN_SUB) && (lead.back().gen & GEN_IDEAL) && (lead.back().exp == 1) && (lead.size() == 1 || !(lead[lead.size() - 2].gen & GEN_IDEAL))) {
+                PolyH y;
+                for (const Mon& m : gb_H[i].data) {
+                    auto mid = std::lower_bound(m.begin(), m.end(), GEN_IDEAL + GEN_SUB, [](const GenPow& p, int g) { return p.gen < g; });
+                    Mon m1(m.begin(), mid), m2(mid, m.end());  // TODO: improve if bottlenet
+                    y += gb_H.Reduce(PolyH::Mon_(mul(mul(m1, div(m2, GenPow::Mon(m2.front().gen))), *basis_AoAZ_flat[m2.front().gen - GEN_IDEAL - GEN_SUB])));
+                }
+                if (y && !(y.GetLead().front().gen & GEN_SUB)) {
+                    Poly repr_y = SubsMGb(
+                        y.data, [&gen_repr_h, &diff_basis_AoAZ_flat](int i) { return ((i & GEN_IDEAL) ? diff_basis_AoAZ_flat[i - GEN_IDEAL - GEN_SUB] : ((i & GEN_SUB) ? gen_repr_h[i - GEN_SUB] : Poly::Gen(i))); }, gb);
+                    rels_h_t.push_back(y + PolyH::Gen(GEN_SUB + (int)gen_degs_h.size()));
+                    gen_names_h.push_back("y_{" + std::to_string(gen_degs_h.size()) + "}");
+                    gen_degs_h.push_back(repr_y.GetMayDeg(gen_degs));
+                    gen_repr_h.push_back(std::move(repr_y));
+                    rels_AoAZ_t.push_back(gen_repr_h.back());
+                }
+            }
+        }
+        AddRels(gb_AoAZ, buffer_AoAZ, rels_AoAZ_t, CmpHomology<FnCmp>::gen_degs, t, t_max);
+        rels_AoAZ_t.clear();
+        detail::AddRelsHomology(gb_H, buffer_h, rels_h_t, gen_degs, gen_degs_h, gen_degs_b, t, t_max);
+    }
+    /* Prepare relations for homology */
+    for (auto& p : gb_H.data) {
+        if (p && (p.GetLead().front().gen & GEN_SUB)) {
+            auto p_m = std::lower_bound(p.data.begin(), p.data.end(), 1, [](const Mon& m, int) { return !(m.back().gen & GEN_IDEAL); });
+            p.data.erase(p_m, p.data.end());
+            if (p)
+                gb_h.push_back(alg::subs<alg::CmpRevlex>(p.data, [](int i) { return PolyRevlex::Gen(i - GEN_SUB); }));
+        }
+    }
+}
+
 //#define TEMPLATE_EXAMPLES
 #ifdef TEMPLATE_EXAMPLES
 namespace template_examples {
@@ -516,9 +783,15 @@ namespace template_examples {
     using FnPred = bool (*)(alg::Mon, alg::Mon);
     using FnDeg = int (*)(alg::Mon);
 
-    void AddRels_(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, FnPred pred, FnDeg _get_deg, int deg, int deg_max)
+    inline void AddRels_(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, FnPred pred, FnDeg _get_deg, int deg, int deg_max)
     {
         return alg::AddRels(gb, buffer, rels, pred, _get_deg, deg, deg_max);
+    }
+
+    inline void Homology_(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, const std::vector<Polynomial<FnCmp>>& gen_diffs, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h, std::vector<std::string>& gen_names_h,
+                          std::vector<alg::Polynomial<FnCmp>>& gen_repr_h, int t_max)
+    {
+        Homology(gb, gen_degs, gen_diffs, gb_h, gen_degs_h, gen_names_h, gen_repr_h, t_max);
     }
 }  // namespace template_examples
 #endif

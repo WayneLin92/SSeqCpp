@@ -107,6 +107,10 @@ struct GenPow
     {
         return gen == rhs.gen && exp == rhs.exp;
     }
+    static std::vector<GenPow> Mon(int g, int e = 1)
+    {
+        return std::vector<GenPow>{{g, e}};
+    }
 };
 using Mon = std::vector<GenPow>;
 using Mon1d = std::vector<Mon>;
@@ -121,6 +125,16 @@ inline int GetDeg(const Mon& mon, const array& gen_degs)
     int result = 0;
     for (MonInd p = mon.begin(); p != mon.end(); ++p)
         result += gen_degs[p->gen] * p->exp;
+    return result;
+};
+/**
+ * Obtain the t degree of a monomial given the degrees of generators.
+ */
+inline int GetDegT(const Mon& mon, const MayDeg1d& gen_degs)
+{
+    int result = 0;
+    for (MonInd p = mon.begin(); p != mon.end(); ++p)
+        result += gen_degs[p->gen].t * p->exp;
     return result;
 };
 /**
@@ -232,6 +246,11 @@ struct Polynomial
             throw MyException(0x20eb6831U, "Negative exponent.");
     }
 
+    static Polynomial<FnCmp> Mon_(Mon mon)
+    {
+        return Polynomial<FnCmp>{{std::move(mon)}};
+    }
+
     static Polynomial<FnCmp> Sort(Mon1d data)
     {
         Polynomial<FnCmp> result = {std::move(data)};
@@ -241,6 +260,10 @@ struct Polynomial
 
     const Mon& GetLead() const
     {
+#ifndef NDEBUG /* DEBUG */
+        if (data.empty())
+            throw MyException(0x21eab89e, "Trying to get leading monomial from zero poly.");
+#endif
         return data.front();
     }
 
@@ -258,6 +281,14 @@ struct Polynomial
             return MayDeg{-10000, -10000, -10000};
         else
             return alg::GetMayDeg(data.front(), gen_degs);
+    }
+
+    int GetMayDegT(const MayDeg1d& gen_degs) const
+    {
+        if (data.empty())
+            return -10000;
+        else
+            return alg::GetDegT(data.front(), gen_degs);
     }
 
     Polynomial<FnCmp> Square() const
@@ -386,7 +417,7 @@ Polynomial<FnCmp> GetDiff(const Mon& mon, const std::vector<Polynomial<FnCmp>>& 
     Poly result;
     for (MonInd k = mon.begin(); k != mon.end(); ++k) {
         if (k->exp % 2)
-            result += diffs[k->gen] * div(mon, {{k->gen, 1}});
+            result += diffs[k->gen] * div(mon, GenPow::Mon(k->gen));
     }
     return result;
 }
@@ -402,7 +433,7 @@ Polynomial<FnCmp> GetDiff(const Polynomial<FnCmp>& poly, const std::vector<Polyn
     for (const Mon& mon : poly.data) {
         for (MonInd k = mon.begin(); k != mon.end(); ++k) {
             if (k->exp % 2)
-                result += diffs[k->gen] * div(mon, {{k->gen, 1}});
+                result += diffs[k->gen] * div(mon, GenPow::Mon(k->gen));
         }
     }
     return result;
@@ -413,18 +444,23 @@ Polynomial<FnCmp> GetDiff(const Polynomial<FnCmp>& poly, const std::vector<Polyn
  * @param poly The polynomial to be substituted.
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
-template <typename FnCmp>
-Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map)
+template <typename FnCmp, typename FnMap>
+Polynomial<FnCmp> subs(const Mon1d& data, FnMap map)
 {
     using Poly = Polynomial<FnCmp>;
     Poly result;
     for (const Mon& m : data) {
         Poly fm = Poly::Unit();
         for (MonInd p = m.begin(); p != m.end(); ++p)
-            fm = fm * pow(map[p->gen], p->exp);
+            fm = fm * pow(map(p->gen), p->exp);
         result += fm;
     }
     return result;
+}
+template <typename FnCmp>
+Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map)
+{
+    return subs(data, [&map](int i) { return map[i]; });
 }
 /**
  * Replace the generators in `poly` with new id given in `map_gen_id`.

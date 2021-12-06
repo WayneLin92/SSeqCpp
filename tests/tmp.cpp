@@ -1,17 +1,15 @@
 #include "algebras/benchmark.h"
-#include "algebras/database.h"
-#include "algebras/groebner.h"
-#include "algebras/myio.h"
+#include "algebras/dbalg.h"
 #include "algebras/utility.h"
 #include <execution>
 
 void compare_computations()
 {
-    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
-    alg::Database db_py("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9_py_gen.db");
+    myio::DbAlg db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
+    myio::DbAlg db_py("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9_py_gen.db");
 
-    alg::Groebner gb = db.load_gb_s("HX9_relations", 12);
-    alg::Groebner gb_py = db_py.load_gb_s("HX9_relations", 12);
+    alg::GroebnerRevlex gb = db.load_gb<alg::CmpRevlex>("HX9_relations", 12);
+    alg::GroebnerRevlex gb_py = db_py.load_gb<alg::CmpRevlex>("HX9_relations", 12);
 
     std::vector<std::string> gen_names = db.load_gen_names("HX9_generators");
     std::vector<std::string> gen_names_py = db_py.load_gen_names("HX9_generators");
@@ -25,107 +23,18 @@ void compare_computations()
     }
 
     int count = 0;
-    for (auto& rel : gb) {
-        auto rel1 = alg::subs(rel, map_gen_id);
-        if (!alg::Reduce(rel1, gb_py).empty()) {
-            dump_PolyV2(std::cout, rel1, gen_names_py);
-            std::cout << '\n';
-            dump_PolyV2(std::cout, alg::Reduce(rel1, gb_py), gen_names_py);
-            std::cout << "\n\n";
-
+    for (auto& rel : gb.data) {
+        auto rel1 = alg::subs<alg::CmpRevlex>(rel.data, map_gen_id);
+        if (gb_py.Reduce(rel1)) {
+            std::cout << StrPoly(rel1.data, gen_names_py) << '\n';
+            std::cout << StrPoly(gb_py.Reduce(rel1).data, gen_names_py) << "\n\n";
             ++count;
         }
     }
     std::cout << "count=" << count << '\n';
 }
 
-void compute_ann()
-{
-    int s_max = 12;
-    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
-    alg::Groebner gb = db.load_gb_s("HX9_relations", s_max);
-    std::vector<std::string> gen_names = db.load_gen_names("HX9_generators");
-    std::vector<alg::Deg> gen_degs = db.load_gen_degs("HX9_generators");
-    alg::array gen_degs_s;
-    for (auto p = gen_degs.begin(); p < gen_degs.end(); ++p)
-        gen_degs_s.push_back(p->s);
-
-    alg::Poly x = GetPolyByName(gen_names, "h_0(1,3)");
-    alg::Poly2d a2d = alg::ann_seq(gb, {x}, gen_degs_s, s_max);
-    alg::Poly1d a;
-    for (alg::Poly1d& v : a2d)
-        a.push_back(std::move(v[0]));
-
-    for (auto& ai : a) {
-        dump_PolyV2(std::cout, ai, gen_names);
-        std::cout << '\n';
-    }
-}
-
-void compute()
-{
-    int s_max = 12;
-    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/HX9.db");
-    alg::Groebner gb = db.load_gb_s("HX9_relations", s_max);
-    std::vector<std::string> gen_names = db.load_gen_names("HX9_generators");
-    std::vector<alg::Deg> gen_degs = db.load_gen_degs("HX9_generators");
-    alg::array gen_degs_s;
-    for (auto p = gen_degs.begin(); p < gen_degs.end(); ++p)
-        gen_degs_s.push_back(p->s);
-
-    alg::Poly h0_1 = GetPolyByName(gen_names, "h_0(1)");
-    alg::Poly h5_1 = GetPolyByName(gen_names, "h_5(1)");
-    alg::Poly h1 = GetPolyByName(gen_names, "h_1");
-    alg::Poly h5 = GetPolyByName(gen_names, "h_5");
-    alg::Poly h7 = GetPolyByName(gen_names, "h_7");
-    alg::Poly b26 = GetPolyByName(gen_names, "b_{26}");
-    alg::Poly b27 = GetPolyByName(gen_names, "b_{27}");
-
-    alg::Poly result = h1 * (h5_1 * b26 + h5 * h7 * b27);
-    dump_PolyV2(std::cout, result, gen_names);
-    std::cout << '\n';
-
-    result = alg::Reduce(result, gb);
-    dump_PolyV2(std::cout, result, gen_names);
-    std::cout << '\n';
-}
-
-void benchmark_old()
-{
-    int n_max = 8;
-    alg::array gen_degs;
-    for (int d = 1; d <= n_max; d++) {
-        for (int i = 0; i <= n_max - d; i++) {
-            int j = i + d;
-            gen_degs.push_back((1 << j) - (1 << i));
-        }
-    }
-    alg::Poly1d rels;
-    for (int d = 2; d <= n_max; d++) {
-        for (int i = 0; i <= n_max - d; i++) {
-            int j = i + d;
-            alg::Poly rel;
-            for (int k = i + 1; k < j; k++) {
-                int a = (1 << k) - (1 << i);
-                int b = (1 << j) - (1 << k);
-                auto p1 = std::find(gen_degs.begin(), gen_degs.end(), a);
-                auto p2 = std::find(gen_degs.begin(), gen_degs.end(), b);
-                int index1 = int(p1 - gen_degs.begin());
-                int index2 = int(p2 - gen_degs.begin());
-                rel = add(rel, alg::Poly{{{index1, 1}}} * alg::Poly{{{index2, 1}}});
-            }
-            rels.push_back(std::move(rel));
-        }
-    }
-
-    alg::Groebner gb;
-    std::sort(rels.begin(), rels.end(), [&gen_degs](const alg::Poly& p1, const alg::Poly& p2) { return alg::get_deg(p1, gen_degs) < get_deg(p2, gen_degs); });
-    alg::AddRelsV2(gb, std::move(rels), gen_degs, -1);
-    size_t answer = 163;
-    std::cout << "old: " << gb.size() << "==" << answer << '\n';
-}
-
-void benchmark_new()
+void benchmark_B9()
 {
     using FnCmp = alg::CmpLex;
     using Poly = alg::Polynomial<FnCmp>;
@@ -158,19 +67,66 @@ void benchmark_new()
     }
 
     Gb gb;
-    std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.Deg(gen_degs) < p2.Deg(gen_degs); });
+    std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.GetDeg(gen_degs) < p2.GetDeg(gen_degs); });
     alg::AddRels(gb, std::move(rels), gen_degs, -1);
     size_t answer = 163;
     std::cout << "new: " << gb.size() << "==" << answer << '\n';
 }
 
-int main()
+void test_homology()
 {
     Timer timer;
-    int n = 1;
-    for (int i = 0; i < n; ++i)
-        benchmark_new();
-    std::cout << timer.Elapsed() / n << '\n';
+    using FnCmp = alg::CmpLex;
+    using Poly = alg::Polynomial<FnCmp>;
+    using Poly1d = std::vector<Poly>;
+    using Gb = alg::Groebner<FnCmp>;
 
+    int n_max = 5;
+    alg::MayDeg1d gen_degs;
+    alg::array gen_degs_t;
+    std::vector<std::string> gen_names;
+    Poly1d gen_diffs;
+    for (int i = 0; i < n_max; ++i) {
+        for (int j = i + 1; j <= n_max; ++j) {
+            gen_degs.push_back({1, (1 << j) - (1 << i), j - i - 1});
+            gen_degs_t.push_back(gen_degs.back().t);
+            gen_names.push_back("R_{" + std::to_string(i) + std::to_string(j) + "}");
+        }
+    }
+    for (int i = 0; i < n_max; ++i) {
+        for (int j = i + 1; j <= n_max; ++j) {
+            Poly diff;
+            for (int k = i + 1; k < j; k++) {
+                int a = (1 << k) - (1 << i);
+                int b = (1 << j) - (1 << k);
+                auto p1 = std::find(gen_degs_t.begin(), gen_degs_t.end(), a);
+                auto p2 = std::find(gen_degs_t.begin(), gen_degs_t.end(), b);
+                int index1 = int(p1 - gen_degs_t.begin());
+                int index2 = int(p2 - gen_degs_t.begin());
+                diff += Poly::Gen(index1) * Poly::Gen(index2);
+                //std::cout << i << j << k << " " << gen_names.back() << " " << gen_names[index1] << " " << gen_names[index2] << '\n';
+            }
+            gen_diffs.push_back(std::move(diff));
+        }
+    }
+    Gb gb;
+
+    alg::GroebnerRevlex gb_h;
+    alg::MayDeg1d gen_degs_h;
+    Poly1d gen_repr_h;
+    std::vector<std::string> gen_names_h;
+    alg::Homology(gb, gen_degs, gen_names, gen_diffs, alg::MayDeg{1, 0, -1}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 80);
+
+    for (size_t i = 0; i < gen_names_h.size(); ++i)
+        std::cout << "t=" << gen_repr_h[i].GetMayDeg(gen_degs) << " " << gen_names_h[i] << "=" << StrPoly(gen_repr_h[i].data, gen_names) << '\n';
+    std::cout << '\n';
+    for (auto& g : gb_h.data)
+        std::cout << StrPoly(g.data, gen_names_h) << "=0\n";
+}
+
+int main()
+{
+    test_homology();
+     
     return 0;
 }

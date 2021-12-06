@@ -104,6 +104,15 @@ inline void RemoveEmptyElements(Container1d& cont)
     cont.erase(std::remove_if(cont.begin(), cont.end(), [](const typename Container1d::value_type& g) { return g.empty(); }), cont.end());
 }
 
+/**
+ * Remove elements of `cont` which are zero
+ */
+template <typename Container>
+inline void RemoveZeroElements(Container& cont)
+{
+    cont.erase(std::remove_if(cont.begin(), cont.end(), [](const typename Container::value_type& g) { return !g; }), cont.end());
+}
+
 }  // namespace ut
 
 #endif

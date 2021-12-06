@@ -1,5 +1,5 @@
 if (WIN32)
-    find_package(unofficial-sqlite3 REQUIRED)
+    find_package(unofficial-sqlite3 CONFIG REQUIRED)
 else()
     find_package(sqlite3 REQUIRED)
 endif()
@@ -19,10 +19,18 @@ set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
 add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp ${HEADER_LIST})
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    # message(STATUS ${CMAKE_CXX_FLAGS_RELEASE})
+endif()
 
 target_include_directories(algebras PRIVATE ../include/algebras)
 
-target_link_libraries(algebras PRIVATE unofficial::sqlite3::sqlite3)
+if (WIN32)
+    target_link_libraries(algebras PRIVATE unofficial::sqlite3::sqlite3)
+else()
+    target_link_libraries(algebras PRIVATE sqlite3)  # ?
+endif()
 
 target_compile_features(algebras PRIVATE cxx_std_17)
 

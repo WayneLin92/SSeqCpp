@@ -6,6 +6,7 @@
         "gjgk",
         "gradings",
         "grbn",
+        "Indecomposables",
         "lwnpk",
         "map",
         "maydegs",
@@ -17,7 +18,8 @@
         "rels",
         "repr",
         "reprs",
-        "sout"
+        "sout",
+        "submo"
     ],
     "files.associations": {
         "__bit_reference": "cpp",
