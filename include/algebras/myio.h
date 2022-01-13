@@ -5,6 +5,8 @@
 #include "myparser.h"
 #include <sstream>
 
+
+// TODO: add namespace myio
 // clang-format off
 /* arrays */
 inline void load_array(std::istream& sin, alg::array& a) { load_vector(sin, a, "(", ",", ")"); }
@@ -84,6 +86,10 @@ inline std::ostream& operator<<(std::ostream& sout, const alg::Mon1d& poly) { Du
 template<typename FnCmp>
 inline alg::Polynomial<FnCmp> GetPolyByName(const std::vector<std::string>& gen_names, const std::string& gn)
 {
+#ifndef NDEBUG
+    if (std::find(gen_names.begin(), gen_names.end(), gn) == gen_names.end())
+        throw MyException(0xa98af59aU, "Generator not found");
+#endif
     return alg::Polynomial<FnCmp>::Gen((int)(std::find(gen_names.begin(), gen_names.end(), gn) - gen_names.begin()));
 }
 

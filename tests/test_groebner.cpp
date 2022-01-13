@@ -56,7 +56,7 @@ TEST_CASE("Compute a Groebner basis wrt lex ordering", "[alg::AddRels]")
     alg::AddRels(gb, polys, gen_degs, -1);
     alg::PolyLex q1 = GenExp(1, 4); /* x_1^4 */
     alg::PolyLex q2 = {};           /* 0 */
-    // REQUIRE(gb.Reduce(q1) == q2);
+    REQUIRE(gb.Reduce(q1) == q2);
 }
 
 TEST_CASE("Compute the Groebner basis of B7 wrt revlex ordering", "[alg::AddRels]")
@@ -139,7 +139,7 @@ TEST_CASE("Compute the Groebner basis of B7 wrt lex ordering", "[alg::AddRels]")
     alg::AddRels(gb, std::move(rels), gen_degs, -1);
     // size_t answer = 78; /* n_max = 7 */
     size_t answer = 181; /* n_max = 8 */
-    // size_t answer = 402; /* n_max = 9 */
+    //size_t answer = 402; /* n_max = 9 */
     REQUIRE(gb.size() == answer);
 }
 

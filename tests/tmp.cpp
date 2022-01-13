@@ -1,7 +1,6 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/utility.h"
-#include <execution>
 
 void compare_computations()
 {
@@ -32,45 +31,6 @@ void compare_computations()
         }
     }
     std::cout << "count=" << count << '\n';
-}
-
-void benchmark_B9()
-{
-    using FnCmp = alg::CmpLex;
-    using Poly = alg::Polynomial<FnCmp>;
-    using Poly1d = std::vector<Poly>;
-    using Gb = alg::Groebner<FnCmp>;
-    constexpr auto GenExp = Poly::GenExp;
-    int n_max = 9;
-    alg::array gen_degs;
-    for (int i = 0; i < n_max; ++i) {
-        for (int j = i + 1; j <= n_max; ++j) {
-            gen_degs.push_back((1 << j) - (1 << i));
-        }
-    }
-    Poly1d rels;
-    for (int d = 2; d <= n_max; d++) {
-        for (int i = 0; i <= n_max - d; i++) {
-            int j = i + d;
-            Poly rel;
-            for (int k = i + 1; k < j; k++) {
-                int a = (1 << k) - (1 << i);
-                int b = (1 << j) - (1 << k);
-                auto p1 = std::find(gen_degs.begin(), gen_degs.end(), a);
-                auto p2 = std::find(gen_degs.begin(), gen_degs.end(), b);
-                int index1 = int(p1 - gen_degs.begin());
-                int index2 = int(p2 - gen_degs.begin());
-                rel += GenExp(index1, 1) * GenExp(index2, 1);
-            }
-            rels.push_back(std::move(rel));
-        }
-    }
-
-    Gb gb;
-    std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.GetDeg(gen_degs) < p2.GetDeg(gen_degs); });
-    alg::AddRels(gb, std::move(rels), gen_degs, -1);
-    size_t answer = 163;
-    std::cout << "new: " << gb.size() << "==" << answer << '\n';
 }
 
 void test_homology()
@@ -104,7 +64,7 @@ void test_homology()
                 int index1 = int(p1 - gen_degs_t.begin());
                 int index2 = int(p2 - gen_degs_t.begin());
                 diff += Poly::Gen(index1) * Poly::Gen(index2);
-                //std::cout << i << j << k << " " << gen_names.back() << " " << gen_names[index1] << " " << gen_names[index2] << '\n';
+                // std::cout << i << j << k << " " << gen_names.back() << " " << gen_names[index1] << " " << gen_names[index2] << '\n';
             }
             gen_diffs.push_back(std::move(diff));
         }
@@ -115,7 +75,7 @@ void test_homology()
     alg::MayDeg1d gen_degs_h;
     Poly1d gen_repr_h;
     std::vector<std::string> gen_names_h;
-    alg::Homology(gb, gen_degs, gen_names, gen_diffs, alg::MayDeg{1, 0, -1}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 80);
+    alg::Homology(gb, gen_degs, gen_diffs, alg::MayDeg{1, 0, -1}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 80);
 
     for (size_t i = 0; i < gen_names_h.size(); ++i)
         std::cout << "t=" << gen_repr_h[i].GetMayDeg(gen_degs) << " " << gen_names_h[i] << "=" << StrPoly(gen_repr_h[i].data, gen_names) << '\n';
@@ -127,6 +87,6 @@ void test_homology()
 int main()
 {
     test_homology();
-     
+
     return 0;
 }

@@ -7,6 +7,9 @@
 #if SQLITE_ROW != MYSQLITE_ROW
 #error "MYSQLITE_ROW is not equal to SQLITE_ROW"
 #endif
+#if SQLITE3_TEXT != MYSQLITE3_TEXT
+#error "MYSQLITE3_TEXT is not equal to SQLITE3_TEXT"
+#endif
 
 namespace myio {
 Database::Database(const char* filename)

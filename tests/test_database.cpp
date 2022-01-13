@@ -19,7 +19,7 @@ TEST_CASE( "Save and load from database", "[DbAlg]" ) {
     db.execute_cmd("delete from relations;");
     db.save_gen_maydegs("generators", gen_degs);
     db.save_gen_names("generators", gen_names);
-    db.save_gen_reprs("generators", gen_reprs, 0);
+    db.save_gen_reprs("generators", gen_reprs);
 
     db.save_gb("relations", gb, gen_degs, 0);
 

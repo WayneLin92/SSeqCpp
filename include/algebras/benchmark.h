@@ -1,7 +1,7 @@
 #ifndef BENCHMARK_INCLUDED
 #define BENCHMARK_INCLUDED
 
-#include <chrono>
+#include "utility.h"
 #include <iostream>
 
 /**
@@ -14,14 +14,14 @@ public:
         if (!bPrinted) {
             auto end = std::chrono::system_clock::now();
             std::chrono::duration<double> elapsed = end - saved_time;
-            std::cout << "\033[0;32m" << "Elapsed time: " << elapsed.count() << "s\033[0m\n";
+            std::cout << "\033[0;32m" << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
         }
     }
     void print(const char* msg = "") {
         bPrinted = true;
         auto end = std::chrono::system_clock::now();
         elapsed_recent = end - saved_time;
-        std::cout << "\033[0;32m" << msg << "Elapsed time: " << elapsed_recent.count() << "s\033[0m\n";
+        std::cout << "\033[0;32m" << msg << elapsed_recent.count() << "s (" << ut::get_time() << ")\033[0m\n";
         saved_time = std::chrono::system_clock::now();
     }
     double Elapsed() const {

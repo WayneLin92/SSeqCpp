@@ -1,0 +1,8 @@
+add_executable(MayE4 MayE4.cpp)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINK_FLAGS_RELEASE} /DEBUG")
+endif()
+target_compile_features(MayE4 PRIVATE cxx_std_17)
+target_include_directories(MayE4 PRIVATE ../include)
+target_link_libraries(MayE4 PRIVATE algebras)

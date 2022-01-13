@@ -3,6 +3,9 @@ if (WIN32)
 else()
     find_package(sqlite3 REQUIRED)
 endif()
+if(MSVC)
+    add_compile_options(/permissive-)
+endif()
 
 set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/groebner.h"
@@ -15,8 +18,6 @@ set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/benchmark.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/utility.h"
 )
-
-add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
 add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp ${HEADER_LIST})
 if(MSVC)

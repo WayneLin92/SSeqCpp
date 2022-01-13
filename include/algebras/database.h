@@ -7,17 +7,21 @@
 
 #define DATABASE_SAVE_LOGGING /* This is a switch to print what are saved to the database */
 
+#include <iostream>
 #include <string>
 #include <vector>
 
 struct sqlite3;
 struct sqlite3_stmt;
 #define MYSQLITE_ROW 100
+#define MYSQLITE3_TEXT 3
 
 /**
  * This is namespace providing C++ wrappers for the sqlite3 library.
  */
 namespace myio {
+
+class Statement;
 
 enum struct SqlType
 {
@@ -52,9 +56,18 @@ public:
     }
 
 public:
+    void delete_from(const std::string& table_name)
+    {
+        execute_cmd("DELETE FROM " + table_name);
+    }
+
+public:
     int get_int(const std::string& sql) const;
     std::string get_str(const std::string& sql) const;
     std::vector<int> get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
+    /*
+     * This converts a column of strings to vector of type `T`.
+     */
     template <typename T, typename FnMap>
     std::vector<T> get_column_from_str(const std::string& table_name, const std::string& column_name, const std::string& conditions, FnMap map) const
     {
@@ -62,6 +75,19 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_str(0)));
+        std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        return result;
+    }
+    template <typename T, typename FnMap>
+    std::vector<T> get_column_from_str_with_null(const std::string& table_name, const std::string& column_name, const T& null_value, const std::string& conditions, FnMap map) const
+    {
+        std::vector<T> result;
+        Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
+        while (stmt.step() == MYSQLITE_ROW)
+            if (stmt.column_type(0) == MYSQLITE3_TEXT)
+                result.push_back(map(stmt.column_str(0)));
+            else
+                result.push_back(null_value);
         std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }

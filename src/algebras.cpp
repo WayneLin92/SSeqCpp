@@ -30,6 +30,28 @@ Mon mul(const Mon& mon1, const Mon& mon2)
     return result;
 }
 
+void detail::mul(const Mon& mon1, const MonOnStack& mon2, Mon& result)
+{
+    result.clear();
+    MonInd k = mon1.begin();
+    auto l = mon2.begin();
+    while (k != mon1.end() && l != mon2.end()) {
+        if (k->gen < l->gen)
+            result.push_back(*k++);
+        else if (k->gen > l->gen)
+            result.push_back(*l++);
+        else {
+            result.emplace_back(k->gen, k->exp + l->exp);
+            k++;
+            l++;
+        }
+    }
+    if (k != mon1.end())
+        result.insert(result.end(), k, mon1.end());
+    else
+        result.insert(result.end(), l, mon2.end());
+}
+
 Mon div(const Mon& mon1, const Mon& mon2)
 {
     Mon result;

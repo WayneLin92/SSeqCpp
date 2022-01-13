@@ -1,8 +1,4 @@
 #include "MayE2.h"
-#include "algebras/benchmark.h"
-#include "algebras/dbalg.h"
-#include "algebras/linalg.h"
-#include "algebras/myio.h"
 
 /**
  * The algebra X can have infinitely many gradings with values in Z[Z].
@@ -124,7 +120,7 @@ alg::Mon1d get_basis(const alg::Mon2d& leadings, const std::vector<Signature>& g
     size_t index = mon_dense.size() - 1;
 
     while (true) {
-        mon_dense[index] = INT_MAX;  
+        mon_dense[index] = INT_MAX;
         int e_max = INT_MAX;
         for (const alg::Mon& lead : leadings[index])
             if (divisible(lead, mon_dense.begin() + index, mon_dense.end(), index) && lead[0].exp - 1 < e_max)
@@ -358,8 +354,8 @@ Signature get_sig(const alg::PolyRevlex& poly, const std::vector<Signature>& gen
  * If such p is not unique, return false.
  * Otherwise, modify rel and return true.
  */
-bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_names, const alg::PolyLex1d& gen_repr, const std::vector<Signature>& gen_sigs, const alg::Mon2d& leadings,
-                     const std::vector<alg::MayDeg>& gen_degs_X9, const alg::GroebnerLex& gb_B9)
+bool solve_extension(alg::PolyRevlex& rel, const std::vector<std::string>& gen_names, const alg::PolyLex1d& gen_repr, const std::vector<Signature>& gen_sigs, const alg::Mon2d& leadings, const std::vector<alg::MayDeg>& gen_degs_X9,
+                     const alg::GroebnerLex& gb_B9)
 {
     std::cout << "rel=" << StrPoly(rel.data, gen_names) << '\n';
 
@@ -456,10 +452,8 @@ int generate_Xnm(int n, int m, int t_max)
     std::cout << "A=" << table_prefix << '\n';
     std::cout << "B=" << table1_prefix << '\n';
 
-    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
+    db.create_generators_and_delete(table1_prefix);
+    db.create_relations_and_delete(table1_prefix);
 
     alg::MayDeg deg_x = {1, (1 << n) - (1 << (n - m)), m - 1};
     int id_x = get_id(n - m, n);
@@ -467,16 +461,16 @@ int generate_Xnm(int n, int m, int t_max)
 
     std::cout << "id_x=" << id_x << '\n';
 
-    std::vector<alg::MayDeg> gen_degs = db.load_gen_maydegs(table_prefix + "_generators");
+    auto gen_degs = db.load_gen_maydegs(table_prefix);
     alg::array gen_degs_t;
     for (auto p = gen_degs.begin(); p < gen_degs.end(); ++p)
         gen_degs_t.push_back(p->t);
-    std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
-    alg::PolyLex1d gen_reprs = db.load_gen_reprs<alg::CmpLex>(table_prefix + "_generators");
-    alg::GroebnerRevlex gb = db.load_gb<alg::CmpRevlex>(table_prefix + "_relations", t_max);
+    auto gen_names = db.load_gen_names(table_prefix);
+    auto gen_reprs = db.load_gen_reprs<alg::CmpLex>(table_prefix);
+    auto gb = db.load_gb<alg::CmpRevlex>(table_prefix, t_max);
 
-    std::vector<alg::MayDeg> gen_degs_X9 = db.load_gen_maydegs("X9_generators");
-    alg::PolyLex1d gen_diffs_E1 = db.load_gen_diffs<alg::CmpLex>("X9_generators");
+    auto gen_degs_X9 = db.load_gen_maydegs("X9");
+    auto gen_diffs_E1 = db.load_gen_diffs<alg::CmpLex>("X9", 0);
 
     alg::Groebner gb1 = gb;
     std::vector<Signature> gen_sigs;
@@ -484,7 +478,7 @@ int generate_Xnm(int n, int m, int t_max)
         gen_sigs.push_back(get_sig(gen_reprs[i], gen_degs_X9));
 
     myio::DbAlg db_B9("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/B9.db");
-    alg::GroebnerLex gb_B9 = db_B9.load_gb<alg::CmpLex>("B" + std::to_string(n) + std::to_string(m) + "_relations", t_max);
+    alg::GroebnerLex gb_B9 = db_B9.load_gb<alg::CmpLex>("B" + std::to_string(n) + std::to_string(m), t_max);
 
     if (m == 1) {
         /* Add h_{n-1} */
@@ -556,9 +550,7 @@ int generate_Xnm(int n, int m, int t_max)
         if (y.size() != new_gen_names.size()) {
             std::cerr << "Bug: unexpected Indecomposables among y.\n";
             for (size_t i = 0; i < y.size(); ++i) {
-                std::cerr << "y[" << i << "]=";
-                dump_PolyV2(std::cerr, y[i].data, gen_names);
-                std::cerr << '\n';
+                std::cerr << "y[" << i << "]=" << StrPoly(y[i].data, gen_names) << '\n';
             }
             return 2;
         }
@@ -655,9 +647,7 @@ int generate_Xnm(int n, int m, int t_max)
                 return 5;
             }
             else {
-                std::cout << "Extended to rel=";
-                dump_PolyV2(std::cout, rel.data, gen_names);
-                std::cout << "\n\n";
+                std::cout << "Extended to rel=" << StrPoly(rel.data, gen_names) << "\n\n";
                 new_relations.push_back(std::move(rel));
             }
         }
@@ -668,10 +658,10 @@ int generate_Xnm(int n, int m, int t_max)
 
     db.begin_transaction();
 
-    db.save_gen_maydegs(table1_prefix + "_generators", gen_degs);
-    db.save_gen_names(table1_prefix + "_generators", gen_names);
-    db.save_gen_reprs(table1_prefix + "_generators", gen_reprs, 0);
-    db.save_gb(table1_prefix + "_relations", gb, gen_degs);
+    db.save_gen_maydegs(table1_prefix, gen_degs);
+    db.save_gen_names(table1_prefix, gen_names);
+    db.save_gen_reprs(table1_prefix, gen_reprs);
+    db.save_gb(table1_prefix, gb, gen_degs);
 
     db.end_transaction();
 
@@ -682,7 +672,7 @@ int main(int argc, char** argv)
 {
     Timer timer;
 
-    for (int n = 1; n <= 9; ++n) {
+    /*for (int n = 1; n <= 9; ++n) {
         for (int m = 1; m <= n; ++m) {
             if (generate_Xnm(n, m, 1024))
                 return 1;
@@ -691,10 +681,12 @@ int main(int argc, char** argv)
         ReorderHX(n, 1024);
         std::cout << "\n-----------\n";
         std::cout << "-----------\n";
-    }
+    }*/
 
-    //generate_Xnm(9, 3, 1024);
+    // generate_Xnm(9, 3, 1024);
     // ReorderHX(2, 1024);
+
+    GetD2(9);
 
     return 0;
 }

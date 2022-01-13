@@ -9,12 +9,12 @@ int main()
 {
     int n_max = 9;
     alg::array gen_degs_t;
-    std::vector<alg::Deg> gen_degs;
+    std::vector<alg::MayDeg> gen_degs;
     std::vector<std::string> gen_names;
     for (int i = 0; i < n_max; ++i) {
         for (int j = i + 1; j <= n_max; ++j) {
             gen_degs_t.push_back((1 << j) - (1 << i));
-            gen_degs.push_back(alg::Deg{ 1, (1 << j) - (1 << i), j - i });
+            gen_degs.push_back(alg::MayDeg{ 1, (1 << j) - (1 << i), j - i });
             gen_names.push_back("R_{" + std::to_string(i) + std::to_string(j) + "}");
         }
     }

@@ -7,7 +7,7 @@ project(
     LANGUAGES CXX
 )
 
-set(BUILD_DOXYGEN ON)
+set(BUILD_DOXYGEN OFF)
 
 # The compiled library code is here
 add_subdirectory(src)
@@ -31,7 +31,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
     # The executable code is here
     add_subdirectory(ss)
-    add_subdirectory(HAX)
+    add_subdirectory(MayE2)
+    add_subdirectory(MayE4)
     add_subdirectory(tests)
 
     # Docs only available if this is the main app

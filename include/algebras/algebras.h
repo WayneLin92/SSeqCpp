@@ -8,6 +8,7 @@
 
 #include "myexception.h"
 #include "utility.h"
+#include <array>
 #include <queue>
 
 /**
@@ -92,8 +93,9 @@ using MayDeg1d = std::vector<MayDeg>;
  */
 struct GenPow
 {
-    int gen;                                 /**< ID for the generator. */
-    int exp;                                 /**< Exponent. */
+    int gen; /**< ID for the generator. */
+    int exp; /**< Exponent. */
+    GenPow() = default;
     GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
     /**
      * The operator< helps defining a monomial ordering.
@@ -173,6 +175,74 @@ Mon GCD(const Mon& m1, const Mon& m2);
  */
 Mon LCM(const Mon& m1, const Mon& m2);
 
+namespace detail {
+    inline constexpr int BUFFER_SIZE_MON = 30;
+
+    /*
+     * This version of `Mon` is designed to avoid the allocations of memory.
+     */
+    class MonOnStack
+    {
+    public:
+        using const_iterator = std::array<GenPow, BUFFER_SIZE_MON>::const_iterator;
+
+    private:
+        std::array<GenPow, BUFFER_SIZE_MON> data_;
+        size_t size_;
+
+    public:
+        MonOnStack() : size_(0){};
+        explicit operator Mon() const
+        {
+            Mon result;
+            result.reserve(size_);
+            for (auto p = begin(); p < end(); ++p)
+                result.push_back(*p);
+            return result;
+        }
+        size_t size() const
+        {
+            return size_;
+        }
+        const_iterator begin() const
+        {
+            return data_.begin();
+        }
+        const_iterator end() const
+        {
+            return data_.begin() + size_;
+        }
+        GenPow back() const
+        {
+            return data_[size_ - 1];
+        }
+        void clear()
+        {
+            size_ = 0;
+        }
+        void push_back(GenPow gp)
+        {
+            data_[size_++] = gp;
+        }
+        void push_back(MonInd begin, MonInd end)
+        {
+            for (auto p = begin; p < end; ++p)
+                data_[size_++] = *p;
+        }
+        void push_back(const_iterator begin, const_iterator end)
+        {
+            for (auto p = begin; p < end; ++p)
+                data_[size_++] = *p;
+        }
+        void emplace_back(int gen, int exp)
+        {
+            data_[size_++] = {gen, exp};
+        }
+    };
+
+    void mul(const Mon& mon1, const MonOnStack& mon2, Mon& result);
+}  // namespace detail
+
 /** @} ---------------------------------------- */
 
 /********************************************************
@@ -188,14 +258,15 @@ Mon LCM(const Mon& m1, const Mon& m2);
 struct CmpLex
 {
     static constexpr std::string_view name = "Lex";
-    static bool cmp(const Mon& m1, const Mon& m2)
+    template <typename TypeIter1, typename TypeIter2>
+    static bool cmp_ranges(TypeIter1 m1begin, TypeIter1 m1end, TypeIter2 m2begin, TypeIter2 m2end)
     {
-        return m1 > m2;
+        return std::lexicographical_compare(m2begin, m2end, m1begin, m1end); /* m1 > m2 */
     }
-
-    static bool cmp_ranges(MonInd m1begin, MonInd m1end, MonInd m2begin, MonInd m2end)
+    template <typename Type1, typename Type2>
+    static bool cmp(const Type1& m1, const Type2& m2)
     {
-        return std::lexicographical_compare(m2begin, m2end, m1begin, m1end);
+        return cmp_ranges(m1.begin(), m1.end(), m2.begin(), m2.end());
     }
 };
 
@@ -205,14 +276,15 @@ struct CmpLex
 struct CmpRevlex
 {
     static constexpr std::string_view name = "Revlex";
-    static bool cmp(const Mon& m1, const Mon& m2)
+    template <typename TypeIter1, typename TypeIter2>
+    static bool cmp_ranges(TypeIter1 m1begin, TypeIter1 m1end, TypeIter2 m2begin, TypeIter2 m2end)
     {
-        return m1 < m2;
+        return std::lexicographical_compare(m1begin, m1end, m2begin, m2end); /* m1 < m2 */
     }
-
-    static bool cmp_ranges(MonInd m1begin, MonInd m1end, MonInd m2begin, MonInd m2end)
+    template <typename Type1, typename Type2>
+    static bool cmp(const Type1& m1, const Type2& m2)
     {
-        return std::lexicographical_compare(m1begin, m1end, m2begin, m2end);
+        return cmp_ranges(m1.begin(), m1.end(), m2.begin(), m2.end());
     }
 };
 
@@ -254,7 +326,7 @@ struct Polynomial
     static Polynomial<FnCmp> Sort(Mon1d data)
     {
         Polynomial<FnCmp> result = {std::move(data)};
-        std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+        std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
         return result;
     }
 
@@ -314,21 +386,30 @@ struct Polynomial
     Polynomial<FnCmp> operator+(const Polynomial<FnCmp>& rhs) const
     {
         Polynomial<FnCmp> result;
-        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), FnCmp::cmp);
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), FnCmp::template cmp<Mon, Mon>);
         return result;
     }
     Polynomial<FnCmp>& operator+=(const Polynomial<FnCmp>& rhs)
     {
         Polynomial<FnCmp> tmp;
         std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), FnCmp::cmp);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), FnCmp::template cmp<Mon, Mon>);
         return *this;
     }
     Polynomial<FnCmp> operator*(const Mon& rhs) const
     {
         Polynomial<FnCmp> result;
+        result.data.reserve(data.size());
         for (const Mon& m : data)
             result.data.push_back(mul(m, rhs));
+        return result;
+    }
+    Polynomial<FnCmp> operator*(const detail::MonOnStack& rhs) const
+    {
+        Polynomial<FnCmp> result;
+        result.data.resize(data.size());
+        for (size_t i = 0; i < data.size(); ++i)
+            mul(data[i], rhs, result.data[i]);
         return result;
     }
     Polynomial<FnCmp> operator*(const Polynomial<FnCmp>& rhs) const
@@ -340,7 +421,7 @@ struct Polynomial
             for (int i = i_min; i <= i_max; ++i)
                 result.data.push_back(mul(data[i], rhs.data[k - i]));
         }
-        std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+        std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
         for (size_t i = 1; i < result.data.size(); ++i) {
             if (result.data[i] == result.data[i - 1]) {
                 result.data[i].clear();
@@ -460,7 +541,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, FnMap map)
 template <typename FnCmp>
 Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map)
 {
-    return subs(data, [&map](int i) { return map[i]; });
+    return subs<FnCmp>(data, [&map](int i) { return map[i]; });
 }
 /**
  * Replace the generators in `poly` with new id given in `map_gen_id`.
@@ -479,7 +560,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
         std::sort(m1.begin(), m1.end(), [](const GenPow& lhs, const GenPow& rhs) { return lhs.gen < rhs.gen; });
         result.data.push_back(m1);
     }
-    std::sort(result.data.begin(), result.data.end(), FnCmp::cmp);
+    std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp);
     return result;
 }
 

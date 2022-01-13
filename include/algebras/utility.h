@@ -1,8 +1,15 @@
 #ifndef UTILITY_INCLUDED
 #define UTILITY_INCLUDED
 
+#include <chrono>
 #include <iterator>
+#include <string>
 #include <vector>
+#ifndef __unix__
+#ifndef _MSC_VER
+#include <mutex>
+#endif
+#endif
 
 /**
  * The namespace `ut` provides basic utility functions
@@ -10,7 +17,7 @@
 namespace ut {
 
 /*
- * An iterator of [begin, end) computed on the fly.
+ * An iterator of [begin, end) generated on the fly.
  */
 class Range
 {
@@ -111,6 +118,32 @@ template <typename Container>
 inline void RemoveZeroElements(Container& cont)
 {
     cont.erase(std::remove_if(cont.begin(), cont.end(), [](const typename Container::value_type& g) { return !g; }), cont.end());
+}
+
+namespace detail {
+    /* A safe way to convert time_t to std::tm */
+    inline std::tm localtime_xp(std::time_t timer)
+    {
+        std::tm bt{};
+#if defined(__unix__)
+        localtime_r(&timer, &bt);
+#elif defined(_MSC_VER)
+        localtime_s(&bt, &timer);
+#else
+        static std::mutex mtx;
+        std::lock_guard<std::mutex> lock(mtx);
+        bt = *std::localtime(&timer);
+#endif
+        return bt;
+    }
+}  // namespace detail
+
+// default = "YYYY-MM-DD HH:MM:SS"
+inline std::string get_time(const std::string& fmt = "%F %T")
+{
+    auto bt = detail::localtime_xp(std::time(0));
+    char buf[64];
+    return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
 }
 
 }  // namespace ut

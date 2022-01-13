@@ -1,8 +1,4 @@
 #include "MayE2.h"
-#include "algebras/benchmark.h"
-#include "algebras/dbalg.h"
-#include "algebras/myexception.h"
-#include <iostream>
 
 bool is_bij(const alg::MayDeg& deg)
 {
@@ -78,16 +74,14 @@ void ReorderHX(int n, int t_max)
     std::cout << "A=" << table_prefix << '\n';
     std::cout << "B=" << table1_prefix << '\n';
 
-    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-    db.execute_cmd("CREATE TABLE IF NOT EXISTS " + table1_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_generators");
-    db.execute_cmd("DELETE FROM " + table1_prefix + "_relations");
+    db.create_generators_and_delete(table1_prefix);
+    db.create_relations_and_delete(table1_prefix);
 
     /* Reorder and produce gen_degs1, gen_names1, gen_reprs1, gb1 */
-    std::vector<alg::MayDeg> gen_degs = db.load_gen_maydegs(table_prefix + "_generators");
-    std::vector<std::string> gen_names = db.load_gen_names(table_prefix + "_generators");
-    alg::PolyLex1d gen_reprs = db.load_gen_reprs<alg::CmpLex>(table_prefix + "_generators");
-    alg::GroebnerRevlex gb = db.load_gb<alg::CmpRevlex>(table_prefix + "_relations", t_max);
+    std::vector<alg::MayDeg> gen_degs = db.load_gen_maydegs(table_prefix);
+    std::vector<std::string> gen_names = db.load_gen_names(table_prefix);
+    alg::PolyLex1d gen_reprs = db.load_gen_reprs<alg::CmpLex>(table_prefix);
+    alg::GroebnerRevlex gb = db.load_gb<alg::CmpRevlex>(table_prefix, t_max);
     auto [map_gen_id_inv, gb1] = ReorderGens(gen_degs, gb, t_max);
 
     std::cout << "gb1.size()=" << gb1.size() << '\n';
@@ -131,10 +125,10 @@ void ReorderHX(int n, int t_max)
 
     db.begin_transaction();
 
-    db.save_gen_maydegs(table1_prefix + "_generators", gen_degs2);
-    db.save_gen_names(table1_prefix + "_generators", gen_names2);
-    db.save_gen_reprs(table1_prefix + "_generators", gen_reprs2, 0);
-    db.save_gb(table1_prefix + "_relations", gb2, gen_degs2);
+    db.save_gen_maydegs(table1_prefix, gen_degs2);
+    db.save_gen_names(table1_prefix, gen_names2);
+    db.save_gen_reprs(table1_prefix, gen_reprs);
+    db.save_gb(table1_prefix, gb2, gen_degs2);
 
     db.end_transaction();
 }
