@@ -122,22 +122,27 @@ using MonInd = Mon::const_iterator;
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
-inline int GetDeg(const Mon& mon, const array& gen_degs)
+template<typename FnGenDeg>
+inline int TplGetDeg(const Mon& mon, FnGenDeg _gen_deg)
 {
     int result = 0;
     for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen] * p->exp;
+        result += _gen_deg(p->gen) * p->exp;
     return result;
+};
+/**
+ * Obtain the degree of a monomial given the degrees of generators.
+ */
+inline int GetDeg(const Mon& mon, const array& gen_degs)
+{
+    return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i]; });
 };
 /**
  * Obtain the t degree of a monomial given the degrees of generators.
  */
 inline int GetDegT(const Mon& mon, const MayDeg1d& gen_degs)
-{
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen].t * p->exp;
-    return result;
+{  
+    return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i].t; });
 };
 /**
  * Obtain the May degree of a monomial given the May degrees of generators.

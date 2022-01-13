@@ -270,7 +270,7 @@ using GbBuffer = std::map<int, std::vector<detail::GbBufferEle>>;
  * `deg=-1` or `deg_max=-1` means infinity.
  */
 template <typename FnCmp, typename FnPred, typename FnDeg>
-void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, FnPred pred, FnDeg _get_deg, int deg, int deg_max)
+void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, FnPred pred, FnDeg _gen_deg, int deg, int deg_max)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -279,7 +279,7 @@ void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial
     std::map<int, PPoly1d> rels_graded;
     for (const auto& rel : rels) {
         if (rel) {
-            int d = _get_deg(rel.GetLead());
+            int d = TplGetDeg(rel.GetLead(), _gen_deg);
             if (d <= deg || deg == -1) {
                 rels_graded[d].push_back(&rel);
                 if (buffer.find(d) == buffer.end())
@@ -319,14 +319,14 @@ void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial
         for (auto& rel : rels_d) {
             ut::Range range2(0, (int)gb.size());
             auto trace_rel = gb.Trace(rel.GetLead());
-            std::for_each(std::execution::par_unseq, range2.begin(), range2.end(), [&gb, &buffer_new_rels, &rel, trace_rel, pred, _get_deg, d, deg_max](int i) {
+            std::for_each(std::execution::par_unseq, range2.begin(), range2.end(), [&gb, &buffer_new_rels, &rel, trace_rel, pred, _gen_deg, d, deg_max](int i) {
                 if ((trace_rel & gb.traces(i)) && detail::HasGCD(rel.GetLead(), gb[i].GetLead()) && pred(rel.GetLead(), gb[i].GetLead())) {
-                    /*detail::MonOnStack gcd;
-                    detail::GCD(rel.GetLead(), gb[i].GetLead(), gcd, )*/
+                    /* detail::MonOnStack gcd;
+                    detail::GCD(rel.GetLead(), gb[i].GetLead(), gcd, ) */
                     Mon gcd = GCD(rel.GetLead(), gb[i].GetLead());
                     Mon t1 = div(rel.GetLead(), gcd);
                     Mon t2 = div(gb[i].GetLead(), gcd);
-                    int deg_new_rel = d + _get_deg(gb[i].GetLead()) - _get_deg(gcd);
+                    int deg_new_rel = d + TplGetDeg(gb[i].GetLead(), _gen_deg) - TplGetDeg(gcd, _gen_deg);
                     if (deg_new_rel <= deg_max || deg_max == -1)
                         buffer_new_rels[i] = std::make_pair(deg_new_rel, detail::GbBufferEle{std::move(t1), std::move(t2), i, (int)gb.size()});
                     else
@@ -349,7 +349,7 @@ template <typename FnCmp>
 void AddRels(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, const array& gen_degs, int deg, int deg_max)
 {
     AddRels(
-        gb, buffer, rels, [](const Mon&, const Mon&) { return true; }, [&gen_degs](const Mon& mon) { return GetDeg(mon, gen_degs); }, deg, deg_max);
+        gb, buffer, rels, [](const Mon&, const Mon&) { return true; }, [&gen_degs](int i) { return gen_degs[i]; }, deg, deg_max);
 }
 
 template <typename FnCmp>
@@ -525,11 +525,8 @@ namespace detail {
     {
         AddRels(
             gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return !(m1.back().gen & GEN_IDEAL) && !(m2.back().gen & GEN_IDEAL); },
-            [&gen_degs, &gen_degs_y](const Mon& mon) {
-                int result = 0;
-                for (MonInd p = mon.begin(); p != mon.end(); ++p)
-                    result += ((p->gen & GEN_IDEAL) ? gen_degs_y[p->gen - GEN_IDEAL] : gen_degs[p->gen]) * p->exp;
-                return result;
+            [&gen_degs, &gen_degs_y](int i) {
+                return ((i & GEN_IDEAL) ? gen_degs_y[i - GEN_IDEAL] : gen_degs[i]);
             },
             deg, deg_max);
     }
@@ -538,11 +535,8 @@ namespace detail {
     {
         AddRels(
             gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return !((m1.back().gen & GEN_IDEAL) && (m2.back().gen & GEN_IDEAL) && (m1.back().gen != m2.back().gen)); },
-            [&gen_degs, &gen_degs_y](const Mon& mon) {
-                int result = 0;
-                for (MonInd p = mon.begin(); p != mon.end(); ++p)
-                    result += ((p->gen & GEN_IDEAL) ? gen_degs_y[p->gen - GEN_IDEAL] : gen_degs[p->gen]) * p->exp;
-                return result;
+            [&gen_degs, &gen_degs_y](int i) {
+                return ((i & GEN_IDEAL) ? gen_degs_y[i - GEN_IDEAL] : gen_degs[i]);
             },
             deg, deg_max);
     }
@@ -551,19 +545,13 @@ namespace detail {
     {
         AddRels(
             gb, buffer, rels, [](const Mon& m1, const Mon& m2) { return true; },
-            [&gen_degs, &gen_degs_x, &gen_degs_b](const Mon& mon) {
-                int result = 0;
-                for (MonInd p = mon.begin(); p != mon.end(); ++p) {
-                    if (p->gen & GEN_IDEAL) {
-                        result += gen_degs_b[p->gen - GEN_IDEAL - GEN_SUB].t * p->exp;
-                    }
-                    else if (p->gen & GEN_SUB)
-                        result += gen_degs_x[p->gen - GEN_SUB].t * p->exp;
-                    else
-                        result += gen_degs[p->gen].t * p->exp;
-                    // result += ((p->gen & GEN_IDEAL) ? gen_degs_b[p->gen - GEN_IDEAL - GEN_SUB].t : ((p->gen & GEN_SUB) ? gen_degs_x[p->gen - GEN_SUB].t : gen_degs[p->gen].t)) * p->exp;
-                }
-                return result;
+            [&gen_degs, &gen_degs_x, &gen_degs_b](int i) {
+                if (i & GEN_IDEAL)
+                    return gen_degs_b[i - GEN_IDEAL - GEN_SUB].t;
+                else if (i & GEN_SUB)
+                    return gen_degs_x[i - GEN_SUB].t;
+                else
+                    return gen_degs[i].t;
             },
             deg, deg_max);
     }
@@ -870,7 +858,7 @@ void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector
 namespace template_examples {
     using FnCmp = alg::CmpLex;
     using FnPred = bool (*)(alg::Mon, alg::Mon);
-    using FnDeg = int (*)(alg::Mon);
+    using FnDeg = int (*)(int);
 
     inline void AddRels_(Groebner<FnCmp>& gb, GbBuffer& buffer, const std::vector<Polynomial<FnCmp>>& rels, FnPred pred, FnDeg _get_deg, int deg, int deg_max)
     {
