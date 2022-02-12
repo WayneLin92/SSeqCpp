@@ -62,7 +62,7 @@ private:
 
 public:
     DbAlg() = default;
-    explicit DbAlg(const char* filename);
+    explicit DbAlg(const std::string& filename);
 
 public:
     void create_generators(const std::string& table_prefix)
@@ -432,6 +432,12 @@ public:
     void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;
     void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;
 };
+
+#if defined(_MSC_VER)
+constexpr std::string_view dir_db = "C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/";
+#else
+constexpr std::string_view dir_db = "/Users/weinanlin/MyData/Math_AlgTop/databases/";
+#endif
 
 }  // namespace myio
 

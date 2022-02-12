@@ -1,12 +1,13 @@
 #include "algebras/algebras.h"
 #include "algebras/benchmark.h"
-#include "algebras/database.h"
+#include "algebras/dbalg.h"
 #include "algebras/groebner.h"
 #include "algebras/myexception.h"
 #include <iostream>
 
 int main()
 {
+    using Poly = alg::PolyLex;
     int n_max = 9;
     alg::array gen_degs_t;
     std::vector<alg::MayDeg> gen_degs;
@@ -19,13 +20,13 @@ int main()
         }
     }
     alg::GroebnerLex gb;
-    alg::Database db("/Users/weinanlin/MyData/Math_AlgTop/databases/B9.db");
+    myio::DbAlg db(std::string(myio::dir_db) + std::string("B9.db"));
 
     for (int n = 1; n <= n_max; ++n) {
         for (int m = 1; m <= n; ++m) {
             int j = n;
             int i = n - m;
-            alg::Poly rel;
+            Poly rel;
             for (int k = i + 1; k < j; k++) {
                 int a = (1 << k) - (1 << i);
                 int b = (1 << j) - (1 << k);
@@ -33,25 +34,20 @@ int main()
                 auto p2 = std::find(gen_degs_t.begin(), gen_degs_t.end(), b);
                 int index1 = int(p1 - gen_degs_t.begin());
                 int index2 = int(p2 - gen_degs_t.begin());
-                rel = add(rel, alg::Poly{ { { index1, 1 } } } * alg::Poly{ { { index2, 1 } } });
+                rel += Poly::Gen(index1) * Poly::Gen(index2);
             }
 
-            alg::AddRelsV2(gb, { rel }, gen_degs_t, -1);
+            alg::AddRels(gb, { rel }, gen_degs_t, -1);
             std::string table_prefix = "B" + std::to_string(n) + std::to_string(m);
 
             std::cout << table_prefix << '\n';
 
             db.begin_transaction();
-            try {
-                db.execute_cmd("CREATE TABLE " + table_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, s SMALLINT, t SMALLINT, v SMALLINT);");
-                db.execute_cmd("CREATE TABLE " + table_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
-            }
-            catch (MyException&) {
-            }
-            db.execute_cmd("delete from " + table_prefix + "_generators");
-            db.execute_cmd("delete from " + table_prefix + "_relations");
-            db.save_generators(table_prefix + "_generators", gen_names, gen_degs);
-            db.save_gb(table_prefix + "_relations", gb.gb, gen_degs);
+            db.create_generators_and_delete(table_prefix);
+            db.create_relations_and_delete(table_prefix);
+            db.save_gen_names(table_prefix, gen_names);
+            db.save_gen_maydegs(table_prefix, gen_degs);
+            db.save_gb(table_prefix, gb, gen_degs);
             db.end_transaction();
         }
     }

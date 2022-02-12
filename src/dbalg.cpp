@@ -4,7 +4,7 @@
 
 namespace myio {
 
-DbAlg::DbAlg(const char* filename) : Database(filename), bLogging_(true)
+DbAlg::DbAlg(const std::string& filename) : Database(filename), bLogging_(true)
 {
     try {
         version_ = get_str(std::string("SELECT value FROM info WHERE key=\"version\""));

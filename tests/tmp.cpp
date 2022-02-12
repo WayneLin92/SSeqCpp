@@ -22,7 +22,7 @@ void compare_computations()
     }
 
     int count = 0;
-    for (auto& rel : gb.data) {
+    for (auto& rel : gb.data()) {
         auto rel1 = alg::subs<alg::CmpRevlex>(rel.data, map_gen_id);
         if (gb_py.Reduce(rel1)) {
             std::cout << StrPoly(rel1.data, gen_names_py) << '\n';
@@ -80,7 +80,7 @@ void test_homology()
     for (size_t i = 0; i < gen_names_h.size(); ++i)
         std::cout << "t=" << gen_repr_h[i].GetMayDeg(gen_degs) << " " << gen_names_h[i] << "=" << StrPoly(gen_repr_h[i].data, gen_names) << '\n';
     std::cout << '\n';
-    for (auto& g : gb_h.data)
+    for (auto& g : gb_h.data())
         std::cout << StrPoly(g.data, gen_names_h) << "=0\n";
 }
 

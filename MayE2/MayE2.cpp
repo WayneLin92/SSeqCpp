@@ -470,7 +470,7 @@ int generate_Xnm(int n, int m, int t_max)
     auto gb = db.load_gb<alg::CmpRevlex>(table_prefix, t_max);
 
     auto gen_degs_X9 = db.load_gen_maydegs("X9");
-    auto gen_diffs_E1 = db.load_gen_diffs<alg::CmpLex>("X9", 0);
+    auto gen_diffs_E1 = db.load_gen_diffs<alg::CmpLex>("X9");
 
     alg::Groebner gb1 = gb;
     std::vector<Signature> gen_sigs;
@@ -604,8 +604,8 @@ int generate_Xnm(int n, int m, int t_max)
         alg::AddRels(gb, {c}, gen_degs_t, t_max);
 
         alg::Mon2d leadings(gen_sigs.size());  // TODO: group by the last generator
-        for (size_t i = 0; i < gb.data.size(); ++i)
-            leadings[gb.data[i].GetLead()[0].gen].push_back(gb.data[i].GetLead());
+        for (size_t i = 0; i < gb.size(); ++i)
+            leadings[gb[i].GetLead()[0].gen].push_back(gb[i].GetLead());
 
         /* Add relations gi * gj = b * yi * yj + [...] */
         std::cout << "Adding relations gi * gj = b * yi * yj + [...]\n";

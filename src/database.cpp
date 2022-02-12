@@ -12,9 +12,9 @@
 #endif
 
 namespace myio {
-Database::Database(const char* filename)
+Database::Database(const std::string& filename)
 {
-    if (sqlite3_open(filename, &conn_) != SQLITE_OK)
+    if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK)
         throw MyException(0x8de81e80, std::string("database ") + filename + " not found");
 }
 

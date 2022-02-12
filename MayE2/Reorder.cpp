@@ -55,9 +55,9 @@ std::pair<alg::array, alg::GroebnerRevlex> ReorderGens(const std::vector<alg::Ma
         gen_degs_new.push_back(gen_degs[map_gen_id_inv[i]].t);
     }
 
-    alg::GbBuffer buffer;
+    alg::CriticalPairs buffer;
     alg::PolyRevlex1d rels;
-    for (const alg::PolyRevlex& g : gb.data)
+    for (const alg::PolyRevlex& g : gb.data())
         rels.push_back(alg::subs<alg::CmpRevlex>(g.data, map_gen_id));
     alg::GroebnerRevlex gb_new;
     alg::AddRels(gb_new, rels, gen_degs_new, t_max);
@@ -119,7 +119,7 @@ void ReorderHX(int n, int t_max)
     }
     std::cout << "num of decomposables = " << indices_decomposables.size() << '\n';
 
-    for (const alg::PolyRevlex& g : gb1.data)
+    for (const alg::PolyRevlex& g : gb1.data())
         if (!std::binary_search(indices_decomposables.begin(), indices_decomposables.end(), g.GetLead()[0].gen))
             gb2.push_back(alg::subs<alg::CmpRevlex>(g.data, map_gen_id1));
 

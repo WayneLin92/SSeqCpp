@@ -39,7 +39,7 @@ private:
 
 public:
     Database() = default;
-    explicit Database(const char* filename);
+    explicit Database(const std::string& filename);
     ~Database();
 
 public:

@@ -17,10 +17,14 @@
  */
 namespace alg {
 
+inline constexpr int DEG_MAX = INT_MAX;
+
 using array = std::vector<int>;
 using array2d = std::vector<array>;
 using array3d = std::vector<array2d>;
 using array4d = std::vector<array3d>;
+using pairint = std::pair<int, int>;
+using pairint1d = std::vector<pairint>;
 
 /** The 3d grading for the May spectral sequence.
  *
@@ -118,6 +122,8 @@ using Mon = std::vector<GenPow>;
 using Mon1d = std::vector<Mon>;
 using Mon2d = std::vector<Mon1d>;
 using MonInd = Mon::const_iterator;
+using MonTrace = uint64_t;
+using MonTrace1d = std::vector<MonTrace>;
 
 /**
  * Obtain the degree of a monomial given the degrees of generators.
@@ -129,21 +135,21 @@ inline int TplGetDeg(const Mon& mon, FnGenDeg _gen_deg)
     for (MonInd p = mon.begin(); p != mon.end(); ++p)
         result += _gen_deg(p->gen) * p->exp;
     return result;
-};
+}
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
 inline int GetDeg(const Mon& mon, const array& gen_degs)
 {
     return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i]; });
-};
+}
 /**
  * Obtain the t degree of a monomial given the degrees of generators.
  */
 inline int GetDegT(const Mon& mon, const MayDeg1d& gen_degs)
 {  
     return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i].t; });
-};
+}
 /**
  * Obtain the May degree of a monomial given the May degrees of generators.
  */
@@ -153,19 +159,42 @@ inline MayDeg GetMayDeg(const Mon& mon, const MayDeg1d& gen_maydegs)
     for (MonInd p = mon.begin(); p != mon.end(); ++p)
         result += gen_maydegs[p->gen] * p->exp;
     return result;
-};
+}
 
 Mon mul(const Mon& mon1, const Mon& mon2);
+
 /**
  * The funtions returns the quotient of the monomials.
  * It requires that mon2 divides mon1.
  */
 Mon div(const Mon& mon1, const Mon& mon2);
+
 Mon pow(const Mon& m, int e);
+
 /**
  * Return if m1 divides m2.
  */
 bool divisible(const Mon& m1, const Mon& m2);
+
+/* A function to accelerate the computation of `divisible(m1, m2)` */
+inline MonTrace Trace(const Mon& lead)
+{
+    MonTrace result = 0;
+    for (size_t i = 0; i < lead.size(); ++i) {
+        const int bits_exp1 = 56;
+        const int bits_exp2 = 64 - bits_exp1;
+        result |= (MonTrace(1) << (lead[i].gen % bits_exp1));
+        if (lead[i].exp >= 2)
+            result |= (MonTrace(1) << ((lead[i].gen % bits_exp2) + bits_exp1));
+    }
+    return result;
+}
+
+inline bool divisible(const Mon& m1, const Mon& m2, MonTrace t1, MonTrace t2)
+{
+    return t2 >= t1 && !(t1 & (t2 - t1)) && divisible(m1, m2);
+}
+
 /**
  *  Return the largest integer e where m1 = m2^e * r.
  */
@@ -442,6 +471,8 @@ using PolyLex = Polynomial<CmpLex>;
 using PolyLex1d = std::vector<PolyLex>;
 using PolyRevlex = Polynomial<CmpRevlex>;
 using PolyRevlex1d = std::vector<PolyRevlex>;
+template<typename FnCmp>
+using Polynomial1d = std::vector<Polynomial<FnCmp>>;
 
 /**
  * A fast algorithm that computes
@@ -565,7 +596,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
         std::sort(m1.begin(), m1.end(), [](const GenPow& lhs, const GenPow& rhs) { return lhs.gen < rhs.gen; });
         result.data.push_back(m1);
     }
-    std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp);
+    std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
     return result;
 }
 

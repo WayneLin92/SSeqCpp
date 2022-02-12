@@ -27,7 +27,7 @@ int main()
     alg::PolyRevlex1d gen_repr_h;
     std::vector<std::string> gen_names_h;
     
-    alg::Homology(gb, gen_degs, gen_diffs, alg::MayDeg{1, 0, -2}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 300);
+    alg::Homology(gb, gen_degs, gen_diffs, alg::MayDeg{1, 0, -2}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 150);
 
     db1.begin_transaction();
     db1.save_gen_maydegs(table_prefix_E4, gen_degs_h);

@@ -17,7 +17,7 @@
 namespace ut {
 
 /*
- * An iterator of [begin, end) generated on the fly.
+ * A "random access" iterator of [begin, end) generated on the fly.
  */
 class Range
 {
@@ -103,12 +103,21 @@ inline std::vector<int> range(int n)
 }
 
 /**
+ * Remove elements of `cont` for which the Predicate is true
+ */
+template <typename Container1d, typename FnPred>
+inline void RemoveIf(Container1d& cont, FnPred pred)
+{
+    cont.erase(std::remove_if(cont.begin(), cont.end(), pred), cont.end());
+}
+
+/**
  * Remove elements of `cont` which are empty containers
  */
 template <typename Container1d>
 inline void RemoveEmptyElements(Container1d& cont)
 {
-    cont.erase(std::remove_if(cont.begin(), cont.end(), [](const typename Container1d::value_type& g) { return g.empty(); }), cont.end());
+    RemoveIf(cont, [](const typename Container1d::value_type& g) { return g.empty(); });
 }
 
 /**
@@ -117,7 +126,7 @@ inline void RemoveEmptyElements(Container1d& cont)
 template <typename Container>
 inline void RemoveZeroElements(Container& cont)
 {
-    cont.erase(std::remove_if(cont.begin(), cont.end(), [](const typename Container::value_type& g) { return !g; }), cont.end());
+    RemoveIf(cont, [](const typename Container::value_type& g) { return !g; });
 }
 
 namespace detail {
