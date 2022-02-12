@@ -131,7 +131,7 @@ struct CriticalPair
     int i1, i2 = -1;
     Mon m1, m2;
     MonTrace trace_m2; /* = Trace(m2) */
-    bool trivialSyz;   /* Trivial Sysyzy */
+    bool trivialSyz;   /* Trivial Syzygy */
 
     /* Compute the pair for two leading monomials. */
     CriticalPair() = default;
@@ -328,7 +328,7 @@ public:
     }
 
     /* Remove theses pairs (i, j) from `buffer_min_pairs_` for which Sij = 0 */
-    void RemoveTrivialSyzyzies(int d)
+    void RemoveTrivialSyzygies(int d)
     {
         ut::RemoveIf(buffer_min_pairs_[d], [](const CriticalPair& c) { return c.trivialSyz; });
     }
@@ -386,7 +386,7 @@ public:
 };
 
 template <typename FnCmp>
-class Groebner //TODO: add gen_degs
+class Groebner  // TODO: add gen_degs
 {
 private:
     using TypeIndexKey = int;
@@ -399,7 +399,7 @@ public:
 private:
     Poly1d data_;
     GbCriPairs gb_pairs_; /* Groebner basis of critical pairs */
-    
+
     /* Caches */
     array data_degs_;   /* Degrees of data_. */
     Mon1d leads_;       /* Leading monomials */
@@ -410,7 +410,7 @@ public:
     Groebner(int deg_trunc, uint32_t mode = GbCriPairs::MODE_ON | GbCriPairs::MODE_GB) : gb_pairs_(deg_trunc, mode) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    Groebner(int deg_trunc, Poly1d polys) : data_(std::move(polys)), gb_pairs_(deg_trunc, 0)  //TODO: Cache degrees
+    Groebner(int deg_trunc, Poly1d polys) : data_(std::move(polys)), gb_pairs_(deg_trunc, 0)  // TODO: Cache degrees
     {
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
@@ -505,7 +505,7 @@ public: /* Getters and Setters */
     void set_mode(uint32_t mode)
     {
         gb_pairs_.set_mode(mode);
-    } 
+    }
     void erase_min_pairs(int d)
     {
         gb_pairs_.erase_min_pairs(d);
@@ -524,7 +524,7 @@ public: /* Getters and Setters */
     {
         const Mon& m = g.GetLead();
         gb_pairs_.AddToBuffers(leads_, data_degs_, traces_, m, deg, pred, _gen_deg);
-        
+
         data_degs_.push_back(deg);
         leads_.push_back(m);
         traces_.push_back(Trace(m));
@@ -536,9 +536,9 @@ public: /* Getters and Setters */
         gb_pairs_.AddAndMinimize(leads_, deg);
     }
 
-    void RemoveTrivialSyzyzies(int deg)
+    void RemoveTrivialSyzygies(int deg)
     {
-        gb_pairs_.RemoveTrivialSyzyzies(deg);
+        gb_pairs_.RemoveTrivialSyzygies(deg);
     }
     bool operator==(const Groebner<FnCmp>& rhs) const
     {
@@ -668,11 +668,11 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, F
     }
     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
     for (int d = 1; d <= deg && (d <= deg_max_rels || !gb.gb_pairs().empty_min_pairs()); ++d) {
-        //std::cout << "d=" << d << '\n';  ////
+        // std::cout << "d=" << d << '\n';  ////
         int size_min_pairs_d = (int)gb.gb_pairs().size_min_pairs(d);
         if (size_min_pairs_d) {
             gb.AddPairsAndMinimize(d);
-            gb.RemoveTrivialSyzyzies(d);
+            gb.RemoveTrivialSyzygies(d);
             size_min_pairs_d = (int)gb.gb_pairs().size_min_pairs(d);
             if (!size_min_pairs_d)
                 gb.erase_min_pairs(d);
@@ -750,7 +750,7 @@ inline constexpr int GEN_IDEAL = 0x4000000;
 inline constexpr int GEN_SUB = 0x2000000;
 
 namespace detail {
-    /* For monomials in the homological groebner basis get the degree of the first part consisting of orginal generators and set `p` to be
+    /* For monomials in the homological groebner basis get the degree of the first part consisting of original generators and set `p` to be
      * the end location of the first part.
      */
     template <typename TypeMonIter>
@@ -1064,7 +1064,7 @@ void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector
         if (t <= deg_t_allX) {
             /* Find m_i, b_i and x_i */
             for (size_t i = gb_AoAZ_old_size; i < gb_AoAZ.data().size(); ++i)
-                leadings_AoAZ[gb_AoAZ[i].GetLead().back().gen].push_back(gb_AoAZ[i].GetLead()); //TODO: leads_
+                leadings_AoAZ[gb_AoAZ[i].GetLead().back().gen].push_back(gb_AoAZ[i].GetLead());  // TODO: leads_
             gb_AoAZ_old_size = gb_AoAZ.size();
             std::map<MayDeg, Mon1d> basis_AoAZ_t = ExtendBasis<FnCmp>(leadings_AoAZ, gen_degs, basis_AoAZ, t);
             for (auto& [deg, b_deg] : basis_AoAZ_t) {

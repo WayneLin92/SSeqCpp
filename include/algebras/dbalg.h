@@ -8,11 +8,11 @@
 #include "database.h"
 #include "groebner.h"
 #include "myio.h"
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <map>
 #include <sstream>
-#include <chrono>
-#include <iomanip>
-#include <ctime>
 
 namespace alg {
 
@@ -213,8 +213,8 @@ public:
     {
         if (table_prefix.find("_relations") != std::string::npos)  // Deprecated
             throw MyException(0xb4a5e736U, "Should use prefix only.");
-        Groebner<FnCmp> gb;
-        Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+        Groebner<FnCmp> gb(t_max);
+        Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
         while (stmt.step() == MYSQLITE_ROW) {
             Polynomial<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
             Polynomial<FnCmp> basis = Polynomial<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1)));  ////
@@ -244,13 +244,13 @@ public:
     {
         if (table_prefix.find("_basis") != std::string::npos)  // Deprecated
             throw MyException(0x7c907e53U, "Should use prefix only.");
-        return group_by_Maydeg<Mon>(table_prefix + "_basis", "mon", (t_max == -1 ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;", Deserialize<Mon>);
+        return group_by_Maydeg<Mon>(table_prefix + "_basis", "mon", (t_max == alg::DEG_MAX ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;", Deserialize<Mon>);
     }
     std::map<MayDeg, array2d> load_mon_diffs_ind(const std::string& table_prefix, int t_max) const
     {
         if (table_prefix.find("_basis") != std::string::npos)  // Deprecated
             throw MyException(0xb5f0285cU, "Should use prefix only.");
-        return group_by_Maydeg<array>(table_prefix + "_basis", "diff", (t_max == -1 ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<array>);
+        return group_by_Maydeg<array>(table_prefix + "_basis", "diff", (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<array>);
     }
     std::map<MayDeg, array2d> load_mon_diffs_ind_with_null(const std::string& table_prefix, int t_max) const;
     template <typename FnCmp>
@@ -259,7 +259,7 @@ public:
         if (table_prefix.find("_basis") != std::string::npos)  // Deprecated
             throw MyException(0x6e87250aU, "Should use prefix only.");
         std::map<MayDeg, Poly1d<FnCmp>> result;
-        std::string sql = "SELECT s, t, v, diff FROM " + table_prefix + "_basis" + (t_max == -1 ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
+        std::string sql = "SELECT s, t, v, diff FROM " + table_prefix + "_basis" + (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
         Statement stmt(*this, sql);
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
@@ -291,7 +291,7 @@ public:
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
             throw MyException(0xc913403eU, "Should use prefix only.");
-        
+
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (s, t, v, gen_id) VALUES (?1, ?2, ?3, ?4);");
 
         for (size_t i = 0; i < gen_degs.size(); ++i) {

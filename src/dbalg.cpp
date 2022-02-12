@@ -78,7 +78,7 @@ alg::Mon2d DbAlg::load_leading_terms(const std::string& table_prefix, int t_max)
     if (table_prefix.find("_relations") != std::string::npos)  // Deprecated
         throw MyException(0x3b6c138U, "Should use prefix only.");
     Mon2d leadings;
-    Statement stmt(*this, "SELECT leading_term FROM " + table_prefix + "_relations" + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+    Statement stmt(*this, "SELECT leading_term FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -96,7 +96,7 @@ std::map<alg::MayDeg, int> DbAlg::load_indices(const std::string& table_prefix, 
     if (table_prefix.find("_basis") != std::string::npos)  // Deprecated
         throw MyException(0x2b4b52b6U, "Should use prefix only.");
     std::map<MayDeg, int> result;
-    Statement stmt(*this, "SELECT s, t, v, min(base_id) FROM " + table_prefix + "_basis" + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " GROUP BY s, t, v;");
+    Statement stmt(*this, "SELECT s, t, v, min(base_id) FROM " + table_prefix + "_basis" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " GROUP BY s, t, v;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -113,7 +113,7 @@ std::map<alg::MayDeg, alg::array2d> DbAlg::load_mon_diffs_ind_with_null(const st
         throw MyException(0x2eae2501U, "Should use prefix only.");
     using T = array;
     std::string column_name = "diff";
-    std::string conditions = (t_max == -1 ? std::string("") : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;";
+    std::string conditions = (t_max == alg::DEG_MAX ? std::string("") : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;";
 
     std::map<MayDeg, std::vector<T>> result;
     Statement stmt(*this, "SELECT s, t, v, " + column_name + " FROM " + table_prefix + "_basis " + conditions + ';');
@@ -135,7 +135,7 @@ std::map<alg::MayDeg, alg::BasisComplex> DbAlg::load_basis_ss(const std::string&
     if (table_prefix.find("_ss") != std::string::npos)  // Deprecated
         throw MyException(0x2db87425U, "Should use prefix only.");
     std::map<MayDeg, alg::BasisComplex> basis_ss;
-    Statement stmt(*this, "SELECT s, t, v, level, base FROM " + table_prefix + "_ss" + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
+    Statement stmt(*this, "SELECT s, t, v, level, base FROM " + table_prefix + "_ss" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;
@@ -155,7 +155,7 @@ std::map<alg::MayDeg, alg::Staircase> DbAlg::load_basis_ss(const std::string& ta
     if (table_prefix.find("_ss") != std::string::npos)  // Deprecated
         throw MyException(0xfca647e1U, "Should use prefix only.");
     std::map<MayDeg, alg::Staircase> basis_ss;
-    Statement stmt(*this, "SELECT s, t, v, level, base, diff FROM " + table_prefix + "_ss" + (t_max == -1 ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
+    Statement stmt(*this, "SELECT s, t, v, level, base, diff FROM " + table_prefix + "_ss" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ;");
     int count = 0;
     while (stmt.step() == SQLITE_ROW) {
         ++count;

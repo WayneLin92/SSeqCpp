@@ -15,11 +15,11 @@ int main()
     for (int i = 0; i < n_max; ++i) {
         for (int j = i + 1; j <= n_max; ++j) {
             gen_degs_t.push_back((1 << j) - (1 << i));
-            gen_degs.push_back(alg::MayDeg{ 1, (1 << j) - (1 << i), j - i });
+            gen_degs.push_back(alg::MayDeg{1, (1 << j) - (1 << i), j - i});
             gen_names.push_back("R_{" + std::to_string(i) + std::to_string(j) + "}");
         }
     }
-    alg::GroebnerLex gb;
+    alg::GroebnerLex gb(alg::DEG_MAX);
     myio::DbAlg db(std::string(myio::dir_db) + std::string("B9.db"));
 
     for (int n = 1; n <= n_max; ++n) {
@@ -37,7 +37,7 @@ int main()
                 rel += Poly::Gen(index1) * Poly::Gen(index2);
             }
 
-            alg::AddRels(gb, { rel }, gen_degs_t, -1);
+            alg::AddRels(gb, {rel}, alg::DEG_MAX, gen_degs_t);
             std::string table_prefix = "B" + std::to_string(n) + std::to_string(m);
 
             std::cout << table_prefix << '\n';
