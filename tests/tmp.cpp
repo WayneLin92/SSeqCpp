@@ -69,9 +69,9 @@ void test_homology()
             gen_diffs.push_back(std::move(diff));
         }
     }
-    Gb gb;
+    Gb gb(alg::DEG_MAX);
 
-    alg::GroebnerRevlex gb_h;
+    alg::GroebnerRevlex gb_h(alg::DEG_MAX);
     alg::MayDeg1d gen_degs_h;
     Poly1d gen_repr_h;
     std::vector<std::string> gen_names_h;
@@ -84,9 +84,18 @@ void test_homology()
         std::cout << StrPoly(g.data, gen_names_h) << "=0\n";
 }
 
+void test()
+{
+    int i = 0x0fffffff, j = 0x7fffffff;
+    auto ij = ut::bind_pair(i, j);
+    int k, l;
+    ut::get_pair(ij, k, l);
+    std::cout << i << ' ' << j << ' ' << k << ' ' << l << '\n';
+}
+
 int main()
 {
-    test_homology();
+    test();
 
     return 0;
 }

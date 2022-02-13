@@ -147,12 +147,23 @@ namespace detail {
     }
 }  // namespace detail
 
-// default = "YYYY-MM-DD HH:MM:SS"
+/* default = "YYYY-MM-DD HH:MM:SS" */
 inline std::string get_time(const std::string& fmt = "%F %T")
 {
     auto bt = detail::localtime_xp(std::time(0));
     char buf[64];
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
+}
+
+inline uint64_t bind_pair(uint32_t i, uint32_t j)
+{
+    return (uint64_t(i) << 32) + uint64_t(j);
+}
+
+inline void get_pair(uint64_t ij, int& i, int& j)
+{
+    i = int(ij >> 32);
+    j = int(ij & 0x7fffffff);
 }
 
 }  // namespace ut

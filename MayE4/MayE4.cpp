@@ -22,7 +22,7 @@ int main()
     auto gen_diffs = db.load_gen_diffs<alg::CmpRevlex>(table_prefix_E2);
     auto gb = db.load_gb<alg::CmpRevlex>(table_prefix_E2, t_max);
 
-    alg::GroebnerRevlex gb_h;
+    alg::GroebnerRevlex gb_h(150, 0);
     alg::MayDeg1d gen_degs_h;
     alg::PolyRevlex1d gen_repr_h;
     std::vector<std::string> gen_names_h;

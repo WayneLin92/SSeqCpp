@@ -47,6 +47,8 @@ class DbAlg : public Database
     template <typename FnCmp>
     using Polynomial = alg::Polynomial<FnCmp>;
     template <typename FnCmp>
+    using Polynomial1d = std::vector<Polynomial<FnCmp>>;
+    template <typename FnCmp>
     using Poly1d = std::vector<Polynomial<FnCmp>>;
     template <typename FnCmp>
     using Groebner = alg::Groebner<FnCmp>;
@@ -213,17 +215,17 @@ public:
     {
         if (table_prefix.find("_relations") != std::string::npos)  // Deprecated
             throw MyException(0xb4a5e736U, "Should use prefix only.");
-        Groebner<FnCmp> gb(t_max);
+        Polynomial1d<FnCmp> polys;
         Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
         while (stmt.step() == MYSQLITE_ROW) {
             Polynomial<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
             Polynomial<FnCmp> basis = Polynomial<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1)));  ////
 
             Polynomial<FnCmp> g = basis + lead;
-            gb.push_back(std::move(g));
+            polys.push_back(std::move(g));
         }
-        std::cout << "gb loaded from " << table_prefix + "_relations, size=" << gb.size() << '\n';
-        return gb;
+        std::cout << "gb loaded from " << table_prefix + "_relations, size=" << polys.size() << '\n';
+        return Groebner<FnCmp>(t_max, polys);
     }
     std::map<MayDeg, int> load_indices(const std::string& table_prefix, int t_max) const;
     template <typename T, typename FnMap>

@@ -38,7 +38,7 @@ void benchmark_B9_Lex()
         }
     }
 
-    Gb gb(alg::DEG_MAX);
+    Gb gb(alg::DEG_MAX, alg::CRI_ON);
     std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.GetDeg(gen_degs) < p2.GetDeg(gen_degs); });
     alg::AddRels(gb, std::move(rels), alg::DEG_MAX, gen_degs);
     size_t answer = 402;
@@ -82,7 +82,7 @@ void benchmark_B9_Revlex()
         }
     }
 
-    Gb gb(alg::DEG_MAX);
+    Gb gb(alg::DEG_MAX, alg::CRI_ON);
     std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.GetDeg(gen_degs) < p2.GetDeg(gen_degs); });
     alg::AddRels(gb, std::move(rels), alg::DEG_MAX, gen_degs);
     size_t answer = 462;
