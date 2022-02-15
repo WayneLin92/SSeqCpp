@@ -1,6 +1,7 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/utility.h"
+#include "algebras/steenrod.h"
 
 void compare_computations()
 {
@@ -86,11 +87,13 @@ void test_homology()
 
 void test()
 {
-    int i = 0x0fffffff, j = 0x7fffffff;
-    auto ij = ut::bind_pair(i, j);
-    int k, l;
-    ut::get_pair(ij, k, l);
-    std::cout << i << ' ' << j << ' ' << k << ' ' << l << '\n';
+    auto r1 = alg::MonSteenrodMilnor::P(1, 2);
+    auto r2 = alg::MonSteenrodMilnor::P(3, 4);
+    auto com = r1 * r2 + r2 * r1;
+
+    std::cout << alg::SteenrodMay(r1) << '\n';
+    std::cout << alg::SteenrodMay(r2) << '\n';
+    std::cout << alg::SteenrodMay(com) << '\n';
 }
 
 int main()

@@ -210,18 +210,17 @@ Mon GCD(const Mon& m1, const Mon& m2);
 Mon LCM(const Mon& m1, const Mon& m2);
 
 namespace detail {
-    inline constexpr int BUFFER_SIZE_MON = 30;
-
     /*
      * This version of `Mon` is designed to avoid the allocations of memory.
      */
     class MonOnStack
     {
+        static constexpr size_t BUFFER_SIZE = 30;
     public:
-        using const_iterator = std::array<GenPow, BUFFER_SIZE_MON>::const_iterator;
+        using const_iterator = std::array<GenPow, BUFFER_SIZE>::const_iterator;
 
     private:
-        std::array<GenPow, BUFFER_SIZE_MON> data_;
+        std::array<GenPow, BUFFER_SIZE> data_;
         size_t size_;
 
     public:

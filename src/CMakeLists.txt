@@ -17,9 +17,10 @@ set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/linalg.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/benchmark.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/utility.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/steenrod.h"
 )
 
-add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp ${HEADER_LIST})
+add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp steenrod.cpp ${HEADER_LIST})
 if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
     # message(STATUS ${CMAKE_CXX_FLAGS_RELEASE})

@@ -200,8 +200,8 @@ struct CriticalPair
 using CriticalPair1d = std::vector<CriticalPair>;
 using CriticalPair2d = std::vector<CriticalPair1d>;
 
-static constexpr uint32_t CRI_ON = 0x0001; /* `gb_pairs_` is in use */
-static constexpr uint32_t CRI_GB = 0x0002; /* Groebner basis of critical pairs is recorded. Otherwise it is partial */
+inline constexpr uint32_t CRI_ON = 0x0001; /* `gb_pairs_` is in use */
+inline constexpr uint32_t CRI_GB = 0x0002; /* Groebner basis of critical pairs is recorded. Otherwise it is partial */
 
 /* Groebner basis of critical pairs */
 class GbCriPairs

@@ -157,29 +157,29 @@ TEST_CASE("Compute the Groebner basis of B7 wrt lex ordering", "[alg::AddRels]")
     REQUIRE(gb.size() == answer);
 }
 
-//TEST_CASE("Compute annihilator with FnCmp=CmpLex", "[alg::AnnSeq]")
-//{
-//    using FnCmp = alg::CmpLex;
-//    using Poly = alg::Polynomial<FnCmp>;
-//    using Poly1d = std::vector<Poly>;
-//    using Gb = alg::Groebner<FnCmp>;
-//    constexpr auto GenExp = Poly::GenExp;
-//
-//    alg::array gen_degs = {1, 1, 1};
-//    Poly p1 = GenExp(0, 2) + GenExp(1, 2); /* x_0^2 + x_1^2 */
-//    Poly p2 = GenExp(0, 1) * GenExp(2, 1) + GenExp(1, 1) * GenExp(2, 1);                /* x_0x_2 + x_1x_2 */
-//    Poly1d polys = {p1, p2};
-//    Gb gb(alg::DEG_MAX);
-//    alg::AddRels(gb, polys, alg::DEG_MAX, gen_degs);
-//
-//    auto x = GenExp(0, 1) + GenExp(1, 1);
-//
-//    auto ann = alg::AnnSeq(gb, {x}, gen_degs, alg::DEG_MAX);
-//    /*for (auto& v : ann)
-//        std::cout << v[0].data << '\n';*/
-//
-//    REQUIRE(ann.size() == 2);
-//}
+TEST_CASE("Compute annihilator with FnCmp=CmpLex", "[alg::AnnSeq]")
+{
+    using FnCmp = alg::CmpLex;
+    using Poly = alg::Polynomial<FnCmp>;
+    using Poly1d = std::vector<Poly>;
+    using Gb = alg::Groebner<FnCmp>;
+    constexpr auto GenExp = Poly::GenExp;
+
+    alg::array gen_degs = {1, 1, 1};
+    Poly p1 = GenExp(0, 2) + GenExp(1, 2); /* x_0^2 + x_1^2 */
+    Poly p2 = GenExp(0, 1) * GenExp(2, 1) + GenExp(1, 1) * GenExp(2, 1);                /* x_0x_2 + x_1x_2 */
+    Poly1d polys = {p1, p2};
+    Gb gb(alg::DEG_MAX);
+    alg::AddRels(gb, polys, alg::DEG_MAX, gen_degs);
+
+    auto x = GenExp(0, 1) + GenExp(1, 1);
+
+    auto ann = alg::AnnSeq(gb, {x}, gen_degs, alg::DEG_MAX);
+    /*for (auto& v : ann)
+        std::cout << v[0].data << '\n';*/
+
+    REQUIRE(ann.size() == 2);
+}
 
 TEST_CASE("Compute annihilator with FnCmp=CmpLex V2", "[alg::AnnSeq]")
 {
