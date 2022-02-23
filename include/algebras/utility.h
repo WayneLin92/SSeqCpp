@@ -155,15 +155,27 @@ inline std::string get_time(const std::string& fmt = "%F %T")
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
 }
 
-inline uint64_t bind_pair(uint32_t i, uint32_t j)
+inline uint64_t BindPair(uint32_t i, uint32_t j)
 {
     return (uint64_t(i) << 32) + uint64_t(j);
 }
 
-inline void get_pair(uint64_t ij, int& i, int& j)
+inline void GetPair(uint64_t ij, int& i, int& j)
 {
     i = int(ij >> 32);
     j = int(ij & 0x7fffffff);
+}
+
+/* Reverse the bits */
+inline uint64_t Reverse(uint64_t b)
+{
+    b = (b & 0xFFFFFFFF00000000) >> 32 | (b & 0x00000000FFFFFFFF) << 32;
+    b = (b & 0xFFFF0000FFFF0000) >> 16 | (b & 0x0000FFFF0000FFFF) << 16;
+    b = (b & 0xFF00FF00FF00FF00) >> 8 | (b & 0x00FF00FF00FF00FF) << 8;
+    b = (b & 0xF0F0F0F0F0F0F0F0) >> 4 | (b & 0x0F0F0F0F0F0F0F0F) << 4;
+    b = (b & 0xCCCCCCCCCCCCCCCC) >> 2 | (b & 0x3333333333333333) << 2;
+    b = (b & 0xAAAAAAAAAAAAAAAA) >> 1 | (b & 0x5555555555555555) << 1;
+    return b;
 }
 
 }  // namespace ut

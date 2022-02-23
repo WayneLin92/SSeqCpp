@@ -129,10 +129,10 @@ class Groebner;
 
 struct CriticalPair
 {
-    int i1, i2 = -1;
+    int i1 = -1, i2 = -1;
     Mon m1, m2;
 
-    MonTrace trace_m2; /* = Trace(m2) */
+    MonTrace trace_m2 = 0; /* = Trace(m2) */
 
     /* Compute the pair for two leading monomials. */
     CriticalPair() = default;
@@ -271,7 +271,7 @@ public:
         /* Minimize `buffer_min_pairs_` */
         for (uint64_t ij : buffer_redundent_pairs_[d]) {
             int i, j;
-            ut::get_pair(ij, i, j);
+            ut::GetPair(ij, i, j);
             while (j != -1) {
                 Mon gcd = GCD(leads[i], leads[j]);
                 Mon m2 = div(leads[i], gcd);
@@ -316,7 +316,7 @@ public:
 
             for (uint64_t ij : buffer_trivial_syz_[d]) {
                 int i, j;
-                ut::get_pair(ij, i, j);
+                ut::GetPair(ij, i, j);
                 if (j < (int)buffer_min_pairs_[d].size()) {
                     auto p = std::find_if(buffer_min_pairs_[d][j].begin(), buffer_min_pairs_[d][j].end(), [i](const CriticalPair& c) { return c.i1 == i; });
                     if (p != buffer_min_pairs_[d][j].end())
@@ -347,7 +347,7 @@ public:
                         new_pairs[i].first = d_pair;
                         CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                         if (!detail::HasGCD(leads[i], mon, traces[i], t))
-                            buffer_trivial_syz_[d_pair].insert(ut::bind_pair((uint32_t)i, (uint32_t)s));
+                            buffer_trivial_syz_[d_pair].insert(ut::BindPair((uint32_t)i, (uint32_t)s));
                     }
                     else
                         new_pairs[i].first = -1;
@@ -386,7 +386,7 @@ public:
                         else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
                             int dij = detail::DegLCM(leads[i], leads[j], _gen_deg);
                             if (dij <= deg_trunc_)
-                                buffer_redundent_pairs_[dij].insert(ut::bind_pair((uint32_t)i, (uint32_t)j));
+                                buffer_redundent_pairs_[dij].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
                         }
                     }
                 }
@@ -405,7 +405,7 @@ class Groebner  // TODO: add gen_degs
 {
 private:
     using TypeIndexKey = int;
-    using TypeIndex = std::unordered_map<TypeIndexKey, alg::array>;
+    using TypeIndex = std::unordered_map<TypeIndexKey, array>;
 
 public:
     using Poly = Polynomial<FnCmp>;
@@ -478,7 +478,7 @@ public:
 private:
     static TypeIndexKey Key(const Mon& lead)
     {
-        return TypeIndexKey{lead.size() == 1 ? lead.back().gen : lead.back().gen + (lead[lead.size() - 2].gen << 16)};
+        return TypeIndexKey{lead.size() == 1 ? lead.back().gen : lead.back().gen + ((lead[lead.size() - 2].gen + 1) << 16)};
     }
 
     /* Return -1 if not found */
@@ -487,7 +487,7 @@ private:
         auto t = Trace(mon);
         for (int i = 0; i < (int)mon.size(); ++i) {
             for (int j = -1; j < i; ++j) {
-                auto key = TypeIndexKey{j == -1 ? mon[i].gen : mon[i].gen + (mon[j].gen << 16)};
+                auto key = TypeIndexKey{j == -1 ? mon[i].gen : mon[i].gen + ((mon[j].gen + 1) << 16)};
                 auto p = index_.find(key);
                 if (p != index_.end()) {
                     for (int k : p->second) {
@@ -579,7 +579,7 @@ public:
      */
     Mon2d GetLeadings(size_t gens_size) const
     {
-        alg::Mon2d result;
+        Mon2d result;
         result.resize(gens_size);
         for (size_t i = 0; i < data_.size(); ++i)
             result[leads_[i].back().gen].push_back(leads_[i]);
@@ -591,9 +591,8 @@ public:
         size_t index = 0;
         while (index < poly.data.size()) {
             int gb_index = IndexOfDivisibleLeading(poly.data[index]);
-            if (gb_index != -1) {
-                alg::detail::Reduce(poly, data_[gb_index], index);
-            }
+            if (gb_index != -1)
+                detail::Reduce(poly, data_[gb_index], index);
             else
                 ++index;
         }
@@ -659,7 +658,6 @@ Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const st
 
 /**
  * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
- * while adding new relations back to `buffer` in degree `<= deg_max`.
  */
 template <typename FnCmp, typename FnPred, typename FnDeg>
 void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, FnPred pred, FnDeg _gen_deg)

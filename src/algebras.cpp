@@ -19,8 +19,8 @@ Mon mul(const Mon& mon1, const Mon& mon2)
             result.push_back(*l++);
         else {
             result.emplace_back(k->gen, k->exp + l->exp);
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     if (k != mon1.end())
@@ -42,8 +42,8 @@ void detail::mul(const Mon& mon1, const MonOnStack& mon2, Mon& result)
             result.push_back(*l++);
         else {
             result.emplace_back(k->gen, k->exp + l->exp);
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     if (k != mon1.end())
@@ -65,18 +65,18 @@ Mon div(const Mon& mon1, const Mon& mon2)
 #endif
         else if (k->exp > l->exp) {
             result.emplace_back(k->gen, k->exp - l->exp);
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
 #ifdef NDEBUG
         else {
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
 #else /* DEBUG */
         else if (k->exp == l->exp) {
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
         else
             throw MyException(0xa9c74ef9, "mon1/mon2 not divisible!\n");
@@ -98,12 +98,12 @@ bool divisible(const Mon& mon1, const Mon& mon2)
         if (k->gen < l->gen)
             return false;
         else if (k->gen > l->gen)
-            l++;
+            ++l;
         else if (k->exp > l->exp)
             return false;
         else {
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     if (k != mon1.end())
@@ -135,7 +135,7 @@ int log(const Mon& mon1, const Mon& mon2)
     MonInd k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->gen < l->gen)
-            k++;
+            ++k;
         else if (k->gen > l->gen) {
             q = 0;
             break;
@@ -148,8 +148,8 @@ int log(const Mon& mon1, const Mon& mon2)
             int q1 = k->exp / l->exp;
             if (q == -1 || q > q1)
                 q = q1;
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     if (l != mon2.end())
@@ -163,13 +163,13 @@ Mon GCD(const Mon& mon1, const Mon& mon2)
     MonInd k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->gen < l->gen)
-            k++;
+            ++k;
         else if (k->gen > l->gen)
-            l++;
+            ++l;
         else {
             result.emplace_back(k->gen, std::min(k->exp, l->exp));
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     return result;
@@ -186,8 +186,8 @@ Mon LCM(const Mon& mon1, const Mon& mon2)
             result.push_back(*l++);
         else {
             result.emplace_back(k->gen, std::max(k->exp, l->exp));
-            k++;
-            l++;
+            ++k;
+            ++l;
         }
     }
     if (k != mon1.end())

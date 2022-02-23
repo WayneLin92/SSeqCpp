@@ -1,0 +1,8 @@
+add_executable(AdamsE2 AdamsE2.cpp)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINK_FLAGS_RELEASE} /DEBUG")
+endif()
+target_compile_features(AdamsE2 PRIVATE cxx_std_17)
+target_include_directories(AdamsE2 PRIVATE ../include)
+target_link_libraries(AdamsE2 PRIVATE algebras)

@@ -1,7 +1,7 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/utility.h"
-#include "algebras/steenrod.h"
+#include "algebras/groebner_steenrod.h"
 
 void compare_computations()
 {
@@ -87,13 +87,13 @@ void test_homology()
 
 void test()
 {
-    auto r1 = alg::MonSteenrodMilnor::P(1, 2);
-    auto r2 = alg::MonSteenrodMilnor::P(3, 4);
-    auto com = r1 * r2 + r2 * r1;
+    using namespace steenrod;
 
-    std::cout << alg::SteenrodMay(r1) << '\n';
-    std::cout << alg::SteenrodMay(r2) << '\n';
-    std::cout << alg::SteenrodMay(com) << '\n';
+    auto a = Milnor(448);
+    auto b = Milnor(24);
+    std::cout << a << '\n';
+    std::cout << b << '\n';
+    std::cout << a * b << '\n';
 }
 
 int main()

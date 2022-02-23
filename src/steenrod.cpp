@@ -1,8 +1,8 @@
 #include "steenrod.h"
 
-namespace alg {
-constexpr size_t N = MonSteenrodMilnor::BUFFER_SIZE;
-using Tuple = MonSteenrodMilnor::TypeData;
+namespace steenrod {
+constexpr size_t N = MILNOR_BUFFER_SIZE;
+using Tuple = MMilnor::TypeData;
 using TE = std::array<int, N + 1>;
 using TE1d = std::vector<TE>;
 using TE2d = std::vector<TE1d>;
@@ -65,22 +65,63 @@ TE2d GetXs(const Tuple& R, const Tuple& S, size_t i_max, const TE& B)
     return result;
 }
 
-SteenrodMilnor MonSteenrodMilnor::operator*(const MonSteenrodMilnor& rhs) const
+MMilnor::MMilnor(MMay m) : data({})
 {
-    SteenrodMilnor result;
+    int i = 0;
+    for (; m; m>>=1, ++i)
+        if (m & 1)
+            data[size_t(MAY_GEN_J[i] - MAY_GEN_I[i] - 1)] += 1 << MAY_GEN_I[i];
+}
+
+MMay MMilnor::ToMMay() const
+{
+    MMay result = 0;
+    for (int d = 0; d < data.size(); ++d) {
+        int n = data[d];
+        int i = 0;
+        while (n) {
+            if (n & 1) {
+                int j = i + d + 1;
+                result |= MMayP(i, j);
+            }
+            n >>= 1;
+            ++i;
+        }
+    }
+    return result;
+}
+
+Milnor::Milnor(const May& x)
+{
+    data.reserve(x.data.size());
+    for (MMay m : x.data)
+        data.emplace_back(m);
+    std::sort(data.begin(), data.end());
+}
+
+Milnor MMilnor::operator*(const MMilnor& rhs) const
+{
+    Milnor result;
     TE2d Xs = GetXs(data, rhs.data, N, TE{0});
     for (auto& X : Xs) {
-        MonSteenrodMilnor T = {0};
+        MMilnor T;
         for (size_t n = 1; n < N + 1; ++n)
             for (size_t i = 0; i <= n; ++i)
                 T.data[n - 1] += X[i][n - i];
         result.data.push_back(T);
     }
     std::sort(result.data.begin(), result.data.end());
+    for (size_t i = 0; i + 1 < result.data.size(); ++i)
+        if (result.data[i].ToMMay() == result.data[i + 1].ToMMay()) {
+            result.data[i].data[0] = -1;
+            result.data[i + 1].data[0] = -1;
+            ++i;
+        }
+    ut::RemoveIf(result.data, [](const MMilnor& m) { return m.data[0] == -1; });
     return result;
 }
 
-std::ostream& operator<<(std::ostream& sout, const SteenrodMilnor& x)
+std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
     if (x.data.empty()) {
         sout << '0';
@@ -103,15 +144,7 @@ std::ostream& operator<<(std::ostream& sout, const SteenrodMilnor& x)
     return sout;
 }
 
-MonSteenrodMay::operator SteenrodMilnor() const
-{
-    SteenrodMilnor result = SteenrodMilnor::Unit();
-    for (int index : data)
-        result = result * MonSteenrodMilnor::P(GEN_I[index], GEN_J[index]);
-    return result;
-}
-
-std::ostream& operator<<(std::ostream& sout, const SteenrodMay& x)
+std::ostream& operator<<(std::ostream& sout, const May& x)
 {
     if (x.data.empty()) {
         sout << '0';
@@ -120,10 +153,50 @@ std::ostream& operator<<(std::ostream& sout, const SteenrodMay& x)
     for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
         if (pm != x.data.begin())
             sout << '+';
-        for (auto pi = pm->data.begin(); pi != pm->data.end(); ++pi)
-            sout << "P_{" << MonSteenrodMay::GEN_I[*pi] << MonSteenrodMay::GEN_J[*pi] << '}';
+        if (*pm == 0)
+            sout << '1';
+        else {
+            MMay m = *pm;
+            int i = 0;
+            while (m) {
+                if (m & 1)
+                    sout << "P_{" << MAY_GEN_I[i] << MAY_GEN_J[i] << '}';
+                m >>= 1;
+                ++i;
+            }   
+        }
     }
     return sout;
 }
 
-}  // namespace alg
+std::ostream& operator<<(std::ostream& sout, const Mod& x)
+{
+    if (x.data.empty()) {
+        sout << '0';
+        return sout;
+    }
+    for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
+        if (pm != x.data.begin())
+            sout << '+';
+        MMay m = pm->m;
+        int i = 0;
+        while (m) {
+            if (m & 1)
+                sout << "P_{" << MAY_GEN_I[i] << MAY_GEN_J[i] << '}';
+            m >>= 1;
+            ++i;
+        }
+        sout << "v_{" << pm->v << '}';
+    }
+    return sout;
+}
+
+Mod operator*(const May& a, const Mod& x)
+{
+    Mod result;
+    for (MMod mv : x.data)
+        result += Mod(a.mul(mv.m), mv.v);
+    return result;
+}
+
+}  // namespace steenrod

@@ -90,7 +90,7 @@ public:
     template <typename T>
     static T Deserialize(const std::string& str)
     {
-        static_assert(false, "must use a specialized template.");
+        throw MyException(0xb5c7695cU, "Must use a specialization");
     }
 
     template <>

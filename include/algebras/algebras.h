@@ -128,7 +128,7 @@ using MonTrace1d = std::vector<MonTrace>;
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
-template<typename FnGenDeg>
+template <typename FnGenDeg>
 inline int TplGetDeg(const Mon& mon, FnGenDeg _gen_deg)
 {
     int result = 0;
@@ -147,7 +147,7 @@ inline int GetDeg(const Mon& mon, const array& gen_degs)
  * Obtain the t degree of a monomial given the degrees of generators.
  */
 inline int GetDegT(const Mon& mon, const MayDeg1d& gen_degs)
-{  
+{
     return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i].t; });
 }
 /**
@@ -216,6 +216,7 @@ namespace detail {
     class MonOnStack
     {
         static constexpr size_t BUFFER_SIZE = 30;
+
     public:
         using const_iterator = std::array<GenPow, BUFFER_SIZE>::const_iterator;
 
@@ -470,7 +471,7 @@ using PolyLex = Polynomial<CmpLex>;
 using PolyLex1d = std::vector<PolyLex>;
 using PolyRevlex = Polynomial<CmpRevlex>;
 using PolyRevlex1d = std::vector<PolyRevlex>;
-template<typename FnCmp>
+template <typename FnCmp>
 using Polynomial1d = std::vector<Polynomial<FnCmp>>;
 
 /**

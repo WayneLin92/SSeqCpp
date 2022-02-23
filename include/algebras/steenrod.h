@@ -7,31 +7,41 @@
 #define STEENROD_H
 
 #include "myexception.h"
-#include <iterator>
-#include <array>
-#include <vector>
+#include "utility.h"
 #include <algorithm>
+#include <array>
 #include <iostream>
+#include <iterator>
+#include <vector>
 
-namespace alg {
+namespace steenrod {
 using array = std::vector<int>;
+using array2d = std::vector<array>;
+using array3d = std::vector<array2d>;
 
-struct SteenrodMilnor;
+struct Milnor;
+using MMay = uint64_t;
+struct May;
 
-struct MonSteenrodMilnor
+inline constexpr size_t MILNOR_BUFFER_SIZE = 9;                     /* Support up to \xi_8 */
+inline constexpr int DEG_MAX = (1 << (MILNOR_BUFFER_SIZE + 1)) - 1; /* Maximum degree supported in A */
+
+struct MMilnor
 {
-    static constexpr size_t BUFFER_SIZE = 9; /* Support degree < 2^(s+1) - 1 */
-    using TypeData = std::array<int, BUFFER_SIZE>;
+    using TypeData = std::array<int, MILNOR_BUFFER_SIZE>;
     TypeData data;
 
-    static MonSteenrodMilnor P(int i, int j)  /* P_{ij} */
+    MMilnor() : data({}) {}
+    explicit MMilnor(MMay m);
+
+    static MMilnor P(int i, int j) /* P_{ij} */
     {
-        MonSteenrodMilnor result{{}};
+        MMilnor result{{}};
         result.data[size_t(j - i - 1)] = (1 << i);
         return result;
     }
 
-    bool operator<(const MonSteenrodMilnor& rhs) const
+    bool operator<(const MMilnor& rhs) const
     {
         int w1 = weight(), w2 = rhs.weight();
         if (w1 < w2)
@@ -46,173 +56,312 @@ struct MonSteenrodMilnor
     int weight() const
     {
         int result = 0;
-        for (size_t i = 0; i < BUFFER_SIZE; ++i)
+        for (size_t i = 0; i < MILNOR_BUFFER_SIZE; ++i)
             result += (2 * (int)i + 1) * std::_Popcount(unsigned(data[i]));
         return result;
     }
+
     int deg() const
     {
         int result = 0;
-        for (size_t i = 0; i < BUFFER_SIZE; ++i)
+        for (size_t i = 0; i < MILNOR_BUFFER_SIZE; ++i)
             result += ((1 << (i + 1)) - 1) * data[i];
         return result;
     }
 
-    SteenrodMilnor operator*(const MonSteenrodMilnor& rhs) const;
+    Milnor operator*(const MMilnor& rhs) const;
+
+    /* May leading form according to weight */
+    MMay ToMMay() const;
 };
-using MonSteenrodMilnor1d = std::vector<MonSteenrodMilnor>;
+using MonMilnor1d = std::vector<MMilnor>;
 
-struct SteenrodMilnor
+struct Milnor
 {
-    MonSteenrodMilnor1d data;
+    MonMilnor1d data;
 
-    SteenrodMilnor() = default;
-    SteenrodMilnor(const MonSteenrodMilnor& r) : data({r}) {}
+    Milnor() {}
+    Milnor(const MMilnor& r) : data({r}) {}
+    explicit Milnor(MMay m) : data({MMilnor(m)}) {}
+    explicit Milnor(const May& x);
 
-    static SteenrodMilnor Unit()
+    static Milnor Unit()
     {
-        return SteenrodMilnor{{{{
-            0,
-        }}}};
+        return Milnor(MMilnor{{0}});
     }
 
-    SteenrodMilnor operator+(const SteenrodMilnor& rhs) const
+    Milnor operator+(const Milnor& rhs) const
     {
-        SteenrodMilnor result;
+        Milnor result;
         std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    SteenrodMilnor& operator+=(const SteenrodMilnor& rhs)
+    Milnor& operator+=(const Milnor& rhs)
     {
-        SteenrodMilnor tmp;
+        Milnor tmp;
         std::swap(data, tmp.data);
         std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
     }
-    SteenrodMilnor operator*(const SteenrodMilnor& rhs) const
+    Milnor operator*(const Milnor& rhs) const
     {
-        SteenrodMilnor result;
+        Milnor result;
         for (auto& r : data)
             for (auto& r1 : rhs.data)
                 result += r * r1;
         return result;
     }
 };
-std::ostream& operator<<(std::ostream& sout, const SteenrodMilnor& x);
+std::ostream& operator<<(std::ostream& sout, const Milnor& x);
+
+inline constexpr size_t MAY_INDEX_NUM = (MILNOR_BUFFER_SIZE + 1) * (MILNOR_BUFFER_SIZE + 2) / 2 - 1;
+static_assert(MAY_INDEX_NUM < sizeof(uint64_t) * 8);
 
 namespace detail {
-    inline constexpr size_t INDEX_NUM = (MonSteenrodMilnor::BUFFER_SIZE + 1) * (MonSteenrodMilnor::BUFFER_SIZE + 2) / 2 - 1;
-    inline constexpr std::array<int, INDEX_NUM> MonSteenrodMayI()
+    inline constexpr std::array<int, MAY_INDEX_NUM> MonSteenrodMayI()
     {
-        std::array<int, INDEX_NUM> result = {0};
+        std::array<int, MAY_INDEX_NUM> result = {0};
         size_t n = 0;
-        for (int j = 1; j <= (int)MonSteenrodMilnor::BUFFER_SIZE + 1; ++j)
+        for (int j = 1; j <= (int)MILNOR_BUFFER_SIZE + 1; ++j)
             for (int i = j - 1; i >= 0; --i)
-                if (n < INDEX_NUM)
+                if (n < MAY_INDEX_NUM)
                     result[n++] = i;
         return result;
     }
-    inline constexpr std::array<int, INDEX_NUM> MonSteenrodMayJ()
+    inline constexpr std::array<int, MAY_INDEX_NUM> MonSteenrodMayJ()
     {
-        std::array<int, INDEX_NUM> result = {0};
+        std::array<int, MAY_INDEX_NUM> result = {0};
         size_t n = 0;
-        for (int j = 1; j <= (int)MonSteenrodMilnor::BUFFER_SIZE + 1; ++j)
+        for (int j = 1; j <= (int)MILNOR_BUFFER_SIZE + 1; ++j)
             for (int i = j - 1; i >= 0; --i)
-                if (n < INDEX_NUM)
+                if (n < MAY_INDEX_NUM)
                     result[n++] = j;
         return result;
     }
-}
-struct MonSteenrodMay
+}  // namespace detail
+
+/* May basis for A
+** 
+** Each element is represented by a 64-bit unsigned integer
+*/
+using MMay1d = std::vector<MMay>;
+using MMay2d = std::vector<MMay1d>;
+inline constexpr std::array<int, MAY_INDEX_NUM> MAY_GEN_I = detail::MonSteenrodMayI();
+inline constexpr std::array<int, MAY_INDEX_NUM> MAY_GEN_J = detail::MonSteenrodMayJ();
+
+inline constexpr MMay MMayFromIndex(int index)
 {
-    static constexpr size_t INDEX_NUM = detail::INDEX_NUM;
-    static constexpr std::array<int, INDEX_NUM> GEN_I = detail::MonSteenrodMayI();
-    static constexpr std::array<int, INDEX_NUM> GEN_J = detail::MonSteenrodMayJ();
+    return MMay(1) << index;
+}
 
-    array data; /*(i,j,...) means x_ix_j... */
-
-    explicit operator SteenrodMilnor() const;
-    MonSteenrodMay() = default;
-
-    static int GenP(int i, int j) /* P_{ij} */
-    {
+inline constexpr int MayIndexP(int i, int j)
+{
 #ifndef NDEBUG
-        if (!(0 <= i && i < j))
-            throw MyException(0x4bfc0d6fU, "BUG");
+    if (!(0 <= i && i < j))
+        throw MyException(0x4bfc0d6fU, "Invalid input");
 #endif  // !NDEBUG
-        return j * (j + 1) / 2 - i - 1;
+    return j * (j + 1) / 2 - i - 1;
+}
+
+inline constexpr MMay MMayP(int i, int j) /* P_{ij} */
+{
+    return MMayFromIndex(MayIndexP(i, j));
+}
+
+inline constexpr int Weight(MMay m)
+{
+    int result = 0;
+    int i = 0;
+    while (m) {
+        if (m & 1)
+            result += 2 * (MAY_GEN_J[i] - MAY_GEN_I[i]) - 1;
+        m >>= 1;
+        ++i;
     }
-    static MonSteenrodMay P(int i, int j) /* P_{ij} */
+    return result;
+}
+
+inline constexpr int GetDeg(MMay m)
+{
+    int result = 0;
+    int i = 0;
+    while (m) {
+        if (m & 1)
+            result += (1 << MAY_GEN_J[i]) - (1 << MAY_GEN_I[i]);
+        m >>= 1;
+        ++i;
+    }
+    return result;
+}
+
+inline bool CmpMMay(MMay lhs, MMay rhs)
+{
+    int w1 = Weight(lhs), w2 = Weight(rhs);
+    if (w1 < w2)
+        return true;
+    if (w2 < w1)
+        return false;
+    if (ut::Reverse(lhs) < ut::Reverse(rhs)) /* We want Revlex here */
+        return true;
+    return false;
+};
+
+
+/* Elements of A as linear combinations of May basis 
+*/
+struct May
+{
+    MMay1d data;
+    May() {}
+    explicit May(MMay m) : data({m}) {}
+
+    /* Convert from Milnor basis to May basis */
+    explicit May(const Milnor& x)
     {
-        return MonSteenrodMay{{GenP(i, j)}};
+        for (auto& m : x.data)
+            data.push_back(m.ToMMay());
+        std::sort(data.begin(), data.end(), CmpMMay);
     }
 
-    bool operator<(const MonSteenrodMay& rhs) const
+    static May P(int i, int j)
     {
-        int w1 = weight(), w2 = rhs.weight();
-        if (w1 < w2)
+        return May(MMayP(i, j));
+    }
+
+    May operator+(const May& rhs) const
+    {
+        May result;
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), CmpMMay);
+        return result;
+    }
+    May& operator+=(const May& rhs)
+    {
+        May tmp;
+        std::swap(data, tmp.data);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), CmpMMay);
+        return *this;
+    }
+    May mul(MMay rhs) const
+    {
+        return May(Milnor(*this) * Milnor(rhs));
+    }
+    May operator*(const May& rhs) const
+    {
+        return May(Milnor(*this) * Milnor(rhs));
+    }
+};
+
+std::ostream& operator<<(std::ostream& sout, const May& x);
+
+inline MMay divLF(MMay m1, MMay m2)
+{
+#ifndef NDEBUG /* DEBUG */
+    if (m1 < m2 || m2 & (m1 - m2))
+        throw MyException(0x7ed0a8U, "Not divisible: m1 / m2");
+#endif
+    return m1 ^ m2;
+}
+
+inline bool divisibleLF(MMay m1, MMay m2)
+{
+    return m2 > m1 && !(m1 & (m2 - m1));
+}
+
+inline MMay gcdLF(MMay m1, MMay m2)
+{
+    return m1 & m2;
+}
+
+inline MMay lcmLF(MMay m1, MMay m2)
+{
+    return m1 | m2;
+}
+
+/********************************************************
+ *                      Modules
+ ********************************************************/
+/* Modules over A
+*/
+struct MMod
+{
+    MMay m;
+    int v;
+    bool operator<(MMod rhs) const
+    {
+        if (v > rhs.v)
             return true;
-        if (w2 < w1)
+        if (v < rhs.v)
             return false;
-        if (data > rhs.data) /* We want Revlex here */
+        if (CmpMMay(m, rhs.m))
             return true;
         return false;
     };
-
-    int weight() const
+    bool operator==(MMod rhs) const
     {
-        int result = 0;
-        for (int index : data)
-            result += 2 * (GEN_J[index] - GEN_I[index]) - 1;
-        return result;
-    }
-    int deg() const
+        return m == rhs.m && v == rhs.v;
+    };
+    int deg(const array& basis_degs)
     {
-        int result = 0;
-        for (int index : data)
-            result += (1 << GEN_J[index]) - (1 << GEN_I[index]);
-        return result;
-    }
-
-    static MonSteenrodMay LF(const MonSteenrodMilnor& r) /* Leading form according to weight */
-    {
-        MonSteenrodMay result;
-        for (int d = 0; d < r.data.size(); ++d) {
-            int n = r.data[d];
-            int i = 0;
-            while (n) {
-                if (n & 1) {
-                    int j = i + d + 1;
-                    result.data.push_back(GenP(i, j));
-                }
-                n >>= 1;
-                ++i;
-            }
-        }
-        std::sort(result.data.begin(), result.data.end());
-        return result;
+        return GetDeg(m) + basis_degs[v];
     }
 };
-using MonSteenrodMay1d = std::vector<MonSteenrodMay>;
+using MMod1d = std::vector<MMod>;
 
-struct SteenrodMay
+struct Mod
 {
-    MonSteenrodMay1d data;
-    SteenrodMay() = default;
-    SteenrodMay(const MonSteenrodMay& r) : data({r}) {}
-    explicit SteenrodMay(SteenrodMilnor x) {
-        while (!x.data.empty()) {
-            int w = x.data.front().weight();
-            MonSteenrodMay m = MonSteenrodMay::LF(x.data.front());
-            data.push_back(m);
-            x += SteenrodMilnor(m);
-        }
+    MMod1d data;
+    Mod() {}
+    Mod(MMod mv) : data({mv}) {}
+    Mod(const May& a, int v) {
+        for (MMay m : a.data)
+            data.push_back(MMod{m, v});
+    }
+
+    MMod GetLead() const
+    {
+#ifndef NDEBUG
+        if (data.empty())
+            throw MyException(0x900cee0fU, "Mod empty");
+#endif
+        return data[0];
+    }
+    
+    explicit operator bool() const
+    {
+        return !data.empty();
+    }
+    Mod operator+(const Mod& rhs) const
+    {
+        Mod result;
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
+        return result;
+    }
+    Mod& operator+=(const Mod& rhs)
+    {
+        Mod tmp;
+        std::swap(data, tmp.data);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
+        return *this;
     }
 };
+using Mod1d = std::vector<Mod>;
 
-std::ostream& operator<<(std::ostream& sout, const SteenrodMay& x);
+Mod operator*(const May& a, const Mod& x);
+std::ostream& operator<<(std::ostream& sout, const Mod& x);
 
-}  // namespace alg
+/**
+ * Replace v_i with `map[i]`.
+ */
+inline Mod subs(const Mod& x, const Mod1d map)
+{
+    Mod result;
+    for (const MMod& mv : x.data)
+        result += May(mv.m) * map[mv.v];
+    return result;
+}
+
+}  // namespace steenrod
+
 
 
 #endif
