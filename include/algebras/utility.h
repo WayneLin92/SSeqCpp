@@ -26,6 +26,9 @@ public:
     {
         friend class Range;
 
+    private:
+        int i_;
+
     public:
         using iterator_category = std::random_access_iterator_tag;
         using value_type = int;
@@ -70,9 +73,6 @@ public:
 
     protected:
         iterator(int start) : i_(start) {}
-
-    private:
-        int i_;
     };
 
     Range(int begin, int end) : begin_(begin), end_(end) {}

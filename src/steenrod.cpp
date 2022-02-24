@@ -65,38 +65,20 @@ TE2d GetXs(const Tuple& R, const Tuple& S, size_t i_max, const TE& B)
     return result;
 }
 
-MMilnor::MMilnor(MMay m) : data({})
-{
-    int i = 0;
-    for (; m; m>>=1, ++i)
-        if (m & 1)
-            data[size_t(MAY_GEN_J[i] - MAY_GEN_I[i] - 1)] += 1 << MAY_GEN_I[i];
-}
-
 MMay MMilnor::ToMMay() const
 {
-    MMay result = 0;
+    uint64_t result = 0;
+    uint64_t weight = 0;
     for (int d = 0; d < data.size(); ++d) {
-        int n = data[d];
-        int i = 0;
-        while (n) {
+        for (int n = data[d], i = 0; n; n >>= 1, ++i) {
             if (n & 1) {
                 int j = i + d + 1;
-                result |= MMayP(i, j);
+                result |= MMay::rawP(i, j);
+                weight += 2 * uint64_t(d) + 1;
             }
-            n >>= 1;
-            ++i;
         }
     }
-    return result;
-}
-
-Milnor::Milnor(const May& x)
-{
-    data.reserve(x.data.size());
-    for (MMay m : x.data)
-        data.emplace_back(m);
-    std::sort(data.begin(), data.end());
+    return MMay(result + (weight << MMAY_INDEX_NUM));
 }
 
 Milnor MMilnor::operator*(const MMilnor& rhs) const
@@ -118,6 +100,74 @@ Milnor MMilnor::operator*(const MMilnor& rhs) const
             ++i;
         }
     ut::RemoveIf(result.data, [](const MMilnor& m) { return m.data[0] == -1; });
+    return result;
+}
+
+May Milnor::ToMay() const
+{
+    May result;
+    for (auto& m : data)
+        result.data.push_back(m.ToMMay());
+    std::sort(result.data.begin(), result.data.end());
+    return result;
+}
+
+Milnor May::ToMilnor() const
+{
+    Milnor result;
+    result.data.reserve(data.size());
+    for (MMay m : data)
+        result.data.push_back(m.ToMMilnor());
+    return result;
+}
+
+May May::operator*(const May& rhs) const
+{
+    May result;
+    for (MMay r : this->data)
+        for (MMay r1 : rhs.data) {
+            TE2d Xs = GetXs(r.ToMMilnor().data, r1.ToMMilnor().data, N, TE{0});
+            for (auto& X : Xs) {
+                MMilnor T;
+                for (size_t n = 1; n < N + 1; ++n)
+                    for (size_t i = 0; i <= n; ++i)
+                        T.data[n - 1] += X[i][n - i];
+                result.data.push_back(T.ToMMay());
+            }
+        }
+    std::sort(result.data.begin(), result.data.end());
+    for (size_t i = 0; i + 1 < result.data.size(); ++i) {
+        if (result.data[i] == result.data[i + 1]) {
+            result.data[i] = MMay(MMAY_NULL);
+            result.data[i + 1] = MMay(MMAY_NULL);
+            ++i;
+        }
+    }
+    ut::RemoveIf(result.data, [](MMay m) { return m == MMay(MMAY_NULL); });
+    return result;
+}
+
+May May::mul(MMay rhs) const
+{
+    May result;
+    for (auto& r : this->data) {
+        TE2d Xs = GetXs(r.ToMMilnor().data, rhs.ToMMilnor().data, N, TE{0});
+        for (auto& X : Xs) {
+            MMilnor T;
+            for (size_t n = 1; n < N + 1; ++n)
+                for (size_t i = 0; i <= n; ++i)
+                    T.data[n - 1] += X[i][n - i];
+            result.data.push_back(T.ToMMay());
+        }
+    }
+    std::sort(result.data.begin(), result.data.end());
+    for (size_t i = 0; i + 1 < result.data.size(); ++i)
+        if (result.data[i] == result.data[i + 1]) {
+            result.data[i] = MMay{0xffffffffffffffff};
+            result.data[i + 1] = MMay{0xffffffffffffffff};
+            ++i;
+        }
+    ut::RemoveIf(result.data, [](const MMay& m) { return m == MMay{0xffffffffffffffff}; });
     return result;
 }
 
@@ -153,17 +203,11 @@ std::ostream& operator<<(std::ostream& sout, const May& x)
     for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
         if (pm != x.data.begin())
             sout << '+';
-        if (*pm == 0)
+        if (!*pm)
             sout << '1';
         else {
-            MMay m = *pm;
-            int i = 0;
-            while (m) {
-                if (m & 1)
-                    sout << "P_{" << MAY_GEN_I[i] << MAY_GEN_J[i] << '}';
-                m >>= 1;
-                ++i;
-            }   
+            for (int i : *pm)
+                sout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
         }
     }
     return sout;
@@ -178,14 +222,8 @@ std::ostream& operator<<(std::ostream& sout, const Mod& x)
     for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
         if (pm != x.data.begin())
             sout << '+';
-        MMay m = pm->m;
-        int i = 0;
-        while (m) {
-            if (m & 1)
-                sout << "P_{" << MAY_GEN_I[i] << MAY_GEN_J[i] << '}';
-            m >>= 1;
-            ++i;
-        }
+        for (int i : pm->m)
+            sout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
         sout << "v_{" << pm->v << '}';
     }
     return sout;

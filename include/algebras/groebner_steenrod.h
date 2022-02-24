@@ -34,7 +34,7 @@ namespace detail {
 struct CriticalPair
 {
     int i1 = -1, i2 = -1;
-    MMay m1 = 0, m2 = -1;
+    MMay m1, m2;
     Mod x;
 
     /* Compute the pair for two leading monomials. */
@@ -206,7 +206,7 @@ public:
 
         std::for_each(std::execution::seq, range.begin(), range.end(), [&](int i) {
             if (leads[i].v == mon.v) {
-                int d_pair = GetDeg(lcmLF(leads[i].m, mon.m)) + basis_degrees[mon.v];
+                int d_pair = lcmLF(leads[i].m, mon.m).deg() + basis_degrees[mon.v];
                 if (d_pair <= deg_trunc_) {
                     new_pairs[i].first = d_pair;
                     CriticalPair::SetFromLM(new_pairs[i].second, leads[i].m, mon.m, (int)i, (int)s);
@@ -219,16 +219,15 @@ public:
         });
 
         /* Compute sigma_j */
-        int d_mon = GetDeg(mon.m) + basis_degrees[mon.v];
+        int d_mon = mon.m.deg() + basis_degrees[mon.v];
         singles_.resize(s + 1);
-        for (MMay m = 1; m; m <<= 1) {
-            if (m & mon.m) {
-                int d = d_mon + GetDeg(m);
-                if (d <= deg_trunc_) {
-                    buffer_singles_[d].resize(s + 1);
-                    buffer_singles_[d][s].push_back((int)singles_[s].size());
-                    singles_[s].push_back(CriticalPair::Single(m, (int)s));
-                }
+        for (int i : mon.m) {
+            MMay m = MMay::FromIndex(i);
+            int d = d_mon + m.deg();
+            if (d <= deg_trunc_) {
+                buffer_singles_[d].resize(s + 1);
+                buffer_singles_[d][s].push_back((int)singles_[s].size());
+                singles_[s].push_back(CriticalPair::Single(m, (int)s));    
             }
         }
 
@@ -244,7 +243,7 @@ public:
                         else if (divisibleLF(new_pairs[j].second.m2, new_pairs[i].second.m2))
                             new_pairs[i].first = -1;
                         else if (!gcdLF(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
-                            int dij = GetDeg(lcmLF(leads[i].m, leads[j].m)) + basis_degrees[mon.v];
+                            int dij = lcmLF(leads[i].m, leads[j].m).deg() + basis_degrees[mon.v];
                             if (dij <= deg_trunc_)
                                 buffer_redundent_pairs_[dij].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
                         }
@@ -300,40 +299,34 @@ public:
 private:
     static TypeIndexKey Key(MMod lead)
     {
-        int i = 0;
-        for (MMay m = lead.m; m; m >>= 1) /* biggest i such that (1 << (i - 1)) & lead.m is nonzero */
-            ++i;
-        return TypeIndexKey{lead.v + (i << 20)};
+        auto p = lead.m.begin();
+        while (p != lead.m.end())
+            ++p;
+        return TypeIndexKey{lead.v + (*p << 20)}; /* biggest i such that (MMAY_ONE >> (i - 1)) & lead.m is nonzero */
     } 
 
     /* Return -1 if not found */
     int IndexOfDivisibleLeading(MMod mon) const
     {
-        if (mon.m == 0) {
+        if (!mon.m) {
             auto key = TypeIndexKey{mon.v};
             auto p = index_.find(key);
             if (p != index_.end()) {
                 for (int k : p->second) {
-                    if (leads_[k].m == 0)
+                    if (!leads_[k].m)
                         return k;
                 }
             }
         }
-        int i = 0;
-        MMay m = mon.m;
-        while (m) {
-            if (m & 1) {
-                auto key = TypeIndexKey{mon.v + ((i + 1) << 20)};
-                auto p = index_.find(key);
-                if (p != index_.end()) {
-                    for (int k : p->second) {
-                        if (divisibleLF(leads_[k].m, mon.m))
-                            return k;
-                    }
+        for (int i : mon.m) {
+            auto key = TypeIndexKey{mon.v + ((i + 1) << 20)};
+            auto p = index_.find(key);
+            if (p != index_.end()) {
+                for (int k : p->second) {
+                    if (divisibleLF(leads_[k].m, mon.m))
+                        return k;
                 }
             }
-            m >>= 1;
-            ++i;
         }
         return -1;
     }

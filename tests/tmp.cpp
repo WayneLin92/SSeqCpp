@@ -89,11 +89,12 @@ void test()
 {
     using namespace steenrod;
 
-    auto a = Milnor(448);
-    auto b = Milnor(24);
-    std::cout << a << '\n';
-    std::cout << b << '\n';
-    std::cout << a * b << '\n';
+    auto a = May::P(3, 4);
+    auto b = May::P(4, 6);
+    auto c = Milnor::P(3, 4);
+    auto d = Milnor::P(4, 6);
+     
+
 }
 
 int main()

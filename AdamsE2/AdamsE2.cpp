@@ -13,8 +13,8 @@ int main()
     int s_trunc = t_trunc / 3 + 1;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {
-        rels.push_back(MMod{MMayP(i, i + 1), 0});
-        if (GetDeg(MMayP(i, i + 1)) > t_trunc)
+        rels.push_back(MMod{MMay::P(i, i + 1), 0});
+        if (MMay::P(i, i + 1).deg() > t_trunc)
             break;
     }
     array basis_degrees = {0};
