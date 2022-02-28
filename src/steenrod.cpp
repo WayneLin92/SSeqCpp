@@ -65,16 +65,138 @@ TE2d GetXs(const Tuple& R, const Tuple& S, size_t i_max, const TE& B)
     return result;
 }
 
+/* Return the maximum number result such that 
+** `result <= upper_bound` and `result & mask == 0`
+*/
+int max_mask(int upper_bound, int mask)
+{
+    int m = upper_bound & mask;
+    int n = 0;
+    while (m >>= 1)
+        n |= m;
+    return (upper_bound | n) & ~mask;
+}
+
+/* Milnor's multiplication formula.
+ * `result.data` is unordered and may contain duplicates.
+*/
+void MulMilnor(MMay lhs, MMay rhs, May& result)
+{
+    MMilnor R = lhs.ToMMilnor();
+    MMilnor S = rhs.ToMMilnor();
+
+    std::array<int, (N + 1) * (N + 1)> X = {};
+    std::array<int, (N + 1) * (N + 1)> XR = {};
+    std::array<int, (N + 1) * (N + 1)> XS = {};
+    std::array<int, (N + 1) * (N + 1)> XT = {};
+    for (size_t i = 1; i <= N; ++i)
+        XR[i * (N + 1) + (N - i)] = R.data[i - 1];
+    for (size_t i = 1; i <= N; ++i)
+        XS[(N - i) * (N + 1) + i] = S.data[i - 1];
+
+    size_t i = N, j = 0;
+    bool decrease = false;
+    while (true) {
+        bool move_right = false;
+        if (j) {
+            size_t index = size_t(i * (N + 1) + j);
+            size_t index_up = size_t((i - 1) * (N + 1) + j);
+            size_t index_up_right = size_t((i - 1) * (N + 1) + j + 1);
+            size_t index_left = size_t(i * (N + 1) + j - 1);
+            if (i == 1) {
+                if (decrease) {
+                    X[index] = (X[index] - 1) & ~(XT[index] | X[index_up_right]);
+                    decrease = false;
+                }
+                else
+                    X[index] = max_mask(std::min(XR[index] >> j, XS[index]), XT[index] | X[index_up_right]);
+                X[index_up] = XS[index] - X[index];
+                if (X[index_up] & XT[index_left]) {
+                    if (X[index])
+                        decrease = true;
+                    else
+                        move_right = true;
+                }
+                else {
+                    XR[size_t(i * (N + 1) + j - 1)] = XR[index] - (X[index] << j);
+                    XT[index_up_right] = XT[index] | X[index] | X[index_up_right];
+                    --j;
+                }
+            }
+            else {
+                if (decrease) {
+                    X[index] = (X[index] - 1) & ~XT[index];
+                    decrease = false;
+                }
+                else
+                    X[index] = max_mask(std::min(XR[index] >> j, XS[index]), XT[index]);
+                XR[size_t(i * (N + 1) + j - 1)] = XR[index] - (X[index] << j);
+                XS[index_up] = XS[index] - X[index];
+                XT[index_up_right] = XT[index] | X[index];
+                --j;
+            }
+        }
+        else {
+            if (i == 1) {
+                if (!(XR[N + 1] & X[1])) { /* Add to result. */
+                    XT[1] = XR[N + 1] | X[1];
+                    uint64_t data = 0;
+                    uint64_t w = 0;
+                    for (int d = 1; d <= N; ++d) {
+                        for (int n = XT[d], i = 0; n; n >>= 1, ++i) {
+                            if (n & 1) {
+                                int j = i + d;
+                                data |= MMay::rawP(i, j);
+                                w += 2 * uint64_t(d) - 1;
+                            }
+                        }
+                    }
+                    result.data.push_back(MMay(data + (w << MMAY_INDEX_NUM)));
+                }
+                move_right = true;
+            }
+            else {
+                size_t index = size_t(i * (N + 1));
+                size_t index_up_right = size_t((i - 1) * (N + 1) + 1);
+                XT[index_up_right] = XR[index];
+                j = N - (--i);
+            }
+        }
+        if (move_right) {
+            size_t index = i * (N + 1) + j + 1;
+            while (index <= N * (N + 1) && X[index] == 0)
+                ++index;
+            if (index > N * (N + 1))
+                break;
+            i = index / (N + 1);
+            j = index % (N + 1);
+            decrease = true;
+        }
+    }
+}
+
+void SortAndReduce(MMay1d& data)
+{
+    std::sort(data.begin(), data.end());
+    for (size_t i = 0; i + 1 < data.size(); ++i)
+        if (data[i] == data[i + 1]) {
+            data[i] = MMay{0xffffffffffffffff};
+            data[i + 1] = MMay{0xffffffffffffffff};
+            ++i;
+        }
+    ut::RemoveIf(data, [](const MMay& m) { return m == MMay{0xffffffffffffffff}; });
+}
+
 MMay MMilnor::ToMMay() const
 {
     uint64_t result = 0;
     uint64_t weight = 0;
-    for (int d = 0; d < data.size(); ++d) {
-        for (int n = data[d], i = 0; n; n >>= 1, ++i) {
+    for (int d = 1; d <= data.size(); ++d) {
+        for (int n = data[d - 1], i = 0; n; n >>= 1, ++i) {
             if (n & 1) {
-                int j = i + d + 1;
+                int j = i + d;
                 result |= MMay::rawP(i, j);
-                weight += 2 * uint64_t(d) + 1;
+                weight += 2 * uint64_t(d) - 1;
             }
         }
     }
@@ -124,50 +246,19 @@ Milnor May::ToMilnor() const
 May May::operator*(const May& rhs) const
 {
     May result;
-    for (MMay r : this->data)
-        for (MMay r1 : rhs.data) {
-            TE2d Xs = GetXs(r.ToMMilnor().data, r1.ToMMilnor().data, N, TE{0});
-            for (auto& X : Xs) {
-                MMilnor T;
-                for (size_t n = 1; n < N + 1; ++n)
-                    for (size_t i = 0; i <= n; ++i)
-                        T.data[n - 1] += X[i][n - i];
-                result.data.push_back(T.ToMMay());
-            }
-        }
-    std::sort(result.data.begin(), result.data.end());
-    for (size_t i = 0; i + 1 < result.data.size(); ++i) {
-        if (result.data[i] == result.data[i + 1]) {
-            result.data[i] = MMay(MMAY_NULL);
-            result.data[i + 1] = MMay(MMAY_NULL);
-            ++i;
-        }
-    }
-    ut::RemoveIf(result.data, [](MMay m) { return m == MMay(MMAY_NULL); });
+    for (MMay R : this->data)
+        for (MMay S : rhs.data)
+            MulMilnor(R, S, result);
+    SortAndReduce(result.data);
     return result;
 }
 
 May May::mul(MMay rhs) const
 {
     May result;
-    for (auto& r : this->data) {
-        TE2d Xs = GetXs(r.ToMMilnor().data, rhs.ToMMilnor().data, N, TE{0});
-        for (auto& X : Xs) {
-            MMilnor T;
-            for (size_t n = 1; n < N + 1; ++n)
-                for (size_t i = 0; i <= n; ++i)
-                    T.data[n - 1] += X[i][n - i];
-            result.data.push_back(T.ToMMay());
-        }
-    }
-    std::sort(result.data.begin(), result.data.end());
-    for (size_t i = 0; i + 1 < result.data.size(); ++i)
-        if (result.data[i] == result.data[i + 1]) {
-            result.data[i] = MMay{0xffffffffffffffff};
-            result.data[i + 1] = MMay{0xffffffffffffffff};
-            ++i;
-        }
-    ut::RemoveIf(result.data, [](const MMay& m) { return m == MMay{0xffffffffffffffff}; });
+    for (auto& r : this->data)
+        MulMilnor(r, rhs, result);
+    SortAndReduce(result.data);
     return result;
 }
 
@@ -232,8 +323,20 @@ std::ostream& operator<<(std::ostream& sout, const Mod& x)
 Mod operator*(const May& a, const Mod& x)
 {
     Mod result;
-    for (MMod mv : x.data)
-        result += Mod(a.mul(mv.m), mv.v);
+    May prod;
+    auto p = x.data.begin();
+    while (p != x.data.end()) {
+        int v = p->v;
+        auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MMod x, int v) { return x.v > v; });
+        for (MMay R : a.data)
+            for (; p != p1; ++p)
+                MulMilnor(R, p->m, prod);
+        SortAndReduce(prod.data);
+        for (MMay T : prod.data)
+            result.data.push_back(MMod{T, v});
+        prod.data.clear();
+    }
+
     return result;
 }
 

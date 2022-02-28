@@ -75,6 +75,11 @@ public:
         iterator(int start) : i_(start) {}
     };
 
+private:
+    iterator begin_;
+    iterator end_;
+
+public:
     Range(int begin, int end) : begin_(begin), end_(end) {}
 
     iterator begin() const
@@ -85,10 +90,6 @@ public:
     {
         return end_;
     }
-
-private:
-    iterator begin_;
-    iterator end_;
 };
 
 /**

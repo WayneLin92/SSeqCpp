@@ -9,7 +9,7 @@ int main()
 
     Timer timer;
 
-    int t_trunc = 70;
+    int t_trunc = 100;
     int s_trunc = t_trunc / 3 + 1;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {

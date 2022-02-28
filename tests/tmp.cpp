@@ -89,12 +89,18 @@ void test()
 {
     using namespace steenrod;
 
-    auto a = May::P(3, 4);
-    auto b = May::P(4, 6);
-    auto c = Milnor::P(3, 4);
-    auto d = Milnor::P(4, 6);
-     
+    auto a = Milnor(MMilnor{4, 2, 1}).ToMay();
+    auto b = MMilnor{2}.ToMMay();
 
+    std::cout << a * May(b) << '\n';
+    std::cout << a.mul(b) << '\n';
+
+    /*auto a = Milnor::P(0, 2);
+    auto b = Milnor::P(0, 2);
+
+    std::cout << a << '\n';
+    std::cout << b << '\n';
+    std::cout << a * b << '\n';*/
 }
 
 int main()

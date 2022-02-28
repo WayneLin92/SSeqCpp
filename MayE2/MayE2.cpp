@@ -150,15 +150,14 @@ alg::Mon1d get_basis(const alg::Mon2d& leadings, const std::vector<Signature>& g
                 move_right = true;
         }
         if (move_right) {
-            for (sig = sig + gen_sigs[index] * mon_dense[index], ++index; index < mon_dense.size() && mon_dense[index] == 0; ++index)
-                ;
-            if (index == mon_dense.size()) {
+            sig = sig + gen_sigs[index] * mon_dense[index];
+            ++index;
+            while (index < mon_dense.size() && mon_dense[index] == 0)
+                ++index;
+            if (index == mon_dense.size())
                 break;
-            }
-            else {
-                sig = sig + gen_sigs[index];
-                mon_dense[index--]--;
-            }
+            sig = sig + gen_sigs[index];
+            mon_dense[index--]--;
         }
     }
     return result;
@@ -601,7 +600,7 @@ int generate_Xnm(int n, int m, int t_max)
 
         /* Add relation c=0 */
         std::cout << "Adding c=" << StrPoly(c.data, gen_names) << "=0\n";
-        alg::AddRels(gb, {c}, gen_degs_t, t_max);
+        alg::AddRels(gb, {c}, t_max, gen_degs_t);
 
         alg::Mon2d leadings(gen_sigs.size());  // TODO: group by the last generator
         for (size_t i = 0; i < gb.size(); ++i)
