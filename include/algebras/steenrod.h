@@ -23,7 +23,7 @@ struct Milnor;
 class MMay;
 struct May;
 
-inline constexpr size_t MILNOR_BUFFER_SIZE = 9;                     /* Support up to \xi_8 */
+inline constexpr size_t MILNOR_BUFFER_SIZE   = 8;                     /* Support up to \xi_8 */
 inline constexpr int DEG_MAX = (1 << (MILNOR_BUFFER_SIZE + 1)) - 1; /* Maximum degree supported in A */
 
 struct MMilnor
@@ -57,7 +57,7 @@ struct MMilnor
     {
         int result = 0;
         for (size_t i = 0; i < MILNOR_BUFFER_SIZE; ++i)
-            result += (2 * (int)i + 1) * std::_Popcount(unsigned(data[i]));
+            result += (2 * (int)i + 1) * ut::popcount(unsigned(data[i]));
         return result;
     }
 
@@ -141,15 +141,15 @@ namespace detail {
 }  // namespace detail
 
 /* May basis for A
-** 
+**
 ** Each element is represented by a 64-bit unsigned integer
 */
 inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_I = detail::MonSteenrodMayI();
 inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_J = detail::MonSteenrodMayJ();
 inline constexpr uint64_t MMAY_ONE = uint64_t(1) << (MMAY_INDEX_NUM - 1);
 inline constexpr uint64_t MMAY_LEFT_BIT = uint64_t(1) << 63;
-inline constexpr uint64_t MMAY_MASK_W = 0xffc0000000000000;
-inline constexpr uint64_t MMAY_MASK_M = 0x003fffffffffffff;
+inline constexpr uint64_t MMAY_MASK_M = (uint64_t(1) << MMAY_INDEX_NUM) - 1;
+inline constexpr uint64_t MMAY_MASK_W = ~MMAY_MASK_M;
 inline constexpr uint64_t MMAY_NULL = 0xffffffffffffffff;
 
 class MMay
@@ -159,9 +159,9 @@ private:
 
 public:
     /**
-    * The first 10 bits are used to store the weight.
-    * The rest are used to store the exterior monomial.
-    */
+     * The first 10 bits are used to store the weight.
+     * The rest are used to store the exterior monomial.
+     */
     MMay() : data_(0) {}
     static uint64_t rawP(int i, int j)
     {
@@ -199,6 +199,10 @@ public:
     {
         return data_;
     }
+    uint64_t data() const
+    {
+        return data_;
+    }
 
     MMay divLF(MMay rhs) const
     {
@@ -215,19 +219,18 @@ public:
     {
         uint64_t m1 = data_ & MMAY_MASK_M;
         uint64_t m2 = rhs.data_ & MMAY_MASK_M;
-        return m2 > m1 && !(m1 & (m2 - m1));
+        return m2 >= m1 && !(m1 & (m2 - m1));
     }
 
     MMay gcdLF(MMay rhs)
     {
         uint64_t m = data_ & rhs.data_ & MMAY_MASK_M;
-        return MMay(m + WeightBits(m));
+        return MMay(data_ & rhs.data_);
     }
 
     MMay lcmLF(MMay rhs)
     {
-        uint64_t m = (data_ & MMAY_MASK_M) | (rhs.data_ & MMAY_MASK_M);
-        return MMay(m + WeightBits(m));
+        return MMay(data_ | rhs.data_);
     }
 
     int weight() const
@@ -241,7 +244,7 @@ public:
         int i = 0;
         for (uint64_t m = data << (64 - MMAY_INDEX_NUM); m; m <<= 1, ++i)
             if (m & MMAY_LEFT_BIT)
-                result += uint64_t(2 * (MMAY_GEN_J[i] - MMAY_GEN_I[i]) - 1);
+                result += uint64_t(2 * (MMAY_GEN_J[i] - MMAY_GEN_I[i]) - 1);  // TODO: improve
         return result << MMAY_INDEX_NUM;
     }
 
@@ -320,9 +323,8 @@ public:
 using MMay1d = std::vector<MMay>;
 using MMay2d = std::vector<MMay1d>;
 
-
-/* Elements of A as linear combinations of May basis 
-*/
+/* Elements of A as linear combinations of May basis
+ */
 struct May
 {
     MMay1d data;
@@ -386,7 +388,7 @@ inline MMay lcmLF(MMay m1, MMay m2)
  *                      Modules
  ********************************************************/
 /* Modules over A
-*/
+ */
 struct MMod
 {
     MMay m;
@@ -417,7 +419,8 @@ struct Mod
     MMod1d data;
     Mod() {}
     Mod(MMod mv) : data({mv}) {}
-    Mod(const May& a, int v) {
+    Mod(const May& a, int v)
+    {
         for (MMay m : a.data)
             data.push_back(MMod{m, v});
     }
@@ -430,7 +433,7 @@ struct Mod
 #endif
         return data[0];
     }
-    
+
     explicit operator bool() const
     {
         return !data.empty();
@@ -448,16 +451,30 @@ struct Mod
         std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
     }
+    bool operator==(const Mod& rhs) const
+    {
+        return data == rhs.data;
+    };
 };
 using Mod1d = std::vector<Mod>;
+using Mod2d = std::vector<Mod1d>;
 
-Mod operator*(const May& a, const Mod& x);
 std::ostream& operator<<(std::ostream& sout, const Mod& x);
+Mod operator*(const May& a, const Mod& x);
+
+template <typename FnMap>
+Mod TplSubs(const Mod& x, FnMap map)
+{
+    Mod result;
+    for (const MMod& mv : x.data)
+        result += May(mv.m) * map(mv.v);
+    return result;
+}
 
 /**
  * Replace v_i with `map[i]`.
  */
-inline Mod subs(const Mod& x, const Mod1d map)
+inline Mod subs(const Mod& x, const Mod1d& map)
 {
     Mod result;
     for (const MMod& mv : x.data)
@@ -465,8 +482,103 @@ inline Mod subs(const Mod& x, const Mod1d map)
     return result;
 }
 
+/********************************************************
+ *          Modules with Compact data structure
+ ********************************************************/
+
+/* The left 12 bits will be used to store the basis */
+inline constexpr unsigned MMOD_BASIS_BITS = 12;
+inline constexpr uint64_t MMOD_MASK_M = (uint64_t(1) << (64 - MMOD_BASIS_BITS)) - 1;
+inline constexpr uint64_t MMOD_MASK_V = ~MMOD_MASK_M;
+/* Modules over A */
+class MModCpt
+{
+private:
+    uint64_t data_;
+
+public:
+    MModCpt() : data_(0) {}
+    MModCpt(uint64_t data) : data_(data) {}
+    MModCpt(MMay m, int v) : data_(m.data() + ((~uint64_t(v)) << (64 - MMOD_BASIS_BITS))) {}
+
+    bool operator<(MModCpt rhs) const
+    {
+        return data_ < rhs.data_;
+    };
+    bool operator==(MModCpt rhs) const
+    {
+        return data_ == rhs.data_;
+    };
+    explicit operator bool() const
+    {
+        return data_;
+    }
+    /*int deg(const array& basis_degs)
+    {
+        return MMay(data_).deg() + basis_degs[(~data_) >> (64 - MMOD_BASIS_BITS)];
+    }*/
+    MMay m() const
+    {
+        return MMay(data_ & MMOD_MASK_M);
+    }
+    int v() const
+    {
+        return int((~data_) >> (64 - MMOD_BASIS_BITS));
+    }
+};
+using MModCpt1d = std::vector<MModCpt>;
+using MModCpt2d = std::vector<MModCpt1d>;
+
+struct ModCpt
+{
+    MModCpt1d data;
+    ModCpt() {}
+    ModCpt(MModCpt mv) : data({mv}) {}
+    ModCpt(const May& a, int v)
+    {
+        for (MMay m : a.data)
+            data.push_back(MModCpt(m, v));
+    }
+
+    MModCpt GetLead() const
+    {
+#ifndef NDEBUG
+        if (data.empty())
+            throw MyException(0x900cee0fU, "ModCpt empty");
+#endif
+        return data[0];
+    }
+
+    explicit operator bool() const
+    {
+        return !data.empty();
+    }
+    ModCpt operator+(const ModCpt& rhs) const
+    {
+        ModCpt result;
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
+        return result;
+    }
+    ModCpt& operator+=(const ModCpt& rhs)
+    {
+        ModCpt tmp;
+        std::swap(data, tmp.data);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
+        return *this;
+    }
+    bool operator==(const ModCpt& rhs) const
+    {
+        return data == rhs.data;
+    };
+};
+using ModCpt1d = std::vector<ModCpt>;
+using ModCpt2d = std::vector<ModCpt1d>;
+
+std::ostream& operator<<(std::ostream& sout, const ModCpt& x);
+ModCpt operator*(const May& a, const ModCpt& x);
+
+void MulMilnorV3(MMay lhs, MMay rhs, May& result);////
+
 }  // namespace steenrod
-
-
 
 #endif

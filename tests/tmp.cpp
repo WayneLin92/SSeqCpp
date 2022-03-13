@@ -1,7 +1,7 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/utility.h"
-#include "algebras/groebner_steenrod.h"
+#include "algebras/steenrod.h"
 
 void compare_computations()
 {
@@ -89,11 +89,14 @@ void test()
 {
     using namespace steenrod;
 
-    auto a = Milnor(MMilnor{4, 2, 1}).ToMay();
-    auto b = MMilnor{2}.ToMMay();
+    auto R = MMilnor{{0, 3, 3}};
+    auto S = MMilnor{{2, 4}};
+    std::cout << R << '\n';
+    std::cout << S << '\n';
+    std::cout << (May(R.ToMMay()) * May(S.ToMMay())).ToMilnor() << '\n';
+    May result;
+    MulMilnorV3(R.ToMMay(), S.ToMMay(), result);
 
-    std::cout << a * May(b) << '\n';
-    std::cout << a.mul(b) << '\n';
 
     /*auto a = Milnor::P(0, 2);
     auto b = Milnor::P(0, 2);
@@ -104,7 +107,7 @@ void test()
 }
 
 int main()
-{
+{    
     test();
 
     return 0;

@@ -275,10 +275,10 @@ public:
             while (j != -1) {
                 Mon gcd = GCD(leads[i], leads[j]);
                 Mon m2 = div(leads[i], gcd);
-                if (j < (int)buffer_min_pairs_[d].size()) {
-                    auto p = std::find_if(buffer_min_pairs_[d][j].begin(), buffer_min_pairs_[d][j].end(), [&m2](const CriticalPair& c) { return c.m2 == m2; });
+                if (j < (int)b_min_pairs_d.size()) {
+                    auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [&m2](const CriticalPair& c) { return c.m2 == m2; });
                     /* Remove it from `buffer_min_pairs_` */
-                    if (p != buffer_min_pairs_[d][j].end()) {
+                    if (p != b_min_pairs_d[j].end()) {
                         p->i2 = -1;
                         break;
                     }
@@ -317,9 +317,9 @@ public:
             for (uint64_t ij : buffer_trivial_syz_[d]) {
                 int i, j;
                 ut::GetPair(ij, i, j);
-                if (j < (int)buffer_min_pairs_[d].size()) {
-                    auto p = std::find_if(buffer_min_pairs_[d][j].begin(), buffer_min_pairs_[d][j].end(), [i](const CriticalPair& c) { return c.i1 == i; });
-                    if (p != buffer_min_pairs_[d][j].end())
+                if (j < (int)b_min_pairs_d.size()) {
+                    auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [i](const CriticalPair& c) { return c.i1 == i; });
+                    if (p != b_min_pairs_d[j].end())
                         p->i2 = -1;
                 }
             }
@@ -340,7 +340,7 @@ public:
         size_t s = leads.size();
         ut::Range range(0, (int)leads.size());
         if (mode_ & CRI_GB) {
-            std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&](int i) {
+            std::for_each(range.begin(), range.end(), [&](int i) {
                 if (pred(leads[i], mon)) {
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
@@ -357,7 +357,7 @@ public:
             });
         }
         else {
-            std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&](int i) {
+            std::for_each(range.begin(), range.end(), [&](int i) {
                 if (detail::HasGCD(leads[i], mon, traces[i], t) && pred(leads[i], mon)) {
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
@@ -702,7 +702,7 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, F
         /* Reduce relations in degree d */
         if (size_pairs_d) {
             ut::Range range(0, size_pairs_d);
-            std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&gb, &pairs_d, &rels_tmp](int i) { rels_tmp[i] = gb.Reduce(pairs_d[i].Sij(gb)); });
+            std::for_each(range.begin(), range.end(), [&gb, &pairs_d, &rels_tmp](int i) { rels_tmp[i] = gb.Reduce(pairs_d[i].Sij(gb)); });
         }
         if (size_rels_d) {
             auto& rels_d = p_rels_d->second;
@@ -895,7 +895,7 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
 
         /* Add relations ordered by degree to gb1 */
         int deg_max = degs[indices.back()];
-        GbI gbI = gb.ExtendMO<CmpIdeal<FnCmp>>();
+        GbI gbI = gb.template ExtendMO<CmpIdeal<FnCmp>>();
         gbI.set_deg_trunc(deg_max);
         gbI.set_mode(CRI_ON);
         for (int i : indices) {
@@ -943,7 +943,7 @@ std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, co
         p += PolyI::Gen(GEN_IDEAL + i);
         rels.push_back(std::move(p));
     }
-    GbI gbI = gb.ExtendMO<CmpIdeal<FnCmp>>();
+    GbI gbI = gb.template ExtendMO<CmpIdeal<FnCmp>>();
     gbI.set_deg_trunc(deg_max);
     gbI.set_mode(CRI_ON);
     detail::AddRelsIdeal(gbI, rels, deg_max, gen_degs, gen_degs_y);
@@ -1041,7 +1041,7 @@ void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector
     std::vector<Poly> diff_basis_AoAZ_flat;
     basis_AoAZ[MayDeg{0, 0, 0}].push_back({});
 
-    Groebner<CmpHomology<FnCmp>> gb_H = gb.ExtendMO<CmpHomology<FnCmp>>();
+    Groebner<CmpHomology<FnCmp>> gb_H = gb.template ExtendMO<CmpHomology<FnCmp>>();
     gb_H.set_deg_trunc(t_trunc);
     gb_H.set_mode(CRI_ON);
     if (!(gb.mode() & CRI_ON))

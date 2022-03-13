@@ -2,6 +2,7 @@
 #include "myexception.h"
 #include "myio.h"
 #include <sqlite3.h>
+#include <cstring>
 #include <iostream>
 
 #if SQLITE_ROW != MYSQLITE_ROW
@@ -100,6 +101,12 @@ void Statement::bind_null(int iCol) const
         throw "e22b11c4";
 }
 
+void Statement::bind_blob(int iCol, const void* data, int nBytes) const
+{
+    if (sqlite3_bind_blob(stmt_, iCol, data, nBytes, SQLITE_TRANSIENT) != SQLITE_OK)
+        throw "79d80302";
+}
+
 std::string Statement::column_str(int iCol) const
 {
     return std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt_, iCol)));
@@ -113,6 +120,14 @@ int Statement::column_int(int iCol) const
 int Statement::column_type(int iCol) const
 {
     return sqlite3_column_type(stmt_, iCol);
+}
+const void* Statement::column_blob(int iCol) const
+{
+    return sqlite3_column_blob(stmt_, iCol);
+}
+int Statement::column_blob_size(int iCol) const
+{
+    return sqlite3_column_bytes(stmt_, iCol);
 }
 
 int Statement::step() const

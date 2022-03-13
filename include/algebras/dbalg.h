@@ -35,15 +35,95 @@ struct Staircase
 
 namespace myio {
 
+using MayDeg = alg::MayDeg;
+using MayDeg1d = alg::MayDeg1d;
+using array = alg::array;
+using array2d = alg::array2d;
+using Mon = alg::Mon;
+using Mon1d = alg::Mon1d;
+using Mon2d = alg::Mon2d;
+
+template <typename T>
+T Deserialize(const std::string& str)
+{
+    throw MyException(0xb5c7695cU, "Must use a specialization");
+}
+
+template <>
+inline array Deserialize<array>(const std::string& str)
+{
+    array result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        int i;
+        ss >> i;
+        result.push_back(i);
+        if (ss.peek() == ',')
+            ss.ignore();
+    }
+    return result;
+}
+
+template <>
+inline Mon Deserialize<Mon>(const std::string& str)
+{
+    Mon result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        int gen, exp;
+        ss >> gen >> "," >> exp;
+        result.emplace_back(gen, exp);
+        if (ss.peek() == ',')
+            ss.ignore();
+    }
+    return result;
+}
+
+template <>
+inline Mon1d Deserialize<Mon1d>(const std::string& str)
+{
+    Mon1d result;
+    if (str.empty())
+        return result; /* Return 0 as a polynomial */
+    else if (str == ";") {
+        result.push_back({});
+        return result; /* Return 1 as a polynomial */
+    }
+    std::istringstream ss(str);
+    while (ss.good()) {
+        int gen, exp;
+        ss >> gen >> "," >> exp;
+        if (result.empty())
+            result.emplace_back();
+        result.back().emplace_back(gen, exp);
+        if (ss.peek() == ',')
+            ss.ignore();
+        else if (ss.peek() == ';') {
+            ss.ignore();
+            result.emplace_back();
+        }
+    }
+    return result;
+}
+
+std::string Serialize(array::const_iterator pbegin, array::const_iterator pend);
+inline std::string Serialize(const array& obj)
+{
+    return Serialize(obj.begin(), obj.end());
+}
+std::string Serialize(const Mon& obj);
+std::string Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend);
+inline std::string Serialize(const Mon1d& obj)
+{
+    return Serialize(obj.begin(), obj.end());
+}
+
 class DbAlg : public Database
 {
-    using MayDeg = alg::MayDeg;
-    using MayDeg1d = alg::MayDeg1d;
-    using array = alg::array;
-    using array2d = alg::array2d;
-    using Mon = alg::Mon;
-    using Mon1d = alg::Mon1d;
-    using Mon2d = alg::Mon2d;
     template <typename FnCmp>
     using Polynomial = alg::Polynomial<FnCmp>;
     template <typename FnCmp>
@@ -67,105 +147,25 @@ public:
     explicit DbAlg(const std::string& filename);
 
 public:
-    void create_generators(const std::string& table_prefix)
+    void create_generators(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (gen_id INTEGER PRIMARY KEY, gen_name TEXT UNIQUE, gen_diff TEXT, repr TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
     }
-    void create_relations(const std::string& table_prefix)
+    void create_relations(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (leading_term TEXT, basis TEXT, s SMALLINT, t SMALLINT, v SMALLINT);");
     }
-    void create_generators_and_delete(const std::string& table_prefix)
+    void create_generators_and_delete(const std::string& table_prefix) const
     {
         create_generators(table_prefix);
         delete_from(table_prefix + "_generators");
     }
-    void create_relations_and_delete(const std::string& table_prefix)
+    void create_relations_and_delete(const std::string& table_prefix) const
     {
         create_relations(table_prefix);
         delete_from(table_prefix + "_relations");
     }
-
-public:
-    template <typename T>
-    static T Deserialize(const std::string& str)
-    {
-        throw MyException(0xb5c7695cU, "Must use a specialization");
-    }
-
-    template <>
-    static array Deserialize<array>(const std::string& str)
-    {
-        array result;
-        if (str.empty())
-            return result;
-        std::stringstream ss(str);
-        while (ss.good()) {
-            int i;
-            ss >> i;
-            result.push_back(i);
-            if (ss.peek() == ',')
-                ss.ignore();
-        }
-        return result;
-    }
-
-    template <>
-    static Mon Deserialize<Mon>(const std::string& str)
-    {
-        Mon result;
-        if (str.empty())
-            return result;
-        std::stringstream ss(str);
-        while (ss.good()) {
-            int gen, exp;
-            ss >> gen >> "," >> exp;
-            result.emplace_back(gen, exp);
-            if (ss.peek() == ',')
-                ss.ignore();
-        }
-        return result;
-    }
-
-    template <>
-    static Mon1d Deserialize<Mon1d>(const std::string& str)
-    {
-        Mon1d result;
-        if (str.empty())
-            return result; /* Return 0 as a polynomial */
-        else if (str == ";") {
-            result.push_back({});
-            return result; /* Return 1 as a polynomial */
-        }
-        std::istringstream ss(str);
-        while (ss.good()) {
-            int gen, exp;
-            ss >> gen >> "," >> exp;
-            if (result.empty())
-                result.emplace_back();
-            result.back().emplace_back(gen, exp);
-            if (ss.peek() == ',')
-                ss.ignore();
-            else if (ss.peek() == ';') {
-                ss.ignore();
-                result.emplace_back();
-            }
-        }
-        return result;
-    }
-
-public:
-    static std::string Serialize(array::const_iterator pbegin, array::const_iterator pend);
-    static std::string Serialize(const array& obj)
-    {
-        return Serialize(obj.begin(), obj.end());
-    }
-    static std::string Serialize(const Mon& obj);
-    static std::string Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend);
-    static std::string Serialize(const Mon1d& obj)
-    {
-        return Serialize(obj.begin(), obj.end());
-    }
+    
 
 public:
     std::vector<array> get_column_array(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
@@ -277,18 +277,6 @@ public:
     std::map<MayDeg, alg::Staircase> load_basis_ss(const std::string& table_prefix, int t_max) const;
 
 public:
-    template <typename T, typename FnMap>
-    void save_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
-    {
-        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
-        for (size_t i = i_start; i < column.size(); ++i) {
-            stmt.bind_str(1, map(column[i]));
-            stmt.bind_int(2, (int)i);
-            stmt.step_and_reset();
-        }
-        if (bLogging_)
-            std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";
-    }
     void save_gen_maydegs(const std::string& table_prefix, const std::vector<MayDeg>& gen_degs) const
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
@@ -310,7 +298,7 @@ public:
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
             throw MyException(0x8df979a9U, "Should use prefix only.");
-        save_column(
+        update_str_column(
             table_prefix + "_generators", "gen_name", "gen_id", gen_names, [](const std::string& c) { return c; }, 0);
     }
     template <typename FnCmp>
@@ -318,7 +306,7 @@ public:
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
             throw MyException(0x8df979a9U, "Should use prefix only.");
-        save_column(
+        update_str_column(
             table_prefix + "_generators", "repr", "gen_id", gen_reprs, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>
@@ -326,7 +314,7 @@ public:
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
             throw MyException(0x8df979a9U, "Should use prefix only.");
-        save_column(
+        update_str_column(
             table_prefix + "_generators", "gen_diff", "gen_id", gen_diffs, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>
@@ -334,7 +322,7 @@ public:
     {
         if (table_prefix.find("_generators") != std::string::npos)  // Deprecated
             throw MyException(0x8df979a9U, "Should use prefix only.");
-        save_column(
+        update_str_column(
             table_prefix + "_generators", column_name, "gen_id", gen_images, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>

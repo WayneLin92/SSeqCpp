@@ -1,4 +1,4 @@
-add_executable(AdamsE2 AdamsE2.cpp)
+add_executable(AdamsE2 AdamsE2.cpp groebner_steenrod.h groebner_steenrod.cpp)
 if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINK_FLAGS_RELEASE} /DEBUG")

@@ -15,7 +15,7 @@ DbAlg::DbAlg(const std::string& filename) : Database(filename), bLogging_(true)
     }
 }
 
-std::string DbAlg::Serialize(array::const_iterator pbegin, array::const_iterator pend)
+std::string Serialize(array::const_iterator pbegin, array::const_iterator pend)
 {
     std::stringstream ss;
     for (auto p = pbegin; p < pend; p++) {
@@ -26,7 +26,7 @@ std::string DbAlg::Serialize(array::const_iterator pbegin, array::const_iterator
     return ss.str();
 }
 
-std::string DbAlg::Serialize(const Mon& obj)
+std::string Serialize(const Mon& obj)
 {
     std::ostringstream ss;
     for (auto p = obj.begin(); p != obj.end(); ++p) {
@@ -37,7 +37,7 @@ std::string DbAlg::Serialize(const Mon& obj)
     return ss.str();
 }
 
-std::string DbAlg::Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend) /* Warning: the algebra should be connected */
+std::string Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend) /* Warning: the algebra should be connected */
 {
     std::ostringstream ss;
     if (pend - pbegin == 1 && pbegin->empty()) {

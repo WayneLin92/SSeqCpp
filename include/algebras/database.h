@@ -21,12 +21,40 @@ struct sqlite3_stmt;
  */
 namespace myio {
 
-class Statement;
+class Database;
 
 enum struct SqlType
 {
     SqlInt = 0,
     SqlStr = 1,
+};
+
+/**
+ * Wrapper for `sqlite3_stmt*`
+ */
+class Statement
+{
+public:
+    Statement() = default;
+    Statement(const Database& db, const std::string& sql);
+    ~Statement();
+
+private:
+    sqlite3_stmt* stmt_ = nullptr;
+
+public:
+    void bind_str(int iCol, const std::string& str) const;
+    void bind_int(int iCol, int i) const;
+    void bind_null(int iCol) const;
+    void bind_blob(int iCol, const void* data, int nBytes) const;
+    std::string column_str(int iCol) const;
+    int column_int(int iCol) const;
+    int column_type(int iCol) const;
+    const void* column_blob(int iCol) const;
+    int column_blob_size(int iCol) const;
+    int step() const;
+    int reset() const;
+    void step_and_reset() const;
 };
 
 /**
@@ -56,7 +84,7 @@ public:
     }
 
 public:
-    void delete_from(const std::string& table_name)
+    void delete_from(const std::string& table_name) const
     {
         execute_cmd("DELETE FROM " + table_name);
     }
@@ -78,6 +106,17 @@ public:
         std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
+    /* `map` takes two arguments (void*, int)->T */
+    template <typename T, typename FnMap>
+    std::vector<T> get_column_from_blob(const std::string& table_name, const std::string& column_name, const std::string& conditions, FnMap map) const
+    {
+        std::vector<T> result;
+        Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
+        while (stmt.step() == MYSQLITE_ROW)
+            result.push_back(map(stmt.column_blob(0), stmt.column_blob_size(0)));
+        std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        return result;
+    }
     template <typename T, typename FnMap>
     std::vector<T> get_column_from_str_with_null(const std::string& table_name, const std::string& column_name, const T& null_value, const std::string& conditions, FnMap map) const
     {
@@ -95,31 +134,33 @@ public:
     {
         return get_column_from_str<std::string>(table_name, column_name, conditions, [](std::string c) { return c; });
     }
-};
-
-/**
- * Wrapper for `sqlite3_stmt*`
- */
-class Statement
-{
-public:
-    Statement() = default;
-    Statement(const Database& db, const std::string& sql);
-    ~Statement();
-
-private:
-    sqlite3_stmt* stmt_ = nullptr;
 
 public:
-    void bind_str(int iCol, const std::string& str) const;
-    void bind_int(int iCol, int i) const;
-    void bind_null(int iCol) const;
-    std::string column_str(int iCol) const;
-    int column_int(int iCol) const;
-    int column_type(int iCol) const;
-    int step() const;
-    int reset() const;
-    void step_and_reset() const;
+    template <typename T, typename FnMap>
+    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
+    {
+        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
+        for (size_t i = i_start; i < column.size(); ++i) {
+            stmt.bind_str(1, map(column[i]));
+            stmt.bind_int(2, (int)i);
+            stmt.step_and_reset();
+        }
+        /*if (bLogging_)
+            std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";*/
+    }
+    /* `map` should return a pair of type (void*, int) */
+    template <typename T, typename FnMap>
+    void update_blob_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
+    {
+        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
+        for (size_t i = i_start; i < column.size(); ++i) {
+            stmt.bind_blob(1, map(column[i]).first, (int)map(column[i]).second);
+            stmt.bind_int(2, (int)i);
+            stmt.step_and_reset();
+        }
+        /*if (bLogging_)
+            std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";*/
+    }
 };
 }  // namespace myio
 
