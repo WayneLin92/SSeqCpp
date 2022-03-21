@@ -36,7 +36,7 @@ void compare_computations()
 
 void test_homology()
 {
-    Timer timer;
+    bench::Timer timer;
     using FnCmp = alg::CmpLex;
     using Poly = alg::Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -89,13 +89,12 @@ void test()
 {
     using namespace steenrod;
 
-    auto R = MMilnor{{0, 3, 3}};
-    auto S = MMilnor{{2, 4}};
+    auto R = MMilnor{{4, 5, 8, 0, 0, 0, 0, 1}};
+    auto S = MMilnor{{3, 2, 2, 0, 7, 0, 0, 2}};
     std::cout << R << '\n';
     std::cout << S << '\n';
+
     std::cout << (May(R.ToMMay()) * May(S.ToMMay())).ToMilnor() << '\n';
-    May result;
-    MulMilnorV3(R.ToMMay(), S.ToMMay(), result);
 
 
     /*auto a = Milnor::P(0, 2);
@@ -106,6 +105,7 @@ void test()
     std::cout << a * b << '\n';*/
 }
 
+std::vector<double> bench::Timer::counts_ = {};
 int main()
 {    
     test();

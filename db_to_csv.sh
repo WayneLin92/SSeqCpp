@@ -1,0 +1,1 @@
+cat db_to_csv.sql | sqlite3 AdamsE2.db > AdamsE2.csv

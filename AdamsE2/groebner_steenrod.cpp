@@ -1,5 +1,6 @@
 #include "groebner_steenrod.h"
 #include "algebras/dbalg.h"
+#include "algebras/benchmark.h" ////
 #include <cstring>
 
 namespace steenrod {
@@ -300,9 +301,9 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
     if (deg > deg_max)
         throw MyException(0xb2474e19U, "deg is bigger than the truncation degree.");
 
-    DbSteenrod db("AdamsE2.db");
+    /*DbSteenrod db("AdamsE2.db");
     db.create_generators("SteenrodMRes");
-    db.create_relations("SteenrodMRes");
+    db.create_relations("SteenrodMRes");*/
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, array> rels_graded;
@@ -340,8 +341,9 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
             }
             else if (!pairs_ds.empty()) {
                 rels_tmp.resize(pairs_ds.size());
-                ut::Range range(0, (int)rels_tmp.size());
-                std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_ds[i], s); });
+                //ut::Range range(0, (int)rels_tmp.size());
+                //std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_ds[i], s); });
+                ut::for_each_par((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_ds[i], s); });
             }
             if (rels_tmp.empty())
                 continue;
@@ -375,12 +377,12 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
             for (const auto& k : kernel_splus)
                 gb.push_back_kernel(k, rels_splus, d, (int)s + 1);
 
-            db.begin_transaction();
+            /*db.begin_transaction();
             db.save_generators("SteenrodMRes", kernel_splus, (int)s + 2, d);
             if (s >= 0)
                 db.save_relations("SteenrodMRes", rels_ds, gb.basis_degs()[s], s);
             db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
-            db.end_transaction();
+            db.end_transaction();*/
 
             if (size_t size_k = kernel_splus.size())
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << '\n';
@@ -391,8 +393,8 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
 GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
 {
     DbSteenrod db("AdamsE2.db");
-    db.create_generators("SteenrodMRes");
-    db.create_relations("SteenrodMRes");
+    db.create_generators_and_delete("SteenrodMRes"); ////
+    db.create_relations_and_delete("SteenrodMRes"); ////
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     DataMRes2d data = db.load_data("SteenrodMRes");
     if (basis_degrees.empty())

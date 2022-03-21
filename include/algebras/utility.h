@@ -1,10 +1,13 @@
 #ifndef UTILITY_INCLUDED
 #define UTILITY_INCLUDED
 
+#include <algorithm>
 #include <chrono>
 #include <iterator>
 #include <string>
 #include <vector>
+#include <future>
+
 #ifndef __unix__
 #ifndef _MSC_VER
 #include <mutex>
@@ -15,6 +18,8 @@
  * The namespace `ut` provides basic utility functions
  */
 namespace ut {
+
+inline constexpr int NUM_THREADS = 256;
 
 /*
  * A "random access" iterator of [begin, end) generated on the fly.
@@ -62,9 +67,17 @@ public:
         {
             return i_ != other.i_;
         }
+        bool operator<(const iterator& other) const
+        {
+            return i_ < other.i_;
+        }
         iterator operator+(int other) const
         {
             return iterator(i_ + other);
+        }
+        int operator[](int other) const
+        {
+            return i_ + other;
         }
         int operator-(const iterator& other) const
         {
@@ -193,6 +206,32 @@ inline int popcount(unsigned int i)
     i = (i + (i >> 4)) & 0x0F0F0F0F;                 // groups of 8
     return (i * 0x01010101) >> 24;                   // horizontal sum of bytes
 #endif
+}
+
+/**
+ * For i=0,...,n-1, execute f(i) in sequence.
+ */
+template <typename FnOp>
+void for_each_seq(int n, FnOp f)
+{
+    for (int i = 0; i < n; ++i)
+        f(i);
+}
+
+/**
+ * For i=0,...,n-1, execute f(i) in parallel.
+ */
+template <typename FnOp>
+void for_each_par(int n, FnOp f)
+{
+    std::vector<std::future<void>> futures;
+    for (int i = 0; i < NUM_THREADS; ++i)
+        futures.push_back(std::async(std::launch::async, [i, n, f]() {
+            for (int j = i; j < n; j += NUM_THREADS)
+                f(i);
+        }));
+    for (int i = 0; i < NUM_THREADS; ++i)
+        futures[i].wait();
 }
 
 }  // namespace ut
