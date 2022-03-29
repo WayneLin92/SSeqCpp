@@ -45,6 +45,7 @@ private:
 public:
     void bind_str(int iCol, const std::string& str) const;
     void bind_int(int iCol, int i) const;
+    void bind_int64(int iCol, int64_t i) const;
     void bind_null(int iCol) const;
     void bind_blob(int iCol, const void* data, int nBytes) const;
     std::string column_str(int iCol) const;

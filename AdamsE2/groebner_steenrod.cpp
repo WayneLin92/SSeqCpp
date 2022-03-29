@@ -1,42 +1,42 @@
 #include "groebner_steenrod.h"
+#include "algebras/benchmark.h"  ////
 #include "algebras/dbalg.h"
-#include "algebras/benchmark.h" ////
 #include <cstring>
 
 namespace steenrod {
 
-void GbCriPairsMRes::AddAndMinimize(const MModCpt1d& leads, AdamsDeg ds)
+void GbCriPairsMRes::Minimize(const MModCpt1d& leads, AdamsDeg st)
 {
     /* Add to the Groebner basis of critical pairs */
-    auto& b_min_pairs_ds = buffer_min_pairs_.at(ds);
-    if (pairs_[ds.s].size() < b_min_pairs_ds.size())
-        pairs_[ds.s].resize(b_min_pairs_ds.size());
-    array old_sizes(b_min_pairs_ds.size());
-    for (int j = 0; j < (int)b_min_pairs_ds.size(); ++j) {
-        old_sizes[j] = (int)pairs_[ds.s][j].size();
-        for (const auto& pair : b_min_pairs_ds[j])
-            pairs_[ds.s][j].push_back(pair);
+    auto& b_min_pairs_st = buffer_min_pairs_.at(st);
+    if (pairs_[st.s].size() < b_min_pairs_st.size())
+        pairs_[st.s].resize(b_min_pairs_st.size());
+    array old_sizes(b_min_pairs_st.size());
+    for (int j = 0; j < (int)b_min_pairs_st.size(); ++j) {
+        old_sizes[j] = (int)pairs_[st.s][j].size();
+        for (const auto& pair : b_min_pairs_st[j])
+            pairs_[st.s][j].push_back(pair);
     }
 
     /* Minimize `buffer_min_pairs_` */
-    for (uint64_t ij : buffer_redundent_pairs_[ds]) {
+    for (uint64_t ij : buffer_redundent_pairs_[st]) {
         int i, j;
         ut::GetPair(ij, i, j);
         while (j != -1) {
             MMay gcd = gcdLF(leads[i].m(), leads[j].m());
             MMay m2 = divLF(leads[i].m(), gcd);
-            if (j < (int)b_min_pairs_ds.size()) {
-                auto p = std::find_if(b_min_pairs_ds[j].begin(), b_min_pairs_ds[j].end(), [&m2](const CriPairMRes& c) { return c.m2 == m2; });
+            if (j < (int)b_min_pairs_st.size()) {
+                auto p = std::find_if(b_min_pairs_st[j].begin(), b_min_pairs_st[j].end(), [&m2](const CriPairMRes& c) { return c.m2 == m2; });
                 /* Remove it from `buffer_min_pairs_` */
-                if (p != b_min_pairs_ds[j].end()) {
+                if (p != b_min_pairs_st[j].end()) {
                     p->i2 = -1;
                     break;
                 }
             }
 
             /* Reduce (i, j) */
-            auto c = pairs_[ds.s][j].begin();
-            auto end = pairs_[ds.s][j].end();
+            auto c = pairs_[st.s][j].begin();
+            auto end = pairs_[st.s][j].end();
             for (; c < end; ++c) {
                 if (divisibleLF(c->m2, m2)) {
                     MMay m1 = divLF(leads[j].m(), gcd);
@@ -62,16 +62,16 @@ void GbCriPairsMRes::AddAndMinimize(const MModCpt1d& leads, AdamsDeg ds)
                 print(ModCpt(leads[j]));
                 std::cout << '\n';
                 std::cout << "m2=" << May(m2) << '\n';
-                for (size_t k = 0; k < pairs_[ds.s][j].size(); ++k)
-                    std::cout << "pairs_[j][k].m2" << May(pairs_[ds.s][j][k].m2) << '\n';
+                for (size_t k = 0; k < pairs_[st.s][j].size(); ++k)
+                    std::cout << "pairs_[j][k].m2" << May(pairs_[st.s][j][k].m2) << '\n';
                 throw MyException(0xfa5db14U, "Should not happen because pairs_ is groebner");
             }
 #endif
         }
     }
 
-    /* Delete `bufbuffer_redundent_pairs_[d]` */
-    buffer_redundent_pairs_.erase(ds);
+    /* Delete `bufbuffer_redundent_pairs_[t]` */
+    buffer_redundent_pairs_.erase(st);
 }
 
 /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
@@ -84,26 +84,23 @@ void GbCriPairsMRes::AddToBuffers(const MModCpt1d& leads, MModCpt mon, int d_mon
     ut::Range range(0, (int)leads.size());
 
     for (size_t i = 0; i < leads.size(); ++i) {
+        new_pairs[i].first = -1;
         if (leads[i].v() == mon.v()) {
             int d_pair = lcmLF(leads[i].m(), mon.m()).deg() + d_mon_base;
             if (d_pair <= deg_trunc_) {
                 new_pairs[i].first = d_pair;
                 CriPairMRes::SetFromLM(new_pairs[i].second, leads[i].m(), mon.m(), (int)i, (int)lead_size);
             }
-            else
-                new_pairs[i].first = -1;
         }
-        else
-            new_pairs[i].first = -1;
     }
 
     /* Compute sigma_j */
     int d_mon = mon.m().deg() + d_mon_base;
     for (int i : mon.m()) {
         MMay m = MMay::FromIndex(i);
-        AdamsDeg ds{d_mon + m.deg(), s};
-        if (ds.d <= deg_trunc_)
-            buffer_singles_[ds].push_back(CriPairMRes::Single(m, (int)lead_size));
+        AdamsDeg st{s, d_mon + m.deg()};
+        if (st.t <= deg_trunc_)
+            buffer_singles_[st].push_back(CriPairMRes::Single(m, (int)lead_size));
     }
 
     /* Remove some critical pairs to form Groebner basis and discover redundent pairs */
@@ -120,7 +117,7 @@ void GbCriPairsMRes::AddToBuffers(const MModCpt1d& leads, MModCpt mon, int d_mon
                     else if (!gcdLF(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
                         int dij = lcmLF(leads[i].m(), leads[j].m()).deg() + d_mon_base;
                         if (dij <= deg_trunc_)
-                            buffer_redundent_pairs_[AdamsDeg{dij, s}].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
+                            buffer_redundent_pairs_[AdamsDeg{s, dij}].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
                     }
                 }
             }
@@ -128,13 +125,14 @@ void GbCriPairsMRes::AddToBuffers(const MModCpt1d& leads, MModCpt mon, int d_mon
     }
     for (size_t i = 0; i < new_pairs.size(); ++i) {
         if (new_pairs[i].first != -1) {
-            buffer_min_pairs_[AdamsDeg{new_pairs[i].first, s}].resize(lead_size + 1);
-            buffer_min_pairs_[AdamsDeg{new_pairs[i].first, s}][lead_size].push_back(new_pairs[i].second);
+            buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}].resize(lead_size + 1);
+            buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}][lead_size].push_back(new_pairs[i].second);
         }
     }
 }
-    
-void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) {
+
+void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees)
+{
     int t_max = (int)basis_degrees.size() - 1;
     int s_sep = 0;
     while (s_sep < t_max) {
@@ -158,7 +156,7 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) 
                     int d_pair = lcmLF(leads[s][i].m(), mon.m()).deg() + d_mon_base;
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
-                        CriPairMRes::SetFromLM(new_pairs[i].second, leads[s][i].m(), mon.m(), (int)i, (int)k);
+                        // CriPairMRes::SetFromLM(new_pairs[i].second, leads[s][i].m(), mon.m(), (int)i, (int)k);
                     }
                     else
                         new_pairs[i].first = -1;
@@ -170,9 +168,10 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) 
             /* Compute sigma_j */
             for (int i : mon.m()) {
                 MMay m = MMay::FromIndex(i);
-                AdamsDeg ds{d_mon + m.deg(), s};
-                if (ds.d <= deg_trunc_ && ds.d >= t_min_buffer)
-                    buffer_singles_[ds].push_back(CriPairMRes::Single(m, (int)k));
+                AdamsDeg st{s, d_mon + m.deg()};
+                if (st.t <= deg_trunc_ && st.t >= t_min_buffer)
+                    ;
+                // buffer_singles_[st].push_back(CriPairMRes::Single(m, (int)k));
             }
 
             /* Remove some critical pairs to form Groebner basis and discover redundent pairs */
@@ -189,7 +188,7 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) 
                             else if (!gcdLF(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
                                 int dij = lcmLF(leads[s][i].m(), leads[s][j].m()).deg() + d_mon_base;
                                 if (dij <= deg_trunc_ && dij >= t_min_buffer)
-                                    buffer_redundent_pairs_[AdamsDeg{dij, s}].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
+                                    buffer_redundent_pairs_[AdamsDeg{s, dij}].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
                             }
                         }
                     }
@@ -201,8 +200,8 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) 
             for (size_t i = 0; i < new_pairs.size(); ++i) {
                 if (new_pairs[i].first != -1) {
                     if (new_pairs[i].first >= t_min_buffer) {
-                        buffer_min_pairs_[AdamsDeg{new_pairs[i].first, s}].resize(k + 1);
-                        buffer_min_pairs_[AdamsDeg{new_pairs[i].first, s}][k].push_back(new_pairs[i].second);
+                        buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}].resize(k + 1);
+                        buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}][k].push_back(new_pairs[i].second);
                     }
                     else {
                         pairs_[s][k].push_back(new_pairs[i].second);
@@ -212,7 +211,6 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees) 
         }
     }
 }
-
 
 class DbSteenrod : public myio::DbAlg
 {
@@ -230,6 +228,16 @@ public:
     void create_relations(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (id INTEGER PRIMARY KEY, gs BLOB, gsplus BLOB, s SMALLINT, t SMALLINT);");
+    }
+    void create_generators_and_delete(const std::string& table_prefix) const
+    {
+        create_generators(table_prefix);
+        delete_from(table_prefix + "_generators");
+    }
+    void create_relations_and_delete(const std::string& table_prefix) const
+    {
+        create_relations(table_prefix);
+        delete_from(table_prefix + "_relations");
     }
 
     void save_generators(const std::string& table_prefix, const ModCpt1d& kernel, int s, int t) const
@@ -310,55 +318,74 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
     for (size_t i = 0; i < rels.size(); ++i) {
         if (rels[i]) {
             const auto& lead = rels[i].GetLead();
-            int d = lead.m().deg();
-            if (d <= deg)
-                rels_graded[d].push_back((int)i);
+            int t = lead.m().deg();
+            if (t <= deg)
+                rels_graded[t].push_back((int)i);
         }
     }
     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
-    auto next_ds = gb.gb_pairs().next_ds();
+    auto next_st = gb.gb_pairs().next_st();
     /* Check if the program was terminated exact when adding elements from `rels` */
-    if (gb.basis_degs().size() > 1 && next_ds.d == gb.basis_degs()[1].back() * 2 + 1)
-        --next_ds.d;
-    for (int d = next_ds.d; d <= deg && (d <= deg_max_rels || !gb.gb_pairs().empty_pairs_for_gb()); ++d) {  ////
-        std::cout << "t=" << d << "               \n";
-        for (int s = d; s >= -1; --s) {
+    if (gb.basis_degs().size() > 1 && next_st.t == gb.basis_degs()[1].back() * 2 + 1)
+        --next_st.t;
+    for (int t = next_st.t; t <= deg && (t <= deg_max_rels || !gb.gb_pairs().empty_pairs_for_gb()); ++t) {  ////
+        std::cout << "t=" << t << "               \n";
+        for (int s = t - 2; s >= -1; --s) {
             std::cout << "  s=" << s + 2 << "                \r";
 
             gb.resize_data(s + 1);
-            auto ds = AdamsDeg{d, s};
-            gb.AddPairsAndMinimize(ds);
-            CriPairMRes1d pairs_ds = gb.pairs(ds);
+            auto st = AdamsDeg{s, t};
+            gb.MinimizePairs(st);
+            CriPairMRes1d pairs_st = gb.pairs(st);
             DataMRes1d rels_tmp;
             if (s == -1) {
-                auto p_rels_d = rels_graded.find(d);
+                auto p_rels_d = rels_graded.find(t);
                 if (p_rels_d != rels_graded.end()) {
                     rels_tmp.resize(p_rels_d->second.size());
                     auto& rels_d = p_rels_d->second;
-                    ut::Range range(0, (int)rels_tmp.size());
-                    std::for_each(range.begin(), range.end(), [&](int i) { rels_tmp[i] = DataMRes{ModCpt(), gb.ReduceX2(rels[rels_d[i]], 0)}; });
+                    ut::for_each_seq((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = DataMRes{ModCpt(), gb.ReduceX2(rels[rels_d[i]], 0)}; });
                 }
             }
-            else if (!pairs_ds.empty()) {
-                rels_tmp.resize(pairs_ds.size());
-                //ut::Range range(0, (int)rels_tmp.size());
-                //std::for_each(std::execution::par_unseq, range.begin(), range.end(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_ds[i], s); });
-                ut::for_each_par((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_ds[i], s); });
+            else if (!pairs_st.empty()) {
+                ModCpt1d x2_LFs(pairs_st.size());
+                ut::for_each_seq((int)x2_LFs.size(), [&](int i) { x2_LFs[i] = gb.ReduceX2LF(pairs_st[i], s, t); });
+                array ind;
+                for (size_t i = 0; i < x2_LFs.size(); ++i) {
+                    for (size_t j = 0; j < ind.size(); ++j)
+                        if (std::binary_search(x2_LFs[i].data.begin(), x2_LFs[i].data.end(), x2_LFs[ind[j]].GetLead()))
+                            x2_LFs[i] += x2_LFs[ind[j]];
+                    if (x2_LFs[i])
+                        ind.push_back(i);
+                    else
+                        bench::Counter(4);
+                }
+
+                rels_tmp.resize(ind.size());
+                ut::for_each_seq((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_st[ind[i]], s); });
+                for (size_t i = 0; i < ind.size(); ++i)
+                    rels_tmp[i].x2LF = std::move(x2_LFs[ind[i]]);
             }
             if (rels_tmp.empty())
                 continue;
+            gb.resize_dataX2LF(s, t);
 
             /* Triangulate these relations */
-            DataMRes1d rels_ds;
+            DataMRes1d rels_st;
+            std::vector<size_t> indices_pairs;
             ModCpt1d kernel_splus_tmp;
             for (size_t i = 0; i < rels_tmp.size(); ++i) {
-                for (size_t j = 0; j < rels_ds.size(); ++j)
-                    if (std::binary_search(rels_tmp[i].x1.data.begin(), rels_tmp[i].x1.data.end(), rels_ds[j].x1.GetLead()))
-                        rels_tmp[i] += rels_ds[j];
-                if (rels_tmp[i].x1)
-                    rels_ds.push_back(std::move(rels_tmp[i]));
+                for (size_t j = 0; j < rels_st.size(); ++j)
+                    if (std::binary_search(rels_tmp[i].x1.data.begin(), rels_tmp[i].x1.data.end(), rels_st[j].x1.GetLead()))
+                        rels_tmp[i] += rels_st[j];
+                if (rels_tmp[i].x1) {
+                    rels_st.push_back(std::move(rels_tmp[i]));
+                    indices_pairs.push_back(i);
+                    bench::Counter(0);
+                }
                 else if (rels_tmp[i].x2)
                     kernel_splus_tmp.push_back(std::move(rels_tmp[i].x2));
+                else
+                    bench::Counter(1);
             }
 
             ModCpt1d kernel_splus;
@@ -366,21 +393,25 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
                 for (size_t j = 0; j < kernel_splus.size(); ++j)
                     if (std::binary_search(kernel_splus_tmp[i].data.begin(), kernel_splus_tmp[i].data.end(), kernel_splus[j].GetLead()))
                         kernel_splus_tmp[i] += kernel_splus[j];
-                if (kernel_splus_tmp[i])
+                if (kernel_splus_tmp[i]) {
                     kernel_splus.push_back(std::move(kernel_splus_tmp[i]));
+                    bench::Counter(2);
+                }
+                else
+                    bench::Counter(3);
             }
 
             /* Add these relations */
-            for (const auto& rel : rels_ds)
-                gb.push_back(rel, s);
+            for (size_t i = 0; i < rels_st.size(); ++i)
+                gb.push_back(rels_st[i], s, t);
             DataMRes1d rels_splus;
             for (const auto& k : kernel_splus)
-                gb.push_back_kernel(k, rels_splus, d, (int)s + 1);
+                gb.push_back_kernel(k, rels_splus, (int)s + 1, t);
 
             /*db.begin_transaction();
-            db.save_generators("SteenrodMRes", kernel_splus, (int)s + 2, d);
+            db.save_generators("SteenrodMRes", kernel_splus, (int)s + 2, t);
             if (s >= 0)
-                db.save_relations("SteenrodMRes", rels_ds, gb.basis_degs()[s], s);
+                db.save_relations("SteenrodMRes", rels_st, gb.basis_degs()[s], s);
             db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
             db.end_transaction();*/
 
@@ -393,8 +424,8 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
 GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
 {
     DbSteenrod db("AdamsE2.db");
-    db.create_generators_and_delete("SteenrodMRes"); ////
-    db.create_relations_and_delete("SteenrodMRes"); ////
+    db.create_generators_and_delete("SteenrodMRes");  ////
+    db.create_relations_and_delete("SteenrodMRes");   ////
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     DataMRes2d data = db.load_data("SteenrodMRes");
     if (basis_degrees.empty())
@@ -402,6 +433,48 @@ GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
     else if (basis_degrees[0].empty())
         basis_degrees[0].push_back(0);
     return GroebnerMRes(t_trunc, std::move(data), std::move(basis_degrees));
+}
+
+void generate_basis(const std::string& filename, int t_trunc)
+{
+    using namespace steenrod;
+    std::cout << "Constructing basis..." << std::endl;
+
+    std::map<int, steenrod::MMay1d> basis;
+    basis[0].push_back(MMay(0));
+
+    /* Add new basis */
+    for (int t = 0; t <= t_trunc; ++t) {
+        std::cout << "t=" << t << "          \r";
+        for (size_t gen_id = steenrod::MMAY_INDEX_NUM; gen_id-- > 0;) {
+            MMay m = MMay::FromIndex(gen_id);
+            int t1 = t - MMAY_GEN_DEG[gen_id];
+            if (t1 >= 0) {
+                for (MMay m1 : basis[t1]) {
+                    if (!m1 || gen_id < *m1.begin()) {
+                        MMay prod = mulLF(m, m1);
+                        basis[t].push_back(prod);
+                    }
+                }
+            }
+        }
+        std::sort(basis[t].begin(), basis[t].end());
+    }
+
+    DbSteenrod db(filename);
+    db.execute_cmd("CREATE TABLE IF NOT EXISTS Steenrod_basis (id INTEGER PRIMARY KEY, base BIGINT, t SMALLINT, w SMALLINT);");
+
+    db.begin_transaction();
+    myio::Statement stmt(db, "INSERT INTO Steenrod_basis (base, t, w) VALUES (?1, ?2, ?3);");
+    for (int t = 0; t <= t_trunc; ++t) {
+        for (MMay m : basis[t]) {
+            stmt.bind_int64(1, (int64_t)m.data());
+            stmt.bind_int(2, t);
+            stmt.bind_int(3, m.weight());
+            stmt.step_and_reset();
+        }
+    }
+    db.end_transaction();
 }
 
 }  // namespace steenrod

@@ -8,6 +8,7 @@
 
 #include "myexception.h"
 #include "utility.h"
+#include "benchmark.h" ////
 #include <algorithm>
 #include <array>
 #include <iostream>
@@ -23,12 +24,12 @@ struct Milnor;
 class MMay;
 struct May;
 
-inline constexpr size_t MILNOR_BUFFER_SIZE   = 8;                     /* Support up to \xi_8 */
-inline constexpr int DEG_MAX = (1 << (MILNOR_BUFFER_SIZE + 1)) - 1; /* Maximum degree supported in A */
+inline constexpr size_t XI_MAX = 8;                     /* Support up to \xi_8 */
+inline constexpr int DEG_MAX = (1 << (XI_MAX + 1)) - 1; /* Maximum degree supported in A */
 
 struct MMilnor
 {
-    using TypeData = std::array<int, MILNOR_BUFFER_SIZE>;
+    using TypeData = std::array<int, XI_MAX>;
     TypeData data = {};
 
     MMilnor() = default;
@@ -56,7 +57,7 @@ struct MMilnor
     int weight() const
     {
         int result = 0;
-        for (size_t i = 0; i < MILNOR_BUFFER_SIZE; ++i)
+        for (size_t i = 0; i < XI_MAX; ++i)
             result += (2 * (int)i + 1) * ut::popcount(unsigned(data[i]));
         return result;
     }
@@ -64,7 +65,7 @@ struct MMilnor
     int deg() const
     {
         int result = 0;
-        for (size_t i = 0; i < MILNOR_BUFFER_SIZE; ++i)
+        for (size_t i = 0; i < XI_MAX; ++i)
             result += ((1 << (i + 1)) - 1) * data[i];
         return result;
     }
@@ -114,39 +115,60 @@ struct Milnor
 };
 std::ostream& operator<<(std::ostream& sout, const Milnor& x);
 
-inline constexpr size_t MMAY_INDEX_NUM = (MILNOR_BUFFER_SIZE + 1) * (MILNOR_BUFFER_SIZE + 2) / 2 - 1;
-static_assert(MMAY_INDEX_NUM < sizeof(uint64_t) * 8);
 
+/** May basis for A
+ *
+ * Each element is represented by a 64-bit unsigned integer
+*/
+
+inline constexpr size_t MMAY_INDEX_NUM = (XI_MAX + 1) * (XI_MAX + 2) / 2 - 1;
+inline constexpr uint64_t MMAY_ONE = uint64_t(1) << (MMAY_INDEX_NUM - 1);
 namespace detail {
-    inline constexpr std::array<int, MMAY_INDEX_NUM> MonSteenrodMayI()
+    inline constexpr std::array<int, MMAY_INDEX_NUM> MMayGenI()
     {
         std::array<int, MMAY_INDEX_NUM> result = {0};
         size_t n = 0;
-        for (int j = 1; j <= (int)MILNOR_BUFFER_SIZE + 1; ++j)
+        for (int j = 1; j <= (int)XI_MAX + 1; ++j)
             for (int i = j - 1; i >= 0; --i)
                 if (n < MMAY_INDEX_NUM)
                     result[n++] = i;
         return result;
     }
-    inline constexpr std::array<int, MMAY_INDEX_NUM> MonSteenrodMayJ()
+    inline constexpr std::array<int, MMAY_INDEX_NUM> MMayGenJ()
     {
         std::array<int, MMAY_INDEX_NUM> result = {0};
         size_t n = 0;
-        for (int j = 1; j <= (int)MILNOR_BUFFER_SIZE + 1; ++j)
+        for (int j = 1; j <= (int)XI_MAX + 1; ++j)
             for (int i = j - 1; i >= 0; --i)
                 if (n < MMAY_INDEX_NUM)
                     result[n++] = j;
         return result;
     }
+    inline constexpr std::array<int, MMAY_INDEX_NUM> MMayGenDeg()
+    {
+        std::array<int, MMAY_INDEX_NUM> result = {0};
+        size_t n = 0;
+        for (int j = 1; j <= (int)XI_MAX + 1; ++j)
+            for (int i = j - 1; i >= 0; --i)
+                if (n < MMAY_INDEX_NUM)
+                    result[n++] = (1 << j) - (1 << i);
+        return result;
+    }
+    inline constexpr std::array<int, MMAY_INDEX_NUM> MMayGenWeight()
+    {
+        std::array<int, MMAY_INDEX_NUM> result = {0};
+        size_t n = 0;
+        for (int j = 1; j <= (int)XI_MAX + 1; ++j)
+            for (int i = j - 1; i >= 0; --i)
+                if (n < MMAY_INDEX_NUM)
+                    result[n++] = 2 * (j - i) - 1;
+        return result;
+    }
 }  // namespace detail
-
-/* May basis for A
-**
-** Each element is represented by a 64-bit unsigned integer
-*/
-inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_I = detail::MonSteenrodMayI();
-inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_J = detail::MonSteenrodMayJ();
-inline constexpr uint64_t MMAY_ONE = uint64_t(1) << (MMAY_INDEX_NUM - 1);
+inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_I = detail::MMayGenI();
+inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_J = detail::MMayGenJ();
+inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_DEG = detail::MMayGenDeg();
+inline constexpr std::array<int, MMAY_INDEX_NUM> MMAY_GEN_WEIGHT = detail::MMayGenWeight();
 inline constexpr uint64_t MMAY_LEFT_BIT = uint64_t(1) << 63;
 inline constexpr uint64_t MMAY_MASK_M = (uint64_t(1) << MMAY_INDEX_NUM) - 1;
 inline constexpr uint64_t MMAY_MASK_W = ~MMAY_MASK_M;
@@ -156,6 +178,17 @@ class MMay
 {
 private:
     uint64_t data_;
+
+private:
+    static MMay AddWeight(uint64_t data)
+    {
+        uint64_t weight = 0;
+        int i = 0;
+        for (uint64_t m = data << (64 - MMAY_INDEX_NUM); m; m <<= 1, ++i)
+            if (m & MMAY_LEFT_BIT)
+                weight += uint64_t(MMAY_GEN_WEIGHT[i]);
+        return MMay(data + (weight << MMAY_INDEX_NUM));
+    }
 
 public:
     /**
@@ -168,9 +201,9 @@ public:
         return MMAY_ONE >> (j * (j + 1) / 2 - i - 1);
     }
     explicit MMay(uint64_t data) : data_(data) {}
-    static MMay FromIndex(int i)
+    static MMay FromIndex(size_t i)
     {
-        return MMay((MMAY_ONE >> i) + (uint64_t(2 * (MMAY_GEN_J[i] - MMAY_GEN_I[i]) - 1) << MMAY_INDEX_NUM));
+        return MMay((MMAY_ONE >> i) + (uint64_t(MMAY_GEN_WEIGHT[i]) << MMAY_INDEX_NUM));
     }
     static MMay P(int i, int j)
     {
@@ -204,12 +237,19 @@ public:
         return data_;
     }
 
+    MMay mulLF(MMay rhs) const
+    {
+#ifndef NDEBUG /* DEBUG */
+        if (gcdLF(rhs))
+            throw MyException(0x170c454aU, "gcd(m1,m2)!=1");
+#endif
+        return MMay(((data_ | rhs.data_) & MMAY_MASK_M) + ((data_ & MMAY_MASK_W) + (rhs.data_ & MMAY_MASK_W)));
+    }
+
     MMay divLF(MMay rhs) const
     {
 #ifndef NDEBUG /* DEBUG */
-        uint64_t m1 = data_ & MMAY_MASK_M;
-        uint64_t m2 = rhs.data_ & MMAY_MASK_M;
-        if (m1 < m2 || m2 & (m1 - m2))
+        if (!rhs.divisibleLF(*this))
             throw MyException(0x7ed0a8U, "Not divisible: m1 / m2");
 #endif
         return MMay(((data_ ^ rhs.data_) & MMAY_MASK_M) + ((data_ & MMAY_MASK_W) - (rhs.data_ & MMAY_MASK_W)));
@@ -222,15 +262,14 @@ public:
         return m2 >= m1 && !(m1 & (m2 - m1));
     }
 
-    MMay gcdLF(MMay rhs)
+    MMay gcdLF(MMay rhs) const
     {
-        uint64_t m = data_ & rhs.data_ & MMAY_MASK_M;
-        return MMay(data_ & rhs.data_);
+        return AddWeight(data_ & rhs.data_ & MMAY_MASK_M);
     }
 
-    MMay lcmLF(MMay rhs)
+    MMay lcmLF(MMay rhs) const
     {
-        return MMay(data_ | rhs.data_);
+        return AddWeight((data_ | rhs.data_) & MMAY_MASK_M);
     }
 
     int weight() const
@@ -238,21 +277,11 @@ public:
         return (int)(data_ >> MMAY_INDEX_NUM);
     }
 
-    static uint64_t WeightBits(uint64_t data)
-    {
-        uint64_t result = 0;
-        int i = 0;
-        for (uint64_t m = data << (64 - MMAY_INDEX_NUM); m; m <<= 1, ++i)
-            if (m & MMAY_LEFT_BIT)
-                result += uint64_t(2 * (MMAY_GEN_J[i] - MMAY_GEN_I[i]) - 1);  // TODO: improve
-        return result << MMAY_INDEX_NUM;
-    }
-
     int deg() const
     {
         int result = 0;
         for (int i : *this)
-            result += (1 << MMAY_GEN_J[i]) - (1 << MMAY_GEN_I[i]);
+            result += MMAY_GEN_DEG[i];
         return result;
     }
 
@@ -363,6 +392,11 @@ struct May
 };
 
 std::ostream& operator<<(std::ostream& sout, const May& x);
+
+inline MMay mulLF(MMay m1, MMay m2)
+{
+    return m1.mulLF(m2);
+}
 
 inline MMay divLF(MMay m1, MMay m2)
 {
@@ -573,9 +607,12 @@ struct ModCpt
 };
 using ModCpt1d = std::vector<ModCpt>;
 using ModCpt2d = std::vector<ModCpt1d>;
+using ModCpt3d = std::vector<ModCpt2d>;
 
 std::ostream& operator<<(std::ostream& sout, const ModCpt& x);
 ModCpt operator*(const May& a, const ModCpt& x);
+/* Compute the product in the associated graded algebra */
+ModCpt mulLF(MMay m, const ModCpt& x);
 
 void MulMilnorV3(MMay lhs, MMay rhs, May& result);////
 

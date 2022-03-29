@@ -6,7 +6,12 @@
 #include <iterator>
 #include <string>
 #include <vector>
+
+#ifdef _MSC_VER
+#include <execution>
+#else
 #include <future>
+#endif
 
 #ifndef __unix__
 #ifndef _MSC_VER
@@ -18,8 +23,8 @@
  * The namespace `ut` provides basic utility functions
  */
 namespace ut {
-
-inline constexpr int NUM_THREADS = 256;
+     
+inline constexpr int FUTURE_NUM_THREADS = 256;
 
 /*
  * A "random access" iterator of [begin, end) generated on the fly.
@@ -208,6 +213,22 @@ inline int popcount(unsigned int i)
 #endif
 }
 
+inline int popcount(uint64_t i)
+{
+#if defined(_MSC_VER)
+    return std::_Popcount(i);
+#elif defined(__GNUC__)
+    return __builtin_popcount(i);
+#elif defined(__clang__)
+    return std::__popcount(i);
+#else
+    i = i - ((i >> 1) & 0x55555555);                 // add pairs of bits
+    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);  // quads
+    i = (i + (i >> 4)) & 0x0F0F0F0F;                 // groups of 8
+    return (i * 0x01010101) >> 24;                   // horizontal sum of bytes
+#endif
+}
+
 /**
  * For i=0,...,n-1, execute f(i) in sequence.
  */
@@ -224,14 +245,19 @@ void for_each_seq(int n, FnOp f)
 template <typename FnOp>
 void for_each_par(int n, FnOp f)
 {
+#ifdef _MSC_VER
+    ut::Range r(0, n);
+    std::for_each(std::execution::par_unseq, r.begin(), r.end(), f);
+#else
     std::vector<std::future<void>> futures;
-    for (int i = 0; i < NUM_THREADS; ++i)
+    for (int i = 0; i < FUTURE_NUM_THREADS; ++i)
         futures.push_back(std::async(std::launch::async, [i, n, f]() {
-            for (int j = i; j < n; j += NUM_THREADS)
+            for (int j = i; j < n; j += FUTURE_NUM_THREADS)
                 f(i);
         }));
-    for (int i = 0; i < NUM_THREADS; ++i)
+    for (int i = 0; i < FUTURE_NUM_THREADS; ++i)
         futures[i].wait();
+#endif
 }
 
 }  // namespace ut

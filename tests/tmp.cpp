@@ -89,8 +89,8 @@ void test()
 {
     using namespace steenrod;
 
-    auto R = MMilnor{{4, 5, 8, 0, 0, 0, 0, 1}};
-    auto S = MMilnor{{3, 2, 2, 0, 7, 0, 0, 2}};
+    auto R = MMilnor{{0, 0, 1, 1, 1}};
+    auto S = MMilnor{{0, 0, 0, 1}};
     std::cout << R << '\n';
     std::cout << S << '\n';
 

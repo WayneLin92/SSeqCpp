@@ -16,8 +16,8 @@ int max_mask(int upper_bound, int mask)
     return (upper_bound | n) & ~mask;
 }
 
-void debug_print_X(int X[(MILNOR_BUFFER_SIZE + 1) * (MILNOR_BUFFER_SIZE + 1)]) {
-    constexpr size_t N = MILNOR_BUFFER_SIZE;
+void debug_print_X(int X[(XI_MAX + 1) * (XI_MAX + 1)]) {
+    constexpr size_t N = XI_MAX;
     for (size_t i = 0; i <= N; ++i) {
         for (size_t j = 0; j <= N; ++j) {
             if (i == 0 && j == 0)
@@ -33,9 +33,9 @@ void debug_print_X(int X[(MILNOR_BUFFER_SIZE + 1) * (MILNOR_BUFFER_SIZE + 1)]) {
     std::cout << '\n';
 }
 
-void MulMilnor(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_BUFFER_SIZE> S, May& result)
+void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result)
 {
-    constexpr size_t N = MILNOR_BUFFER_SIZE;
+    constexpr size_t N = 7; // Support up to t=254
 
     if (R[N - 1] & S[N - 1])
         return;
@@ -138,9 +138,9 @@ void MulMilnor(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_BUF
     }
 }
 
-void MulMilnorV2(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_BUFFER_SIZE> S, May& result)
+void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result)
 {
-    constexpr size_t N = MILNOR_BUFFER_SIZE;
+    constexpr size_t N = 7;  // Support up to t=254
 
     std::array<int, (N + 1) * (N + 1)> X, XR, XS, XT;
 
@@ -180,8 +180,12 @@ void MulMilnorV2(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_B
         XT[R_floor[row] * (N + 1) + row - R_floor[row]] = 0;
     for (size_t col = (N + 1) - r_min; col <= N; ++col) {
         X[col] = S[col - 1];
-        if (col >= r_max)
-            XT[r_max * (N + 1) + col - r_max] = S[col - 1];
+        for (size_t row = r_max; row > 0; row = R_floor[row-1]) {
+            if (col >= row) {
+                XT[row * (N + 1) + col - row] = S[col - 1];
+                break;
+            }
+        }
     }
 
     size_t i = r_max, j = N - i;
@@ -235,10 +239,10 @@ void MulMilnorV2(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_B
                     uint64_t data = 0;
                     uint64_t w = 0;
                     for (int d = 1; d <= N; ++d) {
-                        for (int n = XT[d], i = 0; n; n >>= 1, ++i) {
+                        for (int n = XT[d], i_ = 0; n; n >>= 1, ++i_) {
                             if (n & 1) {
-                                int j = i + d;
-                                data |= MMay::rawP(i, j);
+                                int j = i_ + d;
+                                data |= MMay::rawP(i_, j);
                                 w += 2 * uint64_t(d) - 1;
                             }
                         }
@@ -277,7 +281,7 @@ void MulMilnorV2(std::array<int, MILNOR_BUFFER_SIZE> R, std::array<int, MILNOR_B
                     index = i * (N + 1) + 1;
                 }
             } while (X[index] == 0);
-            if (i > r_max)
+            if (i > r_max || i + j > N)
                 break;
             decrease = true;
         }
@@ -294,29 +298,15 @@ void MulMilnor(MMay lhs, MMay rhs, May& result)
     MMilnor R = lhs.ToMMilnor();
     MMilnor S = rhs.ToMMilnor();
 
-    int non_zeroes = 0;
+    int nonzeroes = 0;
     for (int i : R.data)
         if (i)
-            ++non_zeroes;
-    if (non_zeroes <= 2)
+            ++nonzeroes;
+
+    if (nonzeroes <= 3)
         MulMilnorV2(R.data, S.data, result);
     else
         MulMilnor(R.data, S.data, result);
-
-    //May result1, result2;
-    ///*if (R.data == MMilnor{{1}}.data && S.data == MMilnor{{0, 2}}.data)
-    //    std::cout << "test\n";*/
-    //MulMilnor(R.data, S.data, result1);
-    //MulMilnorV2(R.data, S.data, result2);
-    //SortAndReduce(result1.data);
-    //SortAndReduce(result2.data);
-    //if (result1.data != result2.data) {
-    //    std::cout << "R=" << R << '\n';
-    //    std::cout << "S=" << S << '\n';
-    //    std::cout << "wrong =" << result2.ToMilnor() << '\n';
-    //    std::cout << "answer=" << result1.ToMilnor() << '\n';
-    //    std::cout << "test\n";
-    //}
 }
 
 void SortAndReduce(MMay1d& data)
@@ -462,9 +452,9 @@ Mod operator*(const May& a, const Mod& x)
     while (p != x.data.end()) {
         int v = p->v;
         auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MMod x, int v) { return x.v > v; });
-        for (MMay R : a.data)
+        for (MMay m : a.data)
             for (; p != p1; ++p)
-                MulMilnor(R, p->m, prod);
+                MulMilnor(m, p->m, prod);
         SortAndReduce(prod.data);
         for (MMay T : prod.data)
             result.data.push_back(MMod{T, v});
@@ -507,6 +497,25 @@ ModCpt operator*(const May& a, const ModCpt& x)
         prod.data.clear();
     }
 
+    return result;
+}
+
+ModCpt mulLF(MMay m, const ModCpt& x)
+{
+    ModCpt result;
+    May prod;
+    auto p = x.data.begin();
+    while (p != x.data.end()) {
+        int v = p->v();
+        auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MModCpt x, int v) { return x.v() > v; });
+        for (; p != p1; ++p)
+            if (!gcdLF(m, p->m()))
+                prod.data.push_back(mulLF(m, p->m()));
+        SortAndReduce(prod.data);
+        for (MMay T : prod.data)
+            result.data.push_back(MModCpt{T, v});
+        prod.data.clear();
+    }
     return result;
 }
 

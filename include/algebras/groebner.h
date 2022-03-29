@@ -258,7 +258,7 @@ public:
     }
 
     /* Minimize `buffer_min_pairs_[d]` and maintain `pairs_` */
-    void AddAndMinimize(const Mon1d& leads, int d)
+    void Minimize(const Mon1d& leads, int d)
     {
         /* Add to the Groebner basis of critical pairs */
         auto& b_min_pairs_d = buffer_min_pairs_.at(d);
@@ -405,7 +405,7 @@ class Groebner  // TODO: add gen_degs
 {
 private:
     using TypeIndexKey = int;
-    using TypeIndex = std::unordered_map<TypeIndexKey, array>;
+    using TypeIndices = std::unordered_map<TypeIndexKey, array>;
 
 public:
     using Poly = Polynomial<FnCmp>;
@@ -419,7 +419,7 @@ private:
     array data_degs_;   /* Degrees of data_. */
     Mon1d leads_;       /* Leading monomials */
     MonTrace1d traces_; /* Cache for fast divisibility test */
-    TypeIndex index_;   /* Cache for fast divisibility test */
+    TypeIndices indices_;   /* Cache for fast divisibility test */
 
 public:
     Groebner(int deg_trunc, uint32_t mode = CRI_ON) : gb_pairs_(deg_trunc, mode) {}
@@ -430,7 +430,7 @@ public:
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
             traces_.push_back(Trace(data_[i].GetLead()));
-            index_[Key(data_[i].GetLead())].push_back(i);
+            indices_[Key(data_[i].GetLead())].push_back(i);
         }
     }
 
@@ -441,7 +441,7 @@ public:
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
             traces_.push_back(Trace(data_[i].GetLead()));
-            index_[Key(data_[i].GetLead())].push_back(i);
+            indices_[Key(data_[i].GetLead())].push_back(i);
         }
     }
 
@@ -451,7 +451,7 @@ public:
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
             traces_.push_back(Trace(data_[i].GetLead()));
-            index_[Key(data_[i].GetLead())].push_back(i);
+            indices_[Key(data_[i].GetLead())].push_back(i);
         }
     }
 
@@ -461,7 +461,7 @@ public:
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
             traces_.push_back(Trace(data_[i].GetLead()));
-            index_[Key(data_[i].GetLead())].push_back(i);
+            indices_[Key(data_[i].GetLead())].push_back(i);
         }
     }
 
@@ -488,8 +488,8 @@ private:
         for (int i = 0; i < (int)mon.size(); ++i) {
             for (int j = -1; j < i; ++j) {
                 auto key = TypeIndexKey{j == -1 ? mon[i].gen : mon[i].gen + ((mon[j].gen + 1) << 16)};
-                auto p = index_.find(key);
-                if (p != index_.end()) {
+                auto p = indices_.find(key);
+                if (p != indices_.end()) {
                     for (int k : p->second) {
                         if (divisible(leads_[k], mon, traces_[k], t))
                             return k;
@@ -544,7 +544,7 @@ public: /* Getters and Setters */
         data_degs_.push_back(deg);
         leads_.push_back(m);
         traces_.push_back(Trace(m));
-        index_[Key(m)].push_back((int)data_.size());
+        indices_[Key(m)].push_back((int)data_.size());
         data_.push_back(std::move(g));
     }
     void CacheDegs(const array& gen_degs)  ////
@@ -555,7 +555,7 @@ public: /* Getters and Setters */
     }
     void AddPairsAndMinimize(int deg)
     {
-        gb_pairs_.AddAndMinimize(leads_, deg);
+        gb_pairs_.Minimize(leads_, deg);
     }
     bool operator==(const Groebner<FnCmp>& rhs) const
     {

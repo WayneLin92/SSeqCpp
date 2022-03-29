@@ -95,6 +95,12 @@ void Statement::bind_int(int iCol, int i) const
         throw "a61e05b2";
 }
 
+void Statement::bind_int64(int iCol, int64_t i) const
+{
+    if (sqlite3_bind_int64(stmt_, iCol, i) != SQLITE_OK)
+        throw "b78985c";
+}
+
 void Statement::bind_null(int iCol) const
 {
     if (sqlite3_bind_null(stmt_, iCol) != SQLITE_OK)

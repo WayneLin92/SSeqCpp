@@ -23,19 +23,18 @@ public:
     {
         start_ = std::chrono::system_clock::now();
     }
-    Timer(int n) : bPrinted_(false), n_(n)
+    Timer(int n) : bPrinted_(true), n_(n)
     {
         start_ = std::chrono::system_clock::now();
     }
     ~Timer()
     {
-        if (!bPrinted_) {
-            auto end = std::chrono::system_clock::now();
-            std::chrono::duration<double> elapsed = end - start_;
-            if (n_ >= 0)
-                counts_[n_] += elapsed.count();
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed = end - start_;
+        if (n_ >= 0)
+            counts_[n_] += elapsed.count();
+        if (!bPrinted_)
             std::cout << "\033[0;32m" << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
-        }
     }
     void print(const char* msg = "")
     {
