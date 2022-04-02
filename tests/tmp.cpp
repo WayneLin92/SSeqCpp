@@ -1,7 +1,7 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
-#include "algebras/utility.h"
 #include "algebras/steenrod.h"
+#include "algebras/utility.h"
 
 void compare_computations()
 {
@@ -94,8 +94,7 @@ void test()
     std::cout << R << '\n';
     std::cout << S << '\n';
 
-    std::cout << (May(R.ToMMay()) * May(S.ToMMay())).ToMilnor() << '\n';
-
+    std::cout << (Milnor(R.ToMMay()) * Milnor(S.ToMMay())).ToMilnor() << '\n';
 
     /*auto a = Milnor::P(0, 2);
     auto b = Milnor::P(0, 2);
@@ -103,11 +102,12 @@ void test()
     std::cout << a << '\n';
     std::cout << b << '\n';
     std::cout << a * b << '\n';*/
+    std::cout << std::hex;
 }
 
 std::vector<double> bench::Timer::counts_ = {};
 int main()
-{    
+{
     test();
 
     return 0;

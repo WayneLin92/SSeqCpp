@@ -1,5 +1,6 @@
 #include "steenrod.h"
-#include "benchmark.h" ////
+#include "benchmark.h"  ////
+#include "myio.h"
 
 namespace steenrod {
 
@@ -16,7 +17,8 @@ int max_mask(int upper_bound, int mask)
     return (upper_bound | n) & ~mask;
 }
 
-void debug_print_X(int X[(XI_MAX + 1) * (XI_MAX + 1)]) {
+void debug_print_X(int X[(XI_MAX + 1) * (XI_MAX + 1)])
+{
     constexpr size_t N = XI_MAX;
     for (size_t i = 0; i <= N; ++i) {
         for (size_t j = 0; j <= N; ++j) {
@@ -33,9 +35,9 @@ void debug_print_X(int X[(XI_MAX + 1) * (XI_MAX + 1)]) {
     std::cout << '\n';
 }
 
-void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result)
+void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, Milnor& result)
 {
-    constexpr size_t N = 7; // Support up to t=254
+    constexpr size_t N = 7;  // Support up to t=254
 
     if (R[N - 1] & S[N - 1])
         return;
@@ -102,12 +104,12 @@ void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result
                         for (int n = XT[d], i = 0; n; n >>= 1, ++i) {
                             if (n & 1) {
                                 int j = i + d;
-                                data |= MMay::rawP(i, j);
+                                data |= MMilnor::rawP(i, j);
                                 w += 2 * uint64_t(d) - 1;
                             }
                         }
                     }
-                    result.data.push_back(MMay(data + (w << MMAY_INDEX_NUM)));
+                    result.data.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
                 }
                 move_right = true;
             }
@@ -138,7 +140,7 @@ void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result
     }
 }
 
-void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& result)
+void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, Milnor& result)
 {
     constexpr size_t N = 7;  // Support up to t=254
 
@@ -161,12 +163,12 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& resu
             for (int n = S[d - 1], i = 0; n; n >>= 1, ++i) {
                 if (n & 1) {
                     int j = i + d;
-                    data |= MMay::rawP(i, j);
+                    data |= MMilnor::rawP(i, j);
                     w += 2 * uint64_t(d) - 1;
                 }
             }
         }
-        result.data.push_back(MMay(data + (w << MMAY_INDEX_NUM)));
+        result.data.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
         return;
     }
 
@@ -180,7 +182,7 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& resu
         XT[R_floor[row] * (N + 1) + row - R_floor[row]] = 0;
     for (size_t col = (N + 1) - r_min; col <= N; ++col) {
         X[col] = S[col - 1];
-        for (size_t row = r_max; row > 0; row = R_floor[row-1]) {
+        for (size_t row = r_max; row > 0; row = R_floor[row - 1]) {
             if (col >= row) {
                 XT[row * (N + 1) + col - row] = S[col - 1];
                 break;
@@ -242,12 +244,12 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& resu
                         for (int n = XT[d], i_ = 0; n; n >>= 1, ++i_) {
                             if (n & 1) {
                                 int j = i_ + d;
-                                data |= MMay::rawP(i_, j);
+                                data |= MMilnor::rawP(i_, j);
                                 w += 2 * uint64_t(d) - 1;
                             }
                         }
                     }
-                    result.data.push_back(MMay(data + (w << MMAY_INDEX_NUM)));
+                    result.data.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
                 }
                 move_right = true;
             }
@@ -261,7 +263,6 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& resu
                     i = R_floor[i - 1];
                     j = N - i;
                 }
-                    
             }
         }
         if (move_right) {
@@ -288,40 +289,40 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, May& resu
     }
 }
 
-void SortAndReduce(MMay1d& data);
+void SortMod2(MMilnor1d& data);
 
 /* Milnor's multiplication formula.
  * `result.data` is unordered and may contain duplicates.
  */
-void MulMilnor(MMay lhs, MMay rhs, May& result)
+void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
 {
-    MMilnor R = lhs.ToMMilnor();
-    MMilnor S = rhs.ToMMilnor();
+    auto R = lhs.ToXi();
+    auto S = rhs.ToXi();
 
     int nonzeroes = 0;
-    for (int i : R.data)
+    for (int i : R)
         if (i)
             ++nonzeroes;
 
     if (nonzeroes <= 3)
-        MulMilnorV2(R.data, S.data, result);
+        MulMilnorV2(R, S, result);
     else
-        MulMilnor(R.data, S.data, result);
+        MulMilnor(R, S, result);
 }
 
-void SortAndReduce(MMay1d& data)
+void SortMod2(MMilnor1d& data)
 {
     std::sort(data.begin(), data.end());
     for (size_t i = 0; i + 1 < data.size(); ++i)
         if (data[i] == data[i + 1]) {
-            data[i] = MMay{0xffffffffffffffff};
-            data[i + 1] = MMay{0xffffffffffffffff};
+            data[i] = MMilnor{0xffffffffffffffff};
+            data[i + 1] = MMilnor{0xffffffffffffffff};
             ++i;
         }
-    ut::RemoveIf(data, [](const MMay& m) { return m == MMay{0xffffffffffffffff}; });
+    ut::RemoveIf(data, [](const MMilnor& m) { return m == MMilnor{0xffffffffffffffff}; });
 }
 
-void SortAndReduce(MModCpt1d& data)
+void SortMod2(MModCpt1d& data)
 {
     std::sort(data.begin(), data.end());
     for (size_t i = 0; i + 1 < data.size(); ++i)
@@ -333,83 +334,26 @@ void SortAndReduce(MModCpt1d& data)
     ut::RemoveIf(data, [](const MModCpt& m) { return m == MModCpt(0); });
 }
 
-MMay MMilnor::ToMMay() const
-{
-    uint64_t result = 0;
-    uint64_t weight = 0;
-    for (int d = 1; d <= data.size(); ++d) {
-        for (int n = data[d - 1], i = 0; n; n >>= 1, ++i) {
-            if (n & 1) {
-                int j = i + d;
-                result |= MMay::rawP(i, j);
-                weight += 2 * uint64_t(d) - 1;
-            }
-        }
-    }
-    return MMay(result + (weight << MMAY_INDEX_NUM));
-}
-
-May Milnor::ToMay() const
-{
-    May result;
-    for (auto& m : data)
-        result.data.push_back(m.ToMMay());
-    std::sort(result.data.begin(), result.data.end());
-    return result;
-}
-
-Milnor May::ToMilnor() const
+Milnor Milnor::operator*(const Milnor& rhs) const
 {
     Milnor result;
-    result.data.reserve(data.size());
-    for (MMay m : data)
-        result.data.push_back(m.ToMMilnor());
-    return result;
-}
-
-May May::operator*(const May& rhs) const
-{
-    May result;
-    for (MMay R : this->data)
-        for (MMay S : rhs.data)
+    for (MMilnor R : this->data)
+        for (MMilnor S : rhs.data)
             MulMilnor(R, S, result);
-    SortAndReduce(result.data);
+    SortMod2(result.data);
     return result;
 }
 
-May May::mul(MMay rhs) const
+Milnor Milnor::mul(MMilnor rhs) const
 {
-    May result;
+    Milnor result;
     for (auto& r : this->data)
         MulMilnor(r, rhs, result);
-    SortAndReduce(result.data);
+    SortMod2(result.data);
     return result;
 }
 
 std::ostream& operator<<(std::ostream& sout, const Milnor& x)
-{
-    if (x.data.empty()) {
-        sout << '0';
-        return sout;
-    }
-    for (auto pr = x.data.begin(); pr != x.data.end(); ++pr) {
-        if (pr != x.data.begin())
-            sout << '+';
-        sout << "Sq(";
-        auto pr_end = pr->data.end();
-        while (pr_end != pr->data.begin() && *(pr_end - 1) == 0)
-            --pr_end;
-        for (auto pi = pr->data.begin(); pi != pr_end; ++pi) {
-            if (pi != pr->data.begin())
-                sout << ',';
-            sout << *pi;
-        }
-        sout << ')';
-    }
-    return sout;
-}
-
-std::ostream& operator<<(std::ostream& sout, const May& x)
 {
     if (x.data.empty()) {
         sout << '0';
@@ -422,7 +366,7 @@ std::ostream& operator<<(std::ostream& sout, const May& x)
             sout << '1';
         else {
             for (int i : *pm)
-                sout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
+                sout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
         }
     }
     return sout;
@@ -438,25 +382,25 @@ std::ostream& operator<<(std::ostream& sout, const Mod& x)
         if (pm != x.data.begin())
             sout << '+';
         for (int i : pm->m)
-            sout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
+            sout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
         sout << "v_{" << pm->v << '}';
     }
     return sout;
 }
 
-Mod operator*(const May& a, const Mod& x)
+Mod operator*(const Milnor& a, const Mod& x)
 {
     Mod result;
-    May prod;
+    Milnor prod;
     auto p = x.data.begin();
     while (p != x.data.end()) {
         int v = p->v;
         auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MMod x, int v) { return x.v > v; });
-        for (MMay m : a.data)
+        for (MMilnor m : a.data)
             for (; p != p1; ++p)
                 MulMilnor(m, p->m, prod);
-        SortAndReduce(prod.data);
-        for (MMay T : prod.data)
+        SortMod2(prod.data);
+        for (MMilnor T : prod.data)
             result.data.push_back(MMod{T, v});
         prod.data.clear();
     }
@@ -474,25 +418,25 @@ std::ostream& operator<<(std::ostream& sout, const ModCpt& x)
         if (pm != x.data.begin())
             sout << '+';
         for (int i : pm->m())
-            sout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
+            sout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
         sout << "v_{" << pm->v() << '}';
     }
     return sout;
 }
 
-ModCpt operator*(const May& a, const ModCpt& x)
+ModCpt operator*(const Milnor& a, const ModCpt& x)
 {
     ModCpt result;
-    May prod;
+    Milnor prod;
     auto p = x.data.begin();
     while (p != x.data.end()) {
         int v = p->v();
         auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MModCpt x, int v) { return x.v() > v; });
-        for (MMay R : a.data)
+        for (MMilnor R : a.data)
             for (; p != p1; ++p)
                 MulMilnor(R, p->m(), prod);
-        SortAndReduce(prod.data);
-        for (MMay T : prod.data)
+        SortMod2(prod.data);
+        for (MMilnor T : prod.data)
             result.data.push_back(MModCpt(T, v));
         prod.data.clear();
     }
@@ -500,10 +444,10 @@ ModCpt operator*(const May& a, const ModCpt& x)
     return result;
 }
 
-ModCpt mulLF(MMay m, const ModCpt& x)
+ModCpt mulLF(MMilnor m, const ModCpt& x)
 {
     ModCpt result;
-    May prod;
+    Milnor prod;
     auto p = x.data.begin();
     while (p != x.data.end()) {
         int v = p->v();
@@ -511,12 +455,21 @@ ModCpt mulLF(MMay m, const ModCpt& x)
         for (; p != p1; ++p)
             if (!gcdLF(m, p->m()))
                 prod.data.push_back(mulLF(m, p->m()));
-        SortAndReduce(prod.data);
-        for (MMay T : prod.data)
+        SortMod2(prod.data);
+        for (MMilnor T : prod.data)
             result.data.push_back(MModCpt{T, v});
         prod.data.clear();
     }
     return result;
+}
+
+std::string MMilnor::StrXi()
+{
+    auto xi = ToXi();
+    auto xi_end = xi.end();
+    while (xi_end != xi.begin() && *(xi_end - 1) == 0)
+        --xi_end;
+    return myio::TplStrCont("Sq(", ",", ")", "1", xi.begin(), xi_end, [](int r) { return std::to_string(r); });
 }
 
 }  // namespace steenrod

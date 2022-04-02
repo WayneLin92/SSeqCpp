@@ -18,36 +18,36 @@ namespace detail {
      * Set m = LF(f[i]/g[0])
      * Replace f with f + m * g.
      */
-    inline void Reduce(Mod& f, const Mod& g, const size_t index, MMay& m)
+    inline void Reduce(Mod& f, const Mod& g, const size_t index, MMilnor& m)
     {
         m = divLF(f.data[index].m, g.data[0].m);
-        f += May(m) * g;
+        f += Milnor(m) * g;
     }
 
     inline void Reduce(Mod& f, const Mod& g, const size_t index)
     {
-        MMay m = divLF(f.data[index].m, g.data[0].m);
-        f += May(m) * g;
+        MMilnor m = divLF(f.data[index].m, g.data[0].m);
+        f += Milnor(m) * g;
     }
 }  // namespace detail
 
 struct CriticalPair
 {
     int i1 = -1, i2 = -1;
-    MMay m1, m2;
+    MMilnor m1, m2;
     Mod x;
 
     /* Compute the pair for two leading monomials. */
     CriticalPair() = default;
-    static void SetFromLM(CriticalPair& result, MMay lead1, MMay lead2, int i, int j)
+    static void SetFromLM(CriticalPair& result, MMilnor lead1, MMilnor lead2, int i, int j)
     {
-        MMay gcd = gcdLF(lead1, lead2);
+        MMilnor gcd = gcdLF(lead1, lead2);
         result.m1 = divLF(lead2, gcd);
         result.m2 = divLF(lead1, gcd);
         result.i1 = i;
         result.i2 = j;
     }
-    static CriticalPair Single(MMay m2, int j)
+    static CriticalPair Single(MMilnor m2, int j)
     {
         CriticalPair result;
         result.i1 = -1;
@@ -145,8 +145,8 @@ public:
             int i, j;
             ut::GetPair(ij, i, j);
             while (j != -1) {
-                MMay gcd = gcdLF(leads[i].m, leads[j].m);
-                MMay m2 = divLF(leads[i].m, gcd);
+                MMilnor gcd = gcdLF(leads[i].m, leads[j].m);
+                MMilnor m2 = divLF(leads[i].m, gcd);
                 if (j < (int)buffer_min_pairs_[d].size()) {
                     auto p = std::find_if(buffer_min_pairs_[d][j].begin(), buffer_min_pairs_[d][j].end(), [&m2](const CriticalPair& c) { return c.m2 == m2; });
                     /* Remove it from `buffer_min_pairs_` */
@@ -161,7 +161,7 @@ public:
                 auto end = pairs_[j].end();
                 for (; c < end; ++c) {
                     if (divisibleLF(c->m2, m2)) {
-                        MMay m1 = divLF(leads[j].m, gcd);
+                        MMilnor m1 = divLF(leads[j].m, gcd);
                         if (gcdLF(c->m1, m1)) {
                             j = -1;
                             break;
@@ -222,7 +222,7 @@ public:
         int d_mon = mon.m.deg() + basis_degrees[mon.v];
         singles_.resize(s + 1);
         for (int i : mon.m) {
-            MMay m = MMay::FromIndex(i);
+            MMilnor m = MMilnor::FromIndex(i);
             int d = d_mon + m.deg();
             if (d <= deg_trunc_) {
                 buffer_singles_[d].resize(s + 1);
@@ -302,7 +302,7 @@ private:
         auto p = lead.m.begin();
         while (p != lead.m.end())
             ++p;
-        return TypeIndexKey{lead.v + (*p << 20)}; /* biggest i such that (MMAY_ONE >> (i - 1)) & lead.m is nonzero */
+        return TypeIndexKey{lead.v + (*p << 20)}; /* biggest i such that (MMILNOR_ONE >> (i - 1)) & lead.m is nonzero */
     }
 
     /* Return -1 if not found */
@@ -389,11 +389,11 @@ public:
     {
         Mod result;
         if (p.i1 == -1) {
-            result = May(p.m2) * data_[p.i2];
+            result = Milnor(p.m2) * data_[p.i2];
             p.x = Mod(MMod{p.m2, p.i2});
         }
         else {
-            result = May(p.m1) * data_[p.i1] + May(p.m2) * data_[p.i2];
+            result = Milnor(p.m1) * data_[p.i1] + Milnor(p.m2) * data_[p.i2];
             p.x = Mod(MMod{p.m1, p.i1}) + Mod(MMod{p.m2, p.i2});
         }
 
@@ -401,7 +401,7 @@ public:
         while (index < result.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.data[index]);
             if (gb_index != -1) {
-                MMay m;
+                MMilnor m;
                 detail::Reduce(result, data_[gb_index], index, m);
                 p.x += Mod(MMod{m, gb_index});
             }
@@ -445,7 +445,7 @@ inline int GetS(int v)
 inline int GetV(int s, int index)
 {
     return index + ((S_MAX - s) << 16);
-} 
+}
 inline int GetBaseDeg(const array2d& basis_degrees, int v)
 {
     return basis_degrees[GetS(v)][v & 0xffff];
@@ -455,20 +455,20 @@ struct CriticalPairMinRes
 {
     int i1 = -1, i2 = -1;
     int s = -1;
-    MMay m1, m2;
+    MMilnor m1, m2;
 
     /* Compute the pair for two leading monomials. */
     CriticalPairMinRes() = default;
-    static void SetFromLM(CriticalPairMinRes& result, MMay lead1, MMay lead2, int i, int j, int s)
+    static void SetFromLM(CriticalPairMinRes& result, MMilnor lead1, MMilnor lead2, int i, int j, int s)
     {
-        MMay gcd = gcdLF(lead1, lead2);
+        MMilnor gcd = gcdLF(lead1, lead2);
         result.m1 = divLF(lead2, gcd);
         result.m2 = divLF(lead1, gcd);
         result.i1 = i;
         result.i2 = j;
         result.s = s;
     }
-    static CriticalPairMinRes Single(MMay m2, int j, int s)
+    static CriticalPairMinRes Single(MMilnor m2, int j, int s)
     {
         CriticalPairMinRes result;
         result.m2 = m2;
@@ -483,7 +483,7 @@ using CriticalPairMinRes2d = std::vector<CriticalPairMinRes1d>;
 using PCriticalPairMinRes1d = std::vector<CriticalPairMinRes*>;
 using PCriticalPairMinRes2d = std::vector<PCriticalPairMinRes1d>;
 
-inline void print(const Mod& x)////
+inline void print(const Mod& x)  ////
 {
     if (x.data.empty()) {
         std::cout << '0';
@@ -492,7 +492,7 @@ inline void print(const Mod& x)////
         if (pm != x.data.begin())
             std::cout << '+';
         for (int i : pm->m)
-            std::cout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
+            std::cout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
         std::cout << "v_{" << GetS(pm->v) << ',' << (pm->v & 0xffff) << '}';
     }
 }
@@ -576,8 +576,8 @@ public:
             int i, j;
             ut::GetPair(ij, i, j);
             while (j != -1) {
-                MMay gcd = gcdLF(leads[i].m, leads[j].m);
-                MMay m2 = divLF(leads[i].m, gcd);
+                MMilnor gcd = gcdLF(leads[i].m, leads[j].m);
+                MMilnor m2 = divLF(leads[i].m, gcd);
                 if (j < (int)buffer_min_pairs_[d].size()) {
                     auto p = std::find_if(buffer_min_pairs_[d][j].begin(), buffer_min_pairs_[d][j].end(), [&m2](const CriticalPairMinRes& c) { return c.m2 == m2; });
                     /* Remove it from `buffer_min_pairs_` */
@@ -592,7 +592,7 @@ public:
                 auto end = pairs_[j].end();
                 for (; c < end; ++c) {
                     if (divisibleLF(c->m2, m2)) {
-                        MMay m1 = divLF(leads[j].m, gcd);
+                        MMilnor m1 = divLF(leads[j].m, gcd);
                         if (gcdLF(c->m1, m1)) {
                             j = -1;
                             break;
@@ -614,9 +614,9 @@ public:
                     std::cout << "\nleads[j]=";
                     print(Mod(leads[j]));
                     std::cout << '\n';
-                    std::cout << "m2=" << May(m2) << '\n';
+                    std::cout << "m2=" << Milnor(m2) << '\n';
                     for (size_t k = 0; k < pairs_[j].size(); ++k)
-                        std::cout << "pairs_[j][k].m2" << May(pairs_[j][k].m2) << '\n';
+                        std::cout << "pairs_[j][k].m2" << Milnor(pairs_[j][k].m2) << '\n';
                     throw MyException(0xfa5db14U, "Should not happen because pairs_ is groebner");
                 }
 #endif
@@ -664,7 +664,7 @@ public:
         int d_mon = mon.m.deg() + d_mon_base;
         singles_.resize(s + 1);
         for (int i : mon.m) {
-            MMay m = MMay::FromIndex(i);
+            MMilnor m = MMilnor::FromIndex(i);
             int d = d_mon + m.deg();
             if (d <= deg_trunc_) {
                 buffer_singles_[d].resize(s + 1);
@@ -688,8 +688,8 @@ public:
                             int dij = lcmLF(leads[i].m, leads[j].m).deg() + d_mon_base;
                             if (dij <= deg_trunc_) {
                                 /*if (i == 31 && j == 80) {
-                                    std::cout << "new_pairs[i].second.m2=" << May(new_pairs[i].second.m2) << '\n';
-                                    std::cout << "new_pairs[j].second.m2=" << May(new_pairs[j].second.m2) << '\n';
+                                    std::cout << "new_pairs[i].second.m2=" << Milnor(new_pairs[i].second.m2) << '\n';
+                                    std::cout << "new_pairs[j].second.m2=" << Milnor(new_pairs[j].second.m2) << '\n';
                                     std::cout << "s=" << s << "  \n";
                                     std::cout << "mon=";
                                     print(Mod(mon));
@@ -760,7 +760,7 @@ private:
         auto p = lead.m.begin();
         while (p != lead.m.end())
             ++p;
-        return TypeIndexKey(lead.v) + (TypeIndexKey(*p) << 32); /* biggest i such that (MMAY_ONE >> (i - 1)) & lead.m is nonzero */
+        return TypeIndexKey(lead.v) + (TypeIndexKey(*p) << 32); /* biggest i such that (MMILNOR_ONE >> (i - 1)) & lead.m is nonzero */
     }
 
     /* Return -1 if not found */
@@ -822,7 +822,7 @@ public: /* Getters and Setters */
     void push_back(Mod g)
     {
         MMod mv = g.GetLead();
-        gb_pairs_.AddToBuffers(leads_, mv, GetBaseDeg(basis_degrees_, mv.v)); // TODO: modify the counterpart in algebras/groebner.h
+        gb_pairs_.AddToBuffers(leads_, mv, GetBaseDeg(basis_degrees_, mv.v));  // TODO: modify the counterpart in algebras/groebner.h
 
         leads_.push_back(mv);
         index_[Key(mv)].push_back((int)data_.size());
@@ -837,8 +837,8 @@ public: /* Getters and Setters */
         kernel_[s].push_back(g);
         basis_degrees_[size_t(s + 1)].push_back(d);
 
-        g.data.push_back(MMod{MMay(0), GetV(s + 1, (int)basis_degrees_[size_t(s + 1)].size() - 1)});
-        push_back(std::move(g)); 
+        g.data.push_back(MMod{MMilnor(0), GetV(s + 1, (int)basis_degrees_[size_t(s + 1)].size() - 1)});
+        push_back(std::move(g));
     }
     void AddPairsAndMinimize(int deg)
     {
@@ -859,17 +859,17 @@ public:
     {
         Mod result;
         if (p.i1 == -1) {
-            result = May(p.m2) * data_[p.i2];
+            result = Milnor(p.m2) * data_[p.i2];
         }
         else {
-            result = May(p.m1) * data_[p.i1] + May(p.m2) * data_[p.i2];
+            result = Milnor(p.m1) * data_[p.i1] + Milnor(p.m2) * data_[p.i2];
         }
 
         size_t index = 0;
         while (index < result.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.data[index]);
             if (gb_index != -1) {
-                MMay m; ////
+                MMilnor m;  ////
                 detail::Reduce(result, data_[gb_index], index, m);
             }
             else
@@ -895,10 +895,10 @@ public:
     {
         Mod result;
         if (p.i1 == -1) {
-            result = May(p.m2) * data_[p.i2];
+            result = Milnor(p.m2) * data_[p.i2];
         }
         else {
-            result = May(p.m1) * data_[p.i1] + May(p.m2) * data_[p.i2];
+            result = Milnor(p.m1) * data_[p.i1] + Milnor(p.m2) * data_[p.i2];
         }
 
         size_t index = 0;

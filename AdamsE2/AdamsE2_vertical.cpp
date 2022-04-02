@@ -1,7 +1,7 @@
-#include "groebner_steenrod.h"
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/utility.h"
+#include "groebner_steenrod.h"
 
 void AdamsE2()
 {
@@ -13,8 +13,8 @@ void AdamsE2()
     int s_trunc = t_trunc / 3 + 1;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {
-        rels.push_back(MMod{MMay::P(i, i + 1), 0});
-        if (MMay::P(i, i + 1).deg() > t_trunc)
+        rels.push_back(MMod{MMilnor::P(i, i + 1), 0});
+        if (MMilnor::P(i, i + 1).deg() > t_trunc)
             break;
     }
     array basis_degrees = {0};
@@ -30,7 +30,7 @@ void AdamsE2()
 
         Mod1d map(gb.size());
         for (size_t i = 0, j = 0; i < min_gb.size(); ++i)
-            map[min_gb[i]] = MMod{MMay{0}, (int)j++};
+            map[min_gb[i]] = MMod{MMilnor{0}, (int)j++};
         for (size_t i = 0, j = 0; i < map.size(); ++i)
             if (map[i].data.empty())
                 map[i] = subs(red_gb[j++], map);
@@ -65,22 +65,23 @@ void AdamsE2V2()
     int t_trunc = 50;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {
-        rels.push_back(MMod{MMay::P(i, i + 1), GetV(0, 0)});
-        if (MMay::P(i, i + 1).deg() > t_trunc)
+        rels.push_back(MMod{MMilnor::P(i, i + 1), GetV(0, 0)});
+        if (MMilnor::P(i, i + 1).deg() > t_trunc)
             break;
     }
     array2d basis_degrees = {{0}};
     GroebnerMinRes gb(t_trunc, basis_degrees);
     AddRelsMinRes(gb, rels, t_trunc);
-    //std::cout << "gb:\n";
-    //for (auto& g : gb.data()) {////
-    //    std::cout << "t=" << g.GetLead().m.deg() + GetBaseDeg(gb.basis_degs(), g.GetLead().v) << ' ';
-    //    print(g);
-    //    std::cout << '\n';
-    //}
+    // std::cout << "gb:\n";
+    // for (auto& g : gb.data()) {////
+    //     std::cout << "t=" << g.GetLead().m.deg() + GetBaseDeg(gb.basis_degs(), g.GetLead().v) << ' ';
+    //     print(g);
+    //     std::cout << '\n';
+    // }
 }
 
-int main() {
+int main()
+{
     AdamsE2V2();
     return 0;
 }

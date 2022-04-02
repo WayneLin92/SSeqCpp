@@ -5,6 +5,34 @@
 #include "myparser.h"
 #include <sstream>
 
+namespace myio {
+
+template <typename FwdIt, typename FnStr>
+std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str)
+{
+    std::string result;
+    if (first == last)
+        result += empty;
+    else {
+        result += left;
+        result += str(*first);
+        while (++first != last) {
+            result += sep;
+            result += str(*first);
+        }
+        result += right;
+    }
+    return result;
+}
+
+template <typename Container, typename FnStr>
+std::string StrCont(const char* left, const char* sep, const char* right, const char* empty, const Container& cont, FnStr str)
+{
+    return TplStrCont(left, sep, right, empty, cont.begin(), cont.end(), str);
+}
+
+}  // namespace myio
+
 
 // TODO: add namespace myio
 // clang-format off

@@ -16,19 +16,19 @@ namespace steenrod {
 struct CriPairMRes
 {
     int i1 = -1, i2 = -1;
-    MMay m1, m2;
+    MMilnor m1, m2;
 
     /* Compute the pair for two leading monomials. */
     CriPairMRes() = default;
-    static void SetFromLM(CriPairMRes& result, MMay lead1, MMay lead2, int i, int j)
+    static void SetFromLM(CriPairMRes& result, MMilnor lead1, MMilnor lead2, int i, int j)
     {
-        MMay gcd = gcdLF(lead1, lead2);
+        MMilnor gcd = gcdLF(lead1, lead2);
         result.m1 = divLF(lead2, gcd);
         result.m2 = divLF(lead1, gcd);
         result.i1 = i;
         result.i2 = j;
     }
-    static CriPairMRes Single(MMay m2, int j)
+    static CriPairMRes Single(MMilnor m2, int j)
     {
         CriPairMRes result;
         result.m2 = m2;
@@ -52,7 +52,7 @@ inline void print(const ModCpt& x)  // For debugging
         if (pm != x.data.begin())
             std::cout << '+';
         for (int i : pm->m())
-            std::cout << "P_{" << MMAY_GEN_I[i] << MMAY_GEN_J[i] << '}';
+            std::cout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
         std::cout << "v_{" << pm->v() << '}';
     }
 }
@@ -164,7 +164,7 @@ struct DataMRes
         return *this;
     }
 };
-inline DataMRes operator*(const May& a, const DataMRes& x)
+inline DataMRes operator*(const Milnor& a, const DataMRes& x)
 {
     return DataMRes{a * x.x1, a * x.x2};
 }
@@ -305,7 +305,7 @@ public: /* Getters and Setters */
         kernel_[s].push_back(x2);
         basis_degrees_[size_t(s + 1)].push_back(t);
 
-        ModCpt x3 = MModCpt(MMay(0), (int)basis_degrees_[size_t(s + 1)].size() - 1);
+        ModCpt x3 = MModCpt(MMilnor(0), (int)basis_degrees_[size_t(s + 1)].size() - 1);
         DataMRes g = DataMRes{std::move(x2), x3, x3};
         rels.push_back(g);
         push_back(std::move(g), s, t);
@@ -331,9 +331,9 @@ public:
         DataMRes result;
 
         if (p.i1 >= 0)
-            result = May(p.m1) * data_[s][p.i1] + May(p.m2) * data_[s][p.i2];
+            result = Milnor(p.m1) * data_[s][p.i1] + Milnor(p.m2) * data_[s][p.i2];
         else
-            result = May(p.m2) * data_[s][p.i2];
+            result = Milnor(p.m2) * data_[s][p.i2];
 
         size_t index;
 
@@ -341,8 +341,8 @@ public:
         while (index < result.x1.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
             if (gb_index != -1) {
-                MMay m = divLF(result.x1.data[index].m(), data_[s][gb_index].x1.data[0].m());
-                result += May(m) * data_[s][gb_index];
+                MMilnor m = divLF(result.x1.data[index].m(), data_[s][gb_index].x1.data[0].m());
+                result += Milnor(m) * data_[s][gb_index];
             }
             else
                 ++index;
@@ -351,8 +351,8 @@ public:
         while (index < result.x2.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
             if (gb_index != -1) {
-                MMay m = divLF(result.x2.data[index].m(), data_[size_t(s + 1)][gb_index].x1.data[0].m());
-                result.x2 += May(m) * data_[size_t(s + 1)][gb_index].x1;
+                MMilnor m = divLF(result.x2.data[index].m(), data_[size_t(s + 1)][gb_index].x1.data[0].m());
+                result.x2 += Milnor(m) * data_[size_t(s + 1)][gb_index].x1;
             }
             else
                 ++index;
@@ -368,8 +368,8 @@ public:
         while (index < x2.data.size()) {
             int gb_index = IndexOfDivisibleLeading(x2.data[index], s);
             if (gb_index != -1) {
-                MMay m = divLF(x2.data[index].m(), data_[s][gb_index].x1.data[0].m());
-                x2 += May(m) * data_[s][gb_index].x1;
+                MMilnor m = divLF(x2.data[index].m(), data_[s][gb_index].x1.data[0].m());
+                x2 += Milnor(m) * data_[s][gb_index].x1;
             }
             else
                 ++index;

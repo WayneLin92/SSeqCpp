@@ -23,8 +23,8 @@ void GbCriPairsMRes::Minimize(const MModCpt1d& leads, AdamsDeg st)
         int i, j;
         ut::GetPair(ij, i, j);
         while (j != -1) {
-            MMay gcd = gcdLF(leads[i].m(), leads[j].m());
-            MMay m2 = divLF(leads[i].m(), gcd);
+            MMilnor gcd = gcdLF(leads[i].m(), leads[j].m());
+            MMilnor m2 = divLF(leads[i].m(), gcd);
             if (j < (int)b_min_pairs_st.size()) {
                 auto p = std::find_if(b_min_pairs_st[j].begin(), b_min_pairs_st[j].end(), [&m2](const CriPairMRes& c) { return c.m2 == m2; });
                 /* Remove it from `buffer_min_pairs_` */
@@ -39,7 +39,7 @@ void GbCriPairsMRes::Minimize(const MModCpt1d& leads, AdamsDeg st)
             auto end = pairs_[st.s][j].end();
             for (; c < end; ++c) {
                 if (divisibleLF(c->m2, m2)) {
-                    MMay m1 = divLF(leads[j].m(), gcd);
+                    MMilnor m1 = divLF(leads[j].m(), gcd);
                     if (gcdLF(c->m1, m1)) {
                         j = -1;
                         break;
@@ -61,9 +61,9 @@ void GbCriPairsMRes::Minimize(const MModCpt1d& leads, AdamsDeg st)
                 std::cout << "\nleads[j]=";
                 print(ModCpt(leads[j]));
                 std::cout << '\n';
-                std::cout << "m2=" << May(m2) << '\n';
+                std::cout << "m2=" << Milnor(m2) << '\n';
                 for (size_t k = 0; k < pairs_[st.s][j].size(); ++k)
-                    std::cout << "pairs_[j][k].m2" << May(pairs_[st.s][j][k].m2) << '\n';
+                    std::cout << "pairs_[j][k].m2" << Milnor(pairs_[st.s][j][k].m2) << '\n';
                 throw MyException(0xfa5db14U, "Should not happen because pairs_ is groebner");
             }
 #endif
@@ -97,7 +97,7 @@ void GbCriPairsMRes::AddToBuffers(const MModCpt1d& leads, MModCpt mon, int d_mon
     /* Compute sigma_j */
     int d_mon = mon.m().deg() + d_mon_base;
     for (int i : mon.m()) {
-        MMay m = MMay::FromIndex(i);
+        MMilnor m = MMilnor::FromIndex(i);
         AdamsDeg st{s, d_mon + m.deg()};
         if (st.t <= deg_trunc_)
             buffer_singles_[st].push_back(CriPairMRes::Single(m, (int)lead_size));
@@ -167,7 +167,7 @@ void GbCriPairsMRes::init(const MModCpt2d& leads, const array2d& basis_degrees)
 
             /* Compute sigma_j */
             for (int i : mon.m()) {
-                MMay m = MMay::FromIndex(i);
+                MMilnor m = MMilnor::FromIndex(i);
                 AdamsDeg st{s, d_mon + m.deg()};
                 if (st.t <= deg_trunc_ && st.t >= t_min_buffer)
                     ;
@@ -355,7 +355,7 @@ void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg)
                         if (std::binary_search(x2_LFs[i].data.begin(), x2_LFs[i].data.end(), x2_LFs[ind[j]].GetLead()))
                             x2_LFs[i] += x2_LFs[ind[j]];
                     if (x2_LFs[i])
-                        ind.push_back(i);
+                        ind.push_back((int)i);
                     else
                         bench::Counter(4);
                 }
@@ -440,19 +440,19 @@ void generate_basis(const std::string& filename, int t_trunc)
     using namespace steenrod;
     std::cout << "Constructing basis..." << std::endl;
 
-    std::map<int, steenrod::MMay1d> basis;
-    basis[0].push_back(MMay(0));
+    std::map<int, steenrod::MMilnor1d> basis;
+    basis[0].push_back(MMilnor(0));
 
     /* Add new basis */
     for (int t = 0; t <= t_trunc; ++t) {
         std::cout << "t=" << t << "          \r";
-        for (size_t gen_id = steenrod::MMAY_INDEX_NUM; gen_id-- > 0;) {
-            MMay m = MMay::FromIndex(gen_id);
-            int t1 = t - MMAY_GEN_DEG[gen_id];
+        for (size_t gen_id = steenrod::MMILNOR_INDEX_NUM; gen_id-- > 0;) {
+            MMilnor m = MMilnor::FromIndex(gen_id);
+            int t1 = t - MMILNOR_GEN_DEG[gen_id];
             if (t1 >= 0) {
-                for (MMay m1 : basis[t1]) {
+                for (MMilnor m1 : basis[t1]) {
                     if (!m1 || gen_id < *m1.begin()) {
-                        MMay prod = mulLF(m, m1);
+                        MMilnor prod = mulLF(m, m1);
                         basis[t].push_back(prod);
                     }
                 }
@@ -467,7 +467,7 @@ void generate_basis(const std::string& filename, int t_trunc)
     db.begin_transaction();
     myio::Statement stmt(db, "INSERT INTO Steenrod_basis (base, t, w) VALUES (?1, ?2, ?3);");
     for (int t = 0; t <= t_trunc; ++t) {
-        for (MMay m : basis[t]) {
+        for (MMilnor m : basis[t]) {
             stmt.bind_int64(1, (int64_t)m.data());
             stmt.bind_int(2, t);
             stmt.bind_int(3, m.weight());

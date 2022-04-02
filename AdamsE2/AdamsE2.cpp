@@ -12,11 +12,11 @@ void AdamsE2()
 
     bench::Timer timer;
 
-    int t_trunc = 100;
+    int t_trunc = 70;
     ModCpt1d rels;
     for (int i = 0; i < 10; ++i) {
-        rels.push_back(MModCpt(MMay::P(i, i + 1), 0));
-        if (MMay::P(i, i + 1).deg() > t_trunc)
+        rels.push_back(MModCpt(MMilnor::P(i, i + 1), 0));
+        if (MMilnor::P(i, i + 1).deg() > t_trunc)
             break;
     }
     auto gb = GroebnerMRes::load("AdamsE2.db", t_trunc);

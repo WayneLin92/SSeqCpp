@@ -52,13 +52,13 @@ void AddRels(Groebner& gb, const Mod1d& rels, int deg, array& min_gb, Mod1d& red
                 if (std::binary_search(rels_tmp[i].data.begin(), rels_tmp[i].data.end(), rels_d[j].GetLead())) {
                     rels_tmp[i] += rels_d[j];
                     if (i < size_pairs_d)
-                        pairs_d[i]->x += MMod{MMay{0}, int(gb.size() + j)};
+                        pairs_d[i]->x += MMod{MMilnor{0}, int(gb.size() + j)};
                 }
             }
             if (rels_tmp[i]) {
                 if (i < size_pairs_d) {
                     redundent_gb.push_back(pairs_d[i]->x);
-                    pairs_d[i]->x += MMod{MMay{0}, int(gb.size() + rels_d.size())};
+                    pairs_d[i]->x += MMod{MMilnor{0}, int(gb.size() + rels_d.size())};
                 }
                 else
                     min_gb.push_back(int(gb.size() + rels_d.size()));
@@ -92,7 +92,7 @@ void AddRelsMinRes(GroebnerMinRes& gb, const Mod1d& rels, int deg)
     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
     for (int d = 1; d <= deg && (d <= deg_max_rels || !gb.gb_pairs().empty_pairs_for_gb()); ++d) {
         std::cout << "t=" << d << "                   \n";
-        
+
         PCriticalPairMinRes2d pairs_d;
         if (!gb.gb_pairs().empty_pairs_for_gb_d(d)) {
             gb.AddPairsAndMinimize(d);
@@ -184,4 +184,4 @@ void AddRelsMinRes(GroebnerMinRes& gb, const Mod1d& rels, int deg)
     }
 }
 
-}
+}  // namespace steenrod
