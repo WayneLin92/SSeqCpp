@@ -185,18 +185,6 @@ inline void GetPair(uint64_t ij, int& i, int& j)
     j = int(ij & 0x7fffffff);
 }
 
-/* Reverse the bits */
-inline uint64_t Reverse(uint64_t b)
-{
-    b = (b & 0xFFFFFFFF00000000) >> 32 | (b & 0x00000000FFFFFFFF) << 32;
-    b = (b & 0xFFFF0000FFFF0000) >> 16 | (b & 0x0000FFFF0000FFFF) << 16;
-    b = (b & 0xFF00FF00FF00FF00) >> 8 | (b & 0x00FF00FF00FF00FF) << 8;
-    b = (b & 0xF0F0F0F0F0F0F0F0) >> 4 | (b & 0x0F0F0F0F0F0F0F0F) << 4;
-    b = (b & 0xCCCCCCCCCCCCCCCC) >> 2 | (b & 0x3333333333333333) << 2;
-    b = (b & 0xAAAAAAAAAAAAAAAA) >> 1 | (b & 0x5555555555555555) << 1;
-    return b;
-}
-
 inline int popcount(unsigned int i)
 {
 #if defined(_MSC_VER)
@@ -206,10 +194,7 @@ inline int popcount(unsigned int i)
 #elif defined(__clang__)
     return std::__popcount(i);
 #else
-    i = i - ((i >> 1) & 0x55555555);                 // add pairs of bits
-    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);  // quads
-    i = (i + (i >> 4)) & 0x0F0F0F0F;                 // groups of 8
-    return (i * 0x01010101) >> 24;                   // horizontal sum of bytes
+    return std::__popcount(i);
 #endif
 }
 
@@ -222,10 +207,7 @@ inline int popcount(uint64_t i)
 #elif defined(__clang__)
     return std::__popcount(i);
 #else
-    i = i - ((i >> 1) & 0x55555555);                 // add pairs of bits
-    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);  // quads
-    i = (i + (i >> 4)) & 0x0F0F0F0F;                 // groups of 8
-    return (i * 0x01010101) >> 24;                   // horizontal sum of bytes
+    return std::__popcount(i);
 #endif
 }
 

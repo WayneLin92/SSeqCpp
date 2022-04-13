@@ -207,7 +207,7 @@ public:
         return result;
     }
 
-    std::string StrXi();
+    std::string StrXi() const;
 
 public:
     class iterator
@@ -276,6 +276,31 @@ public:
 using MMilnor1d = std::vector<MMilnor>;
 using MMilnor2d = std::vector<MMilnor1d>;
 
+inline MMilnor mulLF(MMilnor m1, MMilnor m2)
+{
+    return m1.mulLF(m2);
+}
+
+inline MMilnor divLF(MMilnor m1, MMilnor m2)
+{
+    return m1.divLF(m2);
+}
+
+inline bool divisibleLF(MMilnor m1, MMilnor m2)
+{
+    return m1.divisibleLF(m2);
+}
+
+inline MMilnor gcdLF(MMilnor m1, MMilnor m2)
+{
+    return m1.gcdLF(m2);
+}
+
+inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
+{
+    return m1.lcmLF(m2);
+}
+
 /* Elements of A as linear combinations of Milnor basis
  */
 struct Milnor
@@ -303,136 +328,18 @@ struct Milnor
         return *this;
     }
     Milnor operator*(const Milnor& rhs) const;
-    Milnor mul(MMilnor rhs) const;
+
+    std::string StrXi() const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const Milnor& x);
-
-inline MMilnor mulLF(MMilnor m1, MMilnor m2)
+inline Milnor operator*(MMilnor m1, MMilnor m2) ////
 {
-    return m1.mulLF(m2);
-}
-
-inline MMilnor divLF(MMilnor m1, MMilnor m2)
-{
-    return m1.divLF(m2);
-}
-
-inline bool divisibleLF(MMilnor m1, MMilnor m2)
-{
-    return m1.divisibleLF(m2);
-}
-
-inline MMilnor gcdLF(MMilnor m1, MMilnor m2)
-{
-    return m1.gcdLF(m2);
-}
-
-inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
-{
-    return m1.lcmLF(m2);
+    return Milnor(m1) * Milnor(m2);
 }
 
 /********************************************************
- *                      Modules
- ********************************************************/
-/* Modules over A
- */
-struct MMod
-{
-    MMilnor m;
-    int v;
-    bool operator<(MMod rhs) const
-    {
-        if (v > rhs.v)
-            return true;
-        if (v < rhs.v)
-            return false;
-        if (m < rhs.m)
-            return true;
-        return false;
-    };
-    bool operator==(MMod rhs) const
-    {
-        return m == rhs.m && v == rhs.v;
-    };
-    int deg(const array& basis_degs)
-    {
-        return m.deg() + basis_degs[v];
-    }
-};
-using MMod1d = std::vector<MMod>;
-
-struct Mod
-{
-    MMod1d data;
-    Mod() {}
-    Mod(MMod mv) : data({mv}) {}
-    Mod(const Milnor& a, int v)
-    {
-        for (MMilnor m : a.data)
-            data.push_back(MMod{m, v});
-    }
-
-    MMod GetLead() const
-    {
-#ifndef NDEBUG
-        if (data.empty())
-            throw MyException(0x900cee0fU, "Mod empty");
-#endif
-        return data[0];
-    }
-
-    explicit operator bool() const
-    {
-        return !data.empty();
-    }
-    Mod operator+(const Mod& rhs) const
-    {
-        Mod result;
-        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
-        return result;
-    }
-    Mod& operator+=(const Mod& rhs)
-    {
-        Mod tmp;
-        std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
-        return *this;
-    }
-    bool operator==(const Mod& rhs) const
-    {
-        return data == rhs.data;
-    };
-};
-using Mod1d = std::vector<Mod>;
-using Mod2d = std::vector<Mod1d>;
-
-std::ostream& operator<<(std::ostream& sout, const Mod& x);
-Mod operator*(const Milnor& a, const Mod& x);
-
-template <typename FnMap>
-Mod TplSubs(const Mod& x, FnMap map)
-{
-    Mod result;
-    for (const MMod& mv : x.data)
-        result += Milnor(mv.m) * map(mv.v);
-    return result;
-}
-
-/**
- * Replace v_i with `map[i]`.
- */
-inline Mod subs(const Mod& x, const Mod1d& map)
-{
-    Mod result;
-    for (const MMod& mv : x.data)
-        result += Milnor(mv.m) * map[mv.v];
-    return result;
-}
-
-/********************************************************
- *          Modules with Compact data structure
+ *                    Modules
  ********************************************************/
 
 /* The left 12 bits will be used to store the basis */
@@ -440,24 +347,24 @@ inline constexpr unsigned MMOD_BASIS_BITS = 12;
 inline constexpr uint64_t MMOD_MASK_M = (uint64_t(1) << (64 - MMOD_BASIS_BITS)) - 1;
 inline constexpr uint64_t MMOD_MASK_V = ~MMOD_MASK_M;
 /* Modules over A */
-class MModCpt
+class MMod
 {
 private:
     uint64_t data_;
 
 public:
-    MModCpt() : data_(0) {}
-    MModCpt(uint64_t data) : data_(data) {}
-    MModCpt(MMilnor m, int v) : data_(m.data() + ((~uint64_t(v)) << (64 - MMOD_BASIS_BITS))) {}
+    MMod() : data_(0) {}
+    MMod(uint64_t data) : data_(data) {}
+    MMod(MMilnor m, int v) : data_(m.data() + ((~uint64_t(v)) << (64 - MMOD_BASIS_BITS))) {}
 
-    bool operator<(MModCpt rhs) const
-    {
-        return data_ < rhs.data_;
-    };
-    bool operator==(MModCpt rhs) const
+    bool operator==(MMod rhs) const
     {
         return data_ == rhs.data_;
     };
+    bool cmpLF(MMod rhs) const
+    {
+        return data_ < rhs.data_;
+    }
     explicit operator bool() const
     {
         return data_;
@@ -470,22 +377,35 @@ public:
     {
         return int((~data_) >> (64 - MMOD_BASIS_BITS));
     }
+    std::string Str() const;
+    std::string StrXi() const;
 };
-using MModCpt1d = std::vector<MModCpt>;
-using MModCpt2d = std::vector<MModCpt1d>;
+using MMod1d = std::vector<MMod>;
+using MMod2d = std::vector<MMod1d>;
 
-struct ModCpt
+inline bool cmpLF(MMod lhs, MMod rhs)
 {
-    MModCpt1d data;
-    ModCpt() {}
-    ModCpt(MModCpt mv) : data({mv}) {}
-    ModCpt(const Milnor& a, int v)
+    return lhs.cmpLF(rhs);
+}
+
+inline MMod mulLF(MMilnor m, MMod x)
+{
+    return MMod(mulLF(m, x.m()), x.v());
+}
+
+struct Mod
+{
+    MMod1d data;
+    Mod() {}
+    Mod(MMod mv) : data({mv}) {}
+    Mod(const Milnor& a, int v)
     {
+        data.reserve(a.data.size());
         for (MMilnor m : a.data)
-            data.push_back(MModCpt(m, v));
+            data.push_back(MMod(m, v));
     }
 
-    MModCpt GetLead() const
+    MMod GetLead() const
     {
 #ifndef NDEBUG
         if (data.empty())
@@ -498,34 +418,96 @@ struct ModCpt
     {
         return !data.empty();
     }
-    ModCpt operator+(const ModCpt& rhs) const
+    template<typename FnCmp>
+    Mod add(const Mod& rhs, FnCmp cmp) const
     {
-        ModCpt result;
-        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
+        Mod result;
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), cmp);
         return result;
     }
-    ModCpt& operator+=(const ModCpt& rhs)
+    template <typename FnCmp>
+    Mod& iadd(const Mod& rhs, FnCmp cmp)
     {
-        ModCpt tmp;
+        Mod tmp;
         std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), cmp);
+        return *this;                                                                                                          
+    }
+    Mod addLF(const Mod& rhs) const
+    {
+        Mod result;
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), cmpLF);
+        return result;
+    }
+    Mod& iaddLF(const Mod& rhs)
+    {
+        Mod tmp;
+        std::swap(data, tmp.data);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), cmpLF);
         return *this;
     }
-    bool operator==(const ModCpt& rhs) const
+    bool operator==(const Mod& rhs) const
     {
         return data == rhs.data;
     };
+
+    std::string StrXi() const;
 };
-using ModCpt1d = std::vector<ModCpt>;
-using ModCpt2d = std::vector<ModCpt1d>;
-using ModCpt3d = std::vector<ModCpt2d>;
+using Mod1d = std::vector<Mod>;
+using Mod2d = std::vector<Mod1d>;
+using Mod3d = std::vector<Mod2d>;
 
-std::ostream& operator<<(std::ostream& sout, const ModCpt& x);
-ModCpt operator*(const Milnor& a, const ModCpt& x);
+std::ostream& operator<<(std::ostream& sout, const Mod& x);
+
+namespace detail {
+    void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result);
+    void MulMilnor(MMilnor lhs, MMod rhs, Mod& result);
+
+    template <typename FnCmp>
+    void SortMod2(MMod1d& data, FnCmp cmp)
+    {
+        std::sort(data.begin(), data.end(), cmp);
+        for (size_t i = 0; i + 1 < data.size(); ++i)
+            if (data[i] == data[i + 1]) {
+                data[i] = MMod(0xffffffffffffffff);
+                data[++i] = MMod(0xffffffffffffffff);
+            }
+        ut::RemoveIf(data, [](const MMod& m) { return m == MMod(0xffffffffffffffff); });
+    }
+}
+
+template <typename FnCmp>
+Mod mulMod(MMilnor m, const Mod& x, FnCmp cmp)
+{
+    Mod result;
+    for (MMod m2 : x.data)
+        detail::MulMilnor(m, m2, result);
+    detail::template SortMod2(result.data, cmp);
+    return result;
+}
+
 /* Compute the product in the associated graded algebra */
-ModCpt mulLF(MMilnor m, const ModCpt& x);
+Mod mulLF(MMilnor m, const Mod& x);
 
-void MulMilnorV3(MMilnor lhs, MMilnor rhs, Milnor& result);  ////
+template <typename FnMap>
+Mod TplSubs(const Mod& x, FnMap map)
+{
+    Mod result;
+    for (const MMod& mv : x.data)
+        result += Milnor(mv.m()) * map(mv.v());
+    return result;
+}
+
+///**
+// * Replace v_i with `map[i]`.
+// */
+//inline Mod subs(const Mod& x, const Mod1d& map)
+//{
+//    Mod result;
+//    for (const MMod& mv : x.data)
+//        result += Milnor(mv.m()) * map[mv.v()];
+//    return result;
+//}
 
 }  // namespace steenrod
 

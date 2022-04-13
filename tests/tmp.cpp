@@ -2,6 +2,7 @@
 #include "algebras/dbalg.h"
 #include "algebras/steenrod.h"
 #include "algebras/utility.h"
+#include <immintrin.h>
 
 void compare_computations()
 {
@@ -89,26 +90,18 @@ void test()
 {
     using namespace steenrod;
 
-    auto R = MMilnor{{0, 0, 1, 1, 1}};
-    auto S = MMilnor{{0, 0, 0, 1}};
-    std::cout << R << '\n';
-    std::cout << S << '\n';
-
-    std::cout << (Milnor(R.ToMMay()) * Milnor(S.ToMMay())).ToMilnor() << '\n';
-
-    /*auto a = Milnor::P(0, 2);
-    auto b = Milnor::P(0, 2);
-
-    std::cout << a << '\n';
-    std::cout << b << '\n';
-    std::cout << a * b << '\n';*/
-    std::cout << std::hex;
+    auto xi = MMilnor::Xi;
+    auto p = MMilnor::P;
+    std::cout << xi({5, 0, 1}) * p(1, 2) << '\n';
+    std::cout << xi({6, 0, 1}) * p(0, 1) << '\n';
+    std::cout << xi({0, 1, 1}) * p(2, 3) << '\n';
+    std::cout << xi({0, 2, 1}) * p(0, 1) << '\n';
 }
 
 std::vector<double> bench::Timer::counts_ = {};
 int main()
 {
     test();
-
+    
     return 0;
 }

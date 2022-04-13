@@ -8,7 +8,7 @@
 #include "algebras/steenrod.h"
 #include <execution>
 #include <map>
-#include <unordered_map >
+#include <unordered_map>
 #include <unordered_set>
 
 namespace steenrod {
@@ -42,20 +42,6 @@ using CriPairMRes2d = std::vector<CriPairMRes1d>;
 using CriPairMRes3d = std::vector<CriPairMRes2d>;
 using PCriPairMRes1d = std::vector<CriPairMRes*>;
 using PCriPairMRes2d = std::vector<PCriPairMRes1d>;
-
-inline void print(const ModCpt& x)  // For debugging
-{
-    if (x.data.empty()) {
-        std::cout << '0';
-    }
-    for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
-        if (pm != x.data.begin())
-            std::cout << '+';
-        for (int i : pm->m())
-            std::cout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
-        std::cout << "v_{" << pm->v() << '}';
-    }
-}
 
 struct AdamsDeg
 {
@@ -132,7 +118,8 @@ public:
         if (buffer_min_pairs_.find(st) != buffer_min_pairs_.end()) {
             for (int j = 0; j < (int)buffer_min_pairs_.at(st).size(); ++j)
                 for (auto& pair : buffer_min_pairs_.at(st)[j])
-                    result.push_back(std::move(pair));
+                    if (pair.i2 != -1)
+                        result.push_back(std::move(pair));
             buffer_min_pairs_.erase(st);
         }
 
@@ -140,34 +127,83 @@ public:
     }
 
     /* Minimize `buffer_min_pairs_[t]` and maintain `pairs_` */
-    void Minimize(const MModCpt1d& leads, AdamsDeg st);
+    void Minimize(const MMod1d& leads, AdamsDeg st);
 
     /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
     */
-    void AddToBuffers(const MModCpt1d& leads, MModCpt mon, int d_mon_base, int s);
+    void AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base, int s);
 
-    void init(const MModCpt2d& leads, const array2d& basis_degrees);
+    void init(const MMod2d& leads, const array2d& basis_degrees);
+};
+
+/*
+ * This class allows exponents up to 255
+*/
+struct MMilnorE
+{
+    std::array<unsigned char, MMILNOR_INDEX_NUM + 1> data = {};
+    MMilnorE mulLF(MMilnor m) const
+    {
+        MMilnorE result = *this;
+        result.data[0] += m.weight();
+        for (int i : m)
+            ++result.data[size_t(i + 1)];
+        return result;
+    }
+    MMilnorE& imul(MMilnor m)
+    {
+        data[0] += m.weight();
+        for (int i : m)
+            ++data[size_t(i + 1)];
+        return *this;
+    }
+    bool operator<(const MMilnorE& rhs) const
+    {
+        return std::memcmp(data.data(), rhs.data.data(), sizeof(data)) < 0;
+    }
+    bool operator==(const MMilnorE& rhs) const
+    {
+        return std::memcmp(data.data(), rhs.data.data(), sizeof(data)) == 0;
+    }
+};
+using MMilnorE1d = std::vector<MMilnorE>;
+using MMilnorE2d = std::vector<MMilnorE1d>;
+
+std::ostream& operator<<(std::ostream& sout, const MMilnorE& x);
+
+inline MMilnorE mulE(MMilnor m1, MMilnor m2)
+{
+    return MMilnorE().imul(m1).imul(m2);
+}
+
+struct CmpMMod
+{
+    const MMilnorE1d& mDiffLF_;
+    const array& ind_indices_;
+    CmpMMod(const MMilnorE1d& mDiffLF, const array& ind_indices) : mDiffLF_(mDiffLF), ind_indices_(ind_indices) {}
+    bool operator()(MMod mv1, MMod mv2)  // TODO: if v1 == v2 then no need to compute m1, m2
+    {
+        int v1 = mv1.v(), v2 = mv2.v();
+        MMilnorE m1 = mDiffLF_[v1].mulLF(mv1.m());
+        MMilnorE m2 = mDiffLF_[v2].mulLF(mv2.m());
+        if (m1 < m2)
+            return true;
+        if (m2 < m1)
+            return false;
+        if (ind_indices_[v2] < ind_indices_[v1])
+            return true;
+        return false;
+    }
 };
 
 struct DataMRes
 {
-    ModCpt x1, x2, x2LF;
-    DataMRes operator+(const DataMRes& rhs) const
-    {
-        return DataMRes{x1 + rhs.x1, x2 + rhs.x2};
-    }
-    DataMRes& operator+=(const DataMRes& rhs)
-    {
-        x1 += rhs.x1;
-        x2 += rhs.x2;
-        return *this;
-    }
+    Mod x1, x2, x1LF, x2LF;
+    DataMRes() {}
+    DataMRes(Mod x1_, Mod x2_, Mod x1LF_, Mod x2LF_) : x1(std::move(x1_)), x2(std::move(x2_)), x1LF(std::move(x1LF_)), x2LF(std::move(x2LF_)) {}
 };
-inline DataMRes operator*(const Milnor& a, const DataMRes& x)
-{
-    return DataMRes{a * x.x1, a * x.x2};
-}
+
 using DataMRes1d = std::vector<DataMRes>;
 using DataMRes2d = std::vector<DataMRes1d>;
 
@@ -178,14 +214,17 @@ private:
 
 private:
     GbCriPairsMRes gb_pairs_; /* Groebner basis of critical pairs */
-    DataMRes2d data_;
-    array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
-    ModCpt2d kernel_;       /* kernel[s] is the generators of Kernel of $F_{s}\to F_{s-1}$ */
 
-    /* Caches */
-    MModCpt2d leads_;     /* Leading monomials */
-    ModCpt3d dataX2LF_;   /* dataLF_[s][t] is the vector space of leading forms of x2 */
+    DataMRes2d data_;
+    MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
+
+    //Mod2d diff_;              /* `diff_[s][i]` equals d(v_{s,i}) */
+    array2d basis_degrees_;   /* `basis_degrees[s][i]` is the degree of v_{s,i} */
+    MMilnorE2d mDiffLF_;      /* `mDiffLF_[s][i]` is the iterated leading monomial of v_{s,i} */
+    array2d vDiffLF_;         /* `vDiffLF_[s][i]` is the index of d(v_{s,i}) */
+    array2d ordered_indices_; /* `ordered_indices_[s]` is the set of sorted indices depending on `vDiffLF_` */
+    array2d ind_indices_;     /* `ind_indices_[s][i]` is the position of i in `ordered_indices_[s]` */
 
 public:
     GroebnerMRes(int deg_trunc, array2d basis_degrees) : gb_pairs_(deg_trunc), basis_degrees_(std::move(basis_degrees)) {}
@@ -193,6 +232,21 @@ public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
     GroebnerMRes(int deg_trunc, DataMRes2d data, array2d basis_degrees) : gb_pairs_(deg_trunc), data_(std::move(data)), basis_degrees_(std::move(basis_degrees))
     {
+        if (basis_degrees_.empty()) {
+            basis_degrees_.push_back({});
+            mDiffLF_.push_back({});
+            vDiffLF_.push_back({});
+            ordered_indices_.push_back({});
+            ind_indices_.push_back({});
+        }
+        if (basis_degrees_[0].empty()) {
+            basis_degrees_[0].push_back(0);
+            mDiffLF_[0].push_back(MMilnorE());
+            vDiffLF_[0].push_back(0);
+            ordered_indices_[0].push_back(0);
+            ind_indices_[0].push_back(0);
+        }
+
         leads_.resize(data_.size());
         indices_.resize(data_.size());
         gb_pairs_.resize_pairs(data_.size());
@@ -207,13 +261,13 @@ public:
     }
 
 private:
-    static uint32_t Key(MModCpt lead)
+    static uint32_t Key(MMod lead)
     {
         return uint32_t(lead.v());
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeading(MModCpt mon, int s) const
+    int IndexOfDivisibleLeading(MMod mon, int s) const
     {
         auto key = uint32_t(mon.v());
         auto p = indices_[s].find(key);
@@ -225,14 +279,8 @@ private:
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeadingX2(MModCpt mon, int s) const
+    int IndexOfDivisibleLeadingX2(MMod mon, int s) const
     {
-        /*auto key = uint32_t(mon.v());
-        auto p = indices_[s].find(key);
-        if (p != indices_[s].end())
-            for (int k : p->second)
-                if (divisibleLF(leads_[s][k].m(), mon.m()))
-                    return k;*/
         for (size_t k = 0; k < leads_[s].size(); ++k)
             if (data_[s][k].x2.GetLead().v() == mon.v() && divisibleLF(data_[s][k].x2.GetLead().m(), mon.m()))
                 return (int)k;
@@ -272,41 +320,59 @@ public: /* Getters and Setters */
     void resize_data(int s)
     {
         if (data_.size() <= (size_t)s) {
-            data_.resize(size_t(s + 1));
-            dataX2LF_.resize(size_t(s + 1));
-            leads_.resize(size_t(s + 1));
-            indices_.resize(size_t(s + 1));
-            gb_pairs_.resize_pairs(size_t(s + 1));
+            size_t sp1 = size_t(s + 1); /* s plus 1 */
+            data_.resize(sp1);
+            leads_.resize(sp1); 
+            indices_.resize(sp1);
+            gb_pairs_.resize_pairs(sp1);
         }
-    }
-    void resize_dataX2LF(int s, int t)
-    {
-        dataX2LF_.resize(size_t(t + 1));
     }
     void push_back(DataMRes g, int s, int t)
     {
-        MModCpt mv = g.x1.GetLead();
+        g.x1LF = GetModLF(g.x1, s);
+        g.x2LF = GetModLF(g.x2, s + 1);
+        MMod mv = g.x1.GetLead();
         gb_pairs_.AddToBuffers(leads_[s], mv, basis_degrees_[s][mv.v()], s);  // TODO: modify the counterpart in algebras/groebner.h
 
         leads_[s].push_back(mv);
         indices_[s][Key(mv)].push_back((int)data_[s].size());
 
-        dataX2LF_[s].resize(size_t(t + 1));
-        dataX2LF_[s][t].push_back(g.x2LF);
         data_[s].push_back(std::move(g));
     }
-    /* Add x2 + v_{s+1,k} */
-    void push_back_kernel(ModCpt x2, DataMRes1d& rels, int s, int t)  // TODO: s, t
-    {
-        if (kernel_.size() <= s)
-            kernel_.resize(size_t(s + 1));
-        if (basis_degrees_.size() <= size_t(s + 1))
-            basis_degrees_.resize(size_t(s + 2));
-        kernel_[s].push_back(x2);
-        basis_degrees_[size_t(s + 1)].push_back(t);
 
-        ModCpt x3 = MModCpt(MMilnor(0), (int)basis_degrees_[size_t(s + 1)].size() - 1);
-        DataMRes g = DataMRes{std::move(x2), x3, x3};
+    /* Add x2 + v_{s+1,i} */
+    void push_back_kernel(Mod x2, DataMRes1d& rels, int s, int t)
+    {
+        //if (diff_.size() <= s)
+        //    diff_.resize(size_t(s + 1));
+        //diff_[s].push_back(x2);
+        size_t sp1 = size_t(s + 1); /* s plus 1 */
+        if (basis_degrees_.size() <= sp1) {
+            size_t sp2 = size_t(s + 2);
+            basis_degrees_.resize(sp2);
+            mDiffLF_.resize(sp2);
+            vDiffLF_.resize(sp2);
+            ordered_indices_.resize(sp2);
+            ind_indices_.resize(sp2);
+        }
+        basis_degrees_[sp1].push_back(t);
+        int v = x2.GetLead().v();
+        mDiffLF_[sp1].push_back(mDiffLF_[s][v].mulLF(x2.GetLead().m()));
+        vDiffLF_[sp1].push_back(v);
+
+        int n = (int)ordered_indices_[sp1].size();
+        auto p = std::upper_bound(ordered_indices_[sp1].begin(), ordered_indices_[sp1].end(), n, [&](int i, int j) { return ind_indices_[s][vDiffLF_[sp1][i]] < ind_indices_[s][vDiffLF_[sp1][j]]; });
+        size_t index = p - ordered_indices_[sp1].begin();
+        ordered_indices_[sp1].insert(p, n);
+
+        ind_indices_[sp1].resize(ordered_indices_[sp1].size());
+        for (size_t i = index; i < ordered_indices_[sp1].size(); ++i)
+            ind_indices_[sp1][ordered_indices_[sp1][i]] = (int)i;
+
+
+        Mod x3 = MMod(MMilnor(0), (int)basis_degrees_[sp1].size() - 1);
+
+        DataMRes g = DataMRes{std::move(x2), std::move(x3), Mod(), Mod()};
         rels.push_back(g);
         push_back(std::move(g), s, t);
     }
@@ -320,29 +386,68 @@ public: /* Getters and Setters */
     {
         return data_;
     }
-    const auto& kernel() const
+    CmpMMod GetCmpMMod(int s) const
     {
-        return kernel_;
+        return CmpMMod(mDiffLF_[s], ind_indices_[s]);
+    }
+    /* Return -1 for <, 1 for > and 0 for == */
+    int IntCmpDiff(MMilnor m1, MMod x1, MMilnor m2, MMod x2, int s) const
+    {
+        int v1 = x1.v(), v2 = x2.v();
+        MMilnorE me1 = mDiffLF_[s][v1].mulLF(x1.m()).mulLF(m1);
+        MMilnorE me2 = mDiffLF_[s][v2].mulLF(x2.m()).mulLF(m2);
+        if (me1 < me2)
+            return -1;
+        if (me2 < me1)
+            return 1;
+        size_t sm1 = size_t(s - 1);
+        if (ind_indices_[sm1][vDiffLF_[s][v1]] > ind_indices_[sm1][vDiffLF_[s][v2]])
+            return -1;
+        if (ind_indices_[sm1][vDiffLF_[s][v1]] < ind_indices_[sm1][vDiffLF_[s][v2]])
+            return 1;
+        return 0;
+    }
+    Mod GetModLF(const Mod& x, int s) const
+    {
+        Mod result(x.GetLead());
+        int v = result.GetLead().v();
+        int dv = vDiffLF_[s][v];
+        MMilnorE m_lead = mDiffLF_[s][v].mulLF(result.GetLead().m());
+        for (size_t i = 1; i < x.data.size(); ++i) {
+            int vi = x.data[i].v();
+            if (vDiffLF_[s][vi] == dv && mDiffLF_[s][vi].mulLF(x.data[i].m()) == m_lead)
+                result.data.push_back(x.data[i]);
+            else
+                break;
+        }
+        return result;
     }
 
 public:
     DataMRes Reduce(CriPairMRes& p, int s) const
     {
         DataMRes result;
+        size_t sp1 = size_t(s + 1);
+        auto cmp_s = CmpMMod(mDiffLF_[s], ind_indices_[s]);
+        auto cmp_sp1 = CmpMMod(mDiffLF_[sp1], ind_indices_[sp1]);
 
-        if (p.i1 >= 0)
-            result = Milnor(p.m1) * data_[s][p.i1] + Milnor(p.m2) * data_[s][p.i2];
-        else
-            result = Milnor(p.m2) * data_[s][p.i2];
+        if (p.i1 >= 0) {
+            result.x1 = mulMod(p.m1, data_[s][p.i1].x1, cmp_s).add(mulMod(p.m2, data_[s][p.i2].x1, cmp_s), cmp_s);
+            result.x2 = mulMod(p.m1, data_[s][p.i1].x2, cmp_sp1).add(mulMod(p.m2, data_[s][p.i2].x2, cmp_sp1), cmp_sp1);
+        }
+        else {
+            result.x1 = mulMod(p.m2, data_[s][p.i2].x1, cmp_s);
+            result.x2 = mulMod(p.m2, data_[s][p.i2].x2, cmp_sp1);
+        }
 
         size_t index;
-
         index = 0;
         while (index < result.x1.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
             if (gb_index != -1) {
                 MMilnor m = divLF(result.x1.data[index].m(), data_[s][gb_index].x1.data[0].m());
-                result += Milnor(m) * data_[s][gb_index];
+                result.x1.iadd(mulMod(m, data_[s][gb_index].x1, cmp_s), cmp_s);
+                result.x2.iadd(mulMod(m, data_[s][gb_index].x2, cmp_sp1), cmp_sp1);
             }
             else
                 ++index;
@@ -351,8 +456,8 @@ public:
         while (index < result.x2.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
             if (gb_index != -1) {
-                MMilnor m = divLF(result.x2.data[index].m(), data_[size_t(s + 1)][gb_index].x1.data[0].m());
-                result.x2 += Milnor(m) * data_[size_t(s + 1)][gb_index].x1;
+                MMilnor m = divLF(result.x2.data[index].m(), data_[sp1][gb_index].x1.data[0].m());
+                result.x2.iadd(mulMod(m, data_[sp1][gb_index].x1, cmp_sp1), cmp_sp1);
             }
             else
                 ++index;
@@ -361,35 +466,35 @@ public:
         return result;
     }
 
-    /* Reduce x2 by data_[s] */
-    ModCpt ReduceX2(ModCpt x2, int s) const
+    /* Reduce x2LF of `p` by `data_[s + 1]` */
+    Mod ReduceX2LF(CriPairMRes& p, int s) const
     {
+        Mod result;
+        size_t sp1 = size_t(s + 1);
+
+        if (p.i1 >= 0) {
+            int iCmp = IntCmpDiff(p.m1, data_[s][p.i1].x2LF.GetLead(), p.m2, data_[s][p.i2].x2LF.GetLead(), s + 1);
+
+            if (iCmp < 0)
+                result = mulLF(p.m1, data_[s][p.i1].x2LF);
+            else if (iCmp > 0)
+                result = mulLF(p.m2, data_[s][p.i2].x2LF);
+            else
+                result = mulLF(p.m1, data_[s][p.i1].x2LF).addLF(mulLF(p.m2, data_[s][p.i2].x2LF));
+        }
+        else
+            result = mulLF(p.m2, data_[s][p.i2].x2LF);
+
         size_t index = 0;
-        while (index < x2.data.size()) {
-            int gb_index = IndexOfDivisibleLeading(x2.data[index], s);
+        while (index < result.data.size()) {
+            int gb_index = IndexOfDivisibleLeading(result.data[index], s + 1);
             if (gb_index != -1) {
-                MMilnor m = divLF(x2.data[index].m(), data_[s][gb_index].x1.data[0].m());
-                x2 += Milnor(m) * data_[s][gb_index].x1;
+                MMilnor m = divLF(result.data[index].m(), data_[sp1][gb_index].x1LF.GetLead().m());
+                result.iaddLF(mulLF(m, data_[sp1][gb_index].x1LF));
             }
             else
                 ++index;
         }
-        return x2;
-    }
-
-    /* Reduce x2 by data_[s] */
-    ModCpt ReduceX2LF(CriPairMRes& p, int s, int t) const
-    {
-        ModCpt result;
-
-        if (p.i1 >= 0)
-            result = mulLF(p.m1, data_[s][p.i1].x2LF) + mulLF(p.m2, data_[s][p.i2].x2LF);
-        else
-            result = mulLF(p.m2, data_[s][p.i2].x2LF);
-
-        /*for (auto& x : data_[size_t(s + 1)])
-            if (std::binary_search(result.data.begin(), result.data.end(), x.x1.GetLead()))
-                result += x.x1;*/
         return result;
     }
 
@@ -401,8 +506,7 @@ public:
  * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
  * `min_gb` stores the minimal generating set of gb.
  */
-void AddRelsMRes(GroebnerMRes& gb, const ModCpt1d& rels, int deg);
-void generate_basis(const std::string& filename, int t_trunc);
+void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
 
 }  // namespace steenrod
 

@@ -219,3 +219,57 @@ void MulMilnor(int R[MILNOR_BUFFER_SIZE], int S[MILNOR_BUFFER_SIZE], May& result
         }
     }
 }
+
+/* Reverse the bits */
+inline uint64_t Reverse(uint64_t b)
+{
+    b = (b & 0xFFFFFFFF00000000) >> 32 | (b & 0x00000000FFFFFFFF) << 32;
+    b = (b & 0xFFFF0000FFFF0000) >> 16 | (b & 0x0000FFFF0000FFFF) << 16;
+    b = (b & 0xFF00FF00FF00FF00) >> 8 | (b & 0x00FF00FF00FF00FF) << 8;
+    b = (b & 0xF0F0F0F0F0F0F0F0) >> 4 | (b & 0x0F0F0F0F0F0F0F0F) << 4;
+    b = (b & 0xCCCCCCCCCCCCCCCC) >> 2 | (b & 0x3333333333333333) << 2;
+    b = (b & 0xAAAAAAAAAAAAAAAA) >> 1 | (b & 0x5555555555555555) << 1;
+    return b;
+}
+
+void generate_basis(const std::string& filename, int t_trunc)
+{
+    using namespace steenrod;
+    std::cout << "Constructing basis..." << std::endl;
+
+    std::map<int, steenrod::MMilnor1d> basis;
+    basis[0].push_back(MMilnor(0));
+
+    /* Add new basis */
+    for (int t = 0; t <= t_trunc; ++t) {
+        std::cout << "t=" << t << "          \r";
+        for (size_t gen_id = steenrod::MMILNOR_INDEX_NUM; gen_id-- > 0;) {
+            MMilnor m = MMilnor::FromIndex(gen_id);
+            int t1 = t - MMILNOR_GEN_DEG[gen_id];
+            if (t1 >= 0) {
+                for (MMilnor m1 : basis[t1]) {
+                    if (!m1 || gen_id < *m1.begin()) {
+                        MMilnor prod = mulLF(m, m1);
+                        basis[t].push_back(prod);
+                    }
+                }
+            }
+        }
+        std::sort(basis[t].begin(), basis[t].end());
+    }
+
+    DbSteenrod db(filename);
+    db.execute_cmd("CREATE TABLE IF NOT EXISTS Steenrod_basis (id INTEGER PRIMARY KEY, base BIGINT, t SMALLINT, w SMALLINT);");
+
+    db.begin_transaction();
+    myio::Statement stmt(db, "INSERT INTO Steenrod_basis (base, t, w) VALUES (?1, ?2, ?3);");
+    for (int t = 0; t <= t_trunc; ++t) {
+        for (MMilnor m : basis[t]) {
+            stmt.bind_int64(1, (int64_t)m.data());
+            stmt.bind_int(2, t);
+            stmt.bind_int(3, m.weight());
+            stmt.step_and_reset();
+        }
+    }
+    db.end_transaction();
+}

@@ -12,21 +12,23 @@ void AdamsE2()
 
     bench::Timer timer;
 
-    int t_trunc = 70;
-    ModCpt1d rels;
+    int t_trunc = 14;
+    Mod1d rels;
     for (int i = 0; i < 10; ++i) {
-        rels.push_back(MModCpt(MMilnor::P(i, i + 1), 0));
+        rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
         if (MMilnor::P(i, i + 1).deg() > t_trunc)
             break;
     }
     auto gb = GroebnerMRes::load("AdamsE2.db", t_trunc);
     AddRelsMRes(gb, rels, t_trunc);
+
+    auto& data = gb.data();
+    for (size_t s = 0; s < data.size(); ++s) {
+        std::cout << "s=" << s << '\n';
+        for (size_t i = 0; i < data[s].size(); ++i)
+            std::cout << data[s][i].x1.StrXi() << " = " << data[s][i].x2.StrXi() << '\n';
+    }
 }
-struct A
-{
-    short a, b;
-};
-constexpr size_t n = sizeof(A) * 8;
 
 int main()
 {
