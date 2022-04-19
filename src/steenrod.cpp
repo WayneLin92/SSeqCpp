@@ -343,12 +343,6 @@ void detail::MulMilnor(MMilnor lhs, MMod rhs, Mod& result)
         result.data.push_back(MMod(m, v));
 }
 
-std::ostream& operator<<(std::ostream& sout, const Mod& x)
-{
-    sout << myio::TplStrCont("", "+", "", "0", x.data.begin(), x.data.end(), [](MMod m) { return m.Str(); });
-    return sout;
-}
-
 Mod mulLF(MMilnor m, const Mod& x)
 {
     Mod result;
@@ -387,6 +381,11 @@ std::string MMod::StrXi() const
 std::string Mod::StrXi() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMod m) { return m.StrXi(); });
+}
+
+std::string Mod::Str() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMod m) { return m.Str(); });
 }
 
 }  // namespace steenrod

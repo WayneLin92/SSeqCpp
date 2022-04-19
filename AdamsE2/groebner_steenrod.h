@@ -166,11 +166,15 @@ struct MMilnorE
     {
         return std::memcmp(data.data(), rhs.data.data(), sizeof(data)) == 0;
     }
+    std::string Str() const;
 };
 using MMilnorE1d = std::vector<MMilnorE>;
 using MMilnorE2d = std::vector<MMilnorE1d>;
 
-std::ostream& operator<<(std::ostream& sout, const MMilnorE& x);
+inline std::ostream& operator<<(std::ostream& sout, const MMilnorE& x)
+{
+    return sout << x.Str();
+}
 
 inline MMilnorE mulE(MMilnor m1, MMilnor m2)
 {

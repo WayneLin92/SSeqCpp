@@ -26,7 +26,7 @@ void AdamsE2()
     for (size_t s = 0; s < data.size(); ++s) {
         std::cout << "s=" << s << '\n';
         for (size_t i = 0; i < data[s].size(); ++i)
-            std::cout << data[s][i].x1.StrXi() << " = " << data[s][i].x2.StrXi() << '\n';
+            std::cout << data[s][i].x1 << " = " << data[s][i].x2 << '\n';
     }
 }
 

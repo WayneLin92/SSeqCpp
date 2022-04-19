@@ -301,12 +301,13 @@ public:
     }
 };
 
-std::ostream& operator<<(std::ostream& sout, const MMilnorE& x)
+std::string MMilnorE::Str() const
 {
+    std::string result;
     for (size_t i = 0; i < MMILNOR_INDEX_NUM; ++i)
-        if (x.data[i + 1] > 0)
-            std::cout << "P_{" << std::to_string(MMILNOR_GEN_I[i]) << std::to_string(MMILNOR_GEN_J[i]) << '}' << "^" << std::to_string(x.data[i + 1]);
-    return sout;
+        if (data[i + 1] > 0)
+            result += "P_{" + std::to_string(MMILNOR_GEN_I[i]) + std::to_string(MMILNOR_GEN_J[i]) + "}^" + std::to_string(data[i + 1]);
+    return result;
 }
 
 void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
@@ -344,6 +345,8 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             gb.MinimizePairs(st);
 
             CriPairMRes1d pairs_st = gb.pairs(st);
+            if (t == 14 && s == 1)
+                std::cout << "test\n";
             DataMRes1d rels_tmp;// TODO: change type to (Mod, Mod)
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
@@ -355,7 +358,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             }
             else if (!pairs_st.empty()) {
                 Mod1d x2_LFs(pairs_st.size());
-                 ut::for_each_seq((int)x2_LFs.size(), [&](int i) { x2_LFs[i] = gb.ReduceX2LF(pairs_st[i], s); });
+                ut::for_each_seq((int)x2_LFs.size(), [&](int i) { x2_LFs[i] = gb.ReduceX2LF(pairs_st[i], s); });
                 array ind;
                 for (size_t i = 0; i < x2_LFs.size(); ++i) {
                     for (size_t j = 0; j < ind.size(); ++j)

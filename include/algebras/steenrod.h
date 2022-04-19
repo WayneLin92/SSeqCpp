@@ -452,12 +452,16 @@ struct Mod
     };
 
     std::string StrXi() const;
+    std::string Str() const;
 };
 using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
-std::ostream& operator<<(std::ostream& sout, const Mod& x);
+inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
+{
+    return sout << x.Str();
+}
 
 namespace detail {
     void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result);
