@@ -273,7 +273,7 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d
 /* Milnor's multiplication formula.
  * `result.data` is unordered and may contain duplicates.
  */
-void detail::MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
+void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
 {
     auto R = lhs.ToXi();
     auto S = rhs.ToXi();
@@ -293,10 +293,20 @@ void SortMod2(MMilnor1d& data)
     std::sort(data.begin(), data.end());
     for (size_t i = 0; i + 1 < data.size(); ++i)
         if (data[i] == data[i + 1]) {
-            data[i] = MMilnor{0xffffffffffffffff};
-            data[++i] = MMilnor{0xffffffffffffffff};
+            data[i] = MMilnor{MMILNOR_NULL};
+            data[++i] = MMilnor{MMILNOR_NULL};
         }
-    ut::RemoveIf(data, [](const MMilnor& m) { return m == MMilnor{0xffffffffffffffff}; });
+    ut::RemoveIf(data, [](const MMilnor& m) { return m == MMilnor{MMILNOR_NULL}; });
+}
+void SortMod2(MMod1d& data)
+{
+    std::sort(data.begin(), data.end());
+    for (size_t i = 0; i + 1 < data.size(); ++i)
+        if (data[i] == data[i + 1]) {
+            data[i] = MMod(MMILNOR_NULL);
+            data[++i] = MMod(MMILNOR_NULL);
+        }
+    ut::RemoveIf(data, [](const MMod& m) { return m == MMod(MMILNOR_NULL); });
 }
 
 Milnor Milnor::operator*(const Milnor& rhs) const
@@ -304,7 +314,7 @@ Milnor Milnor::operator*(const Milnor& rhs) const
     Milnor result;
     for (MMilnor R : this->data)
         for (MMilnor S : rhs.data)
-            detail::MulMilnor(R, S, result);
+            MulMilnor(R, S, result);
     SortMod2(result.data);
     return result;
 }
@@ -333,7 +343,7 @@ std::string Milnor::StrXi() const
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.StrXi(); });
 }
 
-void detail::MulMilnor(MMilnor lhs, MMod rhs, Mod& result)
+void MulMilnor(MMilnor lhs, MMod rhs, Mod& result)
 {
     Milnor prod;
     MulMilnor(lhs, rhs.m(), prod);
@@ -376,6 +386,15 @@ std::string MMod::StrXi() const
 {
     auto s = m().StrXi();
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}' ;
+}
+
+Mod operator*(MMilnor m, const Mod& x)
+{
+    Mod result;
+    for (MMod m2 : x.data)
+        MulMilnor(m, m2, result);
+    SortMod2(result.data);
+    return result;
 }
 
 std::string Mod::StrXi() const

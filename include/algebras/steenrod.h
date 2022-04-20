@@ -19,6 +19,10 @@ using array = std::vector<int>;
 using array2d = std::vector<array>;
 using array3d = std::vector<array2d>;
 
+/********************************************************
+ *                  class Milnor
+ ********************************************************/
+
 inline constexpr size_t XI_MAX = 8;                     /* Support up to \xi_8 */
 inline constexpr int DEG_MAX = (1 << (XI_MAX + 1)) - 1; /* Maximum degree supported in A */
 
@@ -194,9 +198,9 @@ public:
         return AddWeight((data_ | rhs.data_) & MMILNOR_MASK_M);
     }
 
-    int weight() const
+    uint64_t weight() const
     {
-        return (int)(data_ >> MMILNOR_INDEX_NUM);
+        return data_ >> MMILNOR_INDEX_NUM;
     }
 
     int deg() const
@@ -339,7 +343,7 @@ inline Milnor operator*(MMilnor m1, MMilnor m2) ////
 }
 
 /********************************************************
- *                    Modules
+ *                    class Mod
  ********************************************************/
 
 /* The left 12 bits will be used to store the basis */
@@ -355,16 +359,16 @@ private:
 public:
     MMod() : data_(0) {}
     MMod(uint64_t data) : data_(data) {}
-    MMod(MMilnor m, int v) : data_(m.data() + ((~uint64_t(v)) << (64 - MMOD_BASIS_BITS))) {}
+    MMod(MMilnor m, uint64_t v) : data_(m.data() + ((~v) << (64 - MMOD_BASIS_BITS))) {}
 
     bool operator==(MMod rhs) const
     {
         return data_ == rhs.data_;
     };
-    bool cmpLF(MMod rhs) const
+    bool operator<(MMod rhs) const
     {
         return data_ < rhs.data_;
-    }
+    };
     explicit operator bool() const
     {
         return data_;
@@ -382,11 +386,6 @@ public:
 };
 using MMod1d = std::vector<MMod>;
 using MMod2d = std::vector<MMod1d>;
-
-inline bool cmpLF(MMod lhs, MMod rhs)
-{
-    return lhs.cmpLF(rhs);
-}
 
 inline MMod mulLF(MMilnor m, MMod x)
 {
@@ -409,7 +408,7 @@ struct Mod
     {
 #ifndef NDEBUG
         if (data.empty())
-            throw MyException(0x900cee0fU, "ModCpt empty");
+            throw MyException(0x900cee0fU, "Trying to GetLead() for empty Mod.");
 #endif
         return data[0];
     }
@@ -418,32 +417,17 @@ struct Mod
     {
         return !data.empty();
     }
-    template<typename FnCmp>
-    Mod add(const Mod& rhs, FnCmp cmp) const
+    Mod operator+(const Mod& rhs) const
     {
         Mod result;
-        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), cmp);
+        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    template <typename FnCmp>
-    Mod& iadd(const Mod& rhs, FnCmp cmp)
+    Mod& operator+=(const Mod& rhs)
     {
         Mod tmp;
         std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), cmp);
-        return *this;                                                                                                          
-    }
-    Mod addLF(const Mod& rhs) const
-    {
-        Mod result;
-        std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), cmpLF);
-        return result;
-    }
-    Mod& iaddLF(const Mod& rhs)
-    {
-        Mod tmp;
-        std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), cmpLF);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
     }
     bool operator==(const Mod& rhs) const
@@ -458,36 +442,11 @@ using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
+Mod operator*(MMilnor m, const Mod& x);
+
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
     return sout << x.Str();
-}
-
-namespace detail {
-    void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result);
-    void MulMilnor(MMilnor lhs, MMod rhs, Mod& result);
-
-    template <typename FnCmp>
-    void SortMod2(MMod1d& data, FnCmp cmp)
-    {
-        std::sort(data.begin(), data.end(), cmp);
-        for (size_t i = 0; i + 1 < data.size(); ++i)
-            if (data[i] == data[i + 1]) {
-                data[i] = MMod(0xffffffffffffffff);
-                data[++i] = MMod(0xffffffffffffffff);
-            }
-        ut::RemoveIf(data, [](const MMod& m) { return m == MMod(0xffffffffffffffff); });
-    }
-}
-
-template <typename FnCmp>
-Mod mulMod(MMilnor m, const Mod& x, FnCmp cmp)
-{
-    Mod result;
-    for (MMod m2 : x.data)
-        detail::MulMilnor(m, m2, result);
-    detail::template SortMod2(result.data, cmp);
-    return result;
 }
 
 /* Compute the product in the associated graded algebra */
@@ -502,9 +461,9 @@ Mod TplSubs(const Mod& x, FnMap map)
     return result;
 }
 
-///**
-// * Replace v_i with `map[i]`.
-// */
+/**
+ * Replace v_i with `map[i]`.
+ */
 //inline Mod subs(const Mod& x, const Mod1d& map)
 //{
 //    Mod result;

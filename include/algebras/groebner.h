@@ -340,14 +340,14 @@ public:
         size_t s = leads.size();
         ut::Range range(0, (int)leads.size());
         if (mode_ & CRI_GB) {
-            std::for_each(range.begin(), range.end(), [&](int i) {
+            std::for_each(range.begin(), range.end(), [&](size_t i) {
                 if (pred(leads[i], mon)) {
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
                         CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                         if (!detail::HasGCD(leads[i], mon, traces[i], t))
-                            buffer_trivial_syz_[d_pair].insert(ut::BindPair((uint32_t)i, (uint32_t)s));
+                            buffer_trivial_syz_[d_pair].insert(ut::BindPair((uint32_t)i, (uint32_t)s)); // change the type of bindpair
                     }
                     else
                         new_pairs[i].first = -1;
@@ -357,7 +357,7 @@ public:
             });
         }
         else {
-            std::for_each(range.begin(), range.end(), [&](int i) {
+            std::for_each(range.begin(), range.end(), [&](size_t i) {
                 if (detail::HasGCD(leads[i], mon, traces[i], t) && pred(leads[i], mon)) {
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
@@ -702,12 +702,12 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, F
         /* Reduce relations in degree d */
         if (size_pairs_d) {
             ut::Range range(0, size_pairs_d);
-            std::for_each(range.begin(), range.end(), [&gb, &pairs_d, &rels_tmp](int i) { rels_tmp[i] = gb.Reduce(pairs_d[i].Sij(gb)); });
+            std::for_each(range.begin(), range.end(), [&gb, &pairs_d, &rels_tmp](size_t i) { rels_tmp[i] = gb.Reduce(pairs_d[i].Sij(gb)); });
         }
         if (size_rels_d) {
             auto& rels_d = p_rels_d->second;
             ut::Range range(0, size_rels_d);
-            std::for_each(range.begin(), range.end(), [&gb, &rels_d, &rels_tmp, size_pairs_d](int i) { rels_tmp[size_pairs_d + i] = gb.Reduce(*rels_d[i]); });
+            std::for_each(range.begin(), range.end(), [&gb, &rels_d, &rels_tmp, size_pairs_d](size_t i) { rels_tmp[size_pairs_d + i] = gb.Reduce(*rels_d[i]); });
         }
 
         /* Triangulate these relations */

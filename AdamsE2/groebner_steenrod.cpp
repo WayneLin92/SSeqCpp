@@ -202,7 +202,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
                         buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}][k].push_back(new_pairs[i].second);
                     }
                     else {
-                        pairs_[s][k].push_back(new_pairs[i].second);
+                        pairs_[s][k].push_back(new_pairs[i].second);  
                     }
                 }
             }
@@ -301,15 +301,6 @@ public:
     }
 };
 
-std::string MMilnorE::Str() const
-{
-    std::string result;
-    for (size_t i = 0; i < MMILNOR_INDEX_NUM; ++i)
-        if (data[i + 1] > 0)
-            result += "P_{" + std::to_string(MMILNOR_GEN_I[i]) + std::to_string(MMILNOR_GEN_J[i]) + "}^" + std::to_string(data[i + 1]);
-    return result;
-}
-
 void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 {
     int deg_max = gb.deg_trunc();
@@ -345,65 +336,46 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             gb.MinimizePairs(st);
 
             CriPairMRes1d pairs_st = gb.pairs(st);
-            if (t == 14 && s == 1)
-                std::cout << "test\n";
             DataMRes1d rels_tmp;// TODO: change type to (Mod, Mod)
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
                 if (p_rels_d != rels_graded.end()) {
                     rels_tmp.resize(p_rels_d->second.size());
                     auto& rels_d = p_rels_d->second;
-                    ut::for_each_seq((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = DataMRes(Mod(), rels[rels_d[i]], Mod(), rels[rels_d[i]]); });
+                    ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = DataMRes(Mod(), rels[rels_d[i]]); });
                 }
             }
             else if (!pairs_st.empty()) {
-                Mod1d x2_LFs(pairs_st.size());
-                ut::for_each_seq((int)x2_LFs.size(), [&](int i) { x2_LFs[i] = gb.ReduceX2LF(pairs_st[i], s); });
-                array ind;
-                for (size_t i = 0; i < x2_LFs.size(); ++i) {
-                    for (size_t j = 0; j < ind.size(); ++j)
-                        if (std::binary_search(x2_LFs[i].data.begin(), x2_LFs[i].data.end(), x2_LFs[ind[j]].GetLead(), cmpLF))
-                            x2_LFs[i].iaddLF(x2_LFs[ind[j]]);
-                    if (x2_LFs[i])
-                        ind.push_back((int)i);
-                    else
-                        bench::Counter(4);
-                }
-
-                rels_tmp.resize(ind.size());
-                ut::for_each_seq((int)rels_tmp.size(), [&](int i) { rels_tmp[i] = gb.Reduce(pairs_st[ind[i]], s); });
+                rels_tmp.resize(pairs_st.size());
+                ut::for_each_par((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = gb.Reduce(pairs_st[i], s); });
             }
             if (rels_tmp.empty())
                 continue;
 
             /* Triangulate these relations */
             DataMRes1d rels_st;
-            Mod1d kernel_splus_tmp;
+            Mod1d kernel_sp1_tmp;
             for (size_t i = 0; i < rels_tmp.size(); ++i) {
-                for (size_t j = 0; j < rels_st.size(); ++j) {
-                    if (std::binary_search(rels_tmp[i].x1.data.begin(), rels_tmp[i].x1.data.end(), rels_st[j].x1.GetLead(), gb.GetCmpMMod(s))) {
-                        rels_tmp[i].x1.iadd(rels_st[j].x1, gb.GetCmpMMod(s));
-                        rels_tmp[i].x2.iadd(rels_st[j].x2, gb.GetCmpMMod(s + 1));
-                    }
-                }
+                for (size_t j = 0; j < rels_st.size(); ++j)
+                    if (std::binary_search(rels_tmp[i].x1.data.begin(), rels_tmp[i].x1.data.end(), rels_st[j].x1.GetLead()))
+                        rels_tmp[i] += rels_st[j];
                 if (rels_tmp[i].x1) {
                     rels_st.push_back(std::move(rels_tmp[i]));
                     bench::Counter(0);
                 }
                 else if (rels_tmp[i].x2)
-                    kernel_splus_tmp.push_back(std::move(rels_tmp[i].x2));
+                    kernel_sp1_tmp.push_back(std::move(rels_tmp[i].x2));
                 else
                     bench::Counter(1);
             }
 
             Mod1d kernel_sp1;
-            for (size_t i = 0; i < kernel_splus_tmp.size(); ++i) {
-                for (size_t j = 0; j < kernel_sp1.size(); ++j) {
-                    if (std::binary_search(kernel_splus_tmp[i].data.begin(), kernel_splus_tmp[i].data.end(), kernel_sp1[j].GetLead(), gb.GetCmpMMod(s + 1)))
-                        kernel_splus_tmp[i].iadd(kernel_sp1[j], gb.GetCmpMMod(s + 1));
-                }
-                if (kernel_splus_tmp[i]) {
-                    kernel_sp1.push_back(std::move(kernel_splus_tmp[i]));
+            for (size_t i = 0; i < kernel_sp1_tmp.size(); ++i) {
+                for (size_t j = 0; j < kernel_sp1.size(); ++j)
+                    if (std::binary_search(kernel_sp1_tmp[i].data.begin(), kernel_sp1_tmp[i].data.end(), kernel_sp1[j].GetLead()))
+                        kernel_sp1_tmp[i] += kernel_sp1[j];
+                if (kernel_sp1_tmp[i]) {
+                    kernel_sp1.push_back(std::move(kernel_sp1_tmp[i]));
                     bench::Counter(2);
                 }
                 else
@@ -412,7 +384,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             
             /* Add these relations */
             for (size_t i = 0; i < rels_st.size(); ++i)
-                gb.push_back(rels_st[i], s, t);
+                gb.push_back(rels_st[i], s);
             DataMRes1d rels_splus;
             for (size_t i = 0; i < kernel_sp1.size(); ++i) {
                 gb.push_back_kernel(kernel_sp1[i], rels_splus, (int)s + 1, t);

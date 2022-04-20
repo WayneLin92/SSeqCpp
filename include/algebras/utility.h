@@ -24,7 +24,7 @@
  */
 namespace ut {
      
-inline constexpr int FUTURE_NUM_THREADS = 256;
+inline constexpr size_t FUTURE_NUM_THREADS = 256;
 
 /*
  * A "random access" iterator of [begin, end) generated on the fly.
@@ -37,19 +37,19 @@ public:
         friend class Range;
 
     private:
-        int i_;
+        size_t i_;
 
     public:
         using iterator_category = std::random_access_iterator_tag;
-        using value_type = int;
-        using difference_type = int;
-        using pointer = int*;
-        using reference = int;
+        using value_type = size_t;
+        using difference_type = size_t;
+        using pointer = size_t*;
+        using reference = size_t;
 
     public:
         iterator() : i_(0) {}
 
-        int operator*() const
+        size_t operator*() const
         {
             return i_;
         }
@@ -76,21 +76,21 @@ public:
         {
             return i_ < other.i_;
         }
-        iterator operator+(int other) const
+        iterator operator+(size_t other) const
         {
             return iterator(i_ + other);
         }
-        int operator[](int other) const
+        size_t operator[](size_t other) const
         {
             return i_ + other;
         }
-        int operator-(const iterator& other) const
+        size_t operator-(const iterator& other) const
         {
             return i_ - other.i_;
         }
 
     protected:
-        iterator(int start) : i_(start) {}
+        iterator(size_t start) : i_(start) {}
     };
 
 private:
@@ -98,7 +98,7 @@ private:
     iterator end_;
 
 public:
-    Range(int begin, int end) : begin_(begin), end_(end) {}
+    Range(size_t begin, size_t end) : begin_(begin), end_(end) {}
 
     iterator begin() const
     {
@@ -215,9 +215,9 @@ inline int popcount(uint64_t i)
  * For i=0,...,n-1, execute f(i) in sequence.
  */
 template <typename FnOp>
-void for_each_seq(int n, FnOp f)
+void for_each_seq(size_t n, FnOp f)
 {
-    for (int i = 0; i < n; ++i)
+    for (size_t i = 0; i < n; ++i)
         f(i);
 }
 
@@ -225,7 +225,7 @@ void for_each_seq(int n, FnOp f)
  * For i=0,...,n-1, execute f(i) in parallel.
  */
 template <typename FnOp>
-void for_each_par(int n, FnOp f)
+void for_each_par(size_t n, FnOp f)
 {
 #ifdef _MSC_VER
     ut::Range r(0, n);

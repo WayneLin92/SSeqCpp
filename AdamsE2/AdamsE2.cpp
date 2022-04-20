@@ -12,7 +12,7 @@ void AdamsE2()
 
     bench::Timer timer;
 
-    int t_trunc = 14;
+    int t_trunc = 100;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {
         rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
@@ -22,12 +22,12 @@ void AdamsE2()
     auto gb = GroebnerMRes::load("AdamsE2.db", t_trunc);
     AddRelsMRes(gb, rels, t_trunc);
 
-    auto& data = gb.data();
+    /*auto& data = gb.data();
     for (size_t s = 0; s < data.size(); ++s) {
         std::cout << "s=" << s << '\n';
         for (size_t i = 0; i < data[s].size(); ++i)
             std::cout << data[s][i].x1 << " = " << data[s][i].x2 << '\n';
-    }
+    }*/
 }
 
 int main()
