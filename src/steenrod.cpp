@@ -390,10 +390,26 @@ std::string MMod::StrXi() const
 
 Mod operator*(MMilnor m, const Mod& x)
 {
-    Mod result;
+    /*Mod result;
     for (MMod m2 : x.data)
         MulMilnor(m, m2, result);
     SortMod2(result.data);
+    return result;*/
+
+    Mod result;
+    Milnor prod;
+    auto p = x.data.begin();
+    while (p != x.data.end()) {
+        int v = p->v();
+        auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MMod x, int v) { return x.v() > v; });
+        for (; p != p1; ++p)
+            MulMilnor(m, p->m(), prod);
+        SortMod2(prod.data);
+        for (MMilnor T : prod.data)
+            result.data.push_back(MMod(T, v));
+        prod.data.clear();
+    }
+
     return result;
 }
 

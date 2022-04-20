@@ -347,7 +347,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             }
             else if (!pairs_st.empty()) {
                 rels_tmp.resize(pairs_st.size());
-                ut::for_each_par((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = gb.Reduce(pairs_st[i], s); });
+                ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = gb.Reduce(pairs_st[i], s); });
             }
             if (rels_tmp.empty())
                 continue;
