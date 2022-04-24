@@ -83,7 +83,7 @@ void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base,
 
     for (size_t i = 0; i < leads.size(); ++i) {
         new_pairs[i].first = -1;
-        if (leads[i].v() == mon.v()) {
+        if (leads[i].v_raw() == mon.v_raw()) {
             int d_pair = lcmLF(leads[i].m(), mon.m()).deg() + d_mon_base;
             if (d_pair <= deg_trunc_) {
                 new_pairs[i].first = d_pair;
@@ -150,7 +150,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
             ut::Range range(0, (int)leads.size());
 
             for (size_t i = 0; i < k; ++i) {
-                if (leads[s][i].v() == mon.v()) {
+                if (leads[s][i].v_raw() == mon.v_raw()) {
                     int d_pair = lcmLF(leads[s][i].m(), mon.m()).deg() + d_mon_base;
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
@@ -301,8 +301,9 @@ public:
     }
 };
 
-void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
+size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 {
+    size_t dim = 0;
     int deg_max = gb.deg_trunc();
     if (deg > deg_max)
         throw MyException(0xb2474e19U, "deg is bigger than the truncation degree.");
@@ -336,7 +337,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             gb.MinimizePairs(st);
 
             CriPairMRes1d pairs_st = gb.pairs(st);
-            DataMRes1d rels_tmp;// TODO: change type to (Mod, Mod)
+            DataMRes1d rels_tmp;
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
                 if (p_rels_d != rels_graded.end()) {
@@ -397,10 +398,14 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
             db.end_transaction();*/
 
-            if (size_t size_k = kernel_sp1.size())
+            if (size_t size_k = kernel_sp1.size()) {
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << '\n';
+                dim += size_k;
+            }
         }
+
     }
+    return dim;
 }
 
 GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)

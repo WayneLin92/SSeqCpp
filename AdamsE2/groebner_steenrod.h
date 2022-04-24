@@ -148,11 +148,6 @@ struct DataMRes
 using DataMRes1d = std::vector<DataMRes>;
 using DataMRes2d = std::vector<DataMRes1d>;
 
-inline DataMRes operator*(const MMilnor& a, const DataMRes& x)
-{
-    return DataMRes(a * x.x1, a * x.x2);
-}
-
 class GroebnerMRes
 {
 private:
@@ -213,7 +208,7 @@ private:
     int IndexOfDivisibleLeadingX2(MMod mon, int s) const
     {
         for (size_t k = 0; k < leads_[s].size(); ++k)
-            if (data_[s][k].x2.GetLead().v() == mon.v() && divisibleLF(data_[s][k].x2.GetLead().m(), mon.m()))
+            if (data_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(data_[s][k].x2.GetLead().m(), mon.m()))
                 return (int)k;
         return -1;
     }
@@ -274,8 +269,6 @@ public: /* Getters and Setters */
             basis_degrees_.resize(sp2);
         }
         basis_degrees_[sp1].push_back(t);
-        int v = x2.GetLead().v();
-
 
         Mod x3 = MMod(MMilnor(0), basis_degrees_[sp1].size() - 1);
 
@@ -300,10 +293,21 @@ public:
         DataMRes result;
         size_t sp1 = size_t(s + 1);
 
-        if (p.i1 >= 0)
-            result = p.m1 * data_[s][p.i1] + p.m2 * data_[s][p.i2];
-        else
-            result = p.m2 * data_[s][p.i2];
+        Milnor tmp_a;
+        Mod tmp_m1;
+        Mod tmp_m2;
+        tmp_a.data.reserve(50);
+        tmp_m1.data.reserve(100);
+        tmp_m2.data.reserve(100);
+
+        if (p.i1 >= 0) {
+            result.x1.iaddmul(p.m1, data_[s][p.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, data_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
+            result.x2.iaddmul(p.m1, data_[s][p.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, data_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
+        }
+        else {
+            result.x1.iaddmul(p.m2, data_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
+            result.x2.iaddmul(p.m2, data_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
+        }
 
         size_t index;
         index = 0;
@@ -311,7 +315,9 @@ public:
             int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
             if (gb_index != -1) {
                 MMilnor m = divLF(result.x1.data[index].m(), data_[s][gb_index].x1.data[0].m());
-                result += m * data_[s][gb_index];
+                result.x1.iaddmul(m, data_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
+                result.x2.iaddmul(m, data_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
+                //result += m * data_[s][gb_index];
             }
             else
                 ++index;
@@ -321,7 +327,8 @@ public:
             int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
             if (gb_index != -1) {
                 MMilnor m = divLF(result.x2.data[index].m(), data_[sp1][gb_index].x1.data[0].m());
-                result.x2 += m * data_[size_t(s + 1)][gb_index].x1;
+                result.x2.iaddmul(m, data_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
+                //result.x2 += m * data_[sp1][gb_index].x1;
             }
             else
                 ++index;
@@ -337,8 +344,9 @@ public:
 /**
  * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
  * `min_gb` stores the minimal generating set of gb.
+ * return the dimension of the calculated range for debugging.
  */
-void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
+size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
 
 }  // namespace steenrod
 

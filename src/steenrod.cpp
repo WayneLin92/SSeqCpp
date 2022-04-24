@@ -16,7 +16,7 @@ int max_mask(int upper_bound, int mask)
     return (upper_bound | n) & ~mask;
 }
 
-void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d& result)
+void MulMilnor(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>& S, MMilnor1d& result)
 {
     constexpr size_t N = 7;  // Support up to t=254
 
@@ -79,18 +79,7 @@ void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d& 
             if (i == 1) {
                 if (!(XS[N + 1] & X[1])) { /* Add to result. */
                     XT[1] = XS[N + 1] | X[1];
-                    uint64_t data = 0;
-                    uint64_t w = 0;
-                    for (int d = 1; d <= N; ++d) {
-                        for (int n = XT[d], i = 0; n; n >>= 1, ++i) {
-                            if (n & 1) {
-                                int j = i + d;
-                                data |= MMilnor::rawP(i, j);
-                                w += 2 * uint64_t(d) - 1;
-                            }
-                        }
-                    }
-                    result.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
+                    result.push_back(MMilnor::Xi(XT.data() + 1));
                 }
                 move_right = true;
             }
@@ -121,7 +110,7 @@ void MulMilnor(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d& 
     }
 }
 
-void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d& result)
+void MulMilnorV2(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>& S, MMilnor1d& result)
 {
     constexpr size_t N = 7;  // Support up to t=254
 
@@ -138,18 +127,7 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d
             R_floor[row] = R_floor[row - 1];
     }
     if (R_floor[N] == 0) { /* R = 1 */
-        uint64_t data = 0;
-        uint64_t w = 0;
-        for (int d = 1; d <= N; ++d) {
-            for (int n = S[d - 1], i = 0; n; n >>= 1, ++i) {
-                if (n & 1) {
-                    int j = i + d;
-                    data |= MMilnor::rawP(i, j);
-                    w += 2 * uint64_t(d) - 1;
-                }
-            }
-        }
-        result.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
+        result.push_back(MMilnor::Xi(S.data()));
         return;
     }
 
@@ -219,18 +197,7 @@ void MulMilnorV2(std::array<int, XI_MAX> R, std::array<int, XI_MAX> S, MMilnor1d
                     XT[i] = XR[i * (N + 1)] | X[i];
                     for (size_t i1 = 1; i1 < i; ++i1)
                         XT[i1] = X[i1];
-                    uint64_t data = 0;
-                    uint64_t w = 0;
-                    for (int d = 1; d <= N; ++d) {
-                        for (int n = XT[d], i_ = 0; n; n >>= 1, ++i_) {
-                            if (n & 1) {
-                                int j = i_ + d;
-                                data |= MMilnor::rawP(i_, j);
-                                w += 2 * uint64_t(d) - 1;
-                            }
-                        }
-                    }
-                    result.push_back(MMilnor(data + (w << MMILNOR_INDEX_NUM)));
+                    result.push_back(MMilnor::Xi(XT.data() + 1));
                 }
                 move_right = true;
             }
@@ -277,7 +244,6 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
 {
     auto R = lhs.ToXi();
     auto S = rhs.ToXi();
-
     int nonzeroes = 0;
     for (int i : R)
         if (i)
@@ -288,6 +254,9 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
         MulMilnor(R, S, result.data);
 }
 
+/**
+* Sort the sequence and each time remove a pair of identical elements
+*/
 void SortMod2(MMilnor1d& data)
 {
     std::sort(data.begin(), data.end());
@@ -298,6 +267,10 @@ void SortMod2(MMilnor1d& data)
         }
     ut::RemoveIf(data, [](const MMilnor& m) { return m == MMilnor{MMILNOR_NULL}; });
 }
+
+/**
+ * Sort the sequence and each time remove a pair of identical elements
+ */
 void SortMod2(MMod1d& data)
 {
     std::sort(data.begin(), data.end());
@@ -338,19 +311,18 @@ std::ostream& operator<<(std::ostream& sout, const Milnor& x)
     return sout;
 }
 
+std::string MMilnor::StrXi() const
+{
+    auto xi = ToXi();
+    auto xi_end = xi.end();
+    while (xi_end != xi.begin() && *(xi_end - 1) == 0)
+        --xi_end;
+    return myio::TplStrCont("Sq(", ",", ")", "1", xi.begin(), xi_end, [](int r) { return std::to_string(r); });
+}
+
 std::string Milnor::StrXi() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.StrXi(); });
-}
-
-void MulMilnor(MMilnor lhs, MMod rhs, Mod& result)
-{
-    Milnor prod;
-    MulMilnor(lhs, rhs.m(), prod);
-    SortMod2(prod.data);
-    int v = rhs.v();
-    for (MMilnor m : prod.data)
-        result.data.push_back(MMod(m, v));
 }
 
 Mod mulLF(MMilnor m, const Mod& x)
@@ -362,15 +334,6 @@ Mod mulLF(MMilnor m, const Mod& x)
             result.data.push_back(MMod(mulLF(m, m2), mx.v()));
     }
     return result;
-}
-
-std::string MMilnor::StrXi() const
-{
-    auto xi = ToXi();
-    auto xi_end = xi.end();
-    while (xi_end != xi.begin() && *(xi_end - 1) == 0)
-        --xi_end;
-    return myio::TplStrCont("Sq(", ",", ")", "1", xi.begin(), xi_end, [](int r) { return std::to_string(r); });
 }
 
 std::string MMod::Str() const
@@ -390,27 +353,40 @@ std::string MMod::StrXi() const
 
 Mod operator*(MMilnor m, const Mod& x)
 {
-    /*Mod result;
-    for (MMod m2 : x.data)
-        MulMilnor(m, m2, result);
-    SortMod2(result.data);
-    return result;*/
-
     Mod result;
-    Milnor prod;
-    auto p = x.data.begin();
-    while (p != x.data.end()) {
-        int v = p->v();
-        auto p1 = std::lower_bound(p, x.data.end(), v - 1, [](MMod x, int v) { return x.v() > v; });
-        for (; p != p1; ++p)
-            MulMilnor(m, p->m(), prod);
-        SortMod2(prod.data);
-        for (MMilnor T : prod.data)
-            result.data.push_back(MMod(T, v));
-        prod.data.clear();
+    result.data.reserve(150);
+    Milnor tmp;
+    for (MMod m2 : x.data) {
+        tmp.data.clear();
+        MulMilnor(m, m2.m(), tmp);
+        auto v_raw = m2.v_raw();
+        for (MMilnor m : tmp.data)
+            result.data.push_back(MMod::FromRaw(m, v_raw));
     }
-
+    SortMod2(result.data);
     return result;
+}
+
+void mul(MMilnor m, const Mod& x, Milnor& tmp, Mod& result)
+{
+    result.data.clear();
+    for (MMod m2 : x.data) {
+        tmp.data.clear();
+        MulMilnor(m, m2.m(), tmp);
+        auto v_raw = m2.v_raw();
+        for (MMilnor m : tmp.data)
+            result.data.push_back(MMod::FromRaw(m, v_raw));
+    }
+    SortMod2(result.data);
+}
+
+Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2)
+{
+    mul(m, x, tmp_a, tmp_m1); /* `tmp_m1 = m * x` */
+    tmp_m2.data.clear();
+    std::swap(data, tmp_m2.data);
+    std::set_symmetric_difference(tmp_m1.data.cbegin(), tmp_m1.data.cend(), tmp_m2.data.cbegin(), tmp_m2.data.cend(), std::back_inserter(data));
+    return *this;
 }
 
 std::string Mod::StrXi() const

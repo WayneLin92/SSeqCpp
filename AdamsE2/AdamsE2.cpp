@@ -3,7 +3,6 @@
 #include "algebras/utility.h"
 #include "groebner_steenrod.h"
 
-std::vector<double> bench::Timer::counts_ = {};
 std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0, 0};
 
 void AdamsE2()
@@ -12,7 +11,7 @@ void AdamsE2()
 
     bench::Timer timer;
 
-    int t_trunc = 100;
+    int t_trunc = 70;
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {
         rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
@@ -20,7 +19,10 @@ void AdamsE2()
             break;
     }
     auto gb = GroebnerMRes::load("AdamsE2.db", t_trunc);
-    AddRelsMRes(gb, rels, t_trunc);
+    size_t dim = AddRelsMRes(gb, rels, t_trunc);
+    std::cout << "dim=" << dim << '\n';
+
+
 
     /*auto& data = gb.data();
     for (size_t s = 0; s < data.size(); ++s) {
@@ -34,9 +36,6 @@ int main()
 {
     // steenrod::generate_basis("AdamsE2.db", 250);
     AdamsE2();
-    std::cout << "counts_=\n";
-    bench::Counter::print_counts_();
-    std::cout << "timers_=\n";
-    bench::Timer::print_counts_();
+    bench::Counter::print();
     return 0;
 }

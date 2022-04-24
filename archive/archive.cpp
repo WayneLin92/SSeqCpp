@@ -273,3 +273,27 @@ void generate_basis(const std::string& filename, int t_trunc)
     }
     db.end_transaction();
 }
+
+Mod operator*(MMilnor m, const Mod& x)
+{
+    /*Mod result;
+    for (MMod m2 : x.data)
+        MulMilnor(m, m2, result);
+    SortMod2(result.data);
+    return result;*/
+
+    Mod result;
+    Milnor prod;
+    auto p = x.data.begin();
+    while (p != x.data.end()) {
+        auto v_raw = p->v_raw();
+        auto p1 = std::upper_bound(p, x.data.end(), v_raw, [](uint64_t v_raw, MMod x) { return v_raw < x.v_raw(); });
+        for (; p != p1; ++p)
+            MulMilnor(m, p->m(), prod);
+        SortMod2(prod.data);
+        for (MMilnor T : prod.data)
+            result.data.push_back(MMod::FromRaw(T.data(), v_raw));
+        prod.data.clear();
+    }
+    return result;
+}
