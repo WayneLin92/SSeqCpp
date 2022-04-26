@@ -328,18 +328,16 @@ std::string Milnor::StrXi() const
 Mod mulLF(MMilnor m, const Mod& x)
 {
     Mod result;
-    for (MMod mx : x.data) {
-        MMilnor m2 = mx.m();
-        if (!gcdLF(m, m2))
-            result.data.push_back(MMod(mulLF(m, m2), mx.v()));
-    }
+    for (MMod mx : x.data)
+        if (!(m.data() & mx.e()))
+            result.data.push_back(mulLF(m, mx));
     return result;
 }
 
 std::string MMod::Str() const
 {
     std::string result;
-    for (int i : m())
+    for (int i : m_no_weight())
         result += "P_{" + std::to_string(MMILNOR_GEN_I[i]) + std::to_string(MMILNOR_GEN_J[i]) + '}';
     result += "v_{" + std::to_string(v()) + '}';
     return result;
@@ -347,7 +345,7 @@ std::string MMod::Str() const
 
 std::string MMod::StrXi() const
 {
-    auto s = m().StrXi();
+    auto s = m_no_weight().StrXi();
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}' ;
 }
 
@@ -358,10 +356,10 @@ Mod operator*(MMilnor m, const Mod& x)
     Milnor tmp;
     for (MMod m2 : x.data) {
         tmp.data.clear();
-        MulMilnor(m, m2.m(), tmp);
+        MulMilnor(m, m2.m_no_weight(), tmp);
         auto v_raw = m2.v_raw();
         for (MMilnor m : tmp.data)
-            result.data.push_back(MMod::FromRaw(m, v_raw));
+            result.data.push_back(MMod(m.data() + v_raw));
     }
     SortMod2(result.data);
     return result;
@@ -372,10 +370,10 @@ void mul(MMilnor m, const Mod& x, Milnor& tmp, Mod& result)
     result.data.clear();
     for (MMod m2 : x.data) {
         tmp.data.clear();
-        MulMilnor(m, m2.m(), tmp);
+        MulMilnor(m, m2.m_no_weight(), tmp);
         auto v_raw = m2.v_raw();
         for (MMilnor m : tmp.data)
-            result.data.push_back(MMod::FromRaw(m, v_raw));
+            result.data.push_back(MMod(m.data() + v_raw));
     }
     SortMod2(result.data);
 }

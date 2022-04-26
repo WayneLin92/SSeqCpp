@@ -160,7 +160,7 @@ private:
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
-    array2d basis_degrees_;   /* `basis_degrees[s][i]` is the degree of v_{s,i} */
+    array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
 
 public:
     GroebnerMRes(int deg_trunc, array2d basis_degrees) : gb_pairs_(deg_trunc), basis_degrees_(std::move(basis_degrees)) {}
@@ -199,7 +199,7 @@ private:
         auto p = indices_[s].find(key);
         if (p != indices_[s].end())
             for (int k : p->second)
-                if (divisibleLF(leads_[s][k].m(), mon.m()))
+                if (divisibleLF(leads_[s][k], mon))
                     return k;
         return -1;
     }
@@ -208,7 +208,7 @@ private:
     int IndexOfDivisibleLeadingX2(MMod mon, int s) const
     {
         for (size_t k = 0; k < leads_[s].size(); ++k)
-            if (data_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(data_[s][k].x2.GetLead().m(), mon.m()))
+            if (data_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(data_[s][k].x2.GetLead(), mon))
                 return (int)k;
         return -1;
     }
@@ -244,7 +244,7 @@ public: /* Getters and Setters */
         if (data_.size() <= (size_t)s) {
             size_t sp1 = size_t(s + 1); /* s plus 1 */
             data_.resize(sp1);
-            leads_.resize(sp1); 
+            leads_.resize(sp1);
             indices_.resize(sp1);
             gb_pairs_.resize_pairs(sp1);
         }
@@ -270,7 +270,7 @@ public: /* Getters and Setters */
         }
         basis_degrees_[sp1].push_back(t);
 
-        Mod x3 = MMod(MMilnor(0), basis_degrees_[sp1].size() - 1);
+        Mod x3 = MMod(MMilnor(), basis_degrees_[sp1].size() - 1);
 
         DataMRes g = DataMRes(std::move(x2), std::move(x3));
         rels.push_back(g);
@@ -314,10 +314,9 @@ public:
         while (index < result.x1.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
             if (gb_index != -1) {
-                MMilnor m = divLF(result.x1.data[index].m(), data_[s][gb_index].x1.data[0].m());
+                MMilnor m = divLF(result.x1.data[index], data_[s][gb_index].x1.data[0]);
                 result.x1.iaddmul(m, data_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
                 result.x2.iaddmul(m, data_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
-                //result += m * data_[s][gb_index];
             }
             else
                 ++index;
@@ -326,9 +325,8 @@ public:
         while (index < result.x2.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
             if (gb_index != -1) {
-                MMilnor m = divLF(result.x2.data[index].m(), data_[sp1][gb_index].x1.data[0].m());
+                MMilnor m = divLF(result.x2.data[index], data_[sp1][gb_index].x1.data[0]);
                 result.x2.iaddmul(m, data_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
-                //result.x2 += m * data_[sp1][gb_index].x1;
             }
             else
                 ++index;

@@ -22,13 +22,18 @@ void AdamsE2()
     size_t dim = AddRelsMRes(gb, rels, t_trunc);
     std::cout << "dim=" << dim << '\n';
 
+    auto& data = gb.data();
+    size_t size_gb = 0;
+    for (size_t s = 0; s < data.size(); ++s)
+        size_gb += data[s].size();
+    std::cout << "size_gb=" << size_gb << '\n';
 
-
-    /*auto& data = gb.data();
-    for (size_t s = 0; s < data.size(); ++s) {
+    /*for (size_t s = 0; s < data.size(); ++s) {
         std::cout << "s=" << s << '\n';
-        for (size_t i = 0; i < data[s].size(); ++i)
+        for (size_t i = 0; i < data[s].size(); ++i) {
             std::cout << data[s][i].x1 << " = " << data[s][i].x2 << '\n';
+            std::cout << data[s][i].x1.GetLead().w() << " = " << data[s][i].x2.GetLead().w() << '\n';
+        }
     }*/
 }
 
