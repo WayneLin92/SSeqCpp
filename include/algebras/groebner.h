@@ -269,10 +269,11 @@ public:
                 pairs_[j].push_back(pair);
 
         /* Minimize `buffer_min_pairs_` */
+        constexpr uint64_t NULL_J = ~uint64_t(0);
         for (uint64_t ij : buffer_redundent_pairs_[d]) {
-            int i, j;
-            ut::GetPair(ij, i, j);
-            while (j != -1) {
+            uint64_t i, j;
+            ut::UnBind(ij, i, j);
+            while (j != NULL_J) {
                 Mon gcd = GCD(leads[i], leads[j]);
                 Mon m2 = div(leads[i], gcd);
                 if (j < (int)b_min_pairs_d.size()) {
@@ -292,7 +293,7 @@ public:
                     if (divisible(c->m2, m2, c->trace_m2, t_m2)) {
                         Mon m1 = div(leads[j], gcd);
                         if (detail::HasGCD(c->m1, m1)) {
-                            j = -1;
+                            j = NULL_J;
                             break;
                         }
                         else {
@@ -309,15 +310,15 @@ public:
         }
 
         if (mode_ & CRI_GB) {
-            for (int j = 0; j < (int)b_min_pairs_d.size(); ++j)
-                for (int i = 0; i < (int)b_min_pairs_d[j].size(); ++i)
+            for (size_t j = 0; j < b_min_pairs_d.size(); ++j)
+                for (size_t i = 0; i < b_min_pairs_d[j].size(); ++i)
                     if (b_min_pairs_d[j][i].i2 != -1)
-                        min_pairs_[j].push_back(i);
+                        min_pairs_[j].push_back((int)i);
 
             for (uint64_t ij : buffer_trivial_syz_[d]) {
-                int i, j;
-                ut::GetPair(ij, i, j);
-                if (j < (int)b_min_pairs_d.size()) {
+                uint64_t i, j;
+                ut::UnBind(ij, i, j);
+                if (j < b_min_pairs_d.size()) {
                     auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [i](const CriticalPair& c) { return c.i1 == i; });
                     if (p != b_min_pairs_d[j].end())
                         p->i2 = -1;
@@ -347,7 +348,7 @@ public:
                         new_pairs[i].first = d_pair;
                         CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                         if (!detail::HasGCD(leads[i], mon, traces[i], t))
-                            buffer_trivial_syz_[d_pair].insert(ut::BindPair((uint32_t)i, (uint32_t)s)); // change the type of bindpair
+                            buffer_trivial_syz_[d_pair].insert(ut::Bind(i, s)); // change the type of bindpair
                     }
                     else
                         new_pairs[i].first = -1;
@@ -386,7 +387,7 @@ public:
                         else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
                             int dij = detail::DegLCM(leads[i], leads[j], _gen_deg);
                             if (dij <= deg_trunc_)
-                                buffer_redundent_pairs_[dij].insert(ut::BindPair((uint32_t)i, (uint32_t)j));
+                                buffer_redundent_pairs_[dij].insert(ut::Bind(i, j));
                         }
                     }
                 }

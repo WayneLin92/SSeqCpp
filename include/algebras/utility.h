@@ -23,7 +23,7 @@
  * The namespace `ut` provides basic utility functions
  */
 namespace ut {
-     
+
 inline constexpr size_t FUTURE_NUM_THREADS = 256;
 
 /*
@@ -174,15 +174,15 @@ inline std::string get_time(const std::string& fmt = "%F %T")
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
 }
 
-inline uint64_t BindPair(uint32_t i, uint32_t j)
+inline uint64_t Bind(uint64_t i, uint64_t j)
 {
-    return (uint64_t(i) << 32) + uint64_t(j);
+    return (i << 32) + j;
 }
 
-inline void GetPair(uint64_t ij, int& i, int& j)
+inline void UnBind(uint64_t ij, uint64_t& i, uint64_t& j)
 {
-    i = int(ij >> 32);
-    j = int(ij & 0x7fffffff);
+    i = ij >> 32;
+    j = ij & ((uint64_t(1) << 32) - 1);
 }
 
 inline int popcount(unsigned int i)

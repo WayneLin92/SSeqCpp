@@ -6,7 +6,6 @@
 #define GROEBNER_STEENROD_H
 
 #include "algebras/steenrod.h"
-#include <execution>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -43,89 +42,57 @@ using CPMilnor3d = std::vector<CPMilnor2d>;
 using PtCPMilnor1d = std::vector<CPMilnor*>;
 using PtCPMilnor2d = std::vector<PtCPMilnor1d>;
 
-struct AdamsDeg
-{
-    int s, t;
-    bool operator<(AdamsDeg rhs) const
-    {
-        if (t < rhs.t)
-            return true;
-        if (t > rhs.t)
-            return false;
-        if (s > rhs.s)
-            return true;
-        return false;
-    }
-};
-
 /* Groebner basis of critical pairs */
 class CPMilnors
 {
-    using TypeRedSing = std::vector<std::vector<std::unordered_set<uint64_t>>>;
-
 private:
-    int deg_trunc_;                                                           /* Truncation degree */
-    CPMilnor3d gb_;                                                           /* `pairs_[s][j]` is the set of pairs (i, j) with given j in degree s */
-    std::map<AdamsDeg, CPMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[st]` To generate minimal pairs to compute Sij */
-    std::map<AdamsDeg, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
-    std::map<AdamsDeg, CPMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
+    int t_trunc_;                                                        /* Truncation degree */
+    CPMilnor2d gb_;                                                      /* `pairs_[j]` is the set of pairs (i, j) with given j */
+    std::map<int, CPMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
+    std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
+    std::map<int, CPMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
 
 public:
-    CPMilnors(int d_trunc) : deg_trunc_(d_trunc) {}
+    CPMilnors(int t_trunc) : t_trunc_(t_trunc) {}
 
-    int deg_trunc() const
+    int t_trunc() const
     {
-        return deg_trunc_;
+        return t_trunc_;
     }
-    AdamsDeg next_st() const
+    bool empty_min_pairs_for_gb(int t) const
     {
-        AdamsDeg st = buffer_min_pairs_.empty() ? AdamsDeg{0, 1024} : buffer_min_pairs_.begin()->first;
-        if (!buffer_singles_.empty())
-            st = std::min(st, buffer_singles_.begin()->first);
-        if (st.t == 1024)
-            st = AdamsDeg{1, 1};
-        return st;
+        return buffer_min_pairs_.find(t) == buffer_min_pairs_.end();
     }
-    bool empty_pairs_for_gb() const
-    {
-        return buffer_min_pairs_.empty() && buffer_singles_.empty();
-    }
-    bool empty_min_pairs_for_gb(AdamsDeg st) const
-    {
-        return buffer_min_pairs_.find(st) == buffer_min_pairs_.end();
-    }
-    void resize_pairs(size_t s)
-    {
-        gb_.resize(s);
-    }
-    CPMilnor1d pairs_for_gb(AdamsDeg st)
+    CPMilnor1d pairs_for_gb(int t)
     {
         CPMilnor1d result;
-        if (buffer_singles_.find(st) != buffer_singles_.end()) {
-            std::swap(result, buffer_singles_.at(st));
-            buffer_singles_.erase(st);
+        if (!buffer_singles_.empty() && buffer_singles_.begin()->first == t) {
+            std::swap(result, buffer_singles_.begin()->second);
+            buffer_singles_.erase(t);
         }
-        if (buffer_min_pairs_.find(st) != buffer_min_pairs_.end()) {
-            for (int j = 0; j < (int)buffer_min_pairs_.at(st).size(); ++j)
-                for (auto& pair : buffer_min_pairs_.at(st)[j])
+        if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first == t) {
+            auto& b_min_pairs_t = buffer_min_pairs_.begin()->second;
+            for (size_t j = 0; j < b_min_pairs_t.size(); ++j)
+                for (auto& pair : b_min_pairs_t[j])
                     if (pair.i2 != -1)
                         result.push_back(std::move(pair));
-            buffer_min_pairs_.erase(st);
+            buffer_min_pairs_.erase(buffer_min_pairs_.begin());
         }
 
         return result;
     }
 
     /* Minimize `buffer_min_pairs_[t]` and maintain `pairs_` */
-    void Minimize(const MMod1d& leads, AdamsDeg st);
+    void Minimize(const MMod1d& leads, int t);
 
     /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
     */
-    void AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base, int s);
+    void AddToBuffers(const MMod1d& leads, MMod mon, int t_v);
 
-    void init(const MMod2d& leads, const array2d& basis_degrees);
+    void init(const MMod1d& leads, const array& basis_degrees);
 };
+using CPMilnors1d = std::vector<CPMilnors>;
 
 struct DataMRes
 {
@@ -171,28 +138,29 @@ private:
     using TypeIndices = std::vector<std::unordered_map<uint32_t, array>>;
 
 private:
-    CPMilnors gb_pairs_; /* Groebner basis of critical pairs */
+    int t_trunc_;
 
     DataMRes2d gb_;
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
+    CPMilnors1d pairs_; /* Groebner basis of critical pairs */
+
     array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
 
 public:
-    GroebnerMRes(int deg_trunc, array2d basis_degrees) : gb_pairs_(deg_trunc), basis_degrees_(std::move(basis_degrees)) {}
+    GroebnerMRes(int t_trunc, array2d basis_degrees) : t_trunc_(t_trunc), basis_degrees_(std::move(basis_degrees)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMRes(int deg_trunc, DataMRes2d data, array2d basis_degrees) : gb_pairs_(deg_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
     {
         if (basis_degrees_.empty())
-            basis_degrees_.push_back({});
+            basis_degrees_.push_back({0});
         if (basis_degrees_[0].empty())
             basis_degrees_[0].push_back(0);
 
         leads_.resize(gb_.size());
         indices_.resize(gb_.size());
-        gb_pairs_.resize_pairs(gb_.size());
 
         for (size_t s = 0; s < gb_.size(); ++s) {
             for (int j = 0; j < (int)gb_[s].size(); ++j) {
@@ -200,7 +168,11 @@ public:
                 indices_[s][Key(gb_[s][j].x1.GetLead())].push_back(j);
             }
         }
-        gb_pairs_.init(leads_, basis_degrees_);
+
+        for (size_t s = 0; s < gb_.size(); ++s) {
+            pairs_.push_back(CPMilnors(t_trunc_));
+            pairs_.back().init(leads_[s], basis_degrees_[s]);
+        }
     }
 
 private:
@@ -231,24 +203,33 @@ private:
     }
 
 public: /* Getters and Setters */
-    const CPMilnors& gb_pairs() const
+    int t_trunc() const
     {
-        return gb_pairs_;
+        return t_trunc_;
     }
-    int deg_trunc() const
+    int t_begin() const
     {
-        return gb_pairs_.deg_trunc();
+        int t = 0;
+        for (size_t s = 0; s < gb_.size(); ++s) {
+            if (!gb_[s].empty()) {
+                auto lead = gb_[s].back().x1.GetLead();
+                int t1 = lead.deg_m() + basis_degrees_[s][lead.v()];
+                if (t1 > t)
+                    t = t1;
+            }
+        }
+        return t;
     }
     /* This function will erase `gb_pairs_.buffer_min_pairs[t]` */
-    CPMilnor1d pairs(AdamsDeg st)
+    CPMilnor1d pairs(size_t s, int t)
     {
-        return gb_pairs_.pairs_for_gb(st);
+        return pairs_[s].pairs_for_gb(t);
     }
     const array2d& basis_degs() const
     {
         return basis_degrees_;
     }
-    auto size() const
+    auto gb_size() const
     {
         return gb_.size();
     }
@@ -256,24 +237,23 @@ public: /* Getters and Setters */
     {
         return gb_[index];
     }
-    void resize_data(int s)
+    void resize_gb(size_t s)
     {
-        if (gb_.size() <= (size_t)s) {
-            size_t sp1 = size_t(s + 1); /* s plus 1 */
-            gb_.resize(sp1);
-            leads_.resize(sp1);
-            indices_.resize(sp1);
-            gb_pairs_.resize_pairs(sp1);
+        if (gb_.size() < s) {
+            gb_.resize(s);
+            leads_.resize(s);
+            indices_.resize(s);
+            while (pairs_.size() < s)
+                pairs_.push_back(CPMilnors(t_trunc_));
         }
     }
-    void push_back(DataMRes g, int s)
+    void push_back(DataMRes g, size_t s)
     {
         MMod mv = g.x1.GetLead();
-        gb_pairs_.AddToBuffers(leads_[s], mv, basis_degrees_[s][mv.v()], s);  // TODO: modify the counterpart in algebras/groebner.h
+        pairs_[s].AddToBuffers(leads_[s], mv, basis_degrees_[s][mv.v()]);
 
         leads_[s].push_back(mv);
         indices_[s][Key(mv)].push_back((int)gb_[s].size());
-
         gb_[s].push_back(std::move(g));
     }
 
@@ -293,10 +273,9 @@ public: /* Getters and Setters */
         rels.push_back(g);
         push_back(std::move(g), s);
     }
-    void MinimizePairs(AdamsDeg st)
+    void MinimizePairs(size_t s, int t)
     {
-        if (!gb_pairs_.empty_min_pairs_for_gb(st))
-            gb_pairs_.Minimize(leads_[st.s], st);
+        pairs_[s].Minimize(leads_[s], t);
     }
 
     const auto& data() const
@@ -357,8 +336,8 @@ public:
 };
 
 /**
- * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
- * `min_gb` stores the minimal generating set of gb.
+ * Comsume relations from 'rels` and `gb.pairs_` in degree `<= deg`.
+ *
  * return the dimension of the calculated range for debugging.
  */
 size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
