@@ -2,22 +2,19 @@
 #include "algebras/benchmark.h"  ////
 #include "algebras/dbalg.h"
 #include <cstring>
-//#include <immintrin.h>  
+//#include <immintrin.h>
 
 namespace steenrod {
 
-void GbCriPairsMRes::Minimize(const MMod1d& leads, AdamsDeg st)
+void CPMilnors::Minimize(const MMod1d& leads, AdamsDeg st)
 {
     /* Add to the Groebner basis of critical pairs */
     auto& b_min_pairs_st = buffer_min_pairs_.at(st);
-    if (pairs_[st.s].size() < b_min_pairs_st.size())
-        pairs_[st.s].resize(b_min_pairs_st.size());
-    array old_sizes(b_min_pairs_st.size());
-    for (int j = 0; j < (int)b_min_pairs_st.size(); ++j) {
-        old_sizes[j] = (int)pairs_[st.s][j].size();
+    if (gb_[st.s].size() < b_min_pairs_st.size())
+        gb_[st.s].resize(b_min_pairs_st.size());
+    for (int j = 0; j < (int)b_min_pairs_st.size(); ++j)
         for (const auto& pair : b_min_pairs_st[j])
-            pairs_[st.s][j].push_back(pair);
-    }
+            gb_[st.s][j].push_back(pair);
 
     /* Minimize `buffer_min_pairs_` */
     for (uint64_t ij : buffer_redundent_pairs_[st]) {
@@ -27,21 +24,23 @@ void GbCriPairsMRes::Minimize(const MMod1d& leads, AdamsDeg st)
             MMilnor gcd = gcdLF(leads[i].m_no_weight(), leads[j].m_no_weight());
             MMilnor m2 = divLF(leads[i].m(), gcd);
             if (j < (int)b_min_pairs_st.size()) {
-                auto p = std::find_if(b_min_pairs_st[j].begin(), b_min_pairs_st[j].end(), [&m2](const CriPairMRes& c) { return c.m2 == m2; });
+                auto p = std::find_if(b_min_pairs_st[j].begin(), b_min_pairs_st[j].end(), [&m2](const CPMilnor& c) { return c.m2 == m2; });
                 /* Remove it from `buffer_min_pairs_` */
                 if (p != b_min_pairs_st[j].end()) {
+                    bench::Counter(4);  ////
                     p->i2 = -1;
                     break;
                 }
             }
 
             /* Reduce (i, j) */
-            auto c = pairs_[st.s][j].begin();
-            auto end = pairs_[st.s][j].end();
+            auto c = gb_[st.s][j].begin();
+            auto end = gb_[st.s][j].end();
             for (; c < end; ++c) {
                 if (divisibleLF(c->m2, m2)) {
                     MMilnor m1 = divLF(leads[j].m(), gcd);
                     if (gcdLF(c->m1, m1)) {
+                        bench::Counter(4);  ////
                         j = -1;
                         break;
                     }
@@ -60,9 +59,9 @@ void GbCriPairsMRes::Minimize(const MMod1d& leads, AdamsDeg st)
                 std::cout << "leads[i]=" << leads[i].Str() << '\n';
                 std::cout << "leads[j]=" << leads[j].Str() << '\n';
                 std::cout << "m2=" << Milnor(m2) << '\n';
-                for (size_t k = 0; k < pairs_[st.s][j].size(); ++k)
-                    std::cout << "pairs_[j][k].m2" << Milnor(pairs_[st.s][j][k].m2) << '\n';
-                throw MyException(0xfa5db14U, "Should not happen because pairs_ is groebner");
+                for (size_t k = 0; k < gb_[st.s][j].size(); ++k)
+                    std::cout << "gb_[j][k].m2" << Milnor(gb_[st.s][j][k].m2) << '\n';
+                throw MyException(0xfa5db14U, "Should not happen because gb_ is groebner");
             }
 #endif
         }
@@ -75,9 +74,9 @@ void GbCriPairsMRes::Minimize(const MMod1d& leads, AdamsDeg st)
 /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
 ** `buffer_min_pairs_` will become a Groebner basis at this stage.
 */
-void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base, int s)
+void CPMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base, int s)
 {
-    std::vector<std::pair<int, CriPairMRes>> new_pairs(leads.size());
+    std::vector<std::pair<int, CPMilnor>> new_pairs(leads.size());
     size_t lead_size = leads.size();
     ut::Range range(0, (int)leads.size());
 
@@ -87,7 +86,7 @@ void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base,
             int d_pair = lcmLF(leads[i].m_no_weight(), mon.m_no_weight()).deg() + d_mon_base;
             if (d_pair <= deg_trunc_) {
                 new_pairs[i].first = d_pair;
-                CriPairMRes::SetFromLM(new_pairs[i].second, leads[i].m(), mon.m(), (int)i, (int)lead_size);
+                CPMilnor::SetFromLM(new_pairs[i].second, leads[i].m(), mon.m(), (int)i, (int)lead_size);
             }
         }
     }
@@ -98,7 +97,7 @@ void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base,
         MMilnor m = MMilnor::FromIndex(i);
         AdamsDeg st{s, d_mon + m.deg()};
         if (st.t <= deg_trunc_)
-            buffer_singles_[st].push_back(CriPairMRes::Single(m, (int)lead_size));
+            buffer_singles_[st].push_back(CPMilnor::Single(m, (int)lead_size));
     }
 
     /* Remove some critical pairs to form Groebner basis and discover redundent pairs */
@@ -110,8 +109,9 @@ void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base,
                         new_pairs[j].first = -1;
                         break;
                     }
-                    else if (divisibleLF(new_pairs[j].second.m2, new_pairs[i].second.m2))
+                    else if (divisibleLF(new_pairs[j].second.m2, new_pairs[i].second.m2)) {
                         new_pairs[i].first = -1;
+                    }
                     else if (!gcdLF(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
                         int dij = lcmLF(leads[i].m_no_weight(), leads[j].m_no_weight()).deg() + d_mon_base;
                         if (dij <= deg_trunc_)
@@ -129,7 +129,7 @@ void GbCriPairsMRes::AddToBuffers(const MMod1d& leads, MMod mon, int d_mon_base,
     }
 }
 
-void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
+void CPMilnors::init(const MMod2d& leads, const array2d& basis_degrees)
 {
     int t_max = (int)basis_degrees.size() - 1;
     int s_sep = 0;
@@ -146,7 +146,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
             int d_mon_base = basis_degrees[s][leads[s][k].v()];
             int d_mon = mon.deg_m() + d_mon_base;
 
-            std::vector<std::pair<int, CriPairMRes>> new_pairs(k);
+            std::vector<std::pair<int, CPMilnor>> new_pairs(k);
             ut::Range range(0, (int)leads.size());
 
             for (size_t i = 0; i < k; ++i) {
@@ -154,7 +154,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
                     int d_pair = lcmLF(leads[s][i].m_no_weight(), mon.m_no_weight()).deg() + d_mon_base;
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
-                        // CriPairMRes::SetFromLM(new_pairs[i].second, leads[s][i].m(), mon.m(), (int)i, (int)k);
+                        // CPMilnor::SetFromLM(new_pairs[i].second, leads[s][i].m(), mon.m(), (int)i, (int)k);
                     }
                     else
                         new_pairs[i].first = -1;
@@ -169,7 +169,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
                 AdamsDeg st{s, d_mon + m.deg()};
                 if (st.t <= deg_trunc_ && st.t >= t_min_buffer)
                     ;
-                // buffer_singles_[st].push_back(CriPairMRes::Single(m, (int)k));
+                // buffer_singles_[st].push_back(CPMilnor::Single(m, (int)k));
             }
 
             /* Remove some critical pairs to form Groebner basis and discover redundent pairs */
@@ -194,7 +194,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
             }
 
             /* Add critical pairs to buffer and `pairs_` */
-            pairs_[s].resize(k + 1);
+            gb_[s].resize(k + 1);
             for (size_t i = 0; i < new_pairs.size(); ++i) {
                 if (new_pairs[i].first != -1) {
                     if (new_pairs[i].first >= t_min_buffer) {
@@ -202,7 +202,7 @@ void GbCriPairsMRes::init(const MMod2d& leads, const array2d& basis_degrees)
                         buffer_min_pairs_[AdamsDeg{s, new_pairs[i].first}][k].push_back(new_pairs[i].second);
                     }
                     else {
-                        pairs_[s][k].push_back(new_pairs[i].second);  
+                        gb_[s][k].push_back(new_pairs[i].second);
                     }
                 }
             }
@@ -336,7 +336,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             auto st = AdamsDeg{s, t};
             gb.MinimizePairs(st);
 
-            CriPairMRes1d pairs_st = gb.pairs(st);
+            CPMilnor1d pairs_st = gb.pairs(st);
             DataMRes1d rels_tmp;
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
@@ -382,7 +382,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 else
                     bench::Counter(3);
             }
-            
+
             /* Add these relations */
             for (size_t i = 0; i < rels_st.size(); ++i)
                 gb.push_back(rels_st[i], s);
@@ -403,7 +403,6 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 dim += size_k;
             }
         }
-
     }
     return dim;
 }

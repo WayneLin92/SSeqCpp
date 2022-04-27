@@ -13,14 +13,14 @@
 
 namespace steenrod {
 
-struct CriPairMRes
+struct CPMilnor
 {
     int i1 = -1, i2 = -1;
     MMilnor m1, m2;
 
     /* Compute the pair for two leading monomials. */
-    CriPairMRes() = default;
-    static void SetFromLM(CriPairMRes& result, MMilnor lead1, MMilnor lead2, int i, int j)
+    CPMilnor() = default;
+    static void SetFromLM(CPMilnor& result, MMilnor lead1, MMilnor lead2, int i, int j)
     {
         MMilnor gcd = gcdLF(lead1, lead2);
         result.m1 = divLF(lead2, gcd);
@@ -28,20 +28,20 @@ struct CriPairMRes
         result.i1 = i;
         result.i2 = j;
     }
-    static CriPairMRes Single(MMilnor m2, int j)
+    static CPMilnor Single(MMilnor m2, int j)
     {
-        CriPairMRes result;
+        CPMilnor result;
         result.m2 = m2;
         result.i1 = -1;
         result.i2 = j;
         return result;
     }
 };
-using CriPairMRes1d = std::vector<CriPairMRes>;
-using CriPairMRes2d = std::vector<CriPairMRes1d>;
-using CriPairMRes3d = std::vector<CriPairMRes2d>;
-using PCriPairMRes1d = std::vector<CriPairMRes*>;
-using PCriPairMRes2d = std::vector<PCriPairMRes1d>;
+using CPMilnor1d = std::vector<CPMilnor>;
+using CPMilnor2d = std::vector<CPMilnor1d>;
+using CPMilnor3d = std::vector<CPMilnor2d>;
+using PtCPMilnor1d = std::vector<CPMilnor*>;
+using PtCPMilnor2d = std::vector<PtCPMilnor1d>;
 
 struct AdamsDeg
 {
@@ -59,20 +59,19 @@ struct AdamsDeg
 };
 
 /* Groebner basis of critical pairs */
-class GbCriPairsMRes
+class CPMilnors
 {
     using TypeRedSing = std::vector<std::vector<std::unordered_set<uint64_t>>>;
 
 private:
     int deg_trunc_;                                                           /* Truncation degree */
-    CriPairMRes3d pairs_;                                                     /* `pairs_[s][j]` is the set of pairs (i, j) with given j in degree s */
-    TypeRedSing redundent_singles_;                                           /* `redundent_singles_[s][i]` is the set of generators that should not be multiplied by leads[s][i] in reduction */
-    std::map<AdamsDeg, CriPairMRes2d> buffer_min_pairs_;                      /* `buffer_min_pairs_[st]` To generate minimal pairs to compute Sij */
+    CPMilnor3d gb_;                                                           /* `pairs_[s][j]` is the set of pairs (i, j) with given j in degree s */
+    std::map<AdamsDeg, CPMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[st]` To generate minimal pairs to compute Sij */
     std::map<AdamsDeg, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
-    std::map<AdamsDeg, CriPairMRes1d> buffer_singles_;                        /* For computing Sj. `buffer_singles_` stores indices of singles_ */
+    std::map<AdamsDeg, CPMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
 
 public:
-    GbCriPairsMRes(int d_trunc) : deg_trunc_(d_trunc) {}
+    CPMilnors(int d_trunc) : deg_trunc_(d_trunc) {}
 
     int deg_trunc() const
     {
@@ -97,11 +96,11 @@ public:
     }
     void resize_pairs(size_t s)
     {
-        pairs_.resize(s);
+        gb_.resize(s);
     }
-    CriPairMRes1d pairs_for_gb(AdamsDeg st)
+    CPMilnor1d pairs_for_gb(AdamsDeg st)
     {
-        CriPairMRes1d result;
+        CPMilnor1d result;
         if (buffer_singles_.find(st) != buffer_singles_.end()) {
             std::swap(result, buffer_singles_.at(st));
             buffer_singles_.erase(st);
@@ -145,6 +144,24 @@ struct DataMRes
     }
 };
 
+// struct DataMRes
+//{
+//     Mod x1, x2, x3;
+//     DataMRes() {}
+//     DataMRes(Mod x1_, Mod x2_, Mod x3_) : x1(std::move(x1_)), x2(std::move(x2_)), x3(std::move(x3_)) {}
+//     DataMRes operator+(const DataMRes& rhs) const
+//     {
+//         return DataMRes(x1 + rhs.x1, x2 + rhs.x2, x3 + rhs.x3);
+//     }
+//     DataMRes& operator+=(const DataMRes& rhs)
+//     {
+//         x1 += rhs.x1;
+//         x2 += rhs.x2;
+//         x3 += rhs.x3;
+//         return *this;
+//     }
+// };
+
 using DataMRes1d = std::vector<DataMRes>;
 using DataMRes2d = std::vector<DataMRes1d>;
 
@@ -154,9 +171,9 @@ private:
     using TypeIndices = std::vector<std::unordered_map<uint32_t, array>>;
 
 private:
-    GbCriPairsMRes gb_pairs_; /* Groebner basis of critical pairs */
+    CPMilnors gb_pairs_; /* Groebner basis of critical pairs */
 
-    DataMRes2d data_;
+    DataMRes2d gb_;
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
@@ -166,21 +183,21 @@ public:
     GroebnerMRes(int deg_trunc, array2d basis_degrees) : gb_pairs_(deg_trunc), basis_degrees_(std::move(basis_degrees)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMRes(int deg_trunc, DataMRes2d data, array2d basis_degrees) : gb_pairs_(deg_trunc), data_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+    GroebnerMRes(int deg_trunc, DataMRes2d data, array2d basis_degrees) : gb_pairs_(deg_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
     {
         if (basis_degrees_.empty())
             basis_degrees_.push_back({});
         if (basis_degrees_[0].empty())
             basis_degrees_[0].push_back(0);
 
-        leads_.resize(data_.size());
-        indices_.resize(data_.size());
-        gb_pairs_.resize_pairs(data_.size());
+        leads_.resize(gb_.size());
+        indices_.resize(gb_.size());
+        gb_pairs_.resize_pairs(gb_.size());
 
-        for (size_t s = 0; s < data_.size(); ++s) {
-            for (int j = 0; j < (int)data_[s].size(); ++j) {
-                leads_[s].push_back(data_[s][j].x1.GetLead());
-                indices_[s][Key(data_[s][j].x1.GetLead())].push_back(j);
+        for (size_t s = 0; s < gb_.size(); ++s) {
+            for (int j = 0; j < (int)gb_[s].size(); ++j) {
+                leads_[s].push_back(gb_[s][j].x1.GetLead());
+                indices_[s][Key(gb_[s][j].x1.GetLead())].push_back(j);
             }
         }
         gb_pairs_.init(leads_, basis_degrees_);
@@ -208,13 +225,13 @@ private:
     int IndexOfDivisibleLeadingX2(MMod mon, int s) const
     {
         for (size_t k = 0; k < leads_[s].size(); ++k)
-            if (data_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(data_[s][k].x2.GetLead(), mon))
+            if (gb_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(gb_[s][k].x2.GetLead(), mon))
                 return (int)k;
         return -1;
     }
 
 public: /* Getters and Setters */
-    const GbCriPairsMRes& gb_pairs() const
+    const CPMilnors& gb_pairs() const
     {
         return gb_pairs_;
     }
@@ -223,7 +240,7 @@ public: /* Getters and Setters */
         return gb_pairs_.deg_trunc();
     }
     /* This function will erase `gb_pairs_.buffer_min_pairs[t]` */
-    CriPairMRes1d pairs(AdamsDeg st)
+    CPMilnor1d pairs(AdamsDeg st)
     {
         return gb_pairs_.pairs_for_gb(st);
     }
@@ -233,17 +250,17 @@ public: /* Getters and Setters */
     }
     auto size() const
     {
-        return data_.size();
+        return gb_.size();
     }
     auto& operator[](size_t index) const
     {
-        return data_[index];
+        return gb_[index];
     }
     void resize_data(int s)
     {
-        if (data_.size() <= (size_t)s) {
+        if (gb_.size() <= (size_t)s) {
             size_t sp1 = size_t(s + 1); /* s plus 1 */
-            data_.resize(sp1);
+            gb_.resize(sp1);
             leads_.resize(sp1);
             indices_.resize(sp1);
             gb_pairs_.resize_pairs(sp1);
@@ -255,9 +272,9 @@ public: /* Getters and Setters */
         gb_pairs_.AddToBuffers(leads_[s], mv, basis_degrees_[s][mv.v()], s);  // TODO: modify the counterpart in algebras/groebner.h
 
         leads_[s].push_back(mv);
-        indices_[s][Key(mv)].push_back((int)data_[s].size());
+        indices_[s][Key(mv)].push_back((int)gb_[s].size());
 
-        data_[s].push_back(std::move(g));
+        gb_[s].push_back(std::move(g));
     }
 
     /* Add x2 + v_{s+1,i} */
@@ -284,11 +301,11 @@ public: /* Getters and Setters */
 
     const auto& data() const
     {
-        return data_;
+        return gb_;
     }
 
 public:
-    DataMRes Reduce(CriPairMRes& p, int s) const
+    DataMRes Reduce(CPMilnor& p, int s) const
     {
         DataMRes result;
         size_t sp1 = size_t(s + 1);
@@ -301,12 +318,12 @@ public:
         tmp_m2.data.reserve(100);
 
         if (p.i1 >= 0) {
-            result.x1.iaddmul(p.m1, data_[s][p.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, data_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-            result.x2.iaddmul(p.m1, data_[s][p.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, data_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
+            result.x1.iaddmul(p.m1, gb_[s][p.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
+            result.x2.iaddmul(p.m1, gb_[s][p.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
         }
         else {
-            result.x1.iaddmul(p.m2, data_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-            result.x2.iaddmul(p.m2, data_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
+            result.x1.iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
+            result.x2.iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
         }
 
         size_t index;
@@ -314,9 +331,9 @@ public:
         while (index < result.x1.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
             if (gb_index != -1) {
-                MMilnor m = divLF(result.x1.data[index], data_[s][gb_index].x1.data[0]);
-                result.x1.iaddmul(m, data_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
-                result.x2.iaddmul(m, data_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
+                MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
+                result.x1.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
+                result.x2.iaddmul(m, gb_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
             }
             else
                 ++index;
@@ -325,8 +342,8 @@ public:
         while (index < result.x2.data.size()) {
             int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
             if (gb_index != -1) {
-                MMilnor m = divLF(result.x2.data[index], data_[sp1][gb_index].x1.data[0]);
-                result.x2.iaddmul(m, data_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
+                MMilnor m = divLF(result.x2.data[index], gb_[sp1][gb_index].x1.data[0]);
+                result.x2.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
             }
             else
                 ++index;
