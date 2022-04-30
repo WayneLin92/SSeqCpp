@@ -6,6 +6,7 @@
 #define GROEBNER_STEENROD_H
 
 #include "algebras/steenrod.h"
+#include "algebras/benchmark.h"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,6 +46,8 @@ using PtCPMilnor2d = std::vector<PtCPMilnor1d>;
 /* Groebner basis of critical pairs */
 class CPMilnors
 {
+    friend class GroebnerMRes;
+
 private:
     int t_trunc_;                                                        /* Truncation degree */
     CPMilnor2d gb_;                                                      /* `pairs_[j]` is the set of pairs (i, j) with given j */
@@ -63,7 +66,7 @@ public:
     {
         return buffer_min_pairs_.find(t) == buffer_min_pairs_.end();
     }
-    CPMilnor1d pairs_for_gb(int t)
+    CPMilnor1d cpairs_for_gb(int t)
     {
         CPMilnor1d result;
         if (!buffer_singles_.empty() && buffer_singles_.begin()->first == t) {
@@ -96,38 +99,32 @@ using CPMilnors1d = std::vector<CPMilnors>;
 
 struct DataMRes
 {
-    Mod x1, x2;
+    Mod x1, x2, x2m;
+    uint64_t w_may = 0, v = 0;  //// TODO: change to v_raw
     DataMRes() {}
-    DataMRes(Mod x1_, Mod x2_) : x1(std::move(x1_)), x2(std::move(x2_)) {}
+    DataMRes(Mod x1_, Mod x2_, Mod x2m_) : x1(std::move(x1_)), x2(std::move(x2_)), x2m(std::move(x2m_))
+    {
+        if (x1) {
+            w_may = x1.GetLead().w_may();
+            v = x1.GetLead().v();
+        }
+    }
+    DataMRes(Mod x1_, Mod x2_, Mod x2m_, uint64_t w_may_, uint64_t v_) : x1(std::move(x1_)), x2(std::move(x2_)), x2m(std::move(x2m_)), w_may(w_may_), v(v_) {}
     DataMRes operator+(const DataMRes& rhs) const
     {
-        return DataMRes(x1 + rhs.x1, x2 + rhs.x2);
+        if (w_may != rhs.w_may || v != rhs.v)
+            throw MyException(0x5551a1e9U, "Add only when x2m's are homogeneous");
+        return DataMRes(x1 + rhs.x1, x2 + rhs.x2, x2m + rhs.x2m, w_may, v);
     }
     DataMRes& operator+=(const DataMRes& rhs)
     {
+        if (w_may == x1.GetLead().w_may() && v == x1.GetLead().v() && w_may == rhs.w_may && v == rhs.v)
+            x2m += rhs.x2m;
         x1 += rhs.x1;
         x2 += rhs.x2;
         return *this;
     }
 };
-
-// struct DataMRes
-//{
-//     Mod x1, x2, x3;
-//     DataMRes() {}
-//     DataMRes(Mod x1_, Mod x2_, Mod x3_) : x1(std::move(x1_)), x2(std::move(x2_)), x3(std::move(x3_)) {}
-//     DataMRes operator+(const DataMRes& rhs) const
-//     {
-//         return DataMRes(x1 + rhs.x1, x2 + rhs.x2, x3 + rhs.x3);
-//     }
-//     DataMRes& operator+=(const DataMRes& rhs)
-//     {
-//         x1 += rhs.x1;
-//         x2 += rhs.x2;
-//         x3 += rhs.x3;
-//         return *this;
-//     }
-// };
 
 using DataMRes1d = std::vector<DataMRes>;
 using DataMRes2d = std::vector<DataMRes1d>;
@@ -140,13 +137,21 @@ private:
 private:
     int t_trunc_;
 
+    CPMilnors1d cpairs_; /* Groebner basis of critical pairs */
+
     DataMRes2d gb_;
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
-    CPMilnors1d pairs_; /* Groebner basis of critical pairs */
-
     array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
+
+    CPMilnors1d cpairs_x2m_; /* Groebner basis of critical pairs */
+
+    Mod2d gb_x2m_;
+    MMod2d leads_x2m_;        /* Leading monomials */
+    TypeIndices indices_x2m_; /* Cache for fast divisibility test */
+
+    array2d basis_degrees_x2m_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
 
 public:
     GroebnerMRes(int t_trunc, array2d basis_degrees) : t_trunc_(t_trunc), basis_degrees_(std::move(basis_degrees)) {}
@@ -170,9 +175,11 @@ public:
         }
 
         for (size_t s = 0; s < gb_.size(); ++s) {
-            pairs_.push_back(CPMilnors(t_trunc_));
-            pairs_.back().init(leads_[s], basis_degrees_[s]);
+            cpairs_.push_back(CPMilnors(t_trunc_));
+            cpairs_.back().init(leads_[s], basis_degrees_[s]);
         }
+
+        ////x2m
     }
 
 private:
@@ -182,7 +189,7 @@ private:
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeading(MMod mon, int s) const
+    int IndexOfDivisibleLeading(MMod mon, size_t s) const
     {
         auto key = uint32_t(mon.v());
         auto p = indices_[s].find(key);
@@ -194,19 +201,27 @@ private:
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeadingX2(MMod mon, int s) const
+    int IndexOfDivisibleLeadingX2m(MMod mon, size_t s) const
     {
-        for (size_t k = 0; k < leads_[s].size(); ++k)
-            if (gb_[s][k].x2.GetLead().v_raw() == mon.v_raw() && divisibleLF(gb_[s][k].x2.GetLead(), mon))
-                return (int)k;
+        auto key = uint32_t(mon.v());
+        auto p = indices_x2m_[s].find(key);
+        if (p != indices_x2m_[s].end())
+            for (int k : p->second)
+                if (divisibleLF(leads_x2m_[s][k], mon))
+                    return k;
         return -1;
     }
+
+    Mod ReduceX2m(Mod x2m, size_t s) const;
+    Mod ReduceX2m(const CPMilnor& p, size_t s) const;
+    void AddRelsX2m(size_t s, int t);
 
 public: /* Getters and Setters */
     int t_trunc() const
     {
         return t_trunc_;
     }
+
     int t_begin() const
     {
         int t = 0;
@@ -221,13 +236,36 @@ public: /* Getters and Setters */
         return t;
     }
     /* This function will erase `gb_pairs_.buffer_min_pairs[t]` */
-    CPMilnor1d pairs(size_t s, int t)
+
+    CPMilnor1d cpairs(size_t s, int t)
     {
-        return pairs_[s].pairs_for_gb(t);
+        AddRelsX2m(s, t);
+        cpairs_[s].Minimize(leads_[s], t);
+        CPMilnor1d cps = cpairs_[s].cpairs_for_gb(t);
+        Mod tmp;////
+        tmp.data.reserve(50);
+        for (auto& cp : cps) {
+            Mod x2m_cp;
+            if (cp.i1 >= 0)
+                x2m_cp.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp); //
+            else
+                x2m_cp.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp);
+            if (!ReduceX2m(std::move(x2m_cp), s)) {
+                bench::Counter(4);
+                cp.i2 = -1;
+            }
+        }
+        ut::RemoveIf(cps, [](const CPMilnor& cp) { return cp.i2 == -1; });
+        return cps;
     }
-    const array2d& basis_degs() const
+
+    const array2d& basis_degs() const //// para s
     {
         return basis_degrees_;
+    }
+    const array& basis_degs_x2m(size_t s) const
+    {
+        return basis_degrees_x2m_[s];
     }
     auto gb_size() const
     {
@@ -243,100 +281,79 @@ public: /* Getters and Setters */
             gb_.resize(s);
             leads_.resize(s);
             indices_.resize(s);
-            while (pairs_.size() < s)
-                pairs_.push_back(CPMilnors(t_trunc_));
+            while (cpairs_.size() < s)
+                cpairs_.push_back(CPMilnors(t_trunc_));
         }
+    }
+    void resize_gb_x2m(size_t s)
+    {
+        if (gb_x2m_.size() < s) {
+            gb_x2m_.resize(s);
+            leads_x2m_.resize(s);
+            indices_x2m_.resize(s);
+            while (cpairs_x2m_.size() < s)
+                cpairs_x2m_.push_back(CPMilnors(t_trunc_));
+        }
+    }
+    Mod new_gen(size_t s, int t)
+    {
+        if (basis_degrees_.size() < s + 1)  ////
+            basis_degrees_.resize(s + 1);
+        basis_degrees_[s].push_back(t);
+        return MMod(MMilnor(), basis_degrees_[s].size() - 1);
+    }
+    Mod new_gen_x2m(size_t s, int t)
+    {
+        if (basis_degrees_x2m_.size() < s + 1)  ////
+            basis_degrees_x2m_.resize(s + 1);
+        basis_degrees_x2m_[s].push_back(t);
+        return MMod(MMilnor(), basis_degrees_x2m_[s].size() - 1);
     }
     void push_back(DataMRes g, size_t s)
     {
-        MMod mv = g.x1.GetLead();
-        pairs_[s].AddToBuffers(leads_[s], mv, basis_degrees_[s][mv.v()]);
+        MMod m = g.x1.GetLead();
+        cpairs_[s].AddToBuffers(leads_[s], m, basis_degrees_[s][m.v()]);
 
-        leads_[s].push_back(mv);
-        indices_[s][Key(mv)].push_back((int)gb_[s].size());
+        leads_[s].push_back(m);
+        indices_[s][Key(m)].push_back((int)gb_[s].size());
         gb_[s].push_back(std::move(g));
+    }
+    void push_back_x2m(Mod g, size_t s)
+    {
+        MMod m = g.GetLead();
+        cpairs_x2m_[s].AddToBuffers(leads_x2m_[s], m, basis_degrees_x2m_[s][m.v()]);
+
+        leads_x2m_[s].push_back(m);
+        indices_x2m_[s][Key(m)].push_back((int)gb_x2m_[s].size());
+        gb_x2m_[s].push_back(std::move(g));
     }
 
     /* Add x2 + v_{s+1,i} */
-    void push_back_kernel(Mod x2, DataMRes1d& rels, int s, int t)
+    void push_back_kernel(Mod x2, DataMRes1d& rels, size_t s, int t)
     {
-        size_t sp1 = size_t(s + 1); /* s plus 1 */
-        if (basis_degrees_.size() <= sp1) {
-            size_t sp2 = size_t(s + 2);
-            basis_degrees_.resize(sp2);
-        }
-        basis_degrees_[sp1].push_back(t);
-
-        Mod x3 = MMod(MMilnor(), basis_degrees_[sp1].size() - 1);
-
-        DataMRes g = DataMRes(std::move(x2), std::move(x3));
+        DataMRes g = DataMRes(std::move(x2), new_gen(s + 1, t), new_gen_x2m(s, t));
         rels.push_back(g);
         push_back(std::move(g), s);
-    }
-    void MinimizePairs(size_t s, int t)
-    {
-        pairs_[s].Minimize(leads_[s], t);
     }
 
     const auto& data() const
     {
         return gb_;
     }
+    const auto& data_x2m() const
+    {
+        return gb_x2m_;
+    }
 
 public:
-    DataMRes Reduce(CPMilnor& p, int s) const
-    {
-        DataMRes result;
-        size_t sp1 = size_t(s + 1);
-
-        Milnor tmp_a;
-        Mod tmp_m1;
-        Mod tmp_m2;
-        tmp_a.data.reserve(50);
-        tmp_m1.data.reserve(100);
-        tmp_m2.data.reserve(100);
-
-        if (p.i1 >= 0) {
-            result.x1.iaddmul(p.m1, gb_[s][p.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-            result.x2.iaddmul(p.m1, gb_[s][p.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
-        }
-        else {
-            result.x1.iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-            result.x2.iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
-        }
-
-        size_t index;
-        index = 0;
-        while (index < result.x1.data.size()) {
-            int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
-            if (gb_index != -1) {
-                MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
-                result.x1.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
-                result.x2.iaddmul(m, gb_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
-            }
-            else
-                ++index;
-        }
-        index = 0;
-        while (index < result.x2.data.size()) {
-            int gb_index = IndexOfDivisibleLeading(result.x2.data[index], s + 1);
-            if (gb_index != -1) {
-                MMilnor m = divLF(result.x2.data[index], gb_[sp1][gb_index].x1.data[0]);
-                result.x2.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
-            }
-            else
-                ++index;
-        }
-
-        return result;
-    }
+    DataMRes Reduce(const CPMilnor& p, int s) const;
 
 public:
     static GroebnerMRes load(const std::string& filename, int t_trunc);
 };
 
 /**
- * Comsume relations from 'rels` and `gb.pairs_` in degree `<= deg`.
+ * Comsume relations from 'rels` and `gb.cpairs_` in degree `<= deg`.
  *
  * return the dimension of the calculated range for debugging.
  */

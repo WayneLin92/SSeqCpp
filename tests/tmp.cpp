@@ -90,15 +90,11 @@ void test()
 {
     using namespace steenrod;
 
-    auto xi = MMilnor::Xi;
-    auto p = MMilnor::P;
-    std::cout << xi({5, 0, 1}) * p(1, 2) << '\n';
-    std::cout << xi({6, 0, 1}) * p(0, 1) << '\n';
-    std::cout << xi({0, 1, 1}) * p(2, 3) << '\n';
-    std::cout << xi({0, 2, 1}) * p(0, 1) << '\n';
+    auto p = MMilnor::P(1, 3) * MMilnor::P(2, 4);
+    std::cout << p << '\n';
+    std::cout << p.data[0].w() << ' ' << p.data[0].w_may() << '\n';
 }
 
-std::vector<double> bench::Timer::counts_ = {};
 int main()
 {
     test();

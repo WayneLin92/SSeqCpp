@@ -28,11 +28,21 @@ void AdamsE2()
         size_gb += data[s].size();
     std::cout << "size_gb=" << size_gb << '\n';
 
-    /*for (size_t s = 0; s < data.size(); ++s) {
+    //for (size_t s = 0; s < data.size(); ++s) {
+    //    std::cout << "s=" << s << '\n';
+    //    for (size_t i = 0; i < data[s].size(); ++i) {
+    //        if (data[s][i].x1.LF().GetLead().v() == 3 /*|| data[s][i].x2.data.size() == 1*/)
+    //        //if (data[s][i].x1.LF().data.size() > 1)
+    //            std::cout << data[s][i].x1.LF() /*<< " = " << data[s][i].x2*/ /*<< " = " << data[s][i].x2m*/ << '\n';
+    //    }
+    //}
+
+    /* std::cout << "\ngb_x2m:\n";
+    auto& data_x2m = gb.data_x2m();
+    for (size_t s = 0; s < data_x2m.size(); ++s) {
         std::cout << "s=" << s << '\n';
-        for (size_t i = 0; i < data[s].size(); ++i) {
-            std::cout << data[s][i].x1 << " = " << data[s][i].x2 << '\n';
-            std::cout << data[s][i].x1.GetLead().w() << " = " << data[s][i].x2.GetLead().w() << '\n';
+        for (size_t i = 0; i < data_x2m[s].size(); ++i) {
+            std::cout << data_x2m[s][i] << '\n';
         }
     }*/
 }

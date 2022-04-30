@@ -255,8 +255,8 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
 }
 
 /**
-* Sort the sequence and each time remove a pair of identical elements
-*/
+ * Sort the sequence and each time remove a pair of identical elements
+ */
 void SortMod2(MMilnor1d& data)
 {
     std::sort(data.begin(), data.end());
@@ -346,7 +346,7 @@ std::string MMod::Str() const
 std::string MMod::StrXi() const
 {
     auto s = m_no_weight().StrXi();
-    return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}' ;
+    return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}';
 }
 
 Mod operator*(MMilnor m, const Mod& x)
@@ -363,6 +363,11 @@ Mod operator*(MMilnor m, const Mod& x)
     }
     SortMod2(result.data);
     return result;
+}
+
+Mod mulMay(MMilnor m, const Mod& x)
+{
+    return (m * x).LFMay();
 }
 
 void mul(MMilnor m, const Mod& x, Milnor& tmp, Mod& result)
@@ -384,6 +389,15 @@ Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_
     tmp_m2.data.clear();
     std::swap(data, tmp_m2.data);
     std::set_symmetric_difference(tmp_m1.data.cbegin(), tmp_m1.data.cend(), tmp_m2.data.cbegin(), tmp_m2.data.cend(), std::back_inserter(data));
+    return *this;
+}
+
+Mod& Mod::iaddmulMay(MMilnor m, const Mod& x, Mod& tmp)
+{
+    Mod mx = mulMay(m, x);  ////
+    tmp.data.clear();
+    std::swap(data, tmp.data);
+    std::set_symmetric_difference(mx.data.cbegin(), mx.data.cend(), tmp.data.cbegin(), tmp.data.cend(), std::back_inserter(data));
     return *this;
 }
 

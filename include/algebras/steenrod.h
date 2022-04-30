@@ -171,9 +171,17 @@ public:
     {
         return data_ & MMILNOR_MASK_W;
     }
+    uint64_t w() const
+    {
+        return data_ >> MMILNOR_E_BITS;
+    }
     uint64_t e() const
     {
         return data_ & MMILNOR_MASK_E;
+    }
+    uint64_t w_may() const
+    {
+        return (w() + ut::popcount(e())) / 2;
     }
 
     MMilnor mulLF(MMilnor rhs) const
@@ -209,11 +217,6 @@ public:
     MMilnor lcmLF(MMilnor rhs) const
     {
         return FromE((data_ | rhs.data_) & MMILNOR_MASK_E);
-    }
-
-    uint64_t w() const
-    {
-        return data_ >> MMILNOR_E_BITS;
     }
 
     int deg() const
@@ -350,7 +353,7 @@ struct Milnor
 };
 
 std::ostream& operator<<(std::ostream& sout, const Milnor& x);
-inline Milnor operator*(MMilnor m1, MMilnor m2) ////
+inline Milnor operator*(MMilnor m1, MMilnor m2)  ////
 {
     return Milnor(m1) * Milnor(m2);
 }
@@ -368,14 +371,9 @@ private:
     uint64_t data_;
 
 public:
-    constexpr MMod() : data_(MMOD_MASK_V) {
-    }
-    constexpr explicit MMod(uint64_t data) : data_(data)
-    {
-    }
-    explicit MMod(MMilnor m, uint64_t v) : data_(m.data() | (~v << MMOD_M_BITS))
-    {
-    }
+    constexpr MMod() : data_(MMOD_MASK_V) {}
+    constexpr explicit MMod(uint64_t data) : data_(data) {}
+    explicit MMod(MMilnor m, uint64_t v) : data_(m.data() | (~v << MMOD_M_BITS)) {}
 
     uint64_t data() const
     {
@@ -409,6 +407,10 @@ public:
     {
         return MMilnor::FromE(e());
     }
+    uint64_t w_may() const
+    {
+        return (w() + ut::popcount(e())) / 2;
+    }
 
     bool operator==(MMod rhs) const
     {
@@ -416,7 +418,7 @@ public:
     };
     bool operator<(MMod rhs) const
     {
-         return data_ < rhs.data_;
+        return data_ < rhs.data_;
     };
     explicit operator bool() const
     {
@@ -483,6 +485,30 @@ struct Mod
         return data[0];
     }
 
+    Mod LF() const
+    {
+        Mod result;
+        if (!*this)
+            return result;
+        result = GetLead();
+        for (size_t i = 1; i < data.size(); ++i)
+            if (data[0].v_raw() == data[i].v_raw() && data[0].w_raw() == data[i].w_raw())
+                result.data.push_back(data[i]);
+        return result;
+    }
+
+    Mod LFMay() const
+    {
+        Mod result;
+        if (!*this)
+            return result;
+        result = GetLead();
+        for (size_t i = 1; i < data.size(); ++i)
+            if (data[0].v_raw() == data[i].v_raw() && data[0].w_may() == data[i].w_may())
+                result.data.push_back(data[i]);
+        return result;
+    }
+
     explicit operator bool() const
     {
         return !data.empty();
@@ -502,6 +528,7 @@ struct Mod
     }
     /* `*this += m * x` */
     Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2);
+    Mod& iaddmulMay(MMilnor m, const Mod& x, Mod& tmp);
     bool operator==(const Mod& rhs) const
     {
         return data == rhs.data;
@@ -515,6 +542,7 @@ using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
 Mod operator*(MMilnor m, const Mod& x);
+Mod mulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
@@ -536,13 +564,13 @@ Mod TplSubs(const Mod& x, FnMap map)
 /**
  * Replace v_i with `map[i]`.
  */
-//inline Mod subs(const Mod& x, const Mod1d& map)
+// inline Mod subs(const Mod& x, const Mod1d& map)
 //{
-//    Mod result;
-//    for (const MMod& mv : x.data)
-//        result += Milnor(mv.m()) * map[mv.v()];
-//    return result;
-//}
+//     Mod result;
+//     for (const MMod& mv : x.data)
+//         result += Milnor(mv.m()) * map[mv.v()];
+//     return result;
+// }
 
 }  // namespace steenrod
 
