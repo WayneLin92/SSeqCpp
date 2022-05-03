@@ -5,8 +5,8 @@
 #ifndef GROEBNER_STEENROD_H
 #define GROEBNER_STEENROD_H
 
-#include "algebras/steenrod.h"
 #include "algebras/benchmark.h"
+#include "algebras/steenrod.h"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -78,7 +78,7 @@ public:
             for (size_t j = 0; j < b_min_pairs_t.size(); ++j)
                 for (auto& pair : b_min_pairs_t[j])
                     if (pair.i2 != -1)
-                        result.push_back(std::move(pair));
+                        result.push_back(pair);
             buffer_min_pairs_.erase(buffer_min_pairs_.begin());
         }
 
@@ -97,32 +97,55 @@ public:
 };
 using CPMilnors1d = std::vector<CPMilnors>;
 
+struct Filtr
+{
+    uint64_t data;
+    Filtr() : data(~0) {}
+    Filtr(MMod m) : data(m.v_raw() | m.w_may()) {}
+    Filtr(uint64_t data_) : data(data_) {}
+    bool operator<(Filtr rhs) const
+    {
+        return data < rhs.data;
+    }
+    bool operator==(Filtr rhs) const
+    {
+        return data == rhs.data;
+    }
+    Filtr operator+(uint64_t w_may) const
+    {
+        return Filtr(data + w_may);
+    }
+};
+
 struct DataMRes
 {
     Mod x1, x2, x2m;
-    uint64_t w_may = 0, v = 0;  //// TODO: change to v_raw
+    Filtr fil;
     DataMRes() {}
     DataMRes(Mod x1_, Mod x2_, Mod x2m_) : x1(std::move(x1_)), x2(std::move(x2_)), x2m(std::move(x2m_))
     {
-        if (x1) {
-            w_may = x1.GetLead().w_may();
-            v = x1.GetLead().v();
-        }
-    }
-    DataMRes(Mod x1_, Mod x2_, Mod x2m_, uint64_t w_may_, uint64_t v_) : x1(std::move(x1_)), x2(std::move(x2_)), x2m(std::move(x2m_)), w_may(w_may_), v(v_) {}
-    DataMRes operator+(const DataMRes& rhs) const
-    {
-        if (w_may != rhs.w_may || v != rhs.v)
-            throw MyException(0x5551a1e9U, "Add only when x2m's are homogeneous");
-        return DataMRes(x1 + rhs.x1, x2 + rhs.x2, x2m + rhs.x2m, w_may, v);
+        if (x1)
+            fil = Filtr(x1.GetLead());
     }
     DataMRes& operator+=(const DataMRes& rhs)
     {
-        if (w_may == x1.GetLead().w_may() && v == x1.GetLead().v() && w_may == rhs.w_may && v == rhs.v)
+#ifndef NDEBUG
+        if (!rhs.valid_x2m())
+            throw MyException(0x2ae8baa3U, "Add only when rhs.x2m is valid");
+#endif
+        if (valid_x2m() && fil == rhs.fil)
             x2m += rhs.x2m;
         x1 += rhs.x1;
         x2 += rhs.x2;
         return *this;
+    }
+    bool valid_x2m() const
+    {
+        if (x1)
+            return fil == Filtr(x1.GetLead());
+        if (x2m)
+            return false;
+        return true;
     }
 };
 
@@ -212,11 +235,11 @@ private:
         return -1;
     }
 
-    Mod ReduceX2m(Mod x2m, size_t s) const;
-    Mod ReduceX2m(const CPMilnor& p, size_t s) const;
+    Mod ReduceByGbX2m(Mod x2m, size_t s) const;
+    Mod ReduceByGbX2m(const CPMilnor& p, size_t s) const;
     void AddRelsX2m(size_t s, int t);
 
-public: /* Getters and Setters */
+public:
     int t_trunc() const
     {
         return t_trunc_;
@@ -235,31 +258,33 @@ public: /* Getters and Setters */
         }
         return t;
     }
-    /* This function will erase `gb_pairs_.buffer_min_pairs[t]` */
 
     CPMilnor1d cpairs(size_t s, int t)
     {
         AddRelsX2m(s, t);
         cpairs_[s].Minimize(leads_[s], t);
         CPMilnor1d cps = cpairs_[s].cpairs_for_gb(t);
-        Mod tmp;////
-        tmp.data.reserve(50);
-        for (auto& cp : cps) {
-            Mod x2m_cp;
-            if (cp.i1 >= 0)
-                x2m_cp.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp); //
-            else
-                x2m_cp.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp);
-            if (!ReduceX2m(std::move(x2m_cp), s)) {
+        std::vector<Filtr> fils(cps.size());
+        for (size_t i = 0; i < cps.size(); ++i)
+            fils[i] = gb_[s][cps[i].i2].fil + cps[i].m2.w_may();
+        auto indices = ut::size_t_range(cps.size());
+        std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[i] < fils[j]; });
+        CPMilnor1d result;
+        result.reserve(cps.size());
+        for (size_t i = 0; i < cps.size(); ++i)
+            result.push_back(cps[indices[i]]);
+
+        for (auto& cp : result) {
+            if (!ReduceX2m(cp, s)) {
                 bench::Counter(4);
                 cp.i2 = -1;
             }
         }
-        ut::RemoveIf(cps, [](const CPMilnor& cp) { return cp.i2 == -1; });
-        return cps;
+        ut::RemoveIf(result, [](const CPMilnor& cp) { return cp.i2 == -1; });
+        return result;
     }
 
-    const array2d& basis_degs() const //// para s
+    const array2d& basis_degs() const  //// para s
     {
         return basis_degrees_;
     }
@@ -346,7 +371,9 @@ public: /* Getters and Setters */
     }
 
 public:
-    DataMRes Reduce(const CPMilnor& p, int s) const;
+    DataMRes Reduce(const CPMilnor& cp, size_t s) const;
+    Mod ReduceX2(const CPMilnor& cp, int s) const;  ////
+    Mod ReduceX2m(const CPMilnor& cp, size_t s) const;
 
 public:
     static GroebnerMRes load(const std::string& filename, int t_trunc);

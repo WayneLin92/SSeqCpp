@@ -92,10 +92,6 @@ private:
     uint64_t data_;
 
 public:
-    /**
-     * The first 10 bits are used to store the weight.
-     * The rest are used to store the exterior monomial.
-     */
     MMilnor() : data_(0) {}
     constexpr explicit MMilnor(uint64_t data) : data_(data) {}
 
@@ -228,6 +224,7 @@ public:
     }
 
     std::string StrXi() const;
+    std::string Str() const;
 
 public:
     class iterator
@@ -321,6 +318,11 @@ inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
     return m1.lcmLF(m2);
 }
 
+inline std::ostream& operator<<(std::ostream& sout, MMilnor m)
+{
+    return std::cout << m.Str();
+}
+
 /* Elements of A as linear combinations of Milnor basis
  */
 struct Milnor
@@ -350,9 +352,13 @@ struct Milnor
     Milnor operator*(const Milnor& rhs) const;
 
     std::string StrXi() const;
+    std::string Str() const;
 };
 
-std::ostream& operator<<(std::ostream& sout, const Milnor& x);
+inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
+{
+    return std::cout << x.Str();
+}
 inline Milnor operator*(MMilnor m1, MMilnor m2)  ////
 {
     return Milnor(m1) * Milnor(m2);
@@ -542,7 +548,7 @@ using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
 Mod operator*(MMilnor m, const Mod& x);
-Mod mulMay(MMilnor m, const Mod& x);
+Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {

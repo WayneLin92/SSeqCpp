@@ -891,7 +891,7 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
     }
     ut::RemoveEmptyElements(vectors);
     if (!vectors.empty()) {
-        array indices = ut::range((int)vectors.size());
+        array indices = ut::int_range((int)vectors.size());
         std::sort(indices.begin(), indices.end(), [&degs](int i, int j) { return degs[i] < degs[j]; });
 
         /* Add relations ordered by degree to gb1 */

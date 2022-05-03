@@ -28,23 +28,33 @@ void AdamsE2()
         size_gb += data[s].size();
     std::cout << "size_gb=" << size_gb << '\n';
 
-    //for (size_t s = 0; s < data.size(); ++s) {
-    //    std::cout << "s=" << s << '\n';
-    //    for (size_t i = 0; i < data[s].size(); ++i) {
-    //        if (data[s][i].x1.LF().GetLead().v() == 3 /*|| data[s][i].x2.data.size() == 1*/)
-    //        //if (data[s][i].x1.LF().data.size() > 1)
-    //            std::cout << data[s][i].x1.LF() /*<< " = " << data[s][i].x2*/ /*<< " = " << data[s][i].x2m*/ << '\n';
-    //    }
-    //}
-
-    /* std::cout << "\ngb_x2m:\n";
-    auto& data_x2m = gb.data_x2m();
-    for (size_t s = 0; s < data_x2m.size(); ++s) {
-        std::cout << "s=" << s << '\n';
-        for (size_t i = 0; i < data_x2m[s].size(); ++i) {
-            std::cout << data_x2m[s][i] << '\n';
+    /*for (size_t s = 0; s < data.size(); ++s) {
+        std::cerr << "\ns=" << s << '\n';
+        for (size_t i = 0; i < data[s].size(); ++i) {
+            std::cerr << "i=" << i << '\n';
+            std::cerr << "x1=" << data[s][i].x1 << '\n';
+            std::cerr << "x2=" << data[s][i].x2 << '\n';
+            std::cerr << "x2m=" << data[s][i].x2m << std::endl;
         }
     }*/
+
+    // for (size_t s = 0; s < 4 /* data.size()*/; ++s) {
+    //     std::cout << "s=" << s << '\n';
+    //     for (size_t i = 0; i < data[s].size(); ++i) {
+    //         // if (data[s][i].x1.LF().GetLead().v() == 3 /*|| data[s][i].x2.data.size() == 1*/)
+    //         // if (data[s][i].x1.LF().data.size() > 1)
+    //         std::cout << data[s][i].x1.LFMay() << " ++ " << data[s][i].x1 + data[s][i].x1.LFMay() /*<< " = " << data[s][i].x2*/ << " = " << data[s][i].x2m << '\n';
+    //     }
+    // }
+
+    // std::cout << "\ngb_x2m:\n";
+    // auto& data_x2m = gb.data_x2m();
+    // for (size_t s = 0; s < data_x2m.size(); ++s) {
+    //     std::cout << "s=" << s << '\n';
+    //     for (size_t i = 0; i < data_x2m[s].size(); ++i) {
+    //         std::cout << data_x2m[s][i] << '\n';
+    //     }
+    // }
 }
 
 int main()

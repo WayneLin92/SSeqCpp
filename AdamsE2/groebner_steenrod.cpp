@@ -160,7 +160,7 @@ void CPMilnors::init(const MMod1d& leads, const array& basis_degrees)
     }
 }
 
-DataMRes GroebnerMRes::Reduce(const CPMilnor& p, int s) const
+DataMRes GroebnerMRes::Reduce(const CPMilnor& cp, size_t s) const
 {
     DataMRes result;
     size_t sp1 = size_t(s + 1);
@@ -172,18 +172,17 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& p, int s) const
     tmp_m1.data.reserve(100);
     tmp_m2.data.reserve(100);
 
-    if (p.i1 >= 0) {
-        result.x1.iaddmul(p.m1, gb_[s][p.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-        result.x2.iaddmul(p.m1, gb_[s][p.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
-        result.x2m.iaddmulMay(p.m1, gb_[s][p.i1].x2m, tmp_m1).iaddmulMay(p.m2, gb_[s][p.i2].x2m, tmp_m1);
+    if (cp.i1 >= 0) {
+        result.x1.iaddmul(cp.m1, gb_[s][cp.i1].x1, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_m1, tmp_m2);
+        result.x2.iaddmul(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
+        result.x2m.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp_m1).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_m1);
     }
     else {
-        result.x1.iaddmul(p.m2, gb_[s][p.i2].x1, tmp_a, tmp_m1, tmp_m2);
-        result.x2.iaddmul(p.m2, gb_[s][p.i2].x2, tmp_a, tmp_m1, tmp_m2);
-        result.x2m.iaddmulMay(p.m2, gb_[s][p.i2].x2m, tmp_m1);
+        result.x1.iaddmul(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_m1, tmp_m2);
+        result.x2.iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
+        result.x2m.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_m1);
     }
-    result.w_may = p.m2.w_may() + gb_[s][p.i2].x1.GetLead().w_may();
-    result.v = gb_[s][p.i2].x1.GetLead().v();
+    result.fil = gb_[s][cp.i2].fil + cp.m2.w_may();
 
     size_t index;
     index = 0;
@@ -191,7 +190,7 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& p, int s) const
         int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
         if (gb_index != -1) {
             MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
-            if (result.w_may == result.x1.data[index].w_may() && result.v == result.x1.data[index].v())
+            if (result.valid_x2m() && result.fil == Filtr(result.x1.data[index]))
                 result.x2m.iaddmulMay(m, gb_[s][gb_index].x2m, tmp_m1);
             result.x1.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
             result.x2.iaddmul(m, gb_[s][gb_index].x2, tmp_a, tmp_m1, tmp_m2);
@@ -209,12 +208,75 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& p, int s) const
         else
             ++index;
     }
-    result.x2m = ReduceX2m(std::move(result.x2m), s);
+    result.x2m = ReduceByGbX2m(std::move(result.x2m), s);
 
     return result;
 }
 
-Mod GroebnerMRes::ReduceX2m(Mod x2m, size_t s) const
+Mod GroebnerMRes::ReduceX2(const CPMilnor& cp, int s) const
+{
+    Mod result;
+    size_t sp1 = size_t(s + 1);
+
+    Milnor tmp_a;
+    Mod tmp_m1;
+    Mod tmp_m2;
+    tmp_a.data.reserve(50);
+    tmp_m1.data.reserve(100);
+    tmp_m2.data.reserve(100);
+
+    if (cp.i1 >= 0)
+        result.iaddmul(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
+    else
+        result.iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
+
+    size_t index;
+    index = 0;
+    while (index < result.data.size()) {
+        int gb_index = IndexOfDivisibleLeading(result.data[index], sp1);
+        if (gb_index != -1) {
+            MMilnor m = divLF(result.data[index], gb_[sp1][gb_index].x1.data[0]);
+            result.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
+        }
+        else
+            ++index;
+    }
+
+    return result;
+}
+
+Mod GroebnerMRes::ReduceX2m(const CPMilnor& cp, size_t s) const
+{
+    Mod result;
+
+    Milnor tmp_a;
+    Mod tmp_m1;
+    Mod tmp_m2;
+    tmp_a.data.reserve(50);
+    tmp_m1.data.reserve(100);
+    tmp_m2.data.reserve(100);
+
+    if (cp.i1 >= 0)
+        result.iaddmul(cp.m1, gb_[s][cp.i1].x2m, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x2m, tmp_a, tmp_m1, tmp_m2);
+    else
+        result.iaddmul(cp.m2, gb_[s][cp.i2].x2m, tmp_a, tmp_m1, tmp_m2);
+
+    size_t index;
+    index = 0;
+    while (index < result.data.size()) {
+        int gb_index = IndexOfDivisibleLeadingX2m(result.data[index], s);
+        if (gb_index != -1) {
+            MMilnor m = divLF(result.data[index], gb_x2m_[s][gb_index].data[0]);
+            result.iaddmulMay(m, gb_x2m_[s][gb_index], tmp_m1);
+        }
+        else
+            ++index;
+    }
+
+    return result;
+}
+
+Mod GroebnerMRes::ReduceByGbX2m(Mod x2m, size_t s) const
 {
     Mod tmp;
     tmp.data.reserve(50);
@@ -234,7 +296,7 @@ Mod GroebnerMRes::ReduceX2m(Mod x2m, size_t s) const
     return x2m;
 }
 
-Mod GroebnerMRes::ReduceX2m(const CPMilnor& p, size_t s) const
+Mod GroebnerMRes::ReduceByGbX2m(const CPMilnor& p, size_t s) const
 {
     Mod result;
 
@@ -266,12 +328,12 @@ void GroebnerMRes::AddRelsX2m(size_t s, int t)
     /* Populate `rels_tmp` */
     resize_gb_x2m(s + 1);
     Mod1d rels_tmp;
-    
+
     cpairs_x2m_[s].Minimize(leads_x2m_[s], t);
     CPMilnor1d pairs_st = cpairs_x2m_[s].cpairs_for_gb(t);
     if (!pairs_st.empty()) {
         rels_tmp.resize(pairs_st.size());
-        ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = ReduceX2m(pairs_st[i], s); });
+        ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = ReduceByGbX2m(pairs_st[i], s); });
     }
 
     if (rels_tmp.empty())
@@ -422,6 +484,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             gb.resize_gb(size_t(s + 2));
             gb.resize_gb_x2m(size_t(s + 1));
             DataMRes1d data_tmp;
+            Mod1d x2m_st_tmp;
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
                 if (p_rels_d != rels_graded.end()) {
@@ -443,18 +506,17 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             /* Triangulate these relations */
             DataMRes1d data_st;
             Mod1d kernel_sp1_tmp;
-            Mod1d x2m_st_tmp;
             for (size_t i = 0; i < data_tmp.size(); ++i) {
                 for (size_t j = 0; j < data_st.size(); ++j)
                     if (std::binary_search(data_tmp[i].x1.data.begin(), data_tmp[i].x1.data.end(), data_st[j].x1.GetLead()))
                         data_tmp[i] += data_st[j];
                 if (data_tmp[i].x1) {
                     /* Determine if x2m aligns with x1 */
-                    if (data_tmp[i].v != data_tmp[i].x1.GetLead().v() || data_tmp[i].w_may != data_tmp[i].x1.GetLead().w_may()) {
-                        x2m_st_tmp.push_back(gb.new_gen_x2m(s, t));
+                    if (!data_tmp[i].valid_x2m()) {
+                        x2m_st_tmp.push_back(gb.new_gen_x2m(s, t)); 
                         std::swap(x2m_st_tmp.back(), data_tmp[i].x2m);
+                        data_tmp[i].fil = Filtr(data_tmp[i].x1.GetLead());
                     }
-
                     data_st.push_back(std::move(data_tmp[i]));
                     bench::Counter(0);
                 }
@@ -488,13 +550,12 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                     x2m_st.push_back(std::move(x2m_st_tmp[i]));
             }
 
-             
             /* Add these relations */
             for (size_t i = 0; i < data_st.size(); ++i)
                 gb.push_back(data_st[i], s);
             DataMRes1d rels_splus;
             for (size_t i = 0; i < kernel_sp1.size(); ++i)
-                gb.push_back_kernel(kernel_sp1[i], rels_splus, (int)s + 1, t);
+                gb.push_back_kernel(kernel_sp1[i], rels_splus, size_t(s + 1), t);
             for (size_t i = 0; i < x2m_st.size(); ++i)
                 gb.push_back_x2m(x2m_st[i], s);
 

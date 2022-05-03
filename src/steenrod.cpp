@@ -254,6 +254,13 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
         MulMilnor(R, S, result.data);
 }
 
+void MulMay(MMilnor lhs, MMilnor rhs, Milnor& result)  ////
+{
+    MulMilnor(lhs, rhs, result);
+    auto w_may = lhs.w_may() + rhs.w_may();
+    ut::RemoveIf(result.data, [w_may](MMilnor m) { return m.w_may() != w_may; });
+}
+
 /**
  * Sort the sequence and each time remove a pair of identical elements
  */
@@ -292,25 +299,6 @@ Milnor Milnor::operator*(const Milnor& rhs) const
     return result;
 }
 
-std::ostream& operator<<(std::ostream& sout, const Milnor& x)
-{
-    if (x.data.empty()) {
-        sout << '0';
-        return sout;
-    }
-    for (auto pm = x.data.begin(); pm != x.data.end(); ++pm) {
-        if (pm != x.data.begin())
-            sout << '+';
-        if (!*pm)
-            sout << '1';
-        else {
-            for (int i : *pm)
-                sout << "P_{" << MMILNOR_GEN_I[i] << MMILNOR_GEN_J[i] << '}';
-        }
-    }
-    return sout;
-}
-
 std::string MMilnor::StrXi() const
 {
     auto xi = ToXi();
@@ -320,9 +308,22 @@ std::string MMilnor::StrXi() const
     return myio::TplStrCont("Sq(", ",", ")", "1", xi.begin(), xi_end, [](int r) { return std::to_string(r); });
 }
 
+std::string MMilnor::Str() const
+{
+    std::string result;
+    for (int i : *this)
+        result += "P_{" + std::to_string(MMILNOR_GEN_I[i]) + std::to_string(MMILNOR_GEN_J[i]) + '}';
+    return result;
+}
+
 std::string Milnor::StrXi() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.StrXi(); });
+}
+
+std::string Milnor::Str() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.Str(); });
 }
 
 Mod mulLF(MMilnor m, const Mod& x)
@@ -365,9 +366,20 @@ Mod operator*(MMilnor m, const Mod& x)
     return result;
 }
 
-Mod mulMay(MMilnor m, const Mod& x)
+Mod MulMay(MMilnor m, const Mod& x)  ////
 {
-    return (m * x).LFMay();
+    Mod result;
+    result.data.reserve(150);
+    Milnor tmp;
+    for (MMod m2 : x.data) {
+        tmp.data.clear();
+        MulMay(m, m2.m(), tmp);
+        auto v_raw = m2.v_raw();
+        for (MMilnor m : tmp.data)
+            result.data.push_back(MMod(m.data() + v_raw));
+    }
+    SortMod2(result.data);
+    return result;
 }
 
 void mul(MMilnor m, const Mod& x, Milnor& tmp, Mod& result)
@@ -394,7 +406,7 @@ Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_
 
 Mod& Mod::iaddmulMay(MMilnor m, const Mod& x, Mod& tmp)
 {
-    Mod mx = mulMay(m, x);  ////
+    Mod mx = MulMay(m, x);  ////
     tmp.data.clear();
     std::swap(data, tmp.data);
     std::set_symmetric_difference(mx.data.cbegin(), mx.data.cend(), tmp.data.cbegin(), tmp.data.cend(), std::back_inserter(data));

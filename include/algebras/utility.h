@@ -113,10 +113,23 @@ public:
 /**
  * Create the int array 1, 2, ..., n
  */
-inline std::vector<int> range(int n)
+inline std::vector<int> int_range(int n)
 {
     std::vector<int> result;
+    result.reserve(n);
     for (int i = 0; i < n; ++i)
+        result.push_back(i);
+    return result;
+}
+
+/**
+ * Create the int array 1, 2, ..., n
+ */
+inline std::vector<size_t> size_t_range(size_t n)
+{
+    std::vector<size_t> result;
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i)
         result.push_back(i);
     return result;
 }

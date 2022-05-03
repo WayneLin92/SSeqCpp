@@ -90,9 +90,11 @@ void test()
 {
     using namespace steenrod;
 
-    auto p = MMilnor::P(1, 3) * MMilnor::P(2, 4);
-    std::cout << p << '\n';
-    std::cout << p.data[0].w() << ' ' << p.data[0].w_may() << '\n';
+    auto prod = MMilnor::P(1, 2) * MMilnor::P(0, 1);
+    std::cout << prod << '\n';
+
+    auto prod1 = MMilnor::P(1, 2) * MMilnor::P(1, 2);
+    std::cout << prod1 << '\n';
 }
 
 int main()
