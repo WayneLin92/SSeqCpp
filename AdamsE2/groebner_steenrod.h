@@ -100,9 +100,22 @@ using CPMilnors1d = std::vector<CPMilnors>;
 struct Filtr
 {
     uint64_t data;
-    Filtr() : data(~0) {}
-    Filtr(MMod m) : data(m.v_raw() | m.w_may()) {}
-    Filtr(uint64_t data_) : data(data_) {}
+    uint32_t w_may_, v_;
+    Filtr() : data(~0)
+    {
+        w_may_ = w_may();
+        v_ = v();
+    }
+    Filtr(MMod m) : data(m.v_raw() | m.w_may())
+    {
+        w_may_ = w_may();
+        v_ = v();
+    }
+    Filtr(uint64_t data_) : data(data_)
+    {
+        w_may_ = w_may();
+        v_ = v();
+    }
     bool operator<(Filtr rhs) const
     {
         return data < rhs.data;
@@ -114,6 +127,15 @@ struct Filtr
     Filtr operator+(uint64_t w_may) const
     {
         return Filtr(data + w_may);
+    }
+
+    uint32_t w_may() const
+    {
+        return data & 0xffffffff;
+    }
+    uint32_t v() const
+    {
+        return ~(data - w_may()) >> MMOD_M_BITS;
     }
 };
 
@@ -268,7 +290,7 @@ public:
         for (size_t i = 0; i < cps.size(); ++i)
             fils[i] = gb_[s][cps[i].i2].fil + cps[i].m2.w_may();
         auto indices = ut::size_t_range(cps.size());
-        std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[i] < fils[j]; });
+        std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[j] < fils[i]; });
         CPMilnor1d result;
         result.reserve(cps.size());
         for (size_t i = 0; i < cps.size(); ++i)

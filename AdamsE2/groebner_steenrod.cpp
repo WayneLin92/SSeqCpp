@@ -10,9 +10,11 @@ void CPMilnors::Minimize(const MMod1d& leads, int t)
 {
     if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != t)
         return;
-#ifndef NDEBUG
     if (buffer_min_pairs_.empty() || buffer_min_pairs_.begin()->first != t)
-        throw MyException(0xb1b36dceU, "buffer_min_pairs_ is expected to start with t");
+#ifdef NDEBUG
+        return;
+#else
+        buffer_min_pairs_[t];
 #endif
 
     constexpr uint64_t NULL_J = ~uint64_t(0);
@@ -257,9 +259,9 @@ Mod GroebnerMRes::ReduceX2m(const CPMilnor& cp, size_t s) const
     tmp_m2.data.reserve(100);
 
     if (cp.i1 >= 0)
-        result.iaddmul(cp.m1, gb_[s][cp.i1].x2m, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x2m, tmp_a, tmp_m1, tmp_m2);
+        result.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp_m2).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_m2);
     else
-        result.iaddmul(cp.m2, gb_[s][cp.i2].x2m, tmp_a, tmp_m1, tmp_m2);
+        result.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_m2);
 
     size_t index;
     index = 0;
@@ -497,7 +499,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 CPMilnor1d pairs_st = gb.cpairs(s, t);
                 if (!pairs_st.empty()) {
                     data_tmp.resize(pairs_st.size());
-                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(pairs_st[i], s); });
+                    ut::for_each_par((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(pairs_st[i], s); });
                 }
             }
             if (data_tmp.empty())
@@ -513,7 +515,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 if (data_tmp[i].x1) {
                     /* Determine if x2m aligns with x1 */
                     if (!data_tmp[i].valid_x2m()) {
-                        x2m_st_tmp.push_back(gb.new_gen_x2m(s, t)); 
+                        x2m_st_tmp.push_back(gb.new_gen_x2m(s, t));
                         std::swap(x2m_st_tmp.back(), data_tmp[i].x2m);
                         data_tmp[i].fil = Filtr(data_tmp[i].x1.GetLead());
                     }
