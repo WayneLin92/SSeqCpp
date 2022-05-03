@@ -499,7 +499,7 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 CPMilnor1d pairs_st = gb.cpairs(s, t);
                 if (!pairs_st.empty()) {
                     data_tmp.resize(pairs_st.size());
-                    ut::for_each_par((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(pairs_st[i], s); });
+                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(pairs_st[i], s); });
                 }
             }
             if (data_tmp.empty())

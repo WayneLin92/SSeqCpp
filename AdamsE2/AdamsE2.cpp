@@ -28,7 +28,7 @@ void AdamsE2()
         size_gb += data[s].size();
     std::cout << "size_gb=" << size_gb << '\n';
 
-    for (size_t s = 0; s < data.size(); ++s) {
+    /*for (size_t s = 0; s < data.size(); ++s) {
         std::cerr << "\ns=" << s << '\n';
         for (size_t i = 0; i < data[s].size(); ++i) {
             std::cerr << "i=" << i << '\n';
@@ -36,7 +36,7 @@ void AdamsE2()
             std::cerr << "x2=" << data[s][i].x2 << '\n';
             std::cerr << "x2m=" << data[s][i].x2m << std::endl;
         }
-    }
+    }*/
 
     // for (size_t s = 0; s < 4 /* data.size()*/; ++s) {
     //     std::cout << "s=" << s << '\n';
