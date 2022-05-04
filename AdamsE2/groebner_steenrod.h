@@ -13,14 +13,14 @@
 
 namespace steenrod {
 
-struct CPMilnor
+struct CriMilnor
 {
     int i1 = -1, i2 = -1;
     MMilnor m1, m2;
 
     /* Compute the pair for two leading monomials. */
-    CPMilnor() = default;
-    static void SetFromLM(CPMilnor& result, MMilnor lead1, MMilnor lead2, int i, int j)
+    CriMilnor() = default;
+    static void SetFromLM(CriMilnor& result, MMilnor lead1, MMilnor lead2, int i, int j)
     {
         MMilnor gcd = gcdLF(lead1, lead2);
         result.m1 = divLF(lead2, gcd);
@@ -28,35 +28,35 @@ struct CPMilnor
         result.i1 = i;
         result.i2 = j;
     }
-    static CPMilnor Single(MMilnor m2, int j)
+    static CriMilnor Single(MMilnor m2, int j)
     {
-        CPMilnor result;
+        CriMilnor result;
         result.m2 = m2;
         result.i1 = -1;
         result.i2 = j;
         return result;
     }
 };
-using CPMilnor1d = std::vector<CPMilnor>;
-using CPMilnor2d = std::vector<CPMilnor1d>;
-using CPMilnor3d = std::vector<CPMilnor2d>;
-using PtCPMilnor1d = std::vector<CPMilnor*>;
-using PtCPMilnor2d = std::vector<PtCPMilnor1d>;
+using CriMilnor1d = std::vector<CriMilnor>;
+using CriMilnor2d = std::vector<CriMilnor1d>;
+using CriMilnor3d = std::vector<CriMilnor2d>;
+using PtCriMilnor1d = std::vector<CriMilnor*>;
+using PtCriMilnor2d = std::vector<PtCriMilnor1d>;
 
 /* Groebner basis of critical pairs */
-class CPMilnors
+class CriMilnors
 {
     friend class GroebnerMRes;
 
 private:
     int t_trunc_;                                                        /* Truncation degree */
-    CPMilnor2d gb_;                                                      /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, CPMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
+    CriMilnor2d gb_;                                                      /* `pairs_[j]` is the set of pairs (i, j) with given j */
+    std::map<int, CriMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
-    std::map<int, CPMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
+    std::map<int, CriMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
 
 public:
-    CPMilnors(int t_trunc) : t_trunc_(t_trunc) {}
+    CriMilnors(int t_trunc) : t_trunc_(t_trunc) {}
 
     int t_trunc() const
     {
@@ -66,24 +66,8 @@ public:
     {
         return buffer_min_pairs_.find(t) == buffer_min_pairs_.end();
     }
-    CPMilnor1d cpairs_for_gb(int t)
-    {
-        CPMilnor1d result;
-        if (!buffer_singles_.empty() && buffer_singles_.begin()->first == t) {
-            std::swap(result, buffer_singles_.begin()->second);
-            buffer_singles_.erase(t);
-        }
-        if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first == t) {
-            auto& b_min_pairs_t = buffer_min_pairs_.begin()->second;
-            for (size_t j = 0; j < b_min_pairs_t.size(); ++j)
-                for (auto& pair : b_min_pairs_t[j])
-                    if (pair.i2 != -1)
-                        result.push_back(pair);
-            buffer_min_pairs_.erase(buffer_min_pairs_.begin());
-        }
-
-        return result;
-    }
+    /* Return both critical pairs and critical singles */
+    CriMilnor1d cpairs_for_gb(int t);
 
     /* Minimize `buffer_min_pairs_[t]` and maintain `pairs_` */
     void Minimize(const MMod1d& leads, int t);
@@ -95,7 +79,7 @@ public:
 
     void init(const MMod1d& leads, const array& basis_degrees);
 };
-using CPMilnors1d = std::vector<CPMilnors>;
+using CriMilnors1d = std::vector<CriMilnors>;
 
 struct Filtr
 {
@@ -139,6 +123,75 @@ struct Filtr
     }
 };
 
+/********************************************************
+ *                    class GroebnerX2m
+ ********************************************************/
+
+class GroebnerX2m
+{
+    using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
+
+private:
+    int t_trunc_;
+
+    CriMilnors1d criticals_; /* Groebner basis of critical pairs */
+
+    Mod2d gb_;
+    MMod2d leads_;        /* Leading monomials */
+    TypeIndices indices_; /* Cache for fast divisibility test */
+
+    array2d basis_degrees_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
+
+public:
+    GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+    {
+        ////
+    }
+
+public:
+    void resize(size_t s)
+    {
+        if (basis_degrees_.size() < s + 1)
+            basis_degrees_.resize(s + 1);
+        if (gb_.size() < s) {
+            gb_.resize(s);
+            leads_.resize(s);
+            indices_.resize(s);
+            while (criticals_.size() < s)
+                criticals_.push_back(CriMilnors(t_trunc_));
+        }
+    }
+
+    Mod new_gen(size_t s, int t)
+    {
+        basis_degrees_[s].push_back(t);
+        return MMod(MMilnor(), basis_degrees_[s].size() - 1);
+    }
+
+    void push_back(Mod g, size_t s)
+    {
+        MMod m = g.GetLead();
+        criticals_[s].AddToBuffers(leads_[s], m, basis_degrees_[s][m.v()]);
+
+        leads_[s].push_back(m);
+        indices_[s][m.v_raw()].push_back((int)gb_[s].size());
+        gb_[s].push_back(std::move(g));
+    }
+
+    const auto& data() const
+    {
+        return gb_;
+    }
+
+    Mod Reduce(Mod x2m, size_t s) const;
+    Mod Reduce(const CriMilnor& p, size_t s) const;
+    void AddRels(size_t s, int t);
+};
+
+/********************************************************
+ *                    class GroebnerMRes
+ ********************************************************/
+
 struct DataMRes
 {
     Mod x1, x2, x2m;
@@ -176,13 +229,12 @@ using DataMRes2d = std::vector<DataMRes1d>;
 
 class GroebnerMRes
 {
-private:
-    using TypeIndices = std::vector<std::unordered_map<uint32_t, array>>;
+    using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
 
 private:
     int t_trunc_;
 
-    CPMilnors1d cpairs_; /* Groebner basis of critical pairs */
+    CriMilnors1d criticals_; /* Groebner basis of critical pairs */
 
     DataMRes2d gb_;
     MMod2d leads_;        /* Leading monomials */
@@ -190,76 +242,14 @@ private:
 
     array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
 
-    CPMilnors1d cpairs_x2m_; /* Groebner basis of critical pairs */
-
-    Mod2d gb_x2m_;
-    MMod2d leads_x2m_;        /* Leading monomials */
-    TypeIndices indices_x2m_; /* Cache for fast divisibility test */
-
-    array2d basis_degrees_x2m_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
+    GroebnerX2m gb_x2m_;
 
 public:
-    GroebnerMRes(int t_trunc, array2d basis_degrees) : t_trunc_(t_trunc), basis_degrees_(std::move(basis_degrees)) {}
-
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
-    {
-        if (basis_degrees_.empty())
-            basis_degrees_.push_back({0});
-        if (basis_degrees_[0].empty())
-            basis_degrees_[0].push_back(0);
-
-        leads_.resize(gb_.size());
-        indices_.resize(gb_.size());
-
-        for (size_t s = 0; s < gb_.size(); ++s) {
-            for (int j = 0; j < (int)gb_[s].size(); ++j) {
-                leads_[s].push_back(gb_[s][j].x1.GetLead());
-                indices_[s][Key(gb_[s][j].x1.GetLead())].push_back(j);
-            }
-        }
-
-        for (size_t s = 0; s < gb_.size(); ++s) {
-            cpairs_.push_back(CPMilnors(t_trunc_));
-            cpairs_.back().init(leads_[s], basis_degrees_[s]);
-        }
-
-        ////x2m
-    }
+    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m);
+    static GroebnerMRes load(const std::string& filename, int t_trunc);
 
 private:
-    static uint32_t Key(MMod lead)
-    {
-        return uint32_t(lead.v());
-    }
-
-    /* Return -1 if not found */
-    int IndexOfDivisibleLeading(MMod mon, size_t s) const
-    {
-        auto key = uint32_t(mon.v());
-        auto p = indices_[s].find(key);
-        if (p != indices_[s].end())
-            for (int k : p->second)
-                if (divisibleLF(leads_[s][k], mon))
-                    return k;
-        return -1;
-    }
-
-    /* Return -1 if not found */
-    int IndexOfDivisibleLeadingX2m(MMod mon, size_t s) const
-    {
-        auto key = uint32_t(mon.v());
-        auto p = indices_x2m_[s].find(key);
-        if (p != indices_x2m_[s].end())
-            for (int k : p->second)
-                if (divisibleLF(leads_x2m_[s][k], mon))
-                    return k;
-        return -1;
-    }
-
-    Mod ReduceByGbX2m(Mod x2m, size_t s) const;
-    Mod ReduceByGbX2m(const CPMilnor& p, size_t s) const;
-    void AddRelsX2m(size_t s, int t);
 
 public:
     int t_trunc() const
@@ -281,98 +271,45 @@ public:
         return t;
     }
 
-    CPMilnor1d cpairs(size_t s, int t)
-    {
-        AddRelsX2m(s, t);
-        cpairs_[s].Minimize(leads_[s], t);
-        CPMilnor1d cps = cpairs_[s].cpairs_for_gb(t);
-        std::vector<Filtr> fils(cps.size());
-        for (size_t i = 0; i < cps.size(); ++i)
-            fils[i] = gb_[s][cps[i].i2].fil + cps[i].m2.w_may();
-        auto indices = ut::size_t_range(cps.size());
-        std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[j] < fils[i]; });
-        CPMilnor1d result;
-        result.reserve(cps.size());
-        for (size_t i = 0; i < cps.size(); ++i)
-            result.push_back(cps[indices[i]]);
-
-        for (auto& cp : result) {
-            if (!ReduceX2m(cp, s)) {
-                bench::Counter(4);
-                cp.i2 = -1;
-            }
-        }
-        ut::RemoveIf(result, [](const CPMilnor& cp) { return cp.i2 == -1; });
-        return result;
-    }
-
-    const array2d& basis_degs() const  //// para s
-    {
-        return basis_degrees_;
-    }
-    const array& basis_degs_x2m(size_t s) const
-    {
-        return basis_degrees_x2m_[s];
-    }
-    auto gb_size() const
-    {
-        return gb_.size();
-    }
-    auto& operator[](size_t index) const
-    {
-        return gb_[index];
-    }
     void resize_gb(size_t s)
     {
+        if (basis_degrees_.size() < s + 1)
+            basis_degrees_.resize(s + 1);
         if (gb_.size() < s) {
             gb_.resize(s);
             leads_.resize(s);
             indices_.resize(s);
-            while (cpairs_.size() < s)
-                cpairs_.push_back(CPMilnors(t_trunc_));
+            while (criticals_.size() < s)
+                criticals_.push_back(CriMilnors(t_trunc_));
+            if (s >= 0)
+                gb_x2m_.resize(s - 1);
         }
     }
-    void resize_gb_x2m(size_t s)
-    {
-        if (gb_x2m_.size() < s) {
-            gb_x2m_.resize(s);
-            leads_x2m_.resize(s);
-            indices_x2m_.resize(s);
-            while (cpairs_x2m_.size() < s)
-                cpairs_x2m_.push_back(CPMilnors(t_trunc_));
-        }
-    }
+
     Mod new_gen(size_t s, int t)
     {
-        if (basis_degrees_.size() < s + 1)  ////
-            basis_degrees_.resize(s + 1);
         basis_degrees_[s].push_back(t);
         return MMod(MMilnor(), basis_degrees_[s].size() - 1);
     }
+
     Mod new_gen_x2m(size_t s, int t)
     {
-        if (basis_degrees_x2m_.size() < s + 1)  ////
-            basis_degrees_x2m_.resize(s + 1);
-        basis_degrees_x2m_[s].push_back(t);
-        return MMod(MMilnor(), basis_degrees_x2m_[s].size() - 1);
+        return gb_x2m_.new_gen(s, t);
     }
+
     void push_back(DataMRes g, size_t s)
     {
         MMod m = g.x1.GetLead();
-        cpairs_[s].AddToBuffers(leads_[s], m, basis_degrees_[s][m.v()]);
+        criticals_[s].AddToBuffers(leads_[s], m, basis_degrees_[s][m.v()]);
 
         leads_[s].push_back(m);
-        indices_[s][Key(m)].push_back((int)gb_[s].size());
+        indices_[s][m.v_raw()].push_back((int)gb_[s].size());
         gb_[s].push_back(std::move(g));
     }
+
     void push_back_x2m(Mod g, size_t s)
     {
-        MMod m = g.GetLead();
-        cpairs_x2m_[s].AddToBuffers(leads_x2m_[s], m, basis_degrees_x2m_[s][m.v()]);
-
-        leads_x2m_[s].push_back(m);
-        indices_x2m_[s][Key(m)].push_back((int)gb_x2m_[s].size());
-        gb_x2m_[s].push_back(std::move(g));
+        gb_x2m_.push_back(std::move(g), s);
     }
 
     /* Add x2 + v_{s+1,i} */
@@ -387,22 +324,19 @@ public:
     {
         return gb_;
     }
+
     const auto& data_x2m() const
     {
-        return gb_x2m_;
+        return gb_x2m_.data();
     }
 
-public:
-    DataMRes Reduce(const CPMilnor& cp, size_t s) const;
-    Mod ReduceX2(const CPMilnor& cp, int s) const;  ////
-    Mod ReduceX2m(const CPMilnor& cp, size_t s) const;
-
-public:
-    static GroebnerMRes load(const std::string& filename, int t_trunc);
+    CriMilnor1d Criticals(size_t s, int t);
+    DataMRes Reduce(const CriMilnor& cp, size_t s) const;
+    Mod ReduceX2m(const CriMilnor& cp, size_t s) const;
 };
 
 /**
- * Comsume relations from 'rels` and `gb.cpairs_` in degree `<= deg`.
+ * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`.
  *
  * return the dimension of the calculated range for debugging.
  */

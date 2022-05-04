@@ -6,7 +6,30 @@
 
 namespace steenrod {
 
-void CPMilnors::Minimize(const MMod1d& leads, int t)
+/********************************************************
+ *                    class CriMilnors
+ ********************************************************/
+    
+CriMilnor1d CriMilnors::cpairs_for_gb(int t)
+{
+    CriMilnor1d result;
+    if (!buffer_singles_.empty() && buffer_singles_.begin()->first == t) {
+        std::swap(result, buffer_singles_.begin()->second);
+        buffer_singles_.erase(t);
+    }
+    if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first == t) {
+        auto& b_min_pairs_t = buffer_min_pairs_.begin()->second;
+        for (size_t j = 0; j < b_min_pairs_t.size(); ++j)
+            for (auto& pair : b_min_pairs_t[j])
+                if (pair.i2 != -1)
+                    result.push_back(pair);
+        buffer_min_pairs_.erase(buffer_min_pairs_.begin());
+    }
+
+    return result;
+}
+
+void CriMilnors::Minimize(const MMod1d& leads, int t)
 {
     if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != t)
         return;
@@ -26,7 +49,7 @@ void CPMilnors::Minimize(const MMod1d& leads, int t)
             MMilnor gcd = gcdLF(leads[i].m_no_weight(), leads[j].m_no_weight());
             MMilnor m2 = divLF(leads[i].m(), gcd);
             if (j < (int)b_min_pairs_t.size()) {
-                auto p = std::find_if(b_min_pairs_t[j].begin(), b_min_pairs_t[j].end(), [&m2](const CPMilnor& c) { return c.m2 == m2; });
+                auto p = std::find_if(b_min_pairs_t[j].begin(), b_min_pairs_t[j].end(), [&m2](const CriMilnor& c) { return c.m2 == m2; });
                 /* Mark it to be removed from `buffer_min_pairs_` */
                 if (p != b_min_pairs_t[j].end()) {
                     p->i2 = -1;
@@ -75,10 +98,10 @@ void CPMilnors::Minimize(const MMod1d& leads, int t)
  * Populate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
  * `buffer_min_pairs_` will be reduced later by `CPMilnors::Minimize()`.
  */
-void CPMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
+void CriMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
 {
     size_t lead_size = leads.size();
-    std::vector<std::pair<int, CPMilnor>> new_pairs(lead_size);
+    std::vector<std::pair<int, CriMilnor>> new_pairs(lead_size);
 
     /* Populate `new_pairs` */
     for (size_t i = 0; i < leads.size(); ++i) {
@@ -87,7 +110,7 @@ void CPMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
             int d_pair = lcmLF(leads[i].m_no_weight(), mon.m_no_weight()).deg() + t_v;
             if (d_pair <= t_trunc_) {
                 new_pairs[i].first = d_pair;
-                CPMilnor::SetFromLM(new_pairs[i].second, leads[i].m(), mon.m(), (int)i, (int)lead_size);
+                CriMilnor::SetFromLM(new_pairs[i].second, leads[i].m(), mon.m(), (int)i, (int)lead_size);
             }
         }
     }
@@ -128,11 +151,11 @@ void CPMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
         MMilnor m = MMilnor::FromIndex(i);
         int t = t_mon + m.deg();
         if (t <= t_trunc_)
-            buffer_singles_[t].push_back(CPMilnor::Single(m, (int)lead_size));
+            buffer_singles_[t].push_back(CriMilnor::Single(m, (int)lead_size));
     }
 }
 
-void CPMilnors::init(const MMod1d& leads, const array& basis_degrees)
+void CriMilnors::init(const MMod1d& leads, const array& basis_degrees)
 {
     MMod1d tmp_leads;
     for (auto& mon : leads) {
@@ -162,7 +185,168 @@ void CPMilnors::init(const MMod1d& leads, const array& basis_degrees)
     }
 }
 
-DataMRes GroebnerMRes::Reduce(const CPMilnor& cp, size_t s) const
+/********************************************************
+ *                    class GroebnerX2m
+ ********************************************************/
+
+/** Return i such that mon divides leads[i].
+ * 
+ * Return -1 if not found.
+ * @param indices indices[v_raw] stores the indices of elements of leads with the given v_raw.
+ */
+int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, array>& indices, MMod mon)
+{
+    auto key = mon.v_raw();
+    auto p = indices.find(key);
+    if (p != indices.end())
+        for (int k : p->second)
+            if (divisibleLF(leads[k], mon))
+                return k;
+    return -1;
+}
+
+Mod GroebnerX2m::Reduce(Mod x2m, size_t s) const
+{
+    Mod tmp;
+    tmp.data.reserve(50);
+
+    size_t index;
+    index = 0;
+    while (index < x2m.data.size()) {
+        int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x2m.data[index]);
+        if (gb_index != -1) {
+            MMilnor m = divLF(x2m.data[index], gb_[s][gb_index].data[0]);
+            x2m.iaddmulMay(m, gb_[s][gb_index], tmp);
+        }
+        else
+            ++index;
+    }
+
+    return x2m;
+}
+
+Mod GroebnerX2m::Reduce(const CriMilnor& p, size_t s) const
+{
+    Mod result;
+
+    Mod tmp;
+    tmp.data.reserve(50);
+
+    if (p.i1 >= 0)
+        result.iaddmulMay(p.m1, gb_[s][p.i1], tmp).iaddmulMay(p.m2, gb_[s][p.i2], tmp);
+    else
+        result.iaddmulMay(p.m2, gb_[s][p.i2], tmp);
+
+    size_t index;
+    index = 0;
+    while (index < result.data.size()) {
+        int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], result.data[index]);
+        if (gb_index != -1) {
+            MMilnor m = divLF(result.data[index], gb_[s][gb_index].data[0]);
+            result.iaddmulMay(m, gb_[s][gb_index], tmp);
+        }
+        else
+            ++index;
+    }
+
+    return result;
+}
+
+void GroebnerX2m::AddRels(size_t s, int t)
+{
+    /* Populate `rels_tmp` */
+    resize(s + 1);
+    Mod1d rels_tmp;
+
+    criticals_[s].Minimize(leads_[s], t);
+    CriMilnor1d pairs_st = criticals_[s].cpairs_for_gb(t);
+    if (!pairs_st.empty()) {
+        rels_tmp.resize(pairs_st.size());
+        ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = Reduce(pairs_st[i], s); });
+    }
+
+    if (rels_tmp.empty())
+        return;
+
+    /* Triangulate these relations */
+    Mod1d rels_st;
+    for (size_t i = 0; i < rels_tmp.size(); ++i) {
+        for (size_t j = 0; j < rels_st.size(); ++j)
+            if (std::binary_search(rels_tmp[i].data.begin(), rels_tmp[i].data.end(), rels_st[j].GetLead()))
+                rels_tmp[i] += rels_st[j];
+        if (rels_tmp[i])
+            rels_st.push_back(std::move(rels_tmp[i]));
+    }
+
+    /* Add these relations */
+    for (size_t i = 0; i < rels_st.size(); ++i)
+        push_back(rels_st[i], s);
+
+    /*db.begin_transaction();
+    db.save_generators("SteenrodMRes", kernel_sp1, (int)s + 2, t);
+    if (s >= 0)
+        db.save_relations("SteenrodMRes", data_st, gb.basis_degs()[s], s);
+    db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
+    db.end_transaction();*/
+}
+
+
+/********************************************************
+ *                    class GroebnerMRes
+ ********************************************************/
+
+GroebnerMRes::GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m)
+    : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, std::move(data_x2m), std::move(basis_degrees_x2m))
+{
+    if (basis_degrees_.empty())
+        basis_degrees_.push_back({0});
+    if (basis_degrees_[0].empty())
+        basis_degrees_[0].push_back(0);
+
+    leads_.resize(gb_.size());
+    indices_.resize(gb_.size());
+
+    for (size_t s = 0; s < gb_.size(); ++s) {
+        for (int j = 0; j < (int)gb_[s].size(); ++j) {
+            leads_[s].push_back(gb_[s][j].x1.GetLead());
+            indices_[s][gb_[s][j].x1.GetLead().v_raw()].push_back(j);
+        }
+    }
+
+    for (size_t s = 0; s < gb_.size(); ++s) {
+        criticals_.push_back(CriMilnors(t_trunc_));
+        criticals_.back().init(leads_[s], basis_degrees_[s]);
+    }
+
+    ////x2m
+}
+
+CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
+{
+    gb_x2m_.AddRels(s, t);
+    criticals_[s].Minimize(leads_[s], t);
+    CriMilnor1d cris = criticals_[s].cpairs_for_gb(t);
+    std::vector<Filtr> fils(cris.size());
+    for (size_t i = 0; i < cris.size(); ++i)
+        fils[i] = gb_[s][cris[i].i2].fil + cris[i].m2.w_may();
+    auto indices = ut::size_t_range(cris.size());
+    std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[j] < fils[i]; });
+    CriMilnor1d result;
+    result.reserve(cris.size());
+    for (size_t i = 0; i < cris.size(); ++i)
+        result.push_back(cris[indices[i]]);
+
+    for (auto& cp : result) {
+        if (!ReduceX2m(cp, s)) {
+            bench::Counter(4);
+            cp.i2 = -1;
+        }
+    }
+    ut::RemoveIf(result, [](const CriMilnor& cp) { return cp.i2 == -1; });
+    return result;
+}
+
+DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
 {
     DataMRes result;
     size_t sp1 = size_t(s + 1);
@@ -189,7 +373,7 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& cp, size_t s) const
     size_t index;
     index = 0;
     while (index < result.x1.data.size()) {
-        int gb_index = IndexOfDivisibleLeading(result.x1.data[index], s);
+        int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], result.x1.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
             if (result.valid_x2m() && result.fil == Filtr(result.x1.data[index]))
@@ -202,7 +386,7 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& cp, size_t s) const
     }
     index = 0;
     while (index < result.x2.data.size()) {
-        int gb_index = IndexOfDivisibleLeading(result.x2.data[index], sp1);
+        int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.x2.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.x2.data[index], gb_[sp1][gb_index].x1.data[0]);
             result.x2.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
@@ -210,52 +394,16 @@ DataMRes GroebnerMRes::Reduce(const CPMilnor& cp, size_t s) const
         else
             ++index;
     }
-    result.x2m = ReduceByGbX2m(std::move(result.x2m), s);
+    result.x2m = gb_x2m_.Reduce(std::move(result.x2m), s);
 
     return result;
 }
 
-Mod GroebnerMRes::ReduceX2(const CPMilnor& cp, int s) const
-{
-    Mod result;
-    size_t sp1 = size_t(s + 1);
-
-    Milnor tmp_a;
-    Mod tmp_m1;
-    Mod tmp_m2;
-    tmp_a.data.reserve(50);
-    tmp_m1.data.reserve(100);
-    tmp_m2.data.reserve(100);
-
-    if (cp.i1 >= 0)
-        result.iaddmul(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_m1, tmp_m2).iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
-    else
-        result.iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_m1, tmp_m2);
-
-    size_t index;
-    index = 0;
-    while (index < result.data.size()) {
-        int gb_index = IndexOfDivisibleLeading(result.data[index], sp1);
-        if (gb_index != -1) {
-            MMilnor m = divLF(result.data[index], gb_[sp1][gb_index].x1.data[0]);
-            result.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_m1, tmp_m2);
-        }
-        else
-            ++index;
-    }
-
-    return result;
-}
-
-Mod GroebnerMRes::ReduceX2m(const CPMilnor& cp, size_t s) const
+Mod GroebnerMRes::ReduceX2m(const CriMilnor& cp, size_t s) const
 {
     Mod result;
 
-    Milnor tmp_a;
-    Mod tmp_m1;
     Mod tmp_m2;
-    tmp_a.data.reserve(50);
-    tmp_m1.data.reserve(100);
     tmp_m2.data.reserve(100);
 
     if (cp.i1 >= 0)
@@ -263,104 +411,7 @@ Mod GroebnerMRes::ReduceX2m(const CPMilnor& cp, size_t s) const
     else
         result.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_m2);
 
-    size_t index;
-    index = 0;
-    while (index < result.data.size()) {
-        int gb_index = IndexOfDivisibleLeadingX2m(result.data[index], s);
-        if (gb_index != -1) {
-            MMilnor m = divLF(result.data[index], gb_x2m_[s][gb_index].data[0]);
-            result.iaddmulMay(m, gb_x2m_[s][gb_index], tmp_m1);
-        }
-        else
-            ++index;
-    }
-
-    return result;
-}
-
-Mod GroebnerMRes::ReduceByGbX2m(Mod x2m, size_t s) const
-{
-    Mod tmp;
-    tmp.data.reserve(50);
-
-    size_t index;
-    index = 0;
-    while (index < x2m.data.size()) {
-        int gb_index = IndexOfDivisibleLeadingX2m(x2m.data[index], s);
-        if (gb_index != -1) {
-            MMilnor m = divLF(x2m.data[index], gb_x2m_[s][gb_index].data[0]);
-            x2m.iaddmulMay(m, gb_x2m_[s][gb_index], tmp);
-        }
-        else
-            ++index;
-    }
-
-    return x2m;
-}
-
-Mod GroebnerMRes::ReduceByGbX2m(const CPMilnor& p, size_t s) const
-{
-    Mod result;
-
-    Mod tmp;
-    tmp.data.reserve(50);
-
-    if (p.i1 >= 0)
-        result.iaddmulMay(p.m1, gb_x2m_[s][p.i1], tmp).iaddmulMay(p.m2, gb_x2m_[s][p.i2], tmp);
-    else
-        result.iaddmulMay(p.m2, gb_x2m_[s][p.i2], tmp);
-
-    size_t index;
-    index = 0;
-    while (index < result.data.size()) {
-        int gb_index = IndexOfDivisibleLeadingX2m(result.data[index], s);
-        if (gb_index != -1) {
-            MMilnor m = divLF(result.data[index], gb_x2m_[s][gb_index].data[0]);
-            result.iaddmulMay(m, gb_x2m_[s][gb_index], tmp);
-        }
-        else
-            ++index;
-    }
-
-    return result;
-}
-
-void GroebnerMRes::AddRelsX2m(size_t s, int t)
-{
-    /* Populate `rels_tmp` */
-    resize_gb_x2m(s + 1);
-    Mod1d rels_tmp;
-
-    cpairs_x2m_[s].Minimize(leads_x2m_[s], t);
-    CPMilnor1d pairs_st = cpairs_x2m_[s].cpairs_for_gb(t);
-    if (!pairs_st.empty()) {
-        rels_tmp.resize(pairs_st.size());
-        ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = ReduceByGbX2m(pairs_st[i], s); });
-    }
-
-    if (rels_tmp.empty())
-        return;
-
-    /* Triangulate these relations */
-    Mod1d rels_st;
-    for (size_t i = 0; i < rels_tmp.size(); ++i) {
-        for (size_t j = 0; j < rels_st.size(); ++j)
-            if (std::binary_search(rels_tmp[i].data.begin(), rels_tmp[i].data.end(), rels_st[j].GetLead()))
-                rels_tmp[i] += rels_st[j];
-        if (rels_tmp[i])
-            rels_st.push_back(std::move(rels_tmp[i]));
-    }
-
-    /* Add these relations */
-    for (size_t i = 0; i < rels_st.size(); ++i)
-        push_back_x2m(rels_st[i], s);
-
-    /*db.begin_transaction();
-    db.save_generators("SteenrodMRes", kernel_sp1, (int)s + 2, t);
-    if (s >= 0)
-        db.save_relations("SteenrodMRes", data_st, gb.basis_degs()[s], s);
-    db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
-    db.end_transaction();*/
+    return gb_x2m_.Reduce(result, s);
 }
 
 class DbSteenrod : public myio::DbAlg
@@ -484,7 +535,6 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 
             /* Populate `data_tmp` */
             gb.resize_gb(size_t(s + 2));
-            gb.resize_gb_x2m(size_t(s + 1));
             DataMRes1d data_tmp;
             Mod1d x2m_st_tmp;
             if (s == -1) {
@@ -496,10 +546,10 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 }
             }
             else {
-                CPMilnor1d pairs_st = gb.cpairs(s, t);
-                if (!pairs_st.empty()) {
-                    data_tmp.resize(pairs_st.size());
-                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(pairs_st[i], s); });
+                CriMilnor1d cris_st = gb.Criticals(s, t);
+                if (!cris_st.empty()) {
+                    data_tmp.resize(cris_st.size());
+                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
                 }
             }
             if (data_tmp.empty())
@@ -584,7 +634,7 @@ GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
     db.create_relations_and_delete("SteenrodMRes");   ////
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     DataMRes2d data = db.load_data("SteenrodMRes");
-    return GroebnerMRes(t_trunc, std::move(data), std::move(basis_degrees));
+    return GroebnerMRes(t_trunc, std::move(data), std::move(basis_degrees), Mod2d(), array2d());
 }
 
 }  // namespace steenrod
