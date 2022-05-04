@@ -9,8 +9,8 @@ namespace steenrod {
 /********************************************************
  *                    class CriMilnors
  ********************************************************/
-    
-CriMilnor1d CriMilnors::cpairs_for_gb(int t)
+
+CriMilnor1d CriMilnors::Criticals(int t)
 {
     CriMilnor1d result;
     if (!buffer_singles_.empty() && buffer_singles_.begin()->first == t) {
@@ -190,7 +190,7 @@ void CriMilnors::init(const MMod1d& leads, const array& basis_degrees)
  ********************************************************/
 
 /** Return i such that mon divides leads[i].
- * 
+ *
  * Return -1 if not found.
  * @param indices indices[v_raw] stores the indices of elements of leads with the given v_raw.
  */
@@ -259,7 +259,7 @@ void GroebnerX2m::AddRels(size_t s, int t)
     Mod1d rels_tmp;
 
     criticals_[s].Minimize(leads_[s], t);
-    CriMilnor1d pairs_st = criticals_[s].cpairs_for_gb(t);
+    CriMilnor1d pairs_st = criticals_[s].Criticals(t);
     if (!pairs_st.empty()) {
         rels_tmp.resize(pairs_st.size());
         ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = Reduce(pairs_st[i], s); });
@@ -289,7 +289,6 @@ void GroebnerX2m::AddRels(size_t s, int t)
     db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
     db.end_transaction();*/
 }
-
 
 /********************************************************
  *                    class GroebnerMRes
@@ -325,7 +324,7 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
 {
     gb_x2m_.AddRels(s, t);
     criticals_[s].Minimize(leads_[s], t);
-    CriMilnor1d cris = criticals_[s].cpairs_for_gb(t);
+    CriMilnor1d cris = criticals_[s].Criticals(t);
     std::vector<Filtr> fils(cris.size());
     for (size_t i = 0; i < cris.size(); ++i)
         fils[i] = gb_[s][cris[i].i2].fil + cris[i].m2.w_may();
@@ -336,8 +335,15 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
     for (size_t i = 0; i < cris.size(); ++i)
         result.push_back(cris[indices[i]]);
 
+    Mod1d x2ms;
     for (auto& cp : result) {
-        if (!ReduceX2m(cp, s)) {
+        Mod x2m = ReduceX2m(cp, s);
+        for (size_t j = 0; j < x2ms.size(); ++j)
+            if (std::binary_search(x2m.data.begin(), x2m.data.end(), x2ms[j].GetLead()))
+                x2m += x2ms[j];
+        if (x2m)
+            x2ms.push_back(std::move(x2m));
+        else {
             bench::Counter(4);
             cp.i2 = -1;
         }
@@ -349,7 +355,6 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
 DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
 {
     DataMRes result;
-    size_t sp1 = size_t(s + 1);
 
     Milnor tmp_a;
     Mod tmp_m1;
@@ -384,6 +389,7 @@ DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
         else
             ++index;
     }
+    size_t sp1 = s + 1;
     index = 0;
     while (index < result.x2.data.size()) {
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.x2.data[index]);

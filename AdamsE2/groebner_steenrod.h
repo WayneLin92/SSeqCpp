@@ -67,7 +67,7 @@ public:
         return buffer_min_pairs_.find(t) == buffer_min_pairs_.end();
     }
     /* Return both critical pairs and critical singles */
-    CriMilnor1d cpairs_for_gb(int t);
+    CriMilnor1d Criticals(int t);
 
     /* Minimize `buffer_min_pairs_[t]` and maintain `pairs_` */
     void Minimize(const MMod1d& leads, int t);
