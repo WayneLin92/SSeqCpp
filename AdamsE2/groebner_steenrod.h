@@ -467,6 +467,7 @@ public:
 
     CriMilnor1d Criticals(size_t s, int t, Mod1d& rels_x2m);
     DataMRes Reduce(const CriMilnor& cp, size_t s) const;
+    Mod Reduce(Mod x, size_t s) const;
     Mod ReduceX2m(const CriMilnor& cp, size_t s) const;
 };
 

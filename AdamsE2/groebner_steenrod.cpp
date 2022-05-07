@@ -415,6 +415,23 @@ DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
     return result;
 }
 
+Mod GroebnerMRes::Reduce(Mod x, size_t s) const
+{
+    size_t index;
+    index = 0;
+    while (index < x.data.size()) {
+        int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
+        if (gb_index != -1) {
+            MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
+            x += m * gb_[s][gb_index].x1;
+        }
+        else
+            ++index;
+    }
+
+    return x;
+}
+
 Mod GroebnerMRes::ReduceX2m(const CriMilnor& cp, size_t s) const
 {
     Mod result;
@@ -716,7 +733,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 if (p_rels_d != rels_graded.end()) {
                     data_tmp.resize(p_rels_d->second.size());
                     auto& rels_d = p_rels_d->second;
-                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = DataMRes(Mod(), rels[rels_d[i]], Mod()); });
+                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = DataMRes(Mod(), gb.Reduce(rels[rels_d[i]], s + 1), Mod()); });
                 }
             }
             else {
