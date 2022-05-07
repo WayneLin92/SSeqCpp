@@ -155,7 +155,7 @@ void CriMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
     }
 }
 
-void CriMilnors::init(const MMod1d& leads, const array& basis_degrees)
+void CriMilnors::init(const MMod1d& leads, const array& basis_degrees, int t_min_buffer)
 {
     MMod1d tmp_leads;
     for (auto& mon : leads) {
@@ -164,20 +164,19 @@ void CriMilnors::init(const MMod1d& leads, const array& basis_degrees)
         tmp_leads.push_back(mon);
     }
 
-    int t_min_buffer = leads.back().deg_m() + basis_degrees[leads.back().v()] + 1;
-    for (auto it = buffer_min_pairs_.begin(); it != buffer_min_pairs_.end(); ++it) {
+    for (auto it = buffer_min_pairs_.begin(); it != buffer_min_pairs_.end();) {
         if (it->first < t_min_buffer)
             it = buffer_min_pairs_.erase(it);
         else
             ++it;
     }
-    for (auto it = buffer_redundent_pairs_.begin(); it != buffer_redundent_pairs_.end(); ++it) {
+    for (auto it = buffer_redundent_pairs_.begin(); it != buffer_redundent_pairs_.end();) {
         if (it->first < t_min_buffer)
             it = buffer_redundent_pairs_.erase(it);
         else
             ++it;
     }
-    for (auto it = buffer_singles_.begin(); it != buffer_singles_.end(); ++it) {
+    for (auto it = buffer_singles_.begin(); it != buffer_singles_.end();) {
         if (it->first < t_min_buffer)
             it = buffer_singles_.erase(it);
         else
@@ -203,6 +202,24 @@ int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64
             if (divisibleLF(leads[k], mon))
                 return k;
     return -1;
+}
+
+GroebnerX2m::GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int latest_s, int latest_t) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+{
+    leads_.resize(gb_.size());
+    indices_.resize(gb_.size());
+
+    for (size_t s = 0; s < gb_.size(); ++s) {
+        for (int j = 0; j < (int)gb_[s].size(); ++j) {
+            leads_[s].push_back(gb_[s][j].GetLead());
+            indices_[s][gb_[s][j].GetLead().v_raw()].push_back(j);
+        }
+    }
+
+    for (size_t s = 0; s < gb_.size(); ++s) {
+        criticals_.push_back(CriMilnors(t_trunc_));
+        criticals_.back().init(leads_[s], basis_degrees_[s], s >= latest_s ? latest_t + 1 : latest_t);
+    }
 }
 
 Mod GroebnerX2m::Reduce(Mod x2m, size_t s) const
@@ -252,8 +269,10 @@ Mod GroebnerX2m::Reduce(const CriMilnor& p, size_t s) const
     return result;
 }
 
-void GroebnerX2m::AddRels(size_t s, int t)
+Mod1d GroebnerX2m::AddRels(size_t s, int t)
 {
+    Mod tmp_Mod;
+
     /* Populate `rels_tmp` */
     resize(s + 1);
     Mod1d rels_tmp;
@@ -265,15 +284,13 @@ void GroebnerX2m::AddRels(size_t s, int t)
         ut::for_each_seq((int)rels_tmp.size(), [&](size_t i) { rels_tmp[i] = Reduce(pairs_st[i], s); });
     }
 
+    Mod1d rels_st;
     if (rels_tmp.empty())
-        return;
+        return rels_st;
 
     /* Triangulate these relations */
-    Mod1d rels_st;
     for (size_t i = 0; i < rels_tmp.size(); ++i) {
-        for (size_t j = 0; j < rels_st.size(); ++j)
-            if (std::binary_search(rels_tmp[i].data.begin(), rels_tmp[i].data.end(), rels_st[j].GetLead()))
-                rels_tmp[i] += rels_st[j];
+        steenrod::Reduce(rels_tmp[i], rels_st, tmp_Mod);
         if (rels_tmp[i])
             rels_st.push_back(std::move(rels_tmp[i]));
     }
@@ -281,21 +298,15 @@ void GroebnerX2m::AddRels(size_t s, int t)
     /* Add these relations */
     for (size_t i = 0; i < rels_st.size(); ++i)
         push_back(rels_st[i], s);
-
-    /*db.begin_transaction();
-    db.save_generators("SteenrodMRes", kernel_sp1, (int)s + 2, t);
-    if (s >= 0)
-        db.save_relations("SteenrodMRes", data_st, gb.basis_degs()[s], s);
-    db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
-    db.end_transaction();*/
+    return rels_st;
 }
 
 /********************************************************
  *                    class GroebnerMRes
  ********************************************************/
 
-GroebnerMRes::GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m)
-    : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, std::move(data_x2m), std::move(basis_degrees_x2m))
+GroebnerMRes::GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t)
+    : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t)
 {
     if (basis_degrees_.empty())
         basis_degrees_.push_back({0});
@@ -314,15 +325,13 @@ GroebnerMRes::GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, 
 
     for (size_t s = 0; s < gb_.size(); ++s) {
         criticals_.push_back(CriMilnors(t_trunc_));
-        criticals_.back().init(leads_[s], basis_degrees_[s]);
+        criticals_.back().init(leads_[s], basis_degrees_[s], s >= latest_s ? latest_t + 1 : latest_t);
     }
-
-    ////x2m
 }
 
-CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
+CriMilnor1d GroebnerMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
 {
-    gb_x2m_.AddRels(s, t);
+    rels_x2m = gb_x2m_.AddRels(s, t);
     criticals_[s].Minimize(leads_[s], t);
     CriMilnor1d cris = criticals_[s].Criticals(t);
     std::vector<Filtr> fils(cris.size());
@@ -336,15 +345,16 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t)
         result.push_back(cris[indices[i]]);
 
     Mod1d x2ms;
+    Mod tmp_Mod;
     for (auto& cp : result) {
         Mod x2m = ReduceX2m(cp, s);
-        for (size_t j = 0; j < x2ms.size(); ++j)
-            if (std::binary_search(x2m.data.begin(), x2m.data.end(), x2ms[j].GetLead()))
-                x2m += x2ms[j];
+        steenrod::Reduce(x2m, x2ms, tmp_Mod);
         if (x2m)
             x2ms.push_back(std::move(x2m));
         else {
-            bench::Counter(4);
+#ifndef MYDEPLOY
+            bench::Counter(1);
+#endif
             cp.i2 = -1;
         }
     }
@@ -420,23 +430,39 @@ Mod GroebnerMRes::ReduceX2m(const CriMilnor& cp, size_t s) const
     return gb_x2m_.Reduce(result, s);
 }
 
-class DbSteenrod : public myio::DbAlg
+class DbSteenrod : public myio::Database
 {
     using Statement = myio::Statement;
 
+private:
+    std::future<void> f_;
+
 public:
     DbSteenrod() = default;
-    explicit DbSteenrod(const std::string& filename) : myio::DbAlg(filename) {}
+    explicit DbSteenrod(const std::string& filename) : Database(filename) {}
 
 public:
     void create_generators(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, diff BLOB, s SMALLINT, t SMALLINT);");
     }
+    void create_generators_x2m(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_X2m_generators (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT);");
+    }
     void create_relations(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (id INTEGER PRIMARY KEY, gs BLOB, gsplus BLOB, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (id INTEGER PRIMARY KEY, x1 BLOB, x2 BLOB, x2m BLOB, s SMALLINT, t SMALLINT);");
     }
+    void create_relations_x2m(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_X2m_relations (id INTEGER PRIMARY KEY, x2m BLOB, s SMALLINT, t SMALLINT);");
+    }
+    void create_time(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, time REAL, UNIQUE(s, t));");
+    }
+
     void create_generators_and_delete(const std::string& table_prefix) const
     {
         create_generators(table_prefix);
@@ -447,30 +473,92 @@ public:
         create_relations(table_prefix);
         delete_from(table_prefix + "_relations");
     }
+    void create_generators_x2m_and_delete(const std::string& table_prefix) const
+    {
+        create_generators_x2m(table_prefix);
+        delete_from(table_prefix + "_X2m_generators");
+    }
+    void create_relations_x2m_and_delete(const std::string& table_prefix) const
+    {
+        create_relations_x2m(table_prefix);
+        delete_from(table_prefix + "_X2m_relations");
+    }
+    void create_time_and_delete(const std::string& table_prefix) const
+    {
+        create_time(table_prefix);
+        delete_from(table_prefix + "_time");
+    }
 
-    void save_generators(const std::string& table_prefix, const Mod1d& kernel, int s, int t) const
+    void save_generators(const std::string& table_prefix, const DataMRes1d& kernel, int s, int t) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (diff, s, t) VALUES (?1, ?2, ?3);");
 
         for (auto& k : kernel) {
-            stmt.bind_blob(1, k.data.data(), (int)k.data.size() * sizeof(MMod));
+            stmt.bind_blob(1, k.x1.data.data(), int(k.x1.data.size() * sizeof(MMod)));
             stmt.bind_int(2, s);
             stmt.bind_int(3, t);
             stmt.step_and_reset();
         }
     }
-    void save_relations(const std::string& table_prefix, const DataMRes1d& rels, const array& basis_degrees, int s) const
+
+    /* insert v_{0, 0} */
+    void save_v0(const std::string& table_prefix) const
     {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (gs, gsplus, s, t) VALUES (?1, ?2, ?3, ?4);");
+        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
+        Mod v0;
+        v0.data.reserve(1);
+        stmt.bind_int(1, 1);
+        stmt.bind_blob(2, v0.data.data(), int(v0.data.size() * sizeof(MMod)));
+        stmt.bind_int(3, 0);
+        stmt.bind_int(4, 0);
+        stmt.step_and_reset();
+    }
+
+    void save_relations(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (x1, x2, x2m, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
 
         for (auto& rel : rels) {
             stmt.bind_blob(1, rel.x1.data.data(), (int)rel.x1.data.size() * sizeof(MMod));
             stmt.bind_blob(2, rel.x2.data.data(), (int)rel.x2.data.size() * sizeof(MMod));
-            stmt.bind_int(3, s);
-            int t = rel.x1.GetLead().deg_m() + basis_degrees[rel.x1.GetLead().v()];
-            stmt.bind_int(4, t);
+            stmt.bind_blob(3, rel.x2m.data.data(), (int)rel.x2m.data.size() * sizeof(MMod));
+            stmt.bind_int(4, s);
+            stmt.bind_int(5, t);
             stmt.step_and_reset();
         }
+    }
+
+    void save_generators_x2m(const std::string& table_prefix, int num, int s, int t) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_X2m_generators (s, t) VALUES (?1, ?2);");
+
+        for (int k = 0; k < num; ++k) {
+            stmt.bind_int(1, s);
+            stmt.bind_int(2, t);
+            stmt.step_and_reset();
+        }
+    }
+
+    void save_relations_x2m(const std::string& table_prefix, const Mod1d& rels, int s, int t) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_X2m_relations (x2m, s, t) VALUES (?1, ?2, ?3);");
+
+        for (auto& rel : rels) {
+            stmt.bind_blob(1, rel.data.data(), (int)rel.data.size() * sizeof(MMod));
+            stmt.bind_int(2, s);
+            stmt.bind_int(3, t);
+            stmt.step_and_reset();
+        }
+    }
+
+    void save_time(const std::string& table_prefix, int s, int t, double time)
+    {
+        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_time (s, t, time) VALUES (?1, ?2, ?3);");
+
+        stmt.bind_int(1, s);
+        stmt.bind_int(2, t);
+        stmt.bind_double(3, time);
+        stmt.step_and_reset();
     }
 
     array2d load_basis_degrees(const std::string& table_prefix) const
@@ -485,42 +573,116 @@ public:
         }
         return basis_degrees;
     }
+
+    array2d load_basis_degrees_x2m(const std::string& table_prefix) const
+    {
+        return load_basis_degrees(table_prefix + "_X2m");
+    }
+
     DataMRes2d load_data(const std::string& table_prefix) const
     {
         DataMRes2d data;
-        Statement stmt(*this, "SELECT gs, gsplus, s FROM " + table_prefix + "_relations ORDER BY id;");
+        Statement stmt(*this, "SELECT x1, x2, x2m, s FROM " + table_prefix + "_relations ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             DataMRes x;
             const void* x1_data = stmt.column_blob(0);
             const void* x2_data = stmt.column_blob(1);
+            const void* x2m_data = stmt.column_blob(2);
             int x1_bytes = stmt.column_blob_size(0);
             int x2_bytes = stmt.column_blob_size(1);
+            int x2m_bytes = stmt.column_blob_size(2);
             size_t x1_size = (size_t)x1_bytes / sizeof(MMod);
             size_t x2_size = (size_t)x2_bytes / sizeof(MMod);
+            size_t x2m_size = (size_t)x2m_bytes / sizeof(MMod);
             x.x1.data.resize(x1_size);
             x.x2.data.resize(x2_size);
+            x.x2m.data.resize(x2m_size);
             memcpy(x.x1.data.data(), x1_data, x1_bytes);
             memcpy(x.x2.data.data(), x2_data, x2_bytes);
+            memcpy(x.x2m.data.data(), x2m_data, x2m_bytes);
 
-            int s = stmt.column_int(2);
-            if (data.size() <= (size_t)s)
-                data.resize(size_t(s + 1));
+            x.fil = Filtr(x.x1.GetLead());
+
+            size_t s = (size_t)stmt.column_int(3);
+            if (data.size() <= s)
+                data.resize(s + 1);
             data[s].push_back(std::move(x));
         }
         return data;
     }
+
+    Mod2d load_data_x2m(const std::string& table_prefix) const
+    {
+        Mod2d data;
+        Statement stmt(*this, "SELECT x2m, s FROM " + table_prefix + "_X2m_relations ORDER BY id;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            Mod x;
+            const void* x1_data = stmt.column_blob(0);
+            int x1_bytes = stmt.column_blob_size(0);
+            size_t x1_size = (size_t)x1_bytes / sizeof(MMod);
+            x.data.resize(x1_size);
+            memcpy(x.data.data(), x1_data, x1_bytes);
+
+            size_t s = (size_t)stmt.column_int(1);
+            if (data.size() <= s)
+                data.resize(s + 1);
+            data[s].push_back(std::move(x));
+        }
+        return data;
+    }
+
+    void latest_st(const std::string& table_prefix, int& s, int& t) const
+    {
+        t = get_int("SELECT coalesce(max(t), 0) FROM " + table_prefix + "_relations;");
+        s = get_int("SELECT coalesce(min(s), 1000) FROM " + table_prefix + "_relations WHERE t=" + std::to_string(t) + ";");
+        int t1 = get_int("SELECT coalesce(max(t), 0) FROM " + table_prefix + "_X2m_relations;");
+        int s1 = get_int("SELECT coalesce(min(s), 1000) FROM " + table_prefix + "_X2m_relations WHERE t=" + std::to_string(t1) + ";");
+        if (t1 > t || (t1 == t && s1 < s)) {
+            s = s1;
+            t = t1;
+        }
+    }
+
+    void save(const DataMRes1d& data_sp1t, const DataMRes1d& data_st, const Mod1d& x2m_st1, const Mod1d& x2m_st, int num_x2m_sp1, int num_x2m_s, double time, int s, int t)
+    {
+        if (f_.valid())
+            f_.wait();
+        f_ = std::async(std::launch::async, [this, data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t]() {
+            begin_transaction();
+            save_generators("SteenrodMRes", data_sp1t, s + 2, t);
+            save_relations("SteenrodMRes", data_sp1t, s + 1, t);
+            save_generators_x2m("SteenrodMRes", num_x2m_sp1, s + 1, t);
+            if (s >= 0) {
+                save_relations("SteenrodMRes", data_st, s, t);
+                save_generators_x2m("SteenrodMRes", num_x2m_s, s, t);
+                save_relations_x2m("SteenrodMRes", x2m_st1, s, t);
+                save_relations_x2m("SteenrodMRes", x2m_st, s, t);
+            }
+            save_time("SteenrodMRes", s + 2, t, time);
+            end_transaction();
+        });
+    }
 };
 
-size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
+void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 {
-    size_t dim = 0;
     int deg_max = gb.t_trunc();
     if (deg > deg_max)
         throw MyException(0xb2474e19U, "deg is bigger than the truncation degree.");
+    Mod tmp_Mod;
 
-    /*DbSteenrod db("AdamsE2.db");
+#ifdef MYDEPLOY
+    DbSteenrod db("AdamsE2.db");
     db.create_generators("SteenrodMRes");
-    db.create_relations("SteenrodMRes");*/
+    db.create_relations("SteenrodMRes");
+    db.create_generators_x2m("SteenrodMRes");
+    db.create_relations_x2m("SteenrodMRes");
+    db.create_time("SteenrodMRes");
+    db.save_v0("SteenrodMRes");
+
+    bench::Timer timer;
+    timer.SuppressPrint();
+#endif
 
     /* Group `rels` by degree */
     std::map<int, array> rels_graded;
@@ -535,14 +697,20 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 
     int t_begin = gb.t_begin();
     for (int t = t_begin; t <= deg; ++t) {
-        std::cout << "t=" << t << "               \n";
+        std::cout << "t=" << t << "               " << std::endl;
         for (int s = t - 2; s >= -1; --s) {
             std::cout << "  s=" << s + 2 << "                \r";
+            size_t sp1 = size_t(s + 1);
+            size_t sp2 = size_t(s + 2);
 
             /* Populate `data_tmp` */
-            gb.resize_gb(size_t(s + 2));
+            gb.resize_gb(sp2);
+            size_t old_size_x2m_s = 0;
+            size_t old_size_x2m_sp1 = gb.basis_degrees_x2m(sp1).size();
+
             DataMRes1d data_tmp;
             Mod1d x2m_st_tmp;
+            Mod1d x2m_st1;
             if (s == -1) {
                 auto p_rels_d = rels_graded.find(t);
                 if (p_rels_d != rels_graded.end()) {
@@ -552,14 +720,17 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 }
             }
             else {
-                CriMilnor1d cris_st = gb.Criticals(s, t);
+                old_size_x2m_s = gb.basis_degrees_x2m(s).size();
+                CriMilnor1d cris_st = gb.Criticals(s, t, x2m_st1);
                 if (!cris_st.empty()) {
                     data_tmp.resize(cris_st.size());
+#ifdef MYDEPLOY
+                    ut::for_each_par((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
+#else
                     ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
+#endif
                 }
             }
-            if (data_tmp.empty())
-                continue;
 
             /* Triangulate these relations */
             DataMRes1d data_st;
@@ -576,71 +747,79 @@ size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                         data_tmp[i].fil = Filtr(data_tmp[i].x1.GetLead());
                     }
                     data_st.push_back(std::move(data_tmp[i]));
-                    bench::Counter(0);
                 }
                 else {
                     if (data_tmp[i].x2)
                         kernel_sp1_tmp.push_back(std::move(data_tmp[i].x2));
+#ifndef MYDEPLOY
                     else
-                        bench::Counter(1);
+                        bench::Counter(0);
+#endif
                     if (data_tmp[i].x2m)
                         x2m_st_tmp.push_back(std::move(data_tmp[i].x2m));
                 }
             }
-            Mod1d kernel_sp1;
+            DataMRes1d data_sp1t;
             for (size_t i = 0; i < kernel_sp1_tmp.size(); ++i) {
-                for (size_t j = 0; j < kernel_sp1.size(); ++j)
-                    if (std::binary_search(kernel_sp1_tmp[i].data.begin(), kernel_sp1_tmp[i].data.end(), kernel_sp1[j].GetLead()))
-                        kernel_sp1_tmp[i] += kernel_sp1[j];
-                if (kernel_sp1_tmp[i]) {
-                    kernel_sp1.push_back(std::move(kernel_sp1_tmp[i]));
-                    bench::Counter(2);
-                }
+                Reduce(kernel_sp1_tmp[i], data_sp1t, tmp_Mod);
+                if (kernel_sp1_tmp[i])
+                    data_sp1t.push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
+#ifndef MYDEPLOY
                 else
-                    bench::Counter(3);
+                    bench::Counter(0);
+#endif
             }
             Mod1d x2m_st;
             for (size_t i = 0; i < x2m_st_tmp.size(); ++i) {
-                for (size_t j = 0; j < x2m_st.size(); ++j)
-                    if (std::binary_search(x2m_st_tmp[i].data.begin(), x2m_st_tmp[i].data.end(), x2m_st[j].GetLead()))
-                        x2m_st_tmp[i] += x2m_st[j];
+                Reduce(x2m_st_tmp[i], x2m_st, tmp_Mod);
                 if (x2m_st_tmp[i])
                     x2m_st.push_back(std::move(x2m_st_tmp[i]));
             }
 
-            /* Add these relations */
+#ifdef MYDEPLOY
+            int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
+            int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
+            db.save(data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, timer.Elapsed(), s, t);
+            timer.Reset();
+#endif
+
             for (size_t i = 0; i < data_st.size(); ++i)
                 gb.push_back(data_st[i], s);
-            DataMRes1d rels_splus;
-            for (size_t i = 0; i < kernel_sp1.size(); ++i)
-                gb.push_back_kernel(kernel_sp1[i], rels_splus, size_t(s + 1), t);
+            for (size_t i = 0; i < data_sp1t.size(); ++i)
+                gb.push_back(data_sp1t[i], sp1);
             for (size_t i = 0; i < x2m_st.size(); ++i)
                 gb.push_back_x2m(x2m_st[i], s);
 
-            /*db.begin_transaction();
-            db.save_generators("SteenrodMRes", kernel_sp1, (int)s + 2, t);
-            if (s >= 0)
-                db.save_relations("SteenrodMRes", data_st, gb.basis_degs()[s], s);
-            db.save_relations("SteenrodMRes", rels_splus, gb.basis_degs()[size_t(s + 1)], s + 1);
-            db.end_transaction();*/
-
-            if (size_t size_k = kernel_sp1.size()) {
-                std::cout << "  s=" << s + 2 << " dim=" << size_k << '\n';
-                dim += size_k;
-            }
+            if (size_t size_k = data_sp1t.size())
+                std::cout << "  s=" << s + 2 << " dim=" << size_k << std::endl;
         }
     }
-    return dim;
 }
 
 GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
 {
     DbSteenrod db("AdamsE2.db");
-    db.create_generators_and_delete("SteenrodMRes");  ////
-    db.create_relations_and_delete("SteenrodMRes");   ////
-    array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
+    db.create_generators("SteenrodMRes");
+    db.create_relations("SteenrodMRes");
+    db.create_generators_x2m("SteenrodMRes");
+    db.create_relations_x2m("SteenrodMRes");
     DataMRes2d data = db.load_data("SteenrodMRes");
-    return GroebnerMRes(t_trunc, std::move(data), std::move(basis_degrees), Mod2d(), array2d());
+    array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
+    Mod2d data_x2m = db.load_data_x2m("SteenrodMRes");
+    array2d basis_degrees_x2m = db.load_basis_degrees_x2m("SteenrodMRes");
+    int latest_s = 0, latest_t = 0;
+    db.latest_st("SteenrodMRes", latest_s, latest_t);
+    return GroebnerMRes(t_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t);
+}
+
+void GroebnerMRes::reset(const std::string& filename)
+{
+    DbSteenrod db("AdamsE2.db");
+    db.create_generators_and_delete("SteenrodMRes");
+    db.create_relations_and_delete("SteenrodMRes");
+    db.create_generators_x2m_and_delete("SteenrodMRes");
+    db.create_relations_x2m_and_delete("SteenrodMRes");
+    db.create_time_and_delete("SteenrodMRes");
 }
 
 }  // namespace steenrod

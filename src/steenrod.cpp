@@ -1,6 +1,7 @@
 #include "steenrod.h"
-#include "benchmark.h"  ////
+#include "benchmark.h"
 #include "myio.h"
+// TODO: Try DataCri
 
 namespace steenrod {
 
@@ -366,7 +367,7 @@ Mod operator*(MMilnor m, const Mod& x)
     return result;
 }
 
-Mod MulMay(MMilnor m, const Mod& x)  ////
+Mod MulMay(MMilnor m, const Mod& x)
 {
     Mod result;
     result.data.reserve(150);

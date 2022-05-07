@@ -525,12 +525,17 @@ struct Mod
         std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    Mod& operator+=(const Mod& rhs)
+    Mod& iadd(const Mod& rhs, Mod& tmp)
     {
-        Mod tmp;
+        tmp.data.clear();
         std::swap(data, tmp.data);
         std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
+    }
+    Mod& operator+=(const Mod& rhs)
+    {
+        Mod tmp;
+        return iadd(rhs, tmp);
     }
     /* `*this += m * x` */
     Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2);
@@ -553,6 +558,13 @@ Mod MulMay(MMilnor m, const Mod& x);
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
     return sout << x.Str();
+}
+
+inline void Reduce(Mod& x, const Mod1d& y, Mod& tmp)
+{
+    for (size_t i = 0; i < y.size(); ++i)
+        if (std::binary_search(x.data.begin(), x.data.end(), y[i].GetLead()))
+            x.iadd(y[i], tmp);
 }
 
 /* Compute the product in the associated graded algebra */

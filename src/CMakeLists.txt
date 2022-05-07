@@ -10,7 +10,6 @@ endif()
 set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/groebner.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/myio.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/myparser.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/myexception.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/database.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/dbalg.h"
@@ -20,7 +19,7 @@ set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/steenrod.h"
 )
 
-add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp myparser.cpp steenrod.cpp utility.cpp ${HEADER_LIST})
+add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp steenrod.cpp utility.cpp ${HEADER_LIST})
 if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
     # message(STATUS ${CMAKE_CXX_FLAGS_RELEASE})

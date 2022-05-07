@@ -2,6 +2,11 @@
  * A Component for Groebner bases.
  */
 
+//#define MYDEPLOY
+#ifdef MYDEPLOY
+//#define MYDEPLOY_TEST_FILE
+#endif
+
 #ifndef GROEBNER_STEENROD_H
 #define GROEBNER_STEENROD_H
 
@@ -12,6 +17,77 @@
 #include <unordered_set>
 
 namespace steenrod {
+
+template <typename>
+struct is_sequence : std::false_type
+{
+};
+template <typename T>
+struct is_sequence<std::vector<T>> : std::true_type
+{
+    using value_type = T;
+};
+template <typename T>
+struct is_sequence<std::unordered_set<T>> : std::true_type
+{
+    using value_type = T;
+};
+
+template <typename>
+struct is_map : std::false_type
+{
+};
+template <typename K, typename T>
+struct is_map<std::map<K, T>> : std::true_type
+{
+    using key_type = K;
+    using value_type = T;
+};
+
+template <typename T>
+uint64_t myhash(const T& x)
+{
+    if constexpr (is_sequence<T>::value) {
+        uint64_t seed = 0;
+        for (auto it = x.begin(); it != x.end(); ++it)
+            ut::hash_combine(seed, myhash<typename is_sequence<T>::value_type>(*it));
+        return seed;
+    }
+    else if constexpr (is_map<T>::value) {
+        uint64_t seed = 0;
+        for (auto it = x.begin(); it != x.end(); ++it) {
+            ut::hash_combine(seed, myhash<typename is_map<T>::key_type>(it->first));
+            ut::hash_combine(seed, myhash<typename is_map<T>::value_type>(it->second));
+        }
+        return seed;
+    }
+    else
+        return x.hash();
+}
+
+template <>
+inline uint64_t myhash<int>(const int& x)
+{
+    return uint64_t(x);
+}
+
+template <>
+inline uint64_t myhash<uint64_t>(const uint64_t& x)
+{
+    return uint64_t(x);
+}
+
+template <>
+inline uint64_t myhash<MMod>(const MMod& x)
+{
+    return uint64_t(x.data());
+}
+
+template <>
+inline uint64_t myhash<Mod>(const Mod& x)
+{
+    return myhash(x.data);
+}
 
 struct CriMilnor
 {
@@ -36,6 +112,16 @@ struct CriMilnor
         result.i2 = j;
         return result;
     }
+
+    uint64_t hash() const
+    {
+        uint64_t seed = 0;
+        ut::hash_combine(seed, i1);
+        ut::hash_combine(seed, i2);
+        ut::hash_combine(seed, m1.data());
+        ut::hash_combine(seed, m2.data());
+        return seed;
+    }
 };
 using CriMilnor1d = std::vector<CriMilnor>;
 using CriMilnor2d = std::vector<CriMilnor1d>;
@@ -50,13 +136,23 @@ class CriMilnors
 
 private:
     int t_trunc_;                                                        /* Truncation degree */
-    CriMilnor2d gb_;                                                      /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, CriMilnor2d> buffer_min_pairs_;                         /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
+    CriMilnor2d gb_;                                                     /* `pairs_[j]` is the set of pairs (i, j) with given j */
+    std::map<int, CriMilnor2d> buffer_min_pairs_;                        /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
-    std::map<int, CriMilnor1d> buffer_singles_;                           /* For computing Sj. `buffer_singles_` stores indices of singles_ */
+    std::map<int, CriMilnor1d> buffer_singles_;                          /* For computing Sj. `buffer_singles_` stores indices of singles_ */
 
 public:
     CriMilnors(int t_trunc) : t_trunc_(t_trunc) {}
+
+    uint64_t hash() const
+    {
+        uint64_t seed = 0;
+        ut::hash_combine(seed, myhash(gb_));
+        ut::hash_combine(seed, myhash(buffer_min_pairs_));
+        ut::hash_combine(seed, myhash(buffer_redundent_pairs_));
+        ut::hash_combine(seed, myhash(buffer_singles_));
+        return seed;
+    }
 
     int t_trunc() const
     {
@@ -77,29 +173,16 @@ public:
     */
     void AddToBuffers(const MMod1d& leads, MMod mon, int t_v);
 
-    void init(const MMod1d& leads, const array& basis_degrees);
+    void init(const MMod1d& leads, const array& basis_degrees, int t_min_buffer);
 };
 using CriMilnors1d = std::vector<CriMilnors>;
 
 struct Filtr
 {
     uint64_t data;
-    uint32_t w_may_, v_;
-    Filtr() : data(~0)
-    {
-        w_may_ = w_may();
-        v_ = v();
-    }
-    Filtr(MMod m) : data(m.v_raw() | m.w_may())
-    {
-        w_may_ = w_may();
-        v_ = v();
-    }
-    Filtr(uint64_t data_) : data(data_)
-    {
-        w_may_ = w_may();
-        v_ = v();
-    }
+    Filtr() : data(~0) {}
+    Filtr(MMod m) : data(m.v_raw() | m.w_may()) {}
+    Filtr(uint64_t data_) : data(data_) {}
     bool operator<(Filtr rhs) const
     {
         return data < rhs.data;
@@ -111,15 +194,6 @@ struct Filtr
     Filtr operator+(uint64_t w_may) const
     {
         return Filtr(data + w_may);
-    }
-
-    uint32_t w_may() const
-    {
-        return data & 0xffffffff;
-    }
-    uint32_t v() const
-    {
-        return ~(data - w_may()) >> MMOD_M_BITS;
     }
 };
 
@@ -143,9 +217,14 @@ private:
     array2d basis_degrees_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
 
 public:
-    GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+    GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int latest_s, int latest_t);
+
+    uint64_t hash() const
     {
-        ////
+        uint64_t seed = 0;
+        ut::hash_combine(seed, myhash(criticals_));
+        ut::hash_combine(seed, myhash(basis_degrees_));
+        return seed;
     }
 
 public:
@@ -178,6 +257,16 @@ public:
         gb_[s].push_back(std::move(g));
     }
 
+    const array& basis_degrees(size_t s)
+    {
+        return basis_degrees_[s];
+    }
+
+    const array2d& basis_degrees()
+    {
+        return basis_degrees_;
+    }
+
     const auto& data() const
     {
         return gb_;
@@ -185,7 +274,7 @@ public:
 
     Mod Reduce(Mod x2m, size_t s) const;
     Mod Reduce(const CriMilnor& p, size_t s) const;
-    void AddRels(size_t s, int t);
+    Mod1d AddRels(size_t s, int t);
 };
 
 /********************************************************
@@ -222,10 +311,26 @@ struct DataMRes
             return false;
         return true;
     }
+    uint64_t hash() const
+    {
+        uint64_t seed = 0;
+        ut::hash_combine(seed, myhash(x1));
+        ut::hash_combine(seed, myhash(x2));
+        ut::hash_combine(seed, myhash(x2m));
+        ut::hash_combine(seed, myhash(fil.data));
+        return seed;
+    }
 };
 
 using DataMRes1d = std::vector<DataMRes>;
 using DataMRes2d = std::vector<DataMRes1d>;
+
+inline void Reduce(Mod& x, const DataMRes1d& y, Mod& tmp)
+{
+    for (size_t i = 0; i < y.size(); ++i)
+        if (std::binary_search(x.data.begin(), x.data.end(), y[i].x1.GetLead()))
+            x.iadd(y[i].x1, tmp);
+}
 
 class GroebnerMRes
 {
@@ -246,10 +351,18 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m);
+    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t);
     static GroebnerMRes load(const std::string& filename, int t_trunc);
+    static void reset(const std::string& filename);
 
-private:
+    uint64_t hash() const
+    {
+        uint64_t seed = 0;
+        //ut::hash_combine(seed, myhash(criticals_));
+        //ut::hash_combine(seed, myhash(gb_x2m_));
+        ut::hash_combine(seed, myhash(gb_));
+        return seed;
+    }
 
 public:
     int t_trunc() const
@@ -269,6 +382,36 @@ public:
             }
         }
         return t;
+    }
+
+    const array& basis_degrees(size_t s) const
+    {
+        return basis_degrees_[s];
+    }
+
+    int dim_Ext() const {
+        size_t dim = 0; 
+        for (size_t s = 0; s < basis_degrees_.size(); ++s)
+            dim += basis_degrees_[s].size();
+        return (int)dim;
+    }
+
+    int dim_Gb() const
+    {
+        size_t dim = 0;
+        for (size_t s = 0; s < gb_.size(); ++s)
+            dim += gb_[s].size();
+        return (int)dim;
+    }
+
+    const array& basis_degrees_x2m(size_t s)
+    {
+        return gb_x2m_.basis_degrees(s);
+    }
+
+    const array2d& basis_degrees_x2m()
+    {
+        return gb_x2m_.basis_degrees();
     }
 
     void resize_gb(size_t s)
@@ -312,14 +455,6 @@ public:
         gb_x2m_.push_back(std::move(g), s);
     }
 
-    /* Add x2 + v_{s+1,i} */
-    void push_back_kernel(Mod x2, DataMRes1d& rels, size_t s, int t)
-    {
-        DataMRes g = DataMRes(std::move(x2), new_gen(s + 1, t), new_gen_x2m(s, t));
-        rels.push_back(g);
-        push_back(std::move(g), s);
-    }
-
     const auto& data() const
     {
         return gb_;
@@ -330,7 +465,7 @@ public:
         return gb_x2m_.data();
     }
 
-    CriMilnor1d Criticals(size_t s, int t);
+    CriMilnor1d Criticals(size_t s, int t, Mod1d& rels_x2m);
     DataMRes Reduce(const CriMilnor& cp, size_t s) const;
     Mod ReduceX2m(const CriMilnor& cp, size_t s) const;
 };
@@ -340,7 +475,7 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-size_t AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
+void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
 
 }  // namespace steenrod
 

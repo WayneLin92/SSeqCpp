@@ -2,18 +2,17 @@
 
 /*********** FUNCTIONS **********/
 
-void DumpGenPowV2(std::ostream& sout, const alg::GenPow& p)
+namespace myio {
+/*
+** Consume and ignore string `pattern` from istream.
+** Set badbit error if pattern is not matched.
+*/
+void consume(std::istream& sin, const char* pattern)
 {
-    sout << "x_";
-    if (0 <= p.gen && p.gen < 10)
-        sout << p.gen;
-    else
-        sout << '{' << p.gen << '}';
-    if (p.exp > 1) {
-        sout << '^';
-        if (0 <= p.exp && p.exp < 10)
-            sout << p.exp;
-        else
-            sout << '{' << p.exp << '}';
-    }
+    size_t i;
+    for (i = 0; pattern[i] != '\0' && sin.peek() == int(pattern[i]); ++i)
+        sin.ignore();
+    if (pattern[i] != '\0')
+        sin.setstate(std::ios_base::badbit);
 }
+}  // namespace myio

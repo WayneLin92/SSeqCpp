@@ -502,12 +502,12 @@ Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n)
 /**
  * Hash a monomial.
  */
-inline size_t hash(const Mon& mon)
+inline uint64_t hash(const Mon& mon)
 {
-    std::size_t seed = 0;
+    uint64_t seed = 0;
     for (auto& ge : mon) {
-        seed ^= (size_t)ge.gen + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= (size_t)ge.exp + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= (uint64_t)ge.gen + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= (uint64_t)ge.exp + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
     return seed;
 }

@@ -6,12 +6,7 @@
 #include <iterator>
 #include <string>
 #include <vector>
-
-#ifdef _MSC_VER
-#include <execution>
-#else
 #include <future>
-#endif
 
 #ifndef __unix__
 #ifndef _MSC_VER
@@ -216,11 +211,11 @@ inline int popcount(uint64_t i)
 #if defined(_MSC_VER)
     return std::_Popcount(i);
 #elif defined(__GNUC__)
-    return __builtin_popcount(i);
+    return __builtin_popcountll(i);
 #elif defined(__clang__)
-    return std::__popcount(i);
+    return std::__popcountll(i);
 #else
-    return std::__popcount(i);
+    return std::__popcountll(i);
 #endif
 }
 
@@ -240,19 +235,20 @@ void for_each_seq(size_t n, FnOp f)
 template <typename FnOp>
 void for_each_par(size_t n, FnOp f)
 {
-#ifdef _MSC_VER
-    ut::Range r(0, n);
-    std::for_each(std::execution::par_unseq, r.begin(), r.end(), f);
-#else
     std::vector<std::future<void>> futures;
-    for (int i = 0; i < FUTURE_NUM_THREADS; ++i)
+    size_t nThreads = std::min(FUTURE_NUM_THREADS, n);
+    for (int i = 0; i < nThreads; ++i)
         futures.push_back(std::async(std::launch::async, [i, n, f]() {
             for (int j = i; j < n; j += FUTURE_NUM_THREADS)
                 f(i);
         }));
-    for (int i = 0; i < FUTURE_NUM_THREADS; ++i)
+    for (int i = 0; i < nThreads; ++i)
         futures[i].wait();
-#endif
+}
+
+inline void hash_combine(uint64_t& seed, uint64_t value)
+{
+    seed ^= value + 0x9e3779b97f4a7c15 + (seed << 12) + (seed >> 4);
 }
 
 }  // namespace ut
