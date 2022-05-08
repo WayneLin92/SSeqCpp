@@ -27,8 +27,8 @@ void compare_computations()
     for (auto& rel : gb.data()) {
         auto rel1 = alg::subs<alg::CmpRevlex>(rel.data, map_gen_id);
         if (gb_py.Reduce(rel1)) {
-            std::cout << StrPoly(rel1.data, gen_names_py) << '\n';
-            std::cout << StrPoly(gb_py.Reduce(rel1).data, gen_names_py) << "\n\n";
+            /*std::cout << StrPoly(rel1.data, gen_names_py) << '\n';
+            std::cout << StrPoly(gb_py.Reduce(rel1).data, gen_names_py) << "\n\n";*/
             ++count;
         }
     }
@@ -79,22 +79,22 @@ void test_homology()
     std::vector<std::string> gen_names_h;
     alg::Homology(gb, gen_degs, gen_diffs, alg::MayDeg{1, 0, -1}, gb_h, gen_degs_h, gen_names_h, gen_repr_h, 80);
 
-    for (size_t i = 0; i < gen_names_h.size(); ++i)
-        std::cout << "t=" << gen_repr_h[i].GetMayDeg(gen_degs) << " " << gen_names_h[i] << "=" << StrPoly(gen_repr_h[i].data, gen_names) << '\n';
+    /*for (size_t i = 0; i < gen_names_h.size(); ++i)
+        std::cout << "t=" << gen_repr_h[i].GetMayDeg(gen_degs) << " " << gen_names_h[i] << "=" << StrPoly(gen_repr_h[i].data, gen_names) << '\n';*/
     std::cout << '\n';
-    for (auto& g : gb_h.data())
-        std::cout << StrPoly(g.data, gen_names_h) << "=0\n";
+    /*for (auto& g : gb_h.data())
+        std::cout << StrPoly(g.data, gen_names_h) << "=0\n";*/
 }
 
 void test()
 {
     using namespace steenrod;
-
-    auto prod = MMilnor::P(1, 2) * MMilnor::P(0, 1);
+    int xi1[XI_MAX] = {0, 0, 1, 2, 2};
+    int xi2[XI_MAX] = {2, 0, 0, 0, 1};
+    auto a1 = MMilnor::Xi(xi1);
+    auto a2 = MMilnor::Xi(xi2);
+    auto prod = a1 * a2;
     std::cout << prod << '\n';
-
-    auto prod1 = MMilnor::P(1, 2) * MMilnor::P(1, 2);
-    std::cout << prod1 << '\n';
 }
 
 int main()

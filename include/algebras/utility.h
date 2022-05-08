@@ -246,11 +246,6 @@ void for_each_par(size_t n, FnOp f)
         futures[i].wait();
 }
 
-inline void hash_combine(uint64_t& seed, uint64_t value)
-{
-    seed ^= value + 0x9e3779b97f4a7c15 + (seed << 12) + (seed >> 4);
-}
-
 }  // namespace ut
 
 #endif

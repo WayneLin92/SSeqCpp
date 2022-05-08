@@ -23,11 +23,11 @@ using array3d = std::vector<array2d>;
  *                  class Milnor
  ********************************************************/
 
-inline constexpr size_t XI_MAX = 7;                     /* Support up to \xi_8 */
-inline constexpr int DEG_MAX = (1 << (XI_MAX + 1)) - 2; /* Maximum degree supported in A */
+inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
+inline constexpr size_t XI_MAX_MULT = 7; /* Multiplication support up to \xi_7 */
 
-inline constexpr size_t MMILNOR_E_BITS = (XI_MAX + 1) * (XI_MAX + 2) / 2 - 1;
-inline constexpr size_t MMILNOR_W_BITS = 8;
+inline constexpr size_t MMILNOR_E_BITS = 37;
+inline constexpr size_t MMILNOR_W_BITS = 9;
 inline constexpr uint64_t MMILNOR_ONE = uint64_t(1) << (MMILNOR_E_BITS - 1);
 namespace detail {
     inline constexpr std::array<size_t, MMILNOR_E_BITS> MMilnorGenI()
@@ -80,10 +80,14 @@ inline constexpr uint64_t MMILNOR_MASK_E = (uint64_t(1) << MMILNOR_E_BITS) - 1;
 inline constexpr uint64_t MMILNOR_MASK_W = ((uint64_t(1) << MMILNOR_W_BITS) - 1) << MMILNOR_E_BITS;
 inline constexpr uint64_t MMILNOR_NULL = ~uint64_t(0);
 
+/* Maximum degree supported in A if `MMILNOR_E_BITS == 37` */
+inline constexpr int DEG_MAX = 383;
+inline constexpr int DEG_MAX_MULT = (1 << (XI_MAX_MULT + 1)) - 2;
+
 /** Milnor basis for A ordered by May filtration $w(xi_j^{2^i})=2j-1$
  *
  * Each element is represented by a 64-bit unsigned integer
- * (0, w, e): (21 bits, 8 bits, 35 bits)
+ * (0, w, e): (19 bits, 9 bits, 37 bits)
  */
 
 class MMilnor
@@ -103,7 +107,7 @@ public:
     static uint64_t dataP(int i, int j)
     {
         size_t index = size_t(j * (j + 1) / 2 - i - 1);
-        return (MMILNOR_ONE >> index) + MMILNOR_GEN_WEIGHT[index];
+        return (MMILNOR_ONE >> index) | MMILNOR_GEN_WEIGHT[index];
     }
 
     static MMilnor P(int i, int j)
@@ -111,13 +115,13 @@ public:
         return MMilnor(MMilnor::dataP(i, j));
     }
 
-    static MMilnor Xi(const int* xi)
+    static MMilnor Xi(const uint32_t* xi)
     {
         uint64_t result = 0;
-        for (int d = 1; d <= XI_MAX; ++d)
-            for (int n = xi[size_t(d - 1)], i = 0; n; n >>= 1, ++i)
+        for (int d = 1; d <= XI_MAX_MULT; ++d)  ////
+            for (uint32_t n = xi[size_t(d - 1)], i = 0; n; n >>= 1, ++i)
                 if (n & 1)
-                    result += MMilnor::dataP(i, i + d);
+                    result += MMilnor::dataP(i, i + d);  ////
         return MMilnor(result);
     }
 
@@ -137,11 +141,11 @@ public:
     }
 
 public:
-    std::array<int, XI_MAX> ToXi() const
+    std::array<uint32_t, XI_MAX> ToXi() const
     {
-        std::array<int, XI_MAX> result = {};
+        std::array<uint32_t, XI_MAX> result = {};
         for (int i : *this)
-            result[size_t(MMILNOR_GEN_J[i] - MMILNOR_GEN_I[i] - 1)] += 1 << MMILNOR_GEN_I[i];
+            result[size_t(MMILNOR_GEN_J[i] - MMILNOR_GEN_I[i] - 1)] += uint32_t(1) << MMILNOR_GEN_I[i];
         return result;
     }
 
@@ -369,7 +373,7 @@ inline Milnor operator*(MMilnor m1, MMilnor m2)  ////
  ********************************************************/
 
 inline constexpr uint64_t MMOD_M_BITS = MMILNOR_W_BITS + MMILNOR_E_BITS;
-inline constexpr uint64_t MMOD_MASK_V = ~(MMILNOR_MASK_W + MMILNOR_MASK_E);
+inline constexpr uint64_t MMOD_MASK_V = ~(MMILNOR_MASK_W | MMILNOR_MASK_E);
 /* Modules over A */
 class MMod
 {

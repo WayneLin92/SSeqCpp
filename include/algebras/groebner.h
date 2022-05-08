@@ -29,7 +29,6 @@ namespace detail {
      * this function replaces f with f + g * (f[i]/g[0]).
      *
      * We tried our best to reduce the memory allocations.
-     * TODO: use log
      */
     template <typename FnCmp>
     void Reduce(Polynomial<FnCmp>& f, const Polynomial<FnCmp>& g, const size_t index)
@@ -348,7 +347,7 @@ public:
                         new_pairs[i].first = d_pair;
                         CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                         if (!detail::HasGCD(leads[i], mon, traces[i], t))
-                            buffer_trivial_syz_[d_pair].insert(ut::Bind(i, s)); // change the type of bindpair
+                            buffer_trivial_syz_[d_pair].insert(ut::Bind(i, s));  // change the type of bindpair
                     }
                     else
                         new_pairs[i].first = -1;
@@ -417,10 +416,10 @@ private:
     GbCriPairs gb_pairs_; /* Groebner basis of critical pairs */
 
     /* Caches */
-    array data_degs_;   /* Degrees of data_. */
-    Mon1d leads_;       /* Leading monomials */
-    MonTrace1d traces_; /* Cache for fast divisibility test */
-    TypeIndices indices_;   /* Cache for fast divisibility test */
+    array data_degs_;     /* Degrees of data_. */
+    Mon1d leads_;         /* Leading monomials */
+    MonTrace1d traces_;   /* Cache for fast divisibility test */
+    TypeIndices indices_; /* Cache for fast divisibility test */
 
 public:
     Groebner(int deg_trunc, uint32_t mode = CRI_ON) : gb_pairs_(deg_trunc, mode) {}

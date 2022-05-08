@@ -8,23 +8,23 @@ namespace steenrod {
 /* Return the maximum number `result` such that
 ** `result <= upper_bound` and `result & mask == 0`
 */
-int max_mask(int upper_bound, int mask)
+uint32_t max_mask(uint32_t upper_bound, uint32_t mask)
 {
-    int m = upper_bound & mask;
-    int n = 0;
+    uint32_t m = upper_bound & mask;
+    uint32_t n = 0;
     while (m >>= 1)
         n |= m;
     return (upper_bound | n) & ~mask;
 }
 
-void MulMilnor(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>& S, MMilnor1d& result)
+void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result)
 {
-    constexpr size_t N = 7;  // Support up to t=254
+    constexpr size_t N = XI_MAX_MULT;  // Support up to t=254
 
     if (R[N - 1] & S[N - 1])
         return;
 
-    std::array<int, (N + 1) * (N + 1)> X, XR, XS, XT;
+    std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT;
     for (size_t i = 1; i <= N; ++i)
         XR[(N - i) * (N + 1) + i] = R[i - 1];
     for (size_t i = 1; i <= N - 1; ++i)
@@ -111,12 +111,12 @@ void MulMilnor(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>& 
     }
 }
 
-void MulMilnorV2(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>& S, MMilnor1d& result)
+void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result)
 {
-    constexpr size_t N = 7;  // Support up to t=254
+    constexpr size_t N = XI_MAX_MULT; 
+    std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT;
 
-    std::array<int, (N + 1) * (N + 1)> X, XR, XS, XT;
-
+    /* R_floor[i] */
     size_t R_floor[N + 1];
     R_floor[0] = 0;
     for (size_t row = 1; row <= N; ++row) {
@@ -166,16 +166,17 @@ void MulMilnorV2(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>
                 }
                 else
                     X[index] = max_mask(std::min(XR[index] >> j, XS[index]), XT[index] | X[index_up_right]);
-                X[index_up] = XS[index] - X[index];
+                uint32_t X_index = X[index];
+                X[index_up] = XS[index] - X_index;
                 if (j >= r_min && (X[index_up] & XT[index - r_min])) {
-                    if (X[index])
+                    if (X_index)
                         decrease = true;
                     else
                         move_right = true;
                 }
                 else {
-                    XR[index_left] = XR[index] - (X[index] << j);
-                    XT[index_up_right] = XT[index] | X[index] | X[index_up_right];
+                    XR[index_left] = XR[index] - (X_index << j);
+                    XT[index_up_right] = XT[index] | X_index | X[index_up_right];
                     --j;
                 }
             }
@@ -186,9 +187,10 @@ void MulMilnorV2(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>
                 }
                 else
                     X[index] = max_mask(std::min(XR[index] >> j, XS[index]), XT[index]);
-                XR[index_left] = XR[index] - (X[index] << j);
-                XS[index_up] = XS[index] - X[index];
-                XT[index_up_right] = XT[index] | X[index];
+                uint32_t X_index = X[index];
+                XR[index_left] = XR[index] - (X_index << j);
+                XS[index_up] = XS[index] - X_index;
+                XT[index_up_right] = XT[index] | X_index;
                 --j;
             }
         }
@@ -203,12 +205,13 @@ void MulMilnorV2(const std::array<int, XI_MAX>& R, const std::array<int, XI_MAX>
                 move_right = true;
             }
             else {
-                size_t index = size_t(i * (N + 1));
-                size_t index_up_right = size_t(R_floor[i - 1] * N + i);
-                if (XT[index] & XR[index])  //
+                uint32_t XT_index = XT[i * (N + 1)];
+                uint32_t XR_index = XR[i * (N + 1)];
+                if (XT_index & XR_index)
                     move_right = true;
                 else {
-                    XT[index_up_right] = XR[index];
+                    /* Assign XT[index_up_right]. Fixed! */
+                    XT[R_floor[i - 1] * N + i] = XT_index | XR_index;
                     i = R_floor[i - 1];
                     j = N - i;
                 }
@@ -246,13 +249,16 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
     auto R = lhs.ToXi();
     auto S = rhs.ToXi();
     int nonzeroes = 0;
-    for (int i : R)
+    for (uint32_t i : R)
         if (i)
             ++nonzeroes;
-    if (nonzeroes <= 3)
+    Milnor result1 = result;
+    if (nonzeroes <= 3) {
         MulMilnorV2(R, S, result.data);
-    else
+    }
+    else {
         MulMilnor(R, S, result.data);
+    }
 }
 
 void MulMay(MMilnor lhs, MMilnor rhs, Milnor& result)  ////

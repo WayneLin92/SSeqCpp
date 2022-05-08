@@ -2,92 +2,39 @@
  * A Component for Groebner bases.
  */
 
-//#define MYDEPLOY
-#ifdef MYDEPLOY
-//#define MYDEPLOY_TEST_FILE
-#endif
-
 #ifndef GROEBNER_STEENROD_H
 #define GROEBNER_STEENROD_H
 
 #include "algebras/benchmark.h"
+#include "algebras/myhash.h"  ////
 #include "algebras/steenrod.h"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 
-namespace steenrod {
+//#define MYDEPLOY
+#ifdef MYDEPLOY
+//#define MYDEPLOY_TEST_FILE
+#endif
 
-template <typename>
-struct is_sequence : std::false_type
-{
-};
-template <typename T>
-struct is_sequence<std::vector<T>> : std::true_type
-{
-    using value_type = T;
-};
-template <typename T>
-struct is_sequence<std::unordered_set<T>> : std::true_type
-{
-    using value_type = T;
-};
-
-template <typename>
-struct is_map : std::false_type
-{
-};
-template <typename K, typename T>
-struct is_map<std::map<K, T>> : std::true_type
-{
-    using key_type = K;
-    using value_type = T;
-};
-
-template <typename T>
-uint64_t myhash(const T& x)
-{
-    if constexpr (is_sequence<T>::value) {
-        uint64_t seed = 0;
-        for (auto it = x.begin(); it != x.end(); ++it)
-            ut::hash_combine(seed, myhash<typename is_sequence<T>::value_type>(*it));
-        return seed;
-    }
-    else if constexpr (is_map<T>::value) {
-        uint64_t seed = 0;
-        for (auto it = x.begin(); it != x.end(); ++it) {
-            ut::hash_combine(seed, myhash<typename is_map<T>::key_type>(it->first));
-            ut::hash_combine(seed, myhash<typename is_map<T>::value_type>(it->second));
-        }
-        return seed;
-    }
-    else
-        return x.hash();
-}
+namespace ut {  ////
+using namespace steenrod;
 
 template <>
-inline uint64_t myhash<int>(const int& x)
-{
-    return uint64_t(x);
-}
-
-template <>
-inline uint64_t myhash<uint64_t>(const uint64_t& x)
-{
-    return uint64_t(x);
-}
-
-template <>
-inline uint64_t myhash<MMod>(const MMod& x)
+inline uint64_t hash<MMod>(const MMod& x)
 {
     return uint64_t(x.data());
 }
 
 template <>
-inline uint64_t myhash<Mod>(const Mod& x)
+inline uint64_t hash<Mod>(const Mod& x)
 {
-    return myhash(x.data);
+    return hash(x.data);
 }
+
+}  // namespace ut
+
+namespace steenrod {
 
 struct CriMilnor
 {
@@ -147,10 +94,10 @@ public:
     uint64_t hash() const
     {
         uint64_t seed = 0;
-        ut::hash_combine(seed, myhash(gb_));
-        ut::hash_combine(seed, myhash(buffer_min_pairs_));
-        ut::hash_combine(seed, myhash(buffer_redundent_pairs_));
-        ut::hash_combine(seed, myhash(buffer_singles_));
+        ut::hash_combine(seed, ut::hash(gb_));
+        ut::hash_combine(seed, ut::hash(buffer_min_pairs_));
+        ut::hash_combine(seed, ut::hash(buffer_redundent_pairs_));
+        ut::hash_combine(seed, ut::hash(buffer_singles_));
         return seed;
     }
 
@@ -222,8 +169,8 @@ public:
     uint64_t hash() const
     {
         uint64_t seed = 0;
-        ut::hash_combine(seed, myhash(criticals_));
-        ut::hash_combine(seed, myhash(basis_degrees_));
+        ut::hash_combine(seed, ut::hash(criticals_));
+        ut::hash_combine(seed, ut::hash(basis_degrees_));
         return seed;
     }
 
@@ -314,10 +261,10 @@ struct DataMRes
     uint64_t hash() const
     {
         uint64_t seed = 0;
-        ut::hash_combine(seed, myhash(x1));
-        ut::hash_combine(seed, myhash(x2));
-        ut::hash_combine(seed, myhash(x2m));
-        ut::hash_combine(seed, myhash(fil.data));
+        ut::hash_combine(seed, ut::hash(x1));
+        ut::hash_combine(seed, ut::hash(x2));
+        ut::hash_combine(seed, ut::hash(x2m));
+        ut::hash_combine(seed, ut::hash(fil.data));
         return seed;
     }
 };
@@ -358,9 +305,9 @@ public:
     uint64_t hash() const
     {
         uint64_t seed = 0;
-        //ut::hash_combine(seed, myhash(criticals_));
-        //ut::hash_combine(seed, myhash(gb_x2m_));
-        ut::hash_combine(seed, myhash(gb_));
+        // ut::hash_combine(seed, ut::hash(criticals_));
+        // ut::hash_combine(seed, ut::hash(gb_x2m_));
+        ut::hash_combine(seed, ut::hash(gb_));
         return seed;
     }
 
@@ -389,8 +336,9 @@ public:
         return basis_degrees_[s];
     }
 
-    int dim_Ext() const {
-        size_t dim = 0; 
+    int dim_Ext() const
+    {
+        size_t dim = 0;
         for (size_t s = 0; s < basis_degrees_.size(); ++s)
             dim += basis_degrees_[s].size();
         return (int)dim;

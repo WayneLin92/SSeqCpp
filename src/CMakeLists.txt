@@ -7,16 +7,18 @@ if(MSVC)
     add_compile_options(/permissive-)
 endif()
 
-set(HEADER_LIST "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/groebner.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/myio.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/myexception.h"
+set(HEADER_LIST 
+    "${AlgTop_SOURCE_DIR}/include/algebras/algebras.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/benchmark.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/database.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/dbalg.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/groebner.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/linalg.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/benchmark.h"
-    "${AlgTop_SOURCE_DIR}/include/algebras/utility.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/myexception.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/myhash.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/myio.h"
     "${AlgTop_SOURCE_DIR}/include/algebras/steenrod.h"
+    "${AlgTop_SOURCE_DIR}/include/algebras/utility.h"
 )
 
 add_library(algebras STATIC algebras.cpp database.cpp dbalg.cpp groebner.cpp linalg.cpp myio.cpp steenrod.cpp utility.cpp ${HEADER_LIST})

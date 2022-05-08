@@ -1,6 +1,5 @@
 /** \file database.h
  * A module for interacting with a database.
- * TODO: Get column from blobs
  */
 #ifndef DATABASE_H
 #define DATABASE_H

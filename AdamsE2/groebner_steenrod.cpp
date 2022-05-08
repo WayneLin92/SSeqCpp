@@ -360,6 +360,7 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
     }
     ut::RemoveIf(result, [](const CriMilnor& cp) { return cp.i2 == -1; });
     return result;
+    return cris;
 }
 
 DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
@@ -815,7 +816,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 
 GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
 {
-    DbSteenrod db("AdamsE2.db");
+    DbSteenrod db(filename);
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
     db.create_generators_x2m("SteenrodMRes");
@@ -831,7 +832,7 @@ GroebnerMRes GroebnerMRes::load(const std::string& filename, int t_trunc)
 
 void GroebnerMRes::reset(const std::string& filename)
 {
-    DbSteenrod db("AdamsE2.db");
+    DbSteenrod db(filename);
     db.create_generators_and_delete("SteenrodMRes");
     db.create_relations_and_delete("SteenrodMRes");
     db.create_generators_x2m_and_delete("SteenrodMRes");

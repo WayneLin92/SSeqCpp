@@ -16,6 +16,7 @@
         "MMOD",
         "mutex",
         "MYEXCEPTION",
+        "myha",
         "myio",
         "pbegin",
         "rel",
