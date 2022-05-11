@@ -36,10 +36,3 @@ else()
 endif()
 
 target_compile_features(algebras PRIVATE cxx_std_17)
-
-# IDEs should put the headers in a nice place
-source_group(
-    TREE "${PROJECT_SOURCE_DIR}/include"
-    PREFIX "Header Files"
-    FILES ${HEADER_LIST}
-)

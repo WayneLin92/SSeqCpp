@@ -84,7 +84,7 @@ public:
         std::chrono::duration<double> result = std::chrono::system_clock::now() - start_;
         return result.count();
     }
-    void Reset(int n=-1)
+    void Reset(int n = -1)
     {
         start_ = std::chrono::system_clock::now();
         ended_ = false;
@@ -99,15 +99,14 @@ public:
 };
 
 /**
-* The class `Counter` records counts in a static variable.
-*/
+ * The class `Counter` records counts in a static variable.
+ */
 class Counter
 {
 public:
     static std::vector<int> counts_;
 
 public:
-
     Counter(int n)
     {
         ++counts_[n];
@@ -138,11 +137,11 @@ public:
 
     static void print()
     {
-        std::cout << "Counter:\n";
+        std::cout << "MaxGetter:\n";
         for (size_t i = 0; i < max_.size(); ++i)
             std::cout << i << ": " << max_[i] << "\n";
     }
 };
 
-}
+}  // namespace bench
 #endif

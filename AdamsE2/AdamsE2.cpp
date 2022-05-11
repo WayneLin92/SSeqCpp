@@ -39,7 +39,7 @@ void AdamsE2_TestFile()
 {
     using namespace steenrod;
 
-    //int t_trunc1 = 61;
+    // int t_trunc1 = 61;
     int t_trunc = TEST_DEG;
 
     /*Mod1d rels;
@@ -49,9 +49,9 @@ void AdamsE2_TestFile()
             break;
     }*/
 
-    //GroebnerMRes::reset("AdamsE2.db");
+    // GroebnerMRes::reset("AdamsE2.db");
     auto gb = GroebnerMRes::load("AdamsE2_right.db", t_trunc);
-    //AddRelsMRes(gb, rels, t_trunc1);
+    // AddRelsMRes(gb, rels, t_trunc1);
 
     auto gb1 = GroebnerMRes::load("AdamsE2_wrong.db", t_trunc);
     std::cout << "gb.hash=" << gb.hash() << '\n';

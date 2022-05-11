@@ -70,11 +70,25 @@ namespace detail {
                     result[n++] = (2 * (j - i) - 1) << MMILNOR_E_BITS;
         return result;
     }
+    inline constexpr std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> MMilnorGens()
+    {
+        constexpr std::array<uint64_t, MMILNOR_E_BITS> MMILNOR_GEN_WEIGHT_ = detail::MMilnorGenWeight();
+        std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> result = {};
+        for (size_t d = 1; d <= XI_MAX_MULT; ++d)
+            for (size_t i = 0; i <= XI_MAX; ++i) {
+                size_t j = i + d;
+                size_t index = size_t(j * (j + 1) / 2 - i - 1);
+                if (index < MMILNOR_E_BITS)
+                    result[(d - 1) * (XI_MAX + 1) + i] = (MMILNOR_ONE >> index) | MMILNOR_GEN_WEIGHT_[index];
+            }
+        return result;
+    }
 }  // namespace detail
 inline constexpr std::array<size_t, MMILNOR_E_BITS> MMILNOR_GEN_I = detail::MMilnorGenI();
 inline constexpr std::array<size_t, MMILNOR_E_BITS> MMILNOR_GEN_J = detail::MMilnorGenJ();
 inline constexpr std::array<uint64_t, MMILNOR_E_BITS> MMILNOR_GEN_WEIGHT = detail::MMilnorGenWeight();
 inline constexpr std::array<int, MMILNOR_E_BITS> MMILNOR_GEN_DEG = detail::MMilnorGenDeg();
+inline constexpr std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> MMILNOR_GENS = detail::MMilnorGens();
 inline constexpr uint64_t UINT64_LEFT_BIT = uint64_t(1) << 63;
 inline constexpr uint64_t MMILNOR_MASK_E = (uint64_t(1) << MMILNOR_E_BITS) - 1;
 inline constexpr uint64_t MMILNOR_MASK_W = ((uint64_t(1) << MMILNOR_W_BITS) - 1) << MMILNOR_E_BITS;
@@ -118,10 +132,9 @@ public:
     static MMilnor Xi(const uint32_t* xi)
     {
         uint64_t result = 0;
-        for (int d = 1; d <= XI_MAX_MULT; ++d)  ////
+        for (size_t d = 1; d <= XI_MAX_MULT; ++d)  ////
             for (uint32_t n = xi[size_t(d - 1)], i = 0; n; n >>= 1, ++i)
-                if (n & 1)
-                    result += MMilnor::dataP(i, i + d);  ////
+                result += (n & 1) * MMILNOR_GENS[(d - 1) * (XI_MAX + 1) + i];  ////
         return MMilnor(result);
     }
 

@@ -127,5 +127,7 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "execution": "cpp"
-    }
+    },
+    
+    "cmake.buildDirectory": "${env:userprofile}/Documents/Projects/${workspaceFolderBasename}_build",
 }
