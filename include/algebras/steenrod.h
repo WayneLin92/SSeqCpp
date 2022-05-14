@@ -30,24 +30,34 @@ inline constexpr size_t MMILNOR_E_BITS = 37;
 inline constexpr size_t MMILNOR_W_BITS = 9;
 inline constexpr uint64_t MMILNOR_ONE = uint64_t(1) << (MMILNOR_E_BITS - 1);
 namespace detail {
-    inline constexpr std::array<size_t, MMILNOR_E_BITS> MMilnorGenI()
+    inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMilnorGenI()
     {
-        std::array<size_t, MMILNOR_E_BITS> result = {};
+        std::array<uint8_t, MMILNOR_E_BITS> result = {};
         size_t n = 0;
         for (size_t j = 1; j <= XI_MAX + 1; ++j)
             for (size_t i = j; i-- > 0;)
                 if (n < MMILNOR_E_BITS)
-                    result[n++] = i;
+                    result[n++] = (uint8_t)i;
         return result;
     }
-    inline constexpr std::array<size_t, MMILNOR_E_BITS> MMilnorGenJ()
+    inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMilnorGenJ()
     {
-        std::array<size_t, MMILNOR_E_BITS> result = {};
+        std::array<uint8_t, MMILNOR_E_BITS> result = {};
         size_t n = 0;
         for (size_t j = 1; j <= XI_MAX + 1; ++j)
             for (size_t i = j; i-- > 0;)
                 if (n < MMILNOR_E_BITS)
-                    result[n++] = j;
+                    result[n++] = (uint8_t)j;
+        return result;
+    }
+    inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMilnorGenJmIm1()
+    {
+        std::array<uint8_t, MMILNOR_E_BITS> result = {};
+        size_t n = 0;
+        for (size_t j = 1; j <= XI_MAX + 1; ++j)
+            for (size_t i = j; i-- > 0;)
+                if (n < MMILNOR_E_BITS)
+                    result[n++] = (uint8_t)(j - i - 1);
         return result;
     }
     inline constexpr std::array<int, MMILNOR_E_BITS> MMilnorGenDeg()
@@ -70,25 +80,28 @@ namespace detail {
                     result[n++] = (2 * (j - i) - 1) << MMILNOR_E_BITS;
         return result;
     }
-    inline constexpr std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> MMilnorGens()
+    template <size_t d>
+    constexpr std::array<uint64_t, 1 << (9 - d)> MMilnorXiD()
     {
-        constexpr std::array<uint64_t, MMILNOR_E_BITS> MMILNOR_GEN_WEIGHT_ = detail::MMilnorGenWeight();
-        std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> result = {};
-        for (size_t d = 1; d <= XI_MAX_MULT; ++d)
-            for (size_t i = 0; i <= XI_MAX; ++i) {
-                size_t j = i + d;
-                size_t index = size_t(j * (j + 1) / 2 - i - 1);
-                if (index < MMILNOR_E_BITS)
-                    result[(d - 1) * (XI_MAX + 1) + i] = (MMILNOR_ONE >> index) | MMILNOR_GEN_WEIGHT_[index];
+        constexpr uint32_t N = 1 << (9 - d);
+        std::array<uint64_t, N> result = {};
+        for (uint32_t m = 0; m < N; ++m) {
+            for (uint32_t n = m, i = 0; n; n >>= 1, ++i) {
+                if (n & 1) {
+                    uint32_t j = i + d;
+                    uint32_t index = j * (j + 1) / 2 - i - 1;
+                    result[m] |= MMILNOR_ONE >> index;
+                }
             }
+        }
         return result;
     }
 }  // namespace detail
-inline constexpr std::array<size_t, MMILNOR_E_BITS> MMILNOR_GEN_I = detail::MMilnorGenI();
-inline constexpr std::array<size_t, MMILNOR_E_BITS> MMILNOR_GEN_J = detail::MMilnorGenJ();
+inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_I = detail::MMilnorGenI();
+inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_J = detail::MMilnorGenJ();
+inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_JMIM1 = detail::MMilnorGenJmIm1();
 inline constexpr std::array<uint64_t, MMILNOR_E_BITS> MMILNOR_GEN_WEIGHT = detail::MMilnorGenWeight();
 inline constexpr std::array<int, MMILNOR_E_BITS> MMILNOR_GEN_DEG = detail::MMilnorGenDeg();
-inline constexpr std::array<uint64_t, XI_MAX_MULT*(XI_MAX + 1)> MMILNOR_GENS = detail::MMilnorGens();
 inline constexpr uint64_t UINT64_LEFT_BIT = uint64_t(1) << 63;
 inline constexpr uint64_t MMILNOR_MASK_E = (uint64_t(1) << MMILNOR_E_BITS) - 1;
 inline constexpr uint64_t MMILNOR_MASK_W = ((uint64_t(1) << MMILNOR_W_BITS) - 1) << MMILNOR_E_BITS;
@@ -97,6 +110,14 @@ inline constexpr uint64_t MMILNOR_NULL = ~uint64_t(0);
 /* Maximum degree supported in A if `MMILNOR_E_BITS == 37` */
 inline constexpr int DEG_MAX = 383;
 inline constexpr int DEG_MAX_MULT = (1 << (XI_MAX_MULT + 1)) - 2;
+
+inline constexpr auto MMILNOR_Xi0 = detail::MMilnorXiD<1>();
+inline constexpr auto MMILNOR_Xi1 = detail::MMilnorXiD<2>();
+inline constexpr auto MMILNOR_Xi2 = detail::MMilnorXiD<3>();
+inline constexpr auto MMILNOR_Xi3 = detail::MMilnorXiD<4>();
+inline constexpr auto MMILNOR_Xi4 = detail::MMilnorXiD<5>();
+inline constexpr auto MMILNOR_Xi5 = detail::MMilnorXiD<6>();
+inline constexpr auto MMILNOR_Xi6 = detail::MMilnorXiD<7>();
 
 /** Milnor basis for A ordered by May filtration $w(xi_j^{2^i})=2j-1$
  *
@@ -131,11 +152,9 @@ public:
 
     static MMilnor Xi(const uint32_t* xi)
     {
-        uint64_t result = 0;
-        for (size_t d = 1; d <= XI_MAX_MULT; ++d)  ////
-            for (uint32_t n = xi[size_t(d - 1)], i = 0; n; n >>= 1, ++i)
-                result += (n & 1) * MMILNOR_GENS[(d - 1) * (XI_MAX + 1) + i];  ////
-        return MMilnor(result);
+        const uint64_t w_raw = uint64_t(1 * ut::popcount(xi[0]) + 3 * ut::popcount(xi[1]) + 5 * ut::popcount(xi[2]) + 7 * ut::popcount(xi[3]) + 9 * ut::popcount(xi[4]) + 11 * ut::popcount(xi[5]) + 13 * ut::popcount(xi[6])) << MMILNOR_E_BITS;
+        const uint64_t e = MMILNOR_Xi0[xi[0]] | MMILNOR_Xi1[xi[1]] | MMILNOR_Xi2[xi[2]] | MMILNOR_Xi3[xi[3]] | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]];
+        return MMilnor(w_raw + e);
     }
 
     static MMilnor FromE(uint64_t e)
@@ -158,7 +177,7 @@ public:
     {
         std::array<uint32_t, XI_MAX> result = {};
         for (int i : *this)
-            result[size_t(MMILNOR_GEN_J[i] - MMILNOR_GEN_I[i] - 1)] += uint32_t(1) << MMILNOR_GEN_I[i];
+            result[MMILNOR_GEN_JMIM1[i]] += uint32_t(1) << MMILNOR_GEN_I[i];
         return result;
     }
 

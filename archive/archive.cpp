@@ -297,3 +297,56 @@ Mod operator*(MMilnor m, const Mod& x)
     }
     return result;
 }
+
+template <uint32_t d>
+constexpr std::array<uint64_t, d >= 5 ? (1 << (9 - d)) : (1 << 4)> MMilnorXiLow()
+{
+    constexpr uint32_t N = d >= 5 ? (1 << (9 - d)) : (1 << 4);
+    std::array<uint64_t, N> result = {};
+    for (uint32_t m = 0; m < N; ++m) {
+        for (uint32_t n = m, i = 0; n; n >>= 1, ++i) {
+            if (n & 1) {
+                uint32_t j = i + d;
+                uint32_t index = j * (j + 1) / 2 - i - 1;
+                result[m] |= MMILNOR_ONE >> index;
+            }
+        }
+    }
+    return result;
+}
+template <uint32_t d>
+constexpr std::array<uint64_t, 1 << (5 - d)> MMilnorXiHigh()
+{
+    constexpr uint32_t N = 1 << (5 - d);
+    std::array<uint64_t, N> result = {};
+    for (uint32_t m = 0; m < N; ++m) {
+        for (uint32_t n = (m << 4), i = 0; n; n >>= 1, ++i) {
+            if (n & 1) {
+                uint32_t j = i + d;
+                uint32_t index = j * (j + 1) / 2 - i - 1;
+                result[m] |= MMILNOR_ONE >> index;
+            }
+        }
+    }
+    return result;
+}
+
+inline constexpr auto MMILNOR_Xi0_h = detail::MMilnorXiHigh<1>();
+inline constexpr auto MMILNOR_Xi0 = detail::MMilnorXiLow<1>();
+inline constexpr auto MMILNOR_Xi1_h = detail::MMilnorXiHigh<2>();
+inline constexpr auto MMILNOR_Xi1 = detail::MMilnorXiLow<2>();
+inline constexpr auto MMILNOR_Xi2_h = detail::MMilnorXiHigh<3>();
+inline constexpr auto MMILNOR_Xi2 = detail::MMilnorXiLow<3>();
+inline constexpr auto MMILNOR_Xi3_h = detail::MMilnorXiHigh<4>();
+inline constexpr auto MMILNOR_Xi3 = detail::MMilnorXiLow<4>();
+inline constexpr auto MMILNOR_Xi4 = detail::MMilnorXiLow<5>();
+inline constexpr auto MMILNOR_Xi5 = detail::MMilnorXiLow<6>();
+inline constexpr auto MMILNOR_Xi6 = detail::MMilnorXiLow<7>();
+
+static MMilnor Xi(const uint32_t* xi)
+{
+    const uint64_t w_raw = uint64_t(1 * ut::popcount(xi[0]) + 3 * ut::popcount(xi[1]) + 5 * ut::popcount(xi[2]) + 7 * ut::popcount(xi[3]) + 9 * ut::popcount(xi[4]) + 11 * ut::popcount(xi[5]) + 13 * ut::popcount(xi[6])) << MMILNOR_E_BITS;
+    const uint64_t e = MMILNOR_Xi0_h[xi[0] >> 4] | MMILNOR_Xi0[xi[0] & 0xf] | MMILNOR_Xi1_h[xi[1] >> 4] | MMILNOR_Xi1[xi[1] & 0xf] | MMILNOR_Xi2_h[xi[2] >> 4] | MMILNOR_Xi2[xi[2] & 0xf] | MMILNOR_Xi3_h[xi[3] >> 4] | MMILNOR_Xi3[xi[3] & 0xf]
+                       | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]];
+    return MMilnor(w_raw + e);
+}
