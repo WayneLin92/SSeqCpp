@@ -14,7 +14,7 @@ void AdamsE2()
 #ifdef MYDEPLOY
     int t_trunc = DEG_MAX_MULT;
 #else
-    int t_trunc = 70;
+    int t_trunc = 100;
 #endif
     Mod1d rels;
     for (int i = 0; i < 10; ++i) {

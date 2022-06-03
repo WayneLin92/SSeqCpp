@@ -1,6 +1,6 @@
 #include "groebner_steenrod.h"
-#include "algebras/benchmark.h"  ////
-#include "algebras/dbalg.h"
+#include "algebras/benchmark.h"
+#include "algebras/database.h"
 #include <cstring>
 //#include <immintrin.h>
 
@@ -420,10 +420,13 @@ Mod GroebnerMRes::Reduce(Mod x, size_t s) const
 {
     size_t index;
     index = 0;
+    Milnor tmp_a;
+    Mod tmp_x1, tmp_x2;
     while (index < x.data.size()) {
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
+            x.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
             x += m * gb_[s][gb_index].x1;
         }
         else
@@ -462,7 +465,7 @@ public:
 public:
     void create_generators(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, diff BLOB, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, diff BLOB, s SMALLINT, t SMALLINT);");
     }
     void create_generators_x2m(const std::string& table_prefix) const
     {
@@ -525,7 +528,7 @@ public:
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
         Mod v0;
         v0.data.reserve(1);
-        stmt.bind_int(1, 1);
+        stmt.bind_int(1, 1); //TODO: should start with zero
         stmt.bind_blob(2, v0.data.data(), int(v0.data.size() * sizeof(MMod)));
         stmt.bind_int(3, 0);
         stmt.bind_int(4, 0);
@@ -795,9 +798,10 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
             }
 
 #ifdef MYDEPLOY
+            double time = timer.Elapsed();
             int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
             int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
-            db.save(data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, timer.Elapsed(), s, t);
+            db.save(data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t);
             timer.Reset();
 #endif
 
@@ -809,7 +813,11 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 gb.push_back_x2m(x2m_st[i], s);
 
             if (size_t size_k = data_sp1t.size())
+#ifdef MYDEPLOY
+                std::cout << "  s=" << s + 2 << " dim=" << size_k << ' ' << time << std::endl;
+#else
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << std::endl;
+#endif
         }
     }
 }

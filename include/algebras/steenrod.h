@@ -18,6 +18,7 @@ namespace steenrod {
 using array = std::vector<int>;
 using array2d = std::vector<array>;
 using array3d = std::vector<array2d>;
+using array4d = std::vector<array3d>;
 
 /********************************************************
  *                  class Milnor
@@ -150,11 +151,12 @@ public:
         return MMilnor(MMilnor::dataP(i, j));
     }
 
+    /* This is a critial function */
     static MMilnor Xi(const uint32_t* xi)
     {
         const uint64_t w_raw = uint64_t(1 * ut::popcount(xi[0]) + 3 * ut::popcount(xi[1]) + 5 * ut::popcount(xi[2]) + 7 * ut::popcount(xi[3]) + 9 * ut::popcount(xi[4]) + 11 * ut::popcount(xi[5]) + 13 * ut::popcount(xi[6])) << MMILNOR_E_BITS;
         const uint64_t e = MMILNOR_Xi0[xi[0]] | MMILNOR_Xi1[xi[1]] | MMILNOR_Xi2[xi[2]] | MMILNOR_Xi3[xi[3]] | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]];
-        return MMilnor(w_raw + e);
+        return MMilnor(w_raw | e);
     }
 
     static MMilnor FromE(uint64_t e)
@@ -606,25 +608,24 @@ inline void Reduce(Mod& x, const Mod1d& y, Mod& tmp)
 /* Compute the product in the associated graded algebra */
 Mod mulLF(MMilnor m, const Mod& x);
 
-template <typename FnMap>
-Mod TplSubs(const Mod& x, FnMap map)
+/**
+ * Replace v_i with `map[i]`.
+ */
+inline void subs(const Mod& x, const Mod1d& map, Mod&result, Mod& tmp)
 {
-    Mod result;
     for (const MMod& mv : x.data)
-        result += Milnor(mv.m()) * map(mv.v());
-    return result;
+        result.iadd(mv.m() * map[mv.v()], tmp);
 }
 
 /**
  * Replace v_i with `map[i]`.
  */
-// inline Mod subs(const Mod& x, const Mod1d& map)
-//{
-//     Mod result;
-//     for (const MMod& mv : x.data)
-//         result += Milnor(mv.m()) * map[mv.v()];
-//     return result;
-// }
+inline Mod subs(const Mod& x, const Mod1d& map)
+{
+    Mod result, tmp;
+    subs(x, map, result, tmp);
+    return result;
+}
 
 }  // namespace steenrod
 

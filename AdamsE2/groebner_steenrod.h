@@ -6,7 +6,6 @@
 #define GROEBNER_STEENROD_H
 
 #include "algebras/benchmark.h"
-#include "algebras/myhash.h"  ////
 #include "algebras/steenrod.h"
 #include <map>
 #include <unordered_map>
@@ -18,19 +17,19 @@
 #endif
 
 namespace ut {  ////
-using namespace steenrod;
-
-template <>
-inline uint64_t hash<MMod>(const MMod& x)
-{
-    return uint64_t(x.data());
-}
-
-template <>
-inline uint64_t hash<Mod>(const Mod& x)
-{
-    return hash(x.data);
-}
+//using namespace steenrod;
+//
+//template <>
+//inline uint64_t hash<MMod>(const MMod& x)
+//{
+//    return uint64_t(x.data());
+//}
+//
+//template <>
+//inline uint64_t hash<Mod>(const Mod& x)
+//{
+//    return hash(x.data);
+//}
 
 }  // namespace ut
 
@@ -59,16 +58,6 @@ struct CriMilnor
         result.i2 = j;
         return result;
     }
-
-    uint64_t hash() const
-    {
-        uint64_t seed = 0;
-        ut::hash_combine(seed, i1);
-        ut::hash_combine(seed, i2);
-        ut::hash_combine(seed, m1.data());
-        ut::hash_combine(seed, m2.data());
-        return seed;
-    }
 };
 using CriMilnor1d = std::vector<CriMilnor>;
 using CriMilnor2d = std::vector<CriMilnor1d>;
@@ -90,16 +79,6 @@ private:
 
 public:
     CriMilnors(int t_trunc) : t_trunc_(t_trunc) {}
-
-    uint64_t hash() const
-    {
-        uint64_t seed = 0;
-        ut::hash_combine(seed, ut::hash(gb_));
-        ut::hash_combine(seed, ut::hash(buffer_min_pairs_));
-        ut::hash_combine(seed, ut::hash(buffer_redundent_pairs_));
-        ut::hash_combine(seed, ut::hash(buffer_singles_));
-        return seed;
-    }
 
     int t_trunc() const
     {
@@ -165,14 +144,6 @@ private:
 
 public:
     GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int latest_s, int latest_t);
-
-    uint64_t hash() const
-    {
-        uint64_t seed = 0;
-        ut::hash_combine(seed, ut::hash(criticals_));
-        ut::hash_combine(seed, ut::hash(basis_degrees_));
-        return seed;
-    }
 
 public:
     void resize(size_t s)
@@ -258,15 +229,6 @@ struct DataMRes
             return false;
         return true;
     }
-    uint64_t hash() const
-    {
-        uint64_t seed = 0;
-        ut::hash_combine(seed, ut::hash(x1));
-        ut::hash_combine(seed, ut::hash(x2));
-        ut::hash_combine(seed, ut::hash(x2m));
-        ut::hash_combine(seed, ut::hash(fil.data));
-        return seed;
-    }
 };
 
 using DataMRes1d = std::vector<DataMRes>;
@@ -301,15 +263,6 @@ public:
     GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t);
     static GroebnerMRes load(const std::string& filename, int t_trunc);
     static void reset(const std::string& filename);
-
-    uint64_t hash() const
-    {
-        uint64_t seed = 0;
-        // ut::hash_combine(seed, ut::hash(criticals_));
-        // ut::hash_combine(seed, ut::hash(gb_x2m_));
-        ut::hash_combine(seed, ut::hash(gb_));
-        return seed;
-    }
 
 public:
     int t_trunc() const

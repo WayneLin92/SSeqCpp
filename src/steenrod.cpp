@@ -39,10 +39,10 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
     while (true) {
         bool move_right = false;
         if (j) {
-            size_t index = size_t(i * (N + 1) + j);
-            size_t index_up = size_t((i - 1) * (N + 1) + j);
-            size_t index_up_right = size_t((i - 1) * (N + 1) + j + 1);
-            size_t index_left = size_t(i * (N + 1) + j - 1);
+            const size_t index = i * (N + 1) + j;
+            const size_t index_up = (i - 1) * (N + 1) + j;
+            const size_t index_up_right = (i - 1) * (N + 1) + j + 1;
+            const size_t index_left = i * (N + 1) + j - 1;
             if (i == 1) {
                 if (decrease) {
                     X[index] = (X[index] - 1) & ~(XT[index] | X[index_up_right]);
@@ -51,14 +51,14 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                 else
                     X[index] = max_mask(std::min(XR[index] >> i, XS[index]), XT[index] | X[index_up_right]);
                 X[index_up] = XR[index] - (X[index] << i);
-                if (X[index_up] & XT[index_left]) {
+                if (X[index_up] & XT[i * (N + 1) + j - 1]) {
                     if (X[index])
                         decrease = true;
                     else
                         move_right = true;
                 }
                 else {
-                    XS[size_t(i * (N + 1) + j - 1)] = XS[index] - X[index];
+                    XS[index_left] = XS[index] - X[index];
                     XT[index_up_right] = XT[index] | X[index] | X[index_up_right];
                     --j;
                 }
@@ -70,7 +70,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                 }
                 else
                     X[index] = max_mask(std::min(XR[index] >> i, XS[index]), XT[index]);
-                XS[size_t(i * (N + 1) + j - 1)] = XS[index] - X[index];
+                XS[index_left] = XS[index] - X[index];
                 XR[index_up] = XR[index] - (X[index] << i);
                 XT[index_up_right] = XT[index] | X[index];
                 --j;
@@ -85,8 +85,8 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                 move_right = true;
             }
             else {
-                size_t index = size_t(i * (N + 1));
-                size_t index_up_right = size_t((i - 1) * (N + 1) + 1);
+                const size_t index = i * (N + 1);
+                const size_t index_up_right = (i - 1) * (N + 1) + 1;
                 XT[index_up_right] = XS[index];
                 j = N - (--i);
             }
@@ -155,10 +155,10 @@ void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_
     while (true) {
         bool move_right = false;
         if (j) {
-            size_t index = size_t(i * (N + 1) + j);
-            size_t index_up = size_t(R_floor[i - 1] * (N + 1) + j);
-            size_t index_up_right = size_t(R_floor[i - 1] * N + j + i);
-            size_t index_left = index - 1;
+            const size_t index = i * (N + 1) + j;
+            const size_t index_up = R_floor[i - 1] * (N + 1) + j;
+            const size_t index_up_right = R_floor[i - 1] * N + j + i;
+            const size_t index_left = index - 1;
             if (i == r_min) {
                 if (decrease) {
                     X[index] = (X[index] - 1) & ~(XT[index] | X[index_up_right]);
@@ -218,12 +218,9 @@ void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_
             }
         }
         if (move_right) {
-            size_t index = i * (N + 1) + j;
             do {
-                if (i + j < N) {
+                if (i + j < N)
                     ++j;
-                    ++index;
-                }
                 else {
                     do {
                         ++i;
@@ -231,9 +228,8 @@ void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_
                     if (i > r_max)
                         break;
                     j = 1;
-                    index = i * (N + 1) + 1;
                 }
-            } while (X[index] == 0);
+            } while (X[i * (N + 1) + j] == 0);
             if (i > r_max || i + j > N)
                 break;
             decrease = true;
@@ -253,12 +249,10 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
         if (i)
             ++nonzeroes;
     Milnor result1 = result;
-    if (nonzeroes <= 3) {
+    if (nonzeroes <= 3)
         MulMilnorV2(R, S, result.data);
-    }
-    else {
+    else
         MulMilnor(R, S, result.data);
-    }
 }
 
 void MulMay(MMilnor lhs, MMilnor rhs, Milnor& result)  ////

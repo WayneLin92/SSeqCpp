@@ -40,13 +40,14 @@ struct MayDeg
     {
         if (t < rhs.t)
             return true;
-        else if (t == rhs.t) {
-            if (s < rhs.s)
-                return true;
-            else if (s == rhs.s)
-                if (v < rhs.v)
-                    return true;
-        }
+        if (t > rhs.t)
+            return false;
+        if (s < rhs.s)
+            return true;
+        if (s > rhs.s)
+            return false;
+        if (v < rhs.v)
+            return true;
         return false;
     };
     MayDeg operator+(const MayDeg& rhs) const
@@ -85,6 +86,60 @@ struct MayDeg
     };
 };
 using MayDeg1d = std::vector<MayDeg>;
+
+/** The 2d grading for the Adams spectral sequence.
+ *
+ * v is the complement degree of the May degree.
+ * $v(R_{ij})=j-i-1$.
+ * Degrees are ordered by t, s, v.
+ */
+struct AdamsDeg
+{
+    int s, t;
+    bool operator<(const AdamsDeg& rhs) const
+    {
+        if (t < rhs.t)
+            return true;
+        if (t > rhs.t)
+            return false;
+        if (s < rhs.s)
+            return true;
+        return false;
+    };
+    AdamsDeg operator+(const AdamsDeg& rhs) const
+    {
+        return AdamsDeg{s + rhs.s, t + rhs.t};
+    };
+    AdamsDeg operator-(const AdamsDeg& rhs) const
+    {
+        return AdamsDeg{s - rhs.s, t - rhs.t};
+    };
+    AdamsDeg& operator+=(const AdamsDeg& rhs)
+    {
+        s += rhs.s;
+        t += rhs.t;
+        return *this;
+    };
+    AdamsDeg& operator-=(const AdamsDeg& rhs)
+    {
+        s -= rhs.s;
+        t -= rhs.t;
+        return *this;
+    };
+    bool operator==(const AdamsDeg& rhs) const
+    {
+        return s == rhs.s && t == rhs.t;
+    };
+    bool operator!=(const AdamsDeg& rhs) const
+    {
+        return !operator==(rhs);
+    };
+    AdamsDeg operator*(int rhs) const
+    {
+        return AdamsDeg{s * rhs, t * rhs};
+    };
+};
+using AdamsDeg1d = std::vector<AdamsDeg>;
 
 /********************************************************
  *                      Monomials
@@ -159,6 +214,16 @@ inline MayDeg GetMayDeg(const Mon& mon, const MayDeg1d& gen_maydegs)
     MayDeg result{0, 0, 0};
     for (MonInd p = mon.begin(); p != mon.end(); ++p)
         result += gen_maydegs[p->gen] * p->exp;
+    return result;
+}
+/**
+ * Obtain the Adams degree of a monomial given the Adams degrees of generators.
+ */
+inline AdamsDeg GetAdamsDeg(const Mon& mon, const AdamsDeg1d& gen_degs)
+{
+    AdamsDeg result{0, 0};
+    for (MonInd p = mon.begin(); p != mon.end(); ++p)
+        result += gen_degs[p->gen] * p->exp;
     return result;
 }
 

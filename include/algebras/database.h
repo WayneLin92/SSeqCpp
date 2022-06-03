@@ -4,8 +4,6 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-#define DATABASE_SAVE_LOGGING /* This is a switch to print what are saved to the database */
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -16,17 +14,11 @@ struct sqlite3_stmt;
 #define MYSQLITE3_TEXT 3
 
 /**
- * This is namespace providing C++ wrappers for the sqlite3 library.
+ * This namespace provides C++ wrappers for the sqlite3 library.
  */
 namespace myio {
 
 class Database;
-
-enum struct SqlType
-{
-    SqlInt = 0,
-    SqlStr = 1,
-};
 
 /**
  * Wrapper for `sqlite3_stmt*`
@@ -48,11 +40,30 @@ public:
     void bind_double(int iCol, double d) const;
     void bind_null(int iCol) const;
     void bind_blob(int iCol, const void* data, int nBytes) const;
+    template <typename T>
+    void bind_blob(int iCol, const std::vector<T>& data) const
+    {
+        if (data.data())
+            bind_blob(iCol, data.data(), int(data.size() * sizeof(T)));
+        else
+            bind_blob(iCol, this, 0);
+    }
     std::string column_str(int iCol) const;
     int column_int(int iCol) const;
     int column_type(int iCol) const;
     const void* column_blob(int iCol) const;
     int column_blob_size(int iCol) const;
+    template <typename T>
+    std::vector<T> column_blob_tpl(int iCol) const
+    {
+        std::vector<T> result;
+        const void* data = column_blob(iCol);
+        int bytes = column_blob_size(iCol);
+        size_t data_size = (size_t)bytes / sizeof(T);
+        result.resize(data_size);
+        memcpy(result.data(), data, bytes);
+        return result;
+    }
     int step() const;
     int reset() const;
     void step_and_reset() const;
@@ -146,8 +157,6 @@ public:
             stmt.bind_int(2, (int)i);
             stmt.step_and_reset();
         }
-        /*if (bLogging_)
-            std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";*/
     }
     /* `map` should return a pair of type (void*, int) */
     template <typename T, typename FnMap>
@@ -159,8 +168,6 @@ public:
             stmt.bind_int(2, (int)i);
             stmt.step_and_reset();
         }
-        /*if (bLogging_)
-            std::cout << column.size() - i_start << ' ' << column_name << "'s are inserted into " + table_name + "!\n";*/
     }
 };
 }  // namespace myio

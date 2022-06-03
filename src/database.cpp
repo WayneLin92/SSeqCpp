@@ -70,7 +70,6 @@ std::vector<int> Database::get_column_int(const std::string& table_name, const s
     Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
     while (stmt.step() == SQLITE_ROW)
         result.push_back(stmt.column_int(0));
-    std::cout << column_name << " loaded from " << table_name << ", size=" << result.size() << '\n';
     return result;
 }
 
