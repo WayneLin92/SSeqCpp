@@ -2,6 +2,7 @@
 #include "algebras/database.h"
 #include "algebras/linalg.h"
 #include <cstring>
+#include <map>
 
 namespace steenrod {
 
@@ -107,9 +108,10 @@ public:
 
     void create_products(const std::string& table_prefix, const GenMRes2d& gens) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators_products (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, indecomposable TINYINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, indecomposable TINYINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h BLOB, PRIMARY KEY (id, id_ind));");
 
-        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id, s, t, indecomposable) VALUES (?1, ?2, ?3, ?4);");
+        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, s, t, indecomposable) VALUES (?1, ?2, ?3, ?4);");
 
         begin_transaction();
         for (size_t s = 0; s < gens.size(); ++s) {
@@ -122,17 +124,6 @@ public:
             }
         }
         end_transaction();
-    }
-
-    void add_product_column(const std::string& table_prefix, int id) const
-    {
-        std::string id_str = std::to_string(id);
-        int added = get_int("SELECT indecomposable FROM " + table_prefix + "_generators_products WHERE id=" + id_str + ";");
-        if (!added) {
-            execute_cmd("ALTER TABLE " + table_prefix + "_generators_products ADD COLUMN m" + id_str + " BLOB;");
-            execute_cmd("ALTER TABLE " + table_prefix + "_generators_products ADD COLUMN mh" + id_str + " BLOB;");
-            execute_cmd("UPDATE " + table_prefix + "_generators_products SET indecomposable=1 WHERE id=" + id_str + ";");
-        }
     }
 
     void create_generators_and_delete(const std::string& table_prefix) const
@@ -158,27 +149,27 @@ public:
         }
     }
 
-    void save_products(const std::string& table_prefix, const array& ids_ind, const GenMRes2d& gens, const std::map<int, Mod2d>& map, const std::map<int, array3d>& map_h)
+    void save_products(const std::string& table_prefix, const array& ids_ind, const GenMRes2d& gens, std::map<int, Mod2d>& map, const std::map<int, array3d>& map_h)
     {
         if (f_.valid())
             f_.wait();
         f_ = std::async(std::launch::async, [this, ids_ind, &gens, &map, &map_h, &table_prefix]() {
             begin_transaction();
-            for (int id : ids_ind)
-                add_product_column("SteenrodMRes", id);
             for (int id : ids_ind) {
                 auto& map_id = map.at(id);
                 auto& map_h_id = map_h.at(id);
-                std::string id_str = std::to_string(id);
-                Statement stmt(*this, "UPDATE OR IGNORE " + table_prefix + "_generators_products SET m" + id_str + "=?1, mh" + id_str + "=?2 WHERE id=?3 and m" + id_str + " IS NULL;");
+                execute_cmd("UPDATE " + table_prefix + "_generators SET indecomposable=1 WHERE id=" + std::to_string(id) + ";");
+                Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);");
                 for (size_t s = 0; s < map_id.size(); ++s) {
                     for (size_t i = 0; i < map_id[s].size(); ++i) {
-                        stmt.bind_blob(1, map_id[s][i].data);
-                        stmt.bind_blob(2, map_h_id[s][i]);
-                        stmt.bind_int(3, gens[s][i].id);
+                        stmt.bind_int(1, gens[s][i].id);
+                        stmt.bind_int(2, id);
+                        stmt.bind_blob(3, map_id[s][i].data);
+                        stmt.bind_blob(4, map_h_id[s][i]);
                         stmt.step_and_reset();
                     }
                 }
+                map_id.clear();
             }
             end_transaction();
         });
@@ -186,23 +177,21 @@ public:
 
     void load_products(const std::string& table_prefix, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h) const
     {
-        array id_inds = get_column_int(table_prefix + "_generators_products", "id", "WHERE indecomposable=1 ORDER BY id");
-        for (int id_ind : id_inds) {
-            std::string id_ind_str = std::to_string(id_ind);
-            Statement stmt(*this, "SELECT id, s, m" + id_ind_str + ", mh" + id_ind_str + " FROM " + table_prefix + "_generators_products WHERE m" + id_ind_str + " is not NULL ORDER BY id;");
-            while (stmt.step() == MYSQLITE_ROW) {
-                int id = stmt.column_int(0);
-                int s = stmt.column_int(1);
-                Mod prod;
-                prod.data = stmt.column_blob_tpl<MMod>(2);
-                array prod_h = stmt.column_blob_tpl<int>(3);
-                if (map[id_ind].size() <= s) {
-                    map[id_ind].resize(size_t(s + 1));
-                    map_h[id_ind].resize(size_t(s + 1));
-                }
-                map.at(id_ind)[s].push_back(std::move(prod));
-                map_h.at(id_ind)[s].push_back(std::move(prod_h));
+        array id2s = get_column_int(table_prefix + "_generators", "s", "ORDER BY id;");
+        Statement stmt(*this, "SELECT id, id_ind, prod, prod_h FROM " + table_prefix + "_generators_products ORDER BY id;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            int s = id2s[id];
+            int id_ind = stmt.column_int(1);
+            Mod prod;
+            prod.data = stmt.column_blob_tpl<MMod>(2);
+            array prod_h = stmt.column_blob_tpl<int>(3);
+            if (map[id_ind].size() <= s) {
+                map[id_ind].resize(size_t(s + 1));
+                map_h[id_ind].resize(size_t(s + 1));
             }
+            map.at(id_ind)[s].push_back(std::move(prod));
+            map_h.at(id_ind)[s].push_back(std::move(prod_h));
         }
     }
 
@@ -222,7 +211,7 @@ public:
     GenMRes2d load_generators(const std::string& table_prefix) const
     {
         GenMRes2d result;
-        Statement stmt(*this, "SELECT id - 1, s, t, diff FROM " + table_prefix + "_generators ORDER BY id;"); //TODO: We use id-1 here because the original id starts with 1
+        Statement stmt(*this, "SELECT id - 1, s, t, diff FROM " + table_prefix + "_generators ORDER BY id;");  // TODO: We use id-1 here because the original id starts with 1
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             Mod diff;
@@ -288,14 +277,15 @@ void compute_products_sk(const GenMRes2d& gens, const GroebnerMResConst& gb, siz
     size_t old_map_s_size = map[s].size();
 
     map[s].resize(gens[s].size());
-    map_h[s].resize(gens[s].size()); 
+    map_h[s].resize(gens[s].size());
 
     map[s][k] = MMod(MMilnor(), 0);
     map_h[s][k] = HomToK(map[s][k]);
 
     Mod map_diff, tmp;
     for (size_t s1 = s + 1; s1 < gens_size; ++s1) {
-        std::cout << "    s2=" << s1 << "          \r";
+        if (s1 <= 100)
+            std::cout << "    s2=" << s1 << std::endl;
         size_t old_map_s1_size = map[s1].size();
         map[s1].resize(gens[s1].size());
         map_h[s1].resize(gens[s1].size());
@@ -308,7 +298,12 @@ void compute_products_sk(const GenMRes2d& gens, const GroebnerMResConst& gb, siz
 
 void compute_products()
 {
-    std::string filename = "C:\\Users\\lwnpk\\Documents\\Projects\\algtop_cpp_to_GZ_3\\AdamsE2_t100.db";
+#ifdef MYDEPLOY
+    std::string filename = "AdamsE2.db";
+#else
+    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t184.db";
+#endif
+
     std::string table_SteenrodMRes = "SteenrodMRes";
     auto gb = GroebnerMResConst::load(filename);
     DbSteenrod db(filename);
@@ -324,9 +319,9 @@ void compute_products()
     std::map<int, array3d> map_h;
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 
-    array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators_products", "id", "WHERE indecomposable=1 ORDER BY id");
+    array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 ORDER BY id");
     for (size_t s = 1; s < gens.size(); ++s) {
-        std::cout << "s1=" << s << "          \n";
+        std::cout << "s1=" << s << std::endl;
         array2d fx;
         for (const auto& [i, map_h_i] : map_h) {
             if (map_h_i.size() <= (size_t)s)
@@ -356,7 +351,7 @@ void compute_products()
         for (size_t i = 0; i < indices.size(); ++i) {
             int id = gens[s][indices[i]].id;
             ids_ind.push_back(id);
-            std::cout << "  i1=" << i << '/' << indices.size() << "          \n";
+            std::cout << "  i1=" << i << '/' << indices.size() << std::endl;
             compute_products_sk(gens, gb, s, indices[i], map[id], map_h[id]);
         }
 

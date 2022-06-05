@@ -1,5 +1,5 @@
 #include "algebras/benchmark.h"
-#include "algebras/dbalg.h"
+#include "algebras/database.h"
 #include "algebras/groebner.h"
 #include "algebras/linalg.h"
 #include <cstring>
@@ -44,7 +44,7 @@ public:
 
     void load_indecomposables(const std::string& table_prefix, alg::array& array_id, alg::AdamsDeg1d& gen_degs) const
     {
-        Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators_products WHERE indecomposable=1 ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators WHERE indecomposable=1 ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             array_id.push_back(id);
@@ -58,7 +58,7 @@ public:
      */
     void load_id_converter(const std::string& table_prefix, alg::array2d& loc2glo, alg::pairint1d& glo2loc) const
     {
-        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_generators_products ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_generators ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1);
             if (loc2glo.size() <= (size_t)s)
@@ -72,15 +72,12 @@ public:
     std::map<std::pair<int, int>, alg::array> load_products_h(const std::string& table_prefix) const
     {
         std::map<std::pair<int, int>, alg::array> result;
-        alg::array id_inds = get_column_int(table_prefix + "_generators_products", "id", "WHERE indecomposable=1 ORDER BY id");
-        for (int id_ind : id_inds) {
-            std::string id_ind_str = std::to_string(id_ind);
-            Statement stmt(*this, "SELECT id, mh" + id_ind_str + " FROM " + table_prefix + "_generators_products WHERE mh" + id_ind_str + " is not NULL ORDER BY id;");
-            while (stmt.step() == MYSQLITE_ROW) {
-                int id = stmt.column_int(0);
-                alg::array prod_h = stmt.column_blob_tpl<int>(1);
-                result[std::make_pair(id_ind, id)] = std::move(prod_h);
-            }
+        Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_generators_products;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            int id_ind = stmt.column_int(1);
+            alg::array prod_h = stmt.column_blob_tpl<int>(2);
+            result[std::make_pair(id_ind, id)] = std::move(prod_h);
         }
         return result;
     }
@@ -174,7 +171,7 @@ void AdamsE2Export()
     repr[AdamsDeg{0, 0}].push_back({0});
 
     /* Consider generators one by one */
-    int t_trunc = dbProd.get_int("SELECT MAX(t) from SteenrodMRes_generators_products");
+    int t_trunc = dbProd.get_int("SELECT MAX(t) from SteenrodMRes_generators");
     /* Add new basis */
     for (int t = 1; t <= t_trunc; t++) {
         std::map<AdamsDeg, Mon1d> basis_new;

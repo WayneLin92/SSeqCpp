@@ -5,6 +5,7 @@
 #define DATABASE_H
 
 #include <iostream>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -61,7 +62,7 @@ public:
         int bytes = column_blob_size(iCol);
         size_t data_size = (size_t)bytes / sizeof(T);
         result.resize(data_size);
-        memcpy(result.data(), data, bytes);
+        std::memcpy(result.data(), data, bytes);
         return result;
     }
     int step() const;
