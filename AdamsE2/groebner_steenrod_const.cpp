@@ -81,7 +81,7 @@ Mod GroebnerMResConst::DiffInv(Mod x, size_t s) const
     return result;
 }
 
-class DbSteenrod : public myio::Database
+class DbMResProd : public myio::Database
 {
     using Statement = myio::Statement;
 
@@ -89,8 +89,8 @@ private:
     std::future<void> f_;
 
 public:
-    DbSteenrod() = default;
-    explicit DbSteenrod(const std::string& filename) : Database(filename) {}
+    DbMResProd() = default;
+    explicit DbMResProd(const std::string& filename) : Database(filename) {}
 
 public:
     void create_generators(const std::string& table_prefix) const
@@ -149,28 +149,24 @@ public:
         }
     }
 
-    void save_products(const std::string& table_prefix, const array& ids_ind, const GenMRes2d& gens, std::map<int, Mod2d>& map, const std::map<int, array3d>& map_h)
+    void save_products(const std::string& table_prefix, int id, const GenMRes2d& gens, Mod2d& map, const array3d& map_h)
     {
         if (f_.valid())
             f_.wait();
-        f_ = std::async(std::launch::async, [this, ids_ind, &gens, &map, &map_h, &table_prefix]() {
+        f_ = std::async(std::launch::async, [this, id, &gens, &map, &map_h, &table_prefix]() {
             begin_transaction();
-            for (int id : ids_ind) {
-                auto& map_id = map.at(id);
-                auto& map_h_id = map_h.at(id);
-                execute_cmd("UPDATE " + table_prefix + "_generators SET indecomposable=1 WHERE id=" + std::to_string(id) + ";");
-                Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);");
-                for (size_t s = 0; s < map_id.size(); ++s) {
-                    for (size_t i = 0; i < map_id[s].size(); ++i) {
-                        stmt.bind_int(1, gens[s][i].id);
-                        stmt.bind_int(2, id);
-                        stmt.bind_blob(3, map_id[s][i].data);
-                        stmt.bind_blob(4, map_h_id[s][i]);
-                        stmt.step_and_reset();
-                    }
+            execute_cmd("UPDATE " + table_prefix + "_generators SET indecomposable=1 WHERE id=" + std::to_string(id) + ";");
+            Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);");
+            for (size_t s = 0; s < map.size(); ++s) {
+                for (size_t i = 0; i < map[s].size(); ++i) {
+                    stmt.bind_int(1, gens[s][i].id);
+                    stmt.bind_int(2, id);
+                    stmt.bind_blob(3, map[s][i].data);
+                    stmt.bind_blob(4, map_h[s][i]);
+                    stmt.step_and_reset();
                 }
-                map_id.clear();
             }
+            map.clear();
             end_transaction();
         });
     }
@@ -211,9 +207,10 @@ public:
     GenMRes2d load_generators(const std::string& table_prefix) const
     {
         GenMRes2d result;
-        Statement stmt(*this, "SELECT id - 1, s, t, diff FROM " + table_prefix + "_generators ORDER BY id;");  // TODO: We use id-1 here because the original id starts with 1
+        int id_min = get_int("SELECT MIN(id) FROM " + table_prefix + "_generators;");
+        Statement stmt(*this, "SELECT id, s, t, diff FROM " + table_prefix + "_generators ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
-            int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
+            int id = stmt.column_int(0) - id_min, s = stmt.column_int(1), t = stmt.column_int(2);
             Mod diff;
             diff.data = stmt.column_blob_tpl<MMod>(3);
 
@@ -250,7 +247,7 @@ public:
 
 GroebnerMResConst GroebnerMResConst::load(const std::string& filename)
 {
-    DbSteenrod db(filename);
+    DbMResProd db(filename);
     DataMResConst2d data = db.load_data("SteenrodMRes");
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     int latest_s = 0, latest_t = 0;
@@ -284,35 +281,36 @@ void compute_products_sk(const GenMRes2d& gens, const GroebnerMResConst& gb, siz
 
     Mod map_diff, tmp;
     for (size_t s1 = s + 1; s1 < gens_size; ++s1) {
-        if (s1 <= 100)
+        if (s1 <= 50)
             std::cout << "    s2=" << s1 << std::endl;
         size_t old_map_s1_size = map[s1].size();
         map[s1].resize(gens[s1].size());
         map_h[s1].resize(gens[s1].size());
         ut::for_each_par(gens[s1].size() - old_map_s1_size, [&](size_t i) {
-            map[s1][old_map_s1_size + i] = gb.DiffInv(subs(gens[s1][old_map_s1_size + i].diff, map[s1 - 1]), s1 - s - 1);
-            map_h[s1][old_map_s1_size + i] = HomToK(map[s1][old_map_s1_size + i]);
+            size_t i1 = old_map_s1_size + i;
+            map[s1][i1] = gb.DiffInv(subs(gens[s1][i1].diff, map[s1 - 1]), s1 - s - 1);
+            map_h[s1][i1] = HomToK(map[s1][i1]);
         });
     }
 }
 
 void compute_products()
 {
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
     std::string filename = "AdamsE2.db";
 #else
-    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t184.db";
+    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
 #endif
 
     std::string table_SteenrodMRes = "SteenrodMRes";
     auto gb = GroebnerMResConst::load(filename);
-    DbSteenrod db(filename);
+    DbMResProd db(filename);
     auto gens = db.load_generators(table_SteenrodMRes);
 
     int num_gens = 0;
     for (size_t i = 0; i < gens.size(); ++i)
         num_gens += (int)gens[i].size();
-    DbSteenrod dbProd("AdamsE2Prod.db");
+    DbMResProd dbProd("AdamsE2Prod.db");
     dbProd.create_products(table_SteenrodMRes, gens);
 
     std::map<int, Mod2d> map;
@@ -347,16 +345,14 @@ void compute_products()
                 indices.push_back((int)i);
         std::sort(indices.begin(), indices.end());
 
-        array ids_ind;
         for (size_t i = 0; i < indices.size(); ++i) {
             int id = gens[s][indices[i]].id;
-            ids_ind.push_back(id);
             std::cout << "  i1=" << i << '/' << indices.size() << std::endl;
             compute_products_sk(gens, gb, s, indices[i], map[id], map_h[id]);
-        }
 
-        /* Save to database */
-        dbProd.save_products(table_SteenrodMRes, ids_ind, gens, map, map_h);
+            /* Save to database */
+            dbProd.save_products(table_SteenrodMRes, id, gens, map.at(id), map_h.at(id));
+        }
     }
 }
 

@@ -237,12 +237,12 @@ void for_each_par(size_t n, FnOp f)
 {
     std::vector<std::future<void>> futures;
     size_t nThreads = std::min(FUTURE_NUM_THREADS, n);
-    for (int i = 0; i < nThreads; ++i)
+    for (size_t i = 0; i < nThreads; ++i)
         futures.push_back(std::async(std::launch::async, [i, n, f]() {
-            for (int j = i; j < n; j += FUTURE_NUM_THREADS)
-                f(i);
+            for (size_t j = i; j < n; j += FUTURE_NUM_THREADS)
+                f(j);
         }));
-    for (int i = 0; i < nThreads; ++i)
+    for (size_t i = 0; i < nThreads; ++i)
         futures[i].wait();
 }
 

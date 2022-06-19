@@ -11,27 +11,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
-//#define MYDEPLOY
-#ifdef MYDEPLOY
-//#define MYDEPLOY_TEST_FILE
+//#define TO_GUOZHEN
+#ifdef TO_GUOZHEN
+//#define MMYDEPLOY_TEST_FILE
 #endif
-
-namespace ut {  ////
-//using namespace steenrod;
-//
-//template <>
-//inline uint64_t hash<MMod>(const MMod& x)
-//{
-//    return uint64_t(x.data());
-//}
-//
-//template <>
-//inline uint64_t hash<Mod>(const Mod& x)
-//{
-//    return hash(x.data);
-//}
-
-}  // namespace ut
 
 namespace steenrod {
 

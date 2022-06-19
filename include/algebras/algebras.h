@@ -524,12 +524,12 @@ struct Polynomial
         std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
         for (size_t i = 1; i < result.data.size(); ++i) {
             if (result.data[i] == result.data[i - 1]) {
-                result.data[i].clear();
-                result.data[i - 1].clear();
+                result.data[i] = GenPow::Mon(-1);
+                result.data[i - 1] = GenPow::Mon(-1);
                 ++i;
             }
         }
-        ut::RemoveEmptyElements(result.data);
+        ut::RemoveIf(result.data, [](const Mon& m) { return m.size() && m[0].gen == -1; });
         return result;
     }
 };

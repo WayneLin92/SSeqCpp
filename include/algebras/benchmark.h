@@ -126,10 +126,10 @@ public:
 class MaxGetter
 {
 public:
-    static std::vector<unsigned int> max_;
+    static std::vector<int> max_;
 
 public:
-    MaxGetter(int n, unsigned int value)
+    MaxGetter(int n, int value)
     {
         if (value > max_[n])
             max_[n] = value;

@@ -11,7 +11,7 @@ void AdamsE2()
     using namespace steenrod;
     bench::Timer timer;
 
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
     int t_trunc = DEG_MAX_MULT;
 #else
     int t_trunc = 100;
@@ -22,7 +22,7 @@ void AdamsE2()
         if (MMilnor::P(i, i + 1).deg() > t_trunc)
             break;
     }
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
     auto gb = GroebnerMRes::load("AdamsE2.db", t_trunc);
 #else
     auto gb = GroebnerMRes(t_trunc, {}, {}, {}, {}, 0, 0);
@@ -33,7 +33,7 @@ void AdamsE2()
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }
 
-#ifdef MYDEPLOY_TEST_FILE
+#ifdef TO_GUOZHEN_TEST_FILE
 /* Test the file saving and reading */
 void AdamsE2_TestFile()
 {
@@ -70,7 +70,7 @@ void AdamsE2_TestFile()
 
 int main()
 {
-#ifdef MYDEPLOY_TEST_FILE
+#ifdef TO_GUOZHEN_TEST_FILE
     AdamsE2_TestFile();
 #else
     AdamsE2();

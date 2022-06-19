@@ -611,7 +611,7 @@ Mod mulLF(MMilnor m, const Mod& x);
 /**
  * Replace v_i with `map[i]`.
  */
-inline void subs(const Mod& x, const Mod1d& map, Mod&result, Mod& tmp)
+inline void subs(const Mod& x, const Mod1d& map, Mod& result, Mod& tmp)
 {
     for (const MMod& mv : x.data)
         result.iadd(mv.m() * map[mv.v()], tmp);

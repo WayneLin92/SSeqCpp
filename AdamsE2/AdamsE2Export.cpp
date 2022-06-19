@@ -1,47 +1,22 @@
+#include "algebras/algebras.h"
 #include "algebras/benchmark.h"
-#include "algebras/database.h"
-#include "algebras/groebner.h"
+#include "algebras/dbAdamsSS.h"
 #include "algebras/linalg.h"
 #include <cstring>
 #include <map>
 
-class DbSteenrod : public myio::Database
+//#define TO_GUOZHEN
+
+class MyDB : public myio::DbAdamsSS
 {
     using Statement = myio::Statement;
 
 public:
-    DbSteenrod() = default;
-    explicit DbSteenrod(const std::string& filename) : Database(filename) {}
+    MyDB() = default;
+    explicit MyDB(const std::string& filename) : DbAdamsSS(filename) {}
 
 public:
-    void create_generators(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, repr SMALLINT, s SMALLINT, t SMALLINT);");
-    }
-    void create_relations(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (rel BLOB, s SMALLINT, t SMALLINT);");
-    }
-    void create_basis(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_basis (id INTEGER PRIMARY KEY, mon BLOB, s SMALLINT, t SMALLINT);");
-    }
-    void create_generators_and_delete(const std::string& table_prefix) const
-    {
-        create_generators(table_prefix);
-        delete_from(table_prefix + "_generators");
-    }
-    void create_relations_and_delete(const std::string& table_prefix) const
-    {
-        create_relations(table_prefix);
-        delete_from(table_prefix + "_relations");
-    }
-    void create_basis_and_delete(const std::string& table_prefix) const
-    {
-        create_basis(table_prefix);
-        delete_from(table_prefix + "_basis");
-    }
-
+    /* From SteenrodMRes */
     void load_indecomposables(const std::string& table_prefix, alg::array& array_id, alg::AdamsDeg1d& gen_degs) const
     {
         Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators WHERE indecomposable=1 ORDER BY id;");
@@ -55,6 +30,8 @@ public:
     /**
      * loc2glo[s][i] = id
      * glo2loc[id] = (s, i)
+     *
+     * From SteenrodMRes
      */
     void load_id_converter(const std::string& table_prefix, alg::array2d& loc2glo, alg::pairint1d& glo2loc) const
     {
@@ -68,7 +45,10 @@ public:
         }
     }
 
-    /* id_ind * id = prod */
+    /** id_ind * id = prod
+     *
+     * From SteenrodMRes
+     */
     std::map<std::pair<int, int>, alg::array> load_products_h(const std::string& table_prefix) const
     {
         std::map<std::pair<int, int>, alg::array> result;
@@ -80,54 +60,6 @@ public:
             result[std::make_pair(id_ind, id)] = std::move(prod_h);
         }
         return result;
-    }
-
-    void save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::array& gen_repr) const
-    {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, repr, s, t) VALUES (?1, ?2, ?3, ?4);");
-
-        for (size_t i = 0; i < gen_degs.size(); ++i) {
-            stmt.bind_int(1, (int)i);
-            stmt.bind_int(2, gen_repr[i]);
-            stmt.bind_int(3, gen_degs[i].s);
-            stmt.bind_int(4, gen_degs[i].t);
-            stmt.step_and_reset();
-        }
-
-        std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
-    }
-
-    void save_gb(const std::string& table_prefix, const alg::PolyRevlex1d& gb, const alg::AdamsDeg1d& gen_degs) const
-    {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (rel, s, t) VALUES (?1, ?2, ?3);");
-
-        for (size_t i = 0; i < gb.size(); ++i) {
-            alg::AdamsDeg deg = alg::GetAdamsDeg(gb[i].GetLead(), gen_degs);
-            stmt.bind_blob(1, gb[i].data);
-            stmt.bind_int(2, deg.s);
-            stmt.bind_int(3, deg.t);
-            stmt.step_and_reset();
-        }
-
-        std::cout << gb.size() << " relations are inserted into " + table_prefix + "_relations!\n";
-    }
-
-    void save_basis(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis) const
-    {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (mon, s, t) VALUES (?1, ?2, ?3);");
-
-        int count = 0;
-        for (auto& [deg, basis_d] : basis) {
-            for (auto& m : basis_d) {
-                ++count;
-                stmt.bind_blob(1, m);
-                stmt.bind_int(2, deg.s);
-                stmt.bind_int(3, deg.t);
-                stmt.step_and_reset();
-            }
-        }
-
-        std::cout << count << " bases are inserted into " + table_prefix + "_basis!\n";
     }
 };
 
@@ -145,7 +77,11 @@ alg::array mul(const std::map<std::pair<int, int>, alg::array>& map_h, int id_in
 void AdamsE2Export()
 {
     using namespace alg;
-    DbSteenrod dbProd("AdamsE2Prod.db");
+#ifdef TO_GUOZHEN
+    MyDB dbProd("AdamsE2Prod.db");
+#else
+    MyDB dbProd("AdamsE2Prod_t184_2022-6-15.db");
+#endif
     AdamsDeg1d gen_degs;
     array gen_reprs;
     dbProd.load_indecomposables("SteenrodMRes", gen_reprs, gen_degs);
@@ -204,8 +140,7 @@ void AdamsE2Export()
         }
 
         /* Compute groebner and basis in degree t */
-        for (auto it = basis_new.begin(); it != basis_new.end(); ++it)
-        {
+        for (auto it = basis_new.begin(); it != basis_new.end(); ++it) {
             auto indices = ut::size_t_range(it->second.size());
             std::sort(indices.begin(), indices.end(), [&it](size_t a, size_t b) { return CmpRevlex::template cmp<Mon, Mon>(it->second[a], it->second[b]); });
             Mon1d basis_new_d;
@@ -239,8 +174,14 @@ void AdamsE2Export()
         }
     }
 
+    size_t size_basis = 0;
+    for (auto it = basis.begin(); it != basis.end(); ++it)
+        size_basis += it->second.size();
+    if (size_basis != glo2loc.size())
+        throw MyException(0, "BUG");
+
     /* Save the results */
-    DbSteenrod dbE2("AdamsE2Export.db");
+    MyDB dbE2("AdamsE2Export.db");
     dbE2.create_generators_and_delete("AdamsE2");
     dbE2.create_relations_and_delete("AdamsE2");
     dbE2.create_basis_and_delete("AdamsE2");

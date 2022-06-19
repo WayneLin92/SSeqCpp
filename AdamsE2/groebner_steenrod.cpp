@@ -352,7 +352,7 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
         if (x2m)
             x2ms.push_back(std::move(x2m));
         else {
-#ifndef MYDEPLOY
+#ifndef TO_GUOZHEN
             bench::Counter(1);
 #endif
             cp.i2 = -1;
@@ -360,7 +360,6 @@ CriMilnor1d GroebnerMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
     }
     ut::RemoveIf(result, [](const CriMilnor& cp) { return cp.i2 == -1; });
     return result;
-    return cris;
 }
 
 DataMRes GroebnerMRes::Reduce(const CriMilnor& cp, size_t s) const
@@ -526,10 +525,8 @@ public:
     void save_v0(const std::string& table_prefix) const
     {
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
-        Mod v0;
-        v0.data.reserve(1);
-        stmt.bind_int(1, 1); //TODO: should start with zero
-        stmt.bind_blob(2, v0.data.data(), int(v0.data.size() * sizeof(MMod)));
+        stmt.bind_int(1, 0);
+        stmt.bind_blob(2, Mod().data);
         stmt.bind_int(3, 0);
         stmt.bind_int(4, 0);
         stmt.step_and_reset();
@@ -540,9 +537,9 @@ public:
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (x1, x2, x2m, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
 
         for (auto& rel : rels) {
-            stmt.bind_blob(1, rel.x1.data.data(), (int)rel.x1.data.size() * sizeof(MMod));
-            stmt.bind_blob(2, rel.x2.data.data(), (int)rel.x2.data.size() * sizeof(MMod));
-            stmt.bind_blob(3, rel.x2m.data.data(), (int)rel.x2m.data.size() * sizeof(MMod));
+            stmt.bind_blob(1, rel.x1.data);
+            stmt.bind_blob(2, rel.x2.data);
+            stmt.bind_blob(3, rel.x2m.data);
             stmt.bind_int(4, s);
             stmt.bind_int(5, t);
             stmt.step_and_reset();
@@ -692,7 +689,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
         throw MyException(0xb2474e19U, "deg is bigger than the truncation degree.");
     Mod tmp_Mod;
 
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
     DbSteenrod db("AdamsE2.db");
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
@@ -745,7 +742,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 CriMilnor1d cris_st = gb.Criticals(s, t, x2m_st1);
                 if (!cris_st.empty()) {
                     data_tmp.resize(cris_st.size());
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
                     ut::for_each_par((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
 #else
                     ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
@@ -772,7 +769,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 else {
                     if (data_tmp[i].x2)
                         kernel_sp1_tmp.push_back(std::move(data_tmp[i].x2));
-#ifndef MYDEPLOY
+#ifndef TO_GUOZHEN
                     else
                         bench::Counter(0);
 #endif
@@ -785,7 +782,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 Reduce(kernel_sp1_tmp[i], data_sp1t, tmp_Mod);
                 if (kernel_sp1_tmp[i])
                     data_sp1t.push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
-#ifndef MYDEPLOY
+#ifndef TO_GUOZHEN
                 else
                     bench::Counter(0);
 #endif
@@ -797,7 +794,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                     x2m_st.push_back(std::move(x2m_st_tmp[i]));
             }
 
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
             double time = timer.Elapsed();
             int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
             int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
@@ -813,7 +810,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
                 gb.push_back_x2m(x2m_st[i], s);
 
             if (size_t size_k = data_sp1t.size())
-#ifdef MYDEPLOY
+#ifdef TO_GUOZHEN
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << ' ' << time << std::endl;
 #else
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << std::endl;

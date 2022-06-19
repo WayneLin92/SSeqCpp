@@ -34,11 +34,11 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(CTest)
 
     # The executable code is here
-    # add_subdirectory(ss)
-    add_subdirectory(MayE2)
-    add_subdirectory(MayE4)
+    add_subdirectory(ss)
+    # add_subdirectory(MayE2)
+    # add_subdirectory(MayE4)
     add_subdirectory(AdamsE2)
-    add_subdirectory(tests)
+    # add_subdirectory(tests)
 
     # Docs only available if this is the main app
     find_package(Doxygen)

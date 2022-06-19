@@ -11,7 +11,7 @@ using array2d = std::vector<array>;
 using array3d = std::vector<array2d>;
 
 template <typename FwdIt, typename FnStr>
-std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str)
+std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str) // TODO: make a performant version
 {
     std::string result;
     if (first == last)
@@ -29,7 +29,7 @@ std::string TplStrCont(const char* left, const char* sep, const char* right, con
 }
 
 template <typename Container, typename FnStr>
-std::string StrCont(const char* left, const char* sep, const char* right, const char* empty, const Container& cont, FnStr str)
+std::string StrCont(const char* left, const char* sep, const char* right, const char* empty, const Container& cont, FnStr str)  // TODO: make a performant version
 {
     return TplStrCont(left, sep, right, empty, cont.begin(), cont.end(), str);
 }

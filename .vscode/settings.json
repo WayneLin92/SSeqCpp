@@ -24,6 +24,7 @@
         "repr",
         "reprs",
         "sout",
+        "steenrod",
         "submo"
     ],
     "files.associations": {
@@ -126,8 +127,11 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "xutility": "cpp",
-        "execution": "cpp"
+        "execution": "cpp",
+        "unordered_set": "cpp"
     },
     
     "cmake.buildDirectory": "${env:userprofile}/Documents/Projects/${workspaceFolderBasename}_build",
+    "cmake.configureOnOpen": false,
+    "cmake.configureOnEdit": false
 }

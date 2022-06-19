@@ -1,9 +1,8 @@
 #include "database.h"
-#include "myexception.h"
-#include "myio.h"
 #include <sqlite3.h>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 #if SQLITE_ROW != MYSQLITE_ROW
 #error "MYSQLITE_ROW is not equal to SQLITE_ROW"
@@ -13,6 +12,24 @@
 #endif
 
 namespace myio {
+
+template <>
+array Deserialize<array>(const std::string& str)
+{
+    array result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        int i;
+        ss >> i;
+        result.push_back(i);
+        if (ss.peek() == ',')
+            ss.ignore();
+    }
+    return result;
+}
+
 Database::Database(const std::string& filename)
 {
     if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK)
@@ -24,18 +41,20 @@ Database::~Database()
     sqlite3_close(conn_);
 }
 
-void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt, bool bPrintError) const
+void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const
 {
     int error_code = sqlite3_prepare_v2(conn_, zSql, int(strlen(zSql)) + 1, ppStmt, NULL);
     if (error_code != SQLITE_OK)
         throw MyException(0xbce2dcfeU, std::string("Sqlite3 compiling ") + zSql + " :" + sqlite3_errstr(error_code));
 }
 
-void Database::sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt, bool bPrintError) const
+void Database::sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) const
 {
     int error_code = sqlite3_prepare_v2(conn_, sql.c_str(), int(sql.size()) + 1, ppStmt, NULL);
-    if (error_code != SQLITE_OK)
+    if (error_code != SQLITE_OK) {
+        std::cout << "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code) << '\n';
         throw MyException(0xda6ab7f6U, "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code));
+    }
 }
 
 void Database::execute_cmd(const std::string& sql) const
@@ -84,7 +103,7 @@ Statement::Statement(const Database& db, const std::string& sql)
 
 void Statement::bind_str(int iCol, const std::string& str) const
 {
-    if (sqlite3_bind_text(stmt_, iCol, str.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK)
+    if (sqlite3_bind_text(stmt_, iCol, str.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) /* SQLITE_TRANSIENT is important here */
         throw MyException(0x29cc3b21, "Sqlite bind fail");
 }
 

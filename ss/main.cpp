@@ -1,7 +1,6 @@
 #include "algebras/algebras.h"
 #include "algebras/myio.h"
 
-
 int main()
 {
     alg::Mon m1 = {{1, 1}};

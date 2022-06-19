@@ -4,8 +4,10 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-#include <iostream>
+#include "myexception.h"
+#include "myio.h"
 #include <cstring>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -14,10 +16,41 @@ struct sqlite3_stmt;
 #define MYSQLITE_ROW 100
 #define MYSQLITE3_TEXT 3
 
+namespace ut {
+
+template <typename>
+struct is_vector : std::false_type
+{
+};
+
+template <typename T>
+struct is_vector<std::vector<T>> : std::true_type
+{
+    using value_type = T;
+};
+
+}  // namespace ut
+
 /**
  * This namespace provides C++ wrappers for the sqlite3 library.
  */
 namespace myio {
+
+using array = std::vector<int>;
+
+inline std::string Serialize(const array& arr)
+{
+    return StrCont("", ",", "", "", arr, [](int i) { return std::to_string(i); });
+}
+
+template <typename T>
+T Deserialize(const std::string& str)
+{
+    throw MyException(0xb5c7695cU, "Must use a specialization");
+}
+
+template <>
+array Deserialize<array>(const std::string& str);
 
 class Database;
 
@@ -44,6 +77,12 @@ public:
     template <typename T>
     void bind_blob(int iCol, const std::vector<T>& data) const
     {
+        static_assert(!ut::is_vector<T>::value, "T must not be a vector.");  // TODO: complete the bind_blob for vector of vectors
+        /*if constexpr (ut::is_vector<T>::value) {
+            using TT = T::value_type;
+            static_assert(!ut::is_vector<TT>::value, "TT must not be a vector.");
+
+        }*/
         if (data.data())
             bind_blob(iCol, data.data(), int(data.size() * sizeof(T)));
         else
@@ -84,8 +123,8 @@ public:
     ~Database();
 
 public:
-    void sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt, bool bPrintError = false) const;
-    void sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt, bool bPrintError = false) const;
+    void sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const;
+    void sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) const;
     void execute_cmd(const std::string& sql) const;
     void begin_transaction() const
     {
@@ -116,7 +155,7 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_str(0)));
-        std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
     /* `map` takes two arguments (void*, int)->T */
@@ -127,7 +166,7 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_blob(0), stmt.column_blob_size(0)));
-        std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
     template <typename T, typename FnMap>
@@ -140,7 +179,7 @@ public:
                 result.push_back(map(stmt.column_str(0)));
             else
                 result.push_back(null_value);
-        std::cout << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
     std::vector<std::string> get_column_str(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
@@ -150,7 +189,7 @@ public:
 
 public:
     template <typename T, typename FnMap>
-    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
+    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const  ///
     {
         Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
         for (size_t i = i_start; i < column.size(); ++i) {
