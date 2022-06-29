@@ -6,9 +6,9 @@ from collections import defaultdict
 path_db = (
     R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\AdamsE2Export.db"
 )
-path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS\index_tpl.html"
-path_html = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS\index.html"
-path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS\scripts\data.js"
+path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index_tpl.html"
+path_html = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index.html"
+path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\scripts\data.js"
 
 class Config:
     bullets_tilt_angle = -20 / 180 * math.pi

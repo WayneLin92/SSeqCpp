@@ -1,7 +1,6 @@
 #include "steenrod.h"
 #include "benchmark.h"
 #include "myio.h"
-// TODO: Try DataCri
 
 namespace steenrod {
 
@@ -113,7 +112,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
 
 void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result)
 {
-    constexpr size_t N = XI_MAX_MULT; 
+    constexpr size_t N = XI_MAX_MULT;
     std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT;
 
     /* R_floor[i] */
@@ -351,22 +350,6 @@ std::string MMod::StrXi() const
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}';
 }
 
-Mod operator*(MMilnor m, const Mod& x)
-{
-    Mod result;
-    result.data.reserve(150);
-    Milnor tmp;
-    for (MMod m2 : x.data) {
-        tmp.data.clear();
-        MulMilnor(m, m2.m_no_weight(), tmp);
-        auto v_raw = m2.v_raw();
-        for (MMilnor m : tmp.data)
-            result.data.push_back(MMod(m.data() + v_raw));
-    }
-    SortMod2(result.data);
-    return result;
-}
-
 Mod MulMay(MMilnor m, const Mod& x)
 {
     Mod result;
@@ -383,22 +366,22 @@ Mod MulMay(MMilnor m, const Mod& x)
     return result;
 }
 
-void mul(MMilnor m, const Mod& x, Milnor& tmp, Mod& result)
+void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp)
 {
     result.data.clear();
-    for (MMod m2 : x.data) {
+    for (MMod m1 : x.data) {
         tmp.data.clear();
-        MulMilnor(m, m2.m_no_weight(), tmp);
-        auto v_raw = m2.v_raw();
-        for (MMilnor m : tmp.data)
-            result.data.push_back(MMod(m.data() + v_raw));
+        MulMilnor(m, m1.m_no_weight(), tmp);
+        auto v_raw = m1.v_raw();
+        for (MMilnor m2 : tmp.data)
+            result.data.push_back(MMod(m2.data() + v_raw));
     }
     SortMod2(result.data);
 }
 
 Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2)
 {
-    mul(m, x, tmp_a, tmp_m1); /* `tmp_m1 = m * x` */
+    mulP(m, x, tmp_m1, tmp_a); /* `tmp_m1 = m * x` */
     tmp_m2.data.clear();
     std::swap(data, tmp_m2.data);
     std::set_symmetric_difference(tmp_m1.data.cbegin(), tmp_m1.data.cend(), tmp_m2.data.cbegin(), tmp_m2.data.cend(), std::back_inserter(data));

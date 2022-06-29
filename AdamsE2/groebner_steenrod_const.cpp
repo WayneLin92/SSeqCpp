@@ -1,6 +1,8 @@
 #include "groebner_steenrod_const.h"
+#include "algebras/benchmark.h"
 #include "algebras/database.h"
 #include "algebras/linalg.h"
+#include "algebras/utility.h"
 #include <cstring>
 #include <map>
 
@@ -81,12 +83,128 @@ Mod GroebnerMResConst::DiffInv(Mod x, size_t s) const
     return result;
 }
 
+struct IndexMMod
+{
+    MMod m;
+    unsigned i, index;
+    bool operator<(IndexMMod rhs)
+    {
+        return rhs.m < m;
+    }
+};
+using IndexMMod1d = std::vector<IndexMMod>;
+
+void GroebnerMResConst::DiffInvMix(Mod1d xs, Mod1d& result, size_t s) const
+{
+    Mod tmp_x, prod_x1, prod_x2;
+    Milnor tmp_a;
+    tmp_x.data.reserve(64);
+    prod_x1.data.reserve(64);
+    prod_x2.data.reserve(64);
+    tmp_a.data.reserve(64);
+
+    IndexMMod1d heap;
+    for (size_t i = 0; i < xs.size(); ++i)
+        if (xs[i])
+            heap.push_back(IndexMMod{xs[i].data[0], (unsigned)i, 0});
+    std::make_heap(heap.begin(), heap.end());
+
+    while (!heap.empty()) {
+        MMod term = heap.front().m;
+        int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], term);
+        if (gb_index != -1) {
+            MMilnor m = divLF(term, gb_[s][gb_index].x1.data[0]);
+            prod_x1.data.clear();
+            mulP(m, gb_[s][gb_index].x1, prod_x1, tmp_a);
+            prod_x2.data.clear();
+            mulP(m, gb_[s][gb_index].x2, prod_x2, tmp_a);
+
+            //int b = 0;
+            while (!heap.empty() && heap.front().m == term) {
+                /*if (b++)
+                    bench::Counter(0);
+                else
+                    bench::Counter(1);*/
+
+                unsigned i = heap.front().i, index = heap.front().index;
+                std::pop_heap(heap.begin(), heap.end());
+
+                xs[i].iaddP(prod_x1, tmp_x);
+                result[i].iaddP(prod_x2, tmp_x);
+
+                if (index < xs[i].data.size()) {
+                    heap.back() = IndexMMod{xs[i].data[index], i, index};
+                    std::push_heap(heap.begin(), heap.end());
+                }
+                else
+                    heap.pop_back();
+            }
+        }
+        else {
+            while (!heap.empty() && heap.front().m == term) {
+                unsigned i = heap.front().i, index = heap.front().index;
+                std::pop_heap(heap.begin(), heap.end());
+                if (++index < xs[i].data.size()) {
+                    heap.back() = IndexMMod{xs[i].data[index], i, index};
+                    std::push_heap(heap.begin(), heap.end());
+                }
+                else
+                    heap.pop_back();
+            }
+        }
+    }
+
+    for (size_t i = 0; i < xs.size(); ++i)
+        if (xs[i])
+            throw MyException(0x277dc39aU, "Something is wrong: d_inv(x) not well defined.");
+
+    size_t sp1 = s + 1;
+    heap.clear();
+    for (size_t i = 0; i < result.size(); ++i)
+        if (result[i])
+            heap.push_back(IndexMMod{result[i].GetLead(), (unsigned)i, 0});
+    std::make_heap(heap.begin(), heap.end());
+
+    while (!heap.empty()) {
+        MMod term = heap.front().m;
+        int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], term);
+        if (gb_index != -1) {
+            MMilnor m = divLF(term, gb_[sp1][gb_index].x1.data[0]);
+            prod_x1.data.clear();
+            mulP(m, gb_[sp1][gb_index].x1, prod_x1, tmp_a);
+
+            while (!heap.empty() && heap.front().m == term) {
+                unsigned i = heap.front().i, index = heap.front().index;
+                std::pop_heap(heap.begin(), heap.end());
+
+                result[i].iaddP(prod_x1, tmp_x);
+
+                if (index < result[i].data.size()) {
+                    heap.back() = IndexMMod{result[i].data[index], i, index};
+                    std::push_heap(heap.begin(), heap.end());
+                }
+                else
+                    heap.pop_back();
+            }
+        }
+        else {
+            while (!heap.empty() && heap.front().m == term) {
+                unsigned i = heap.front().i, index = heap.front().index;
+                std::pop_heap(heap.begin(), heap.end());
+                if (++index < result[i].data.size()) {
+                    heap.back() = IndexMMod{result[i].data[index], i, index};
+                    std::push_heap(heap.begin(), heap.end());
+                }
+                else
+                    heap.pop_back();
+            }
+        }
+    }
+}
+
 class DbMResProd : public myio::Database
 {
     using Statement = myio::Statement;
-
-private:
-    std::future<void> f_;
 
 public:
     DbMResProd() = default;
@@ -106,10 +224,10 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, repr BLOB, s SMALLINT, t SMALLINT);");
     }
 
-    void create_products(const std::string& table_prefix, const GenMRes2d& gens) const
+    void create_products(const std::string& table_prefix, const GenMRes2d& gens)
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, indecomposable TINYINT);");
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h BLOB, PRIMARY KEY (id, id_ind));");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators_products (id_ind INTEGER, id INTEGER, prod BLOB, prod_h BLOB, PRIMARY KEY (id_ind, id));");
 
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, s, t, indecomposable) VALUES (?1, ?2, ?3, ?4);");
 
@@ -149,28 +267,6 @@ public:
         }
     }
 
-    void save_products(const std::string& table_prefix, int id, const GenMRes2d& gens, Mod2d& map, const array3d& map_h)
-    {
-        if (f_.valid())
-            f_.wait();
-        f_ = std::async(std::launch::async, [this, id, &gens, &map, &map_h, &table_prefix]() {
-            begin_transaction();
-            execute_cmd("UPDATE " + table_prefix + "_generators SET indecomposable=1 WHERE id=" + std::to_string(id) + ";");
-            Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);");
-            for (size_t s = 0; s < map.size(); ++s) {
-                for (size_t i = 0; i < map[s].size(); ++i) {
-                    stmt.bind_int(1, gens[s][i].id);
-                    stmt.bind_int(2, id);
-                    stmt.bind_blob(3, map[s][i].data);
-                    stmt.bind_blob(4, map_h[s][i]);
-                    stmt.step_and_reset();
-                }
-            }
-            map.clear();
-            end_transaction();
-        });
-    }
-
     void load_products(const std::string& table_prefix, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h) const
     {
         array id2s = get_column_int(table_prefix + "_generators", "s", "ORDER BY id;");
@@ -204,11 +300,11 @@ public:
         return result;
     }
 
-    GenMRes2d load_generators(const std::string& table_prefix) const
+    GenMRes2d load_generators(const std::string& table_prefix, int t_trunc) const
     {
         GenMRes2d result;
         int id_min = get_int("SELECT MIN(id) FROM " + table_prefix + "_generators;");
-        Statement stmt(*this, "SELECT id, s, t, diff FROM " + table_prefix + "_generators ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s, t, diff FROM " + table_prefix + "_generators" + (t_trunc == DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_trunc)) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0) - id_min, s = stmt.column_int(1), t = stmt.column_int(2);
             Mod diff;
@@ -264,37 +360,158 @@ array HomToK(const Mod& x)
     return result;
 }
 
-/* Compute the products of gens with gens[s][k] */
-void compute_products_sk(const GenMRes2d& gens, const GroebnerMResConst& gb, size_t s, size_t k, Mod2d& map, array3d& map_h)
+/* Compute the products of gens with gens[[leftFactors]] */
+void compute_products_batch(const GenMRes2d& gens, const GroebnerMResConst& gb, const std::map<int, std::vector<std::pair<int, int>>>& leftFactors, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h, DbMResProd& dbProd,
+                            const std::string& table_prefix)
 {
+    static Mod1d tmp_x1(ut::FUTURE_NUM_THREADS);
+    static Mod1d tmp_x2(ut::FUTURE_NUM_THREADS);
+    static Milnor1d tmp_a(ut::FUTURE_NUM_THREADS);
+
+    bench::Timer timer;
+    timer.SuppressPrint();
+
+    myio::Statement stmt_prod(dbProd, "INSERT OR IGNORE INTO " + table_prefix + "_generators_products (id_ind, id, prod, prod_h) VALUES (?1, ?2, ?3, ?4);");
     const size_t gens_size = gens.size();
-    map.resize(gens_size);
-    map_h.resize(gens_size);
 
-    size_t old_map_s_size = map[s].size();
+    /* multiply with one */
+    {
+        dbProd.begin_transaction();
+        myio::Statement stmt_ind(dbProd, "UPDATE OR IGNORE " + table_prefix + "_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;");
+        for (auto& [s, p] : leftFactors) {
+            for (auto& [id, k] : p) {
+                map[id].resize(gens_size);
+                map_h[id].resize(gens_size);
 
-    map[s].resize(gens[s].size());
-    map_h[s].resize(gens[s].size());
+                map[id][s].resize(gens[s].size());
+                map_h[id][s].resize(gens[s].size());
 
-    map[s][k] = MMod(MMilnor(), 0);
-    map_h[s][k] = HomToK(map[s][k]);
+                map[id][s][k] = MMod(MMilnor(), 0);
+                map_h[id][s][k] = HomToK(map[id][s][k]);
 
-    Mod map_diff, tmp;
-    for (size_t s1 = s + 1; s1 < gens_size; ++s1) {
-        if (s1 <= 50)
-            std::cout << "    s2=" << s1 << std::endl;
-        size_t old_map_s1_size = map[s1].size();
-        map[s1].resize(gens[s1].size());
-        map_h[s1].resize(gens[s1].size());
-        ut::for_each_par(gens[s1].size() - old_map_s1_size, [&](size_t i) {
-            size_t i1 = old_map_s1_size + i;
-            map[s1][i1] = gb.DiffInv(subs(gens[s1][i1].diff, map[s1 - 1]), s1 - s - 1);
-            map_h[s1][i1] = HomToK(map[s1][i1]);
+                /* Save to database */
+                stmt_ind.bind_int(1, id);
+                stmt_ind.step_and_reset();
+                for (size_t i = 0; i < gens[s].size(); ++i) {
+                    stmt_prod.bind_int(1, id);
+                    stmt_prod.bind_int(2, gens[s][i].id);
+                    stmt_prod.bind_blob(3, map[id][s][i].data);
+                    stmt_prod.bind_blob(4, map_h[id][s][i]);
+                    stmt_prod.step_and_reset();
+                }
+            }
+        }
+        dbProd.end_transaction();
+    }
+
+    std::vector<unsigned> arr_s1;
+    std::vector<unsigned> arr_i1;
+    std::vector<unsigned> arr_id;
+    std::vector<unsigned> arr_i2;
+    for (size_t s2 = 0; s2 < gens_size - 2; ++s2) {
+        size_t size_elements = 0;
+        for (auto& [s, p] : leftFactors) {
+            size_t s1 = s2 + 1 + (size_t)s;
+            if (s1 < gens_size)
+                size_elements += gens[s1].size() * p.size();
+        }
+
+        /* Compute fdv */
+        Mod1d image_diff(size_elements);
+        size_t start = 0;
+        arr_s1.clear();
+        arr_i1.clear();
+        arr_id.clear();
+        arr_i2.clear();
+        for (auto& [s_, p_] : leftFactors) {
+            int s = s_;
+            auto& p = p_;
+            size_t s1 = s2 + 1 + (size_t)s;
+            if (s1 < gens_size) {
+                for (auto& [id, k] : p) {
+                    size_t old_map_s1_size = map[id][s1].size();
+                    /* for (size_t i = old_map_s1_size; i < gens[s1].size(); ++i)
+                         subsP(gens[s1][i].diff, map[id][s1 - 1], image_diff[start + i], tmp_a, tmp_x1, tmp_x2);*/
+                    for (size_t i = old_map_s1_size; i < gens[s1].size(); ++i) {
+                        arr_s1.push_back(unsigned(s1));
+                        arr_i1.push_back(unsigned(i));
+                        arr_id.push_back(unsigned(id));
+                        arr_i2.push_back(unsigned(start + i));
+                    }
+                    start += gens[s1].size();
+                }
+            }
+        }
+        size_t nThreads = std::min(ut::FUTURE_NUM_THREADS, arr_s1.size());
+        ut::for_each_par(nThreads, [&gens, &map, &image_diff, &arr_s1, &arr_i1, &arr_id, &arr_i2](size_t j) {
+            for (size_t i = j; i < arr_s1.size(); i += ut::FUTURE_NUM_THREADS)
+                subsP(gens[arr_s1[i]][arr_i1[i]].diff, map[arr_id[i]][size_t(arr_s1[i] - 1)], image_diff[arr_i2[i]], tmp_a[j], tmp_x1[j], tmp_x2[j]);
         });
+
+        /* Compute d^{-1}fdv */
+        Mod2d image_diff_by_t(DIM_MAX_RES);
+        std::vector<std::pair<unsigned, unsigned>> indices;
+        for (size_t i = 0; i < size_elements; ++i) {
+            unsigned t = 0;
+            if (image_diff[i]) {
+                MMod mv = image_diff[i].GetLead();
+                t = unsigned(mv.deg_m() + gb.basis_degrees(s2)[mv.v()]);
+            }
+            indices.push_back(std::make_pair(t, (unsigned)image_diff_by_t[t].size()));
+            image_diff_by_t[t].push_back(std::move(image_diff[i]));
+        }
+        Mod2d image(DIM_MAX_RES);
+        for (size_t t = 0; t < DIM_MAX_RES; ++t)
+            image[t].resize(image_diff_by_t[t].size());
+        size_t t_max = (size_t)DIM_MAX_RES;
+        while (t_max > 0 && image[t_max - 1].empty())
+            --t_max;
+
+        ut::for_each_par(t_max, [&gb, &image_diff_by_t, &image, s2](size_t t) { gb.DiffInvMix(image_diff_by_t[t], image[t], s2); });
+
+        /* Save to map and map_h */
+        start = 0;
+        dbProd.begin_transaction();
+        for (auto& [s, p] : leftFactors) {
+            size_t s1 = s2 + 1 + (size_t)s;
+            if (s1 < gens_size) {
+                for (auto& [id, k] : p) {
+                    size_t old_map_s1_size = map[id][s1].size();
+                    map[id][s1].resize(gens[s1].size());
+                    for (size_t i = old_map_s1_size; i < gens[s1].size(); ++i) {
+                        auto& [t, index] = indices[start + i];
+                        map[id][s1][i] = std::move(image[t][index]);
+                    }
+                    start += gens[s1].size();
+                    for (size_t i = old_map_s1_size; i < gens[s1].size(); ++i) {
+                        map_h[id][s1].push_back(HomToK(map[id][s1][i]));
+
+                        /* Save to database */
+                        stmt_prod.bind_int(1, id);
+                        stmt_prod.bind_int(2, gens[s1][i].id);
+                        stmt_prod.bind_blob(3, map[id][s1][i].data);
+                        stmt_prod.bind_blob(4, map_h[id][s1][i]);
+                        stmt_prod.step_and_reset();
+                        dbProd.reg_transaction();
+
+                        map[id][s1 - 1].clear();
+                    }
+                }
+            }
+        }
+        dbProd.end_transaction(1000);
+
+        double time = timer.Elapsed();
+        timer.Reset();
+        if (time > 0.5)
+            std::cout << "    s2=" << s2 << ' ' << time << 's' << std::endl;
     }
 }
 
-void compute_products()
+/**
+ * Compute products with the loaded indecomposables
+ */
+void compute_products_ind()
 {
 #ifdef TO_GUOZHEN
     std::string filename = "AdamsE2.db";
@@ -302,24 +519,71 @@ void compute_products()
     std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
 #endif
 
+    std::cout << "Compute with loaded indecomposables" << std::endl;
+
     std::string table_SteenrodMRes = "SteenrodMRes";
     auto gb = GroebnerMResConst::load(filename);
     DbMResProd db(filename);
-    auto gens = db.load_generators(table_SteenrodMRes);
+    auto gens = db.load_generators(table_SteenrodMRes, DEG_MAX);
 
     int num_gens = 0;
     for (size_t i = 0; i < gens.size(); ++i)
         num_gens += (int)gens[i].size();
+
+    std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
+    std::map<int, array3d> map_h;
+
     DbMResProd dbProd("AdamsE2Prod.db");
     dbProd.create_products(table_SteenrodMRes, gens);
-
-    std::map<int, Mod2d> map;
-    std::map<int, array3d> map_h;
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 
     array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 ORDER BY id");
+    std::map<int, std::vector<std::pair<int, int>>> leftFactors;
+    array ids;
+    for (size_t s = 1; s < gens.size(); ++s) {
+        for (size_t i = 0; i < gens[s].size(); ++i) {
+            int id = gens[s][i].id;
+            if (std::binary_search(id_inds.begin(), id_inds.end(), id)) {
+                leftFactors[(int)s].push_back(std::make_pair((int)id, (int)i));
+                ids.push_back(id);
+            }
+        }
+    }
+
+    compute_products_batch(gens, gb, leftFactors, map, map_h, dbProd, table_SteenrodMRes);
+}
+
+void compute_products(int t_trunc)
+{
+#ifdef TO_GUOZHEN
+    std::string filename = "AdamsE2.db";
+#else
+    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
+#endif
+
+    std::cout << "Compute in t<=" << (t_trunc == DEG_MAX ? "inf" : std::to_string(t_trunc)) << std::endl;
+
+    std::string table_SteenrodMRes = "SteenrodMRes";
+    auto gb = GroebnerMResConst::load(filename);
+    DbMResProd db(filename);
+    auto gens = db.load_generators(table_SteenrodMRes, t_trunc);
+
+    int num_gens = 0;
+    for (size_t i = 0; i < gens.size(); ++i)
+        num_gens += (int)gens[i].size();
+
+    std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
+    std::map<int, array3d> map_h;
+
+    DbMResProd dbProd("AdamsE2Prod.db");
+    dbProd.create_products(table_SteenrodMRes, gens);
+    dbProd.load_products(table_SteenrodMRes, map, map_h);
+
+    array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 and t<=" + std::to_string(t_trunc) + " ORDER BY id");
     for (size_t s = 1; s < gens.size(); ++s) {
         std::cout << "s1=" << s << std::endl;
+
+        /* Compute the indecomposables in s */
         array2d fx;
         for (const auto& [i, map_h_i] : map_h) {
             if (map_h_i.size() <= (size_t)s)
@@ -345,14 +609,17 @@ void compute_products()
                 indices.push_back((int)i);
         std::sort(indices.begin(), indices.end());
 
+        std::map<int, std::vector<std::pair<int, int>>> leftFactors;
+        array ids;
         for (size_t i = 0; i < indices.size(); ++i) {
+            if (indices[i] >= (int)gens[s].size())
+                break;
             int id = gens[s][indices[i]].id;
-            std::cout << "  i1=" << i << '/' << indices.size() << std::endl;
-            compute_products_sk(gens, gb, s, indices[i], map[id], map_h[id]);
-
-            /* Save to database */
-            dbProd.save_products(table_SteenrodMRes, id, gens, map.at(id), map_h.at(id));
+            leftFactors[(int)s].push_back(std::make_pair((int)id, (int)indices[i]));
+            ids.push_back(id);
         }
+
+        compute_products_batch(gens, gb, leftFactors, map, map_h, dbProd, table_SteenrodMRes);
     }
 }
 

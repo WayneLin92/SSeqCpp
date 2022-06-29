@@ -78,11 +78,6 @@ public:
     void bind_blob(int iCol, const std::vector<T>& data) const
     {
         static_assert(!ut::is_vector<T>::value, "T must not be a vector.");  // TODO: complete the bind_blob for vector of vectors
-        /*if constexpr (ut::is_vector<T>::value) {
-            using TT = T::value_type;
-            static_assert(!ut::is_vector<TT>::value, "TT must not be a vector.");
-
-        }*/
         if (data.data())
             bind_blob(iCol, data.data(), int(data.size() * sizeof(T)));
         else
@@ -116,6 +111,7 @@ class Database
 {
 private:
     sqlite3* conn_ = nullptr;
+    int numInTransaction_ = -1;
 
 public:
     Database() = default;
@@ -126,13 +122,24 @@ public:
     void sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const;
     void sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) const;
     void execute_cmd(const std::string& sql) const;
-    void begin_transaction() const
+    void begin_transaction()
     {
-        execute_cmd("BEGIN TRANSACTION");
+        if (numInTransaction_ == -1) {
+            execute_cmd("BEGIN TRANSACTION");
+            numInTransaction_ = 0;
+        }
     }
-    void end_transaction() const
+    void end_transaction(int min=0)
     {
-        execute_cmd("END TRANSACTION");
+        if (numInTransaction_ >= min) {
+            execute_cmd("END TRANSACTION");
+            numInTransaction_ = -1;
+        }
+    }
+    void reg_transaction()
+    {
+        if (numInTransaction_ >= 0)
+            ++numInTransaction_;
     }
 
 public:
@@ -149,7 +156,7 @@ public:
      * This converts a column of strings to vector of type `T`.
      */
     template <typename T, typename FnMap>
-    std::vector<T> get_column_from_str(const std::string& table_name, const std::string& column_name, const std::string& conditions, FnMap map) const
+    std::vector<T> get_column_from_str(const std::string& table_name, const std::string& column_name, const std::string& conditions, const FnMap& map) const
     {
         std::vector<T> result;
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
@@ -160,7 +167,7 @@ public:
     }
     /* `map` takes two arguments (void*, int)->T */
     template <typename T, typename FnMap>
-    std::vector<T> get_column_from_blob(const std::string& table_name, const std::string& column_name, const std::string& conditions, FnMap map) const
+    std::vector<T> get_column_from_blob(const std::string& table_name, const std::string& column_name, const std::string& conditions, const FnMap& map) const
     {
         std::vector<T> result;
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
@@ -170,7 +177,7 @@ public:
         return result;
     }
     template <typename T, typename FnMap>
-    std::vector<T> get_column_from_str_with_null(const std::string& table_name, const std::string& column_name, const T& null_value, const std::string& conditions, FnMap map) const
+    std::vector<T> get_column_from_str_with_null(const std::string& table_name, const std::string& column_name, const T& null_value, const std::string& conditions, const FnMap& map) const
     {
         std::vector<T> result;
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
@@ -189,7 +196,7 @@ public:
 
 public:
     template <typename T, typename FnMap>
-    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const  ///
+    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const  ///
     {
         Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
         for (size_t i = i_start; i < column.size(); ++i) {
@@ -200,7 +207,7 @@ public:
     }
     /* `map` should return a pair of type (void*, int) */
     template <typename T, typename FnMap>
-    void update_blob_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, FnMap map, size_t i_start) const
+    void update_blob_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const
     {
         Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
         for (size_t i = i_start; i < column.size(); ++i) {

@@ -185,7 +185,7 @@ using MonTrace1d = std::vector<MonTrace>;
  * Obtain the degree of a monomial given the degrees of generators.
  */
 template <typename FnGenDeg>
-inline int TplGetDeg(const Mon& mon, FnGenDeg _gen_deg)
+inline int TplGetDeg(const Mon& mon, const FnGenDeg& _gen_deg)
 {
     int result = 0;
     for (MonInd p = mon.begin(); p != mon.end(); ++p)

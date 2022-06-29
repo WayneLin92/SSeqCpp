@@ -30,7 +30,7 @@ public:
     {
         bPrinted_ = true;
         auto end = std::chrono::system_clock::now();
-        auto elapsed = end - start_;
+        std::chrono::duration<double> elapsed = end - start_;
         std::cout << "\033[0;32m" << msg << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
         Reset();
     }

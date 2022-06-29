@@ -92,7 +92,7 @@ namespace detail {
     }
 
     template <typename FnGenDeg>
-    int DegLCM(const Mon& mon1, const Mon& mon2, FnGenDeg _gen_deg)
+    int DegLCM(const Mon& mon1, const Mon& mon2, const FnGenDeg& _gen_deg)
     {
         int result = 0;
         MonInd k = mon1.begin(), l = mon2.begin();
@@ -333,7 +333,7 @@ public:
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
     */
     template <typename FnPred, typename FnDeg>
-    void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const Mon& mon, FnPred pred, FnDeg _gen_deg)
+    void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const Mon& mon, const FnPred& pred, const FnDeg& _gen_deg)
     {
         MonTrace t = Trace(mon);
         std::vector<std::pair<int, CriticalPair>> new_pairs(leads.size());
@@ -536,7 +536,7 @@ public: /* Getters and Setters */
         return data_[index];
     }
     template <typename FnPred, typename FnDeg>
-    void push_back(Poly g, int deg, FnPred pred, FnDeg _gen_deg)
+    void push_back(Poly g, int deg, const FnPred& pred, const FnDeg& _gen_deg)
     {
         const Mon& m = g.GetLead();
         gb_pairs_.AddToBuffers(leads_, traces_, m, pred, _gen_deg);
@@ -633,7 +633,7 @@ Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n, const Groebner<FnCmp
  * @param gb A Groebner basis.
  */
 template <typename FnCmp, typename FnMap>
-Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, FnMap map)
+Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const FnMap& map)
 {
     using Poly = Polynomial<FnCmp>;
     Poly result;
@@ -660,7 +660,7 @@ Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const st
  * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
  */
 template <typename FnCmp, typename FnPred, typename FnDeg>
-void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, FnPred pred, FnDeg _gen_deg)
+void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, const FnPred& pred, const FnDeg& _gen_deg)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;

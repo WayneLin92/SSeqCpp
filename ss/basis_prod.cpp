@@ -81,7 +81,7 @@ int main()
     using namespace alg;
     MyDB db("AdamsE2Export.db");
 
-    int t_max = 184;
+    int t_max = 100;
 
     AdamsDeg1d gen_degs = db.load_gen_adamsdegs("AdamsE2");
     PolyRevlex1d polys = db.load_gb("AdamsE2", t_max);

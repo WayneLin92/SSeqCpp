@@ -31,7 +31,7 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
 {
     for (size_t i = 0; i < y.size(); ++i)
         if (std::binary_search(x.data.begin(), x.data.end(), y[i].x1.GetLead()))
-            x.iadd(y[i].x1, tmp);
+            x.iaddP(y[i].x1, tmp);
 }
 
 class GroebnerMResConst
@@ -108,6 +108,7 @@ public:
     }
 
     Mod DiffInv(Mod x, size_t s) const;
+    void DiffInvMix(Mod1d xs, Mod1d& xs_reduced, size_t s) const;
 };
 
 struct GenMRes
@@ -119,7 +120,8 @@ struct GenMRes
 using GenMRes1d = std::vector<GenMRes>;
 using GenMRes2d = std::vector<GenMRes1d>;
 
-void compute_products();
+void compute_products_ind();
+void compute_products(int t_trunc);
 
 }  // namespace steenrod
 

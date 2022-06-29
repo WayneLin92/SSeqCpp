@@ -78,11 +78,6 @@ inline Mon1d Deserialize<Mon1d>(const std::string& str)
     return result;
 }
 
-std::string Serialize(array::const_iterator pbegin, array::const_iterator pend);
-inline std::string Serialize(const array& obj)
-{
-    return Serialize(obj.begin(), obj.end());
-}
 std::string Serialize(const Mon& obj);
 std::string Serialize(Mon1d::const_iterator pbegin, Mon1d::const_iterator pend);
 inline std::string Serialize(const Mon1d& obj)

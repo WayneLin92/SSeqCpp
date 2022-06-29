@@ -1,8 +1,8 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbalg.h"
 #include "algebras/steenrod.h"
+#include "algebras/thread_pool.h"
 #include "algebras/utility.h"
-#include <immintrin.h>
 
 void compare_computations()
 {
@@ -86,20 +86,79 @@ void test_homology()
         std::cout << StrPoly(g.data, gen_names_h) << "=0\n";*/
 }
 
-void test()
+void TestMilnorProduct()
 {
     using namespace steenrod;
-    int xi1[XI_MAX] = {0, 0, 1, 2, 2};
-    int xi2[XI_MAX] = {2, 0, 0, 0, 1};
+    uint32_t xi1[XI_MAX] = {0, 0, 1, 2, 2};
+    uint32_t xi2[XI_MAX] = {2, 0, 0, 0, 1};
     auto a1 = MMilnor::Xi(xi1);
     auto a2 = MMilnor::Xi(xi2);
     auto prod = a1 * a2;
     std::cout << prod << '\n';
 }
 
+constexpr int N = 10000000;
+constexpr int M = N/24;
+
+void Bench1()
+{
+    std::vector<double> arr_cos(N);
+
+    std::cout << "bench1:\n";
+    bench::Timer timer;
+    for (int i = 0; i < N; ++i) {
+        arr_cos[i] = std::cos(std::cos(i));
+        arr_cos[i] += std::cos(std::cos(i));
+        arr_cos[i] += std::cos(std::cos(i));
+        arr_cos[i] += std::cos(std::cos(i));
+        arr_cos[i] += std::cos(std::cos(i));
+        arr_cos[i] += std::cos(std::cos(i));
+    }
+    double sum = 0;
+    for (int i = 0; i < N; ++i)
+        sum += arr_cos[i];
+    std::cout << "sum=" << sum << std::endl;
+}
+
+void Bench2()
+{
+    ut::ThreadPool pool(24);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::vector<double> arr_cos(N);
+
+    std::cout << "bench2:\n";
+    bench::Timer timer;
+    for (int i = 0; i < N; i += M) {
+        int end = std::min(i + M, N);
+        pool.push_task([&arr_cos, i, end]() {
+            for (int j = i; j < end; ++j) {
+                arr_cos[j] = std::cos(std::cos(j));
+                arr_cos[j] += std::cos(std::cos(j));
+                arr_cos[j] += std::cos(std::cos(j));
+                arr_cos[j] += std::cos(std::cos(j));
+                arr_cos[j] += std::cos(std::cos(j));
+                arr_cos[j] += std::cos(std::cos(j));
+            }
+        });
+    }
+    pool.wait_for_tasks();
+    double sum = 0;
+    for (int i = 0; i < N; ++i)
+        sum += arr_cos[i];
+    std::cout << "sum=" << sum << std::endl;
+}
+
+void TestThreadPool()
+{
+    //Bench1();
+    Bench2();
+    //Bench1();
+    //Bench2();
+}
+
 int main()
 {
-    test();
-    
+    TestThreadPool();
+
     return 0;
 }

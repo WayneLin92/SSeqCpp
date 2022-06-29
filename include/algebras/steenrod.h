@@ -24,6 +24,7 @@ using array4d = std::vector<array3d>;
  *                  class Milnor
  ********************************************************/
 
+inline constexpr int DIM_MAX_RES = 300;  /* Assume that we never compute the resolution of the Steenrod algebra over this */
 inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
 inline constexpr size_t XI_MAX_MULT = 7; /* Multiplication support up to \xi_7 */
 
@@ -392,6 +393,7 @@ struct Milnor
     std::string StrXi() const;
     std::string Str() const;
 };
+using Milnor1d = std::vector<Milnor>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
@@ -563,7 +565,7 @@ struct Mod
         std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    Mod& iadd(const Mod& rhs, Mod& tmp)
+    Mod& iaddP(const Mod& rhs, Mod& tmp)
     {
         tmp.data.clear();
         std::swap(data, tmp.data);
@@ -573,7 +575,7 @@ struct Mod
     Mod& operator+=(const Mod& rhs)
     {
         Mod tmp;
-        return iadd(rhs, tmp);
+        return iaddP(rhs, tmp);
     }
     /* `*this += m * x` */
     Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2);
@@ -590,7 +592,14 @@ using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
-Mod operator*(MMilnor m, const Mod& x);
+void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
+inline Mod operator*(MMilnor m, const Mod& x)
+{
+    Mod result;
+    Milnor tmp;
+    mulP(m, x, result, tmp);
+    return result;
+}
 Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
@@ -602,7 +611,7 @@ inline void Reduce(Mod& x, const Mod1d& y, Mod& tmp)
 {
     for (size_t i = 0; i < y.size(); ++i)
         if (std::binary_search(x.data.begin(), x.data.end(), y[i].GetLead()))
-            x.iadd(y[i], tmp);
+            x.iaddP(y[i], tmp);
 }
 
 /* Compute the product in the associated graded algebra */
@@ -611,10 +620,10 @@ Mod mulLF(MMilnor m, const Mod& x);
 /**
  * Replace v_i with `map[i]`.
  */
-inline void subs(const Mod& x, const Mod1d& map, Mod& result, Mod& tmp)
+inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
 {
     for (const MMod& mv : x.data)
-        result.iadd(mv.m() * map[mv.v()], tmp);
+        result.iaddmul(mv.m(), map[mv.v()], tmp_a, tmp_x1, tmp_x2);
 }
 
 /**
@@ -622,8 +631,9 @@ inline void subs(const Mod& x, const Mod1d& map, Mod& result, Mod& tmp)
  */
 inline Mod subs(const Mod& x, const Mod1d& map)
 {
-    Mod result, tmp;
-    subs(x, map, result, tmp);
+    Mod result, tmp_x1, tmp_x2;
+    Milnor tmp_a;
+    subsP(x, map, result, tmp_a, tmp_x1, tmp_x2);
     return result;
 }
 

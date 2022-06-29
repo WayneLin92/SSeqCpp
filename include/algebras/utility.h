@@ -3,10 +3,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <future>
 #include <iterator>
 #include <string>
 #include <vector>
-#include <future>
 
 #ifndef __unix__
 #ifndef _MSC_VER
@@ -133,7 +133,7 @@ inline std::vector<size_t> size_t_range(size_t n)
  * Remove elements of `cont` for which the Predicate is true
  */
 template <typename Container1d, typename FnPred>
-inline void RemoveIf(Container1d& cont, FnPred pred)
+inline void RemoveIf(Container1d& cont, const FnPred& pred)
 {
     cont.erase(std::remove_if(cont.begin(), cont.end(), pred), cont.end());
 }
@@ -182,17 +182,26 @@ inline std::string get_time(const std::string& fmt = "%F %T")
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
 }
 
+/**
+ * Combine two 32 bit integers into a 64 bit integer
+ */
 inline uint64_t Bind(uint64_t i, uint64_t j)
 {
     return (i << 32) + j;
 }
 
+/**
+ * Extract two 32 bit integers from a 64 bit integer
+ */
 inline void UnBind(uint64_t ij, uint64_t& i, uint64_t& j)
 {
     i = ij >> 32;
     j = ij & ((uint64_t(1) << 32) - 1);
 }
 
+/**
+ * Compute the number of 1 in the binary data
+ */
 inline int popcount(unsigned int i)
 {
 #if defined(_MSC_VER)
@@ -222,8 +231,8 @@ inline int popcount(uint64_t i)
 /**
  * For i=0,...,n-1, execute f(i) in sequence.
  */
-template <typename FnOp>
-void for_each_seq(size_t n, FnOp f)
+template <typename Fn>
+void for_each_seq(size_t n, const Fn& f)
 {
     for (size_t i = 0; i < n; ++i)
         f(i);
@@ -232,15 +241,15 @@ void for_each_seq(size_t n, FnOp f)
 /**
  * For i=0,...,n-1, execute f(i) in parallel.
  */
-template <typename FnOp>
-void for_each_par(size_t n, FnOp f)
+template <typename Fn>
+void for_each_par(size_t n, const Fn& f)
 {
     std::vector<std::future<void>> futures;
     size_t nThreads = std::min(FUTURE_NUM_THREADS, n);
-    for (size_t i = 0; i < nThreads; ++i)
-        futures.push_back(std::async(std::launch::async, [i, n, f]() {
-            for (size_t j = i; j < n; j += FUTURE_NUM_THREADS)
-                f(j);
+    for (size_t j = 0; j < nThreads; ++j)
+        futures.push_back(std::async(std::launch::async, [&f, j, n]() {
+            for (size_t i = j; i < n; i += FUTURE_NUM_THREADS)
+                f(i);
         }));
     for (size_t i = 0; i < nThreads; ++i)
         futures[i].wait();

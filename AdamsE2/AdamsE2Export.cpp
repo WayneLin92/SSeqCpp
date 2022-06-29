@@ -80,7 +80,7 @@ void AdamsE2Export()
 #ifdef TO_GUOZHEN
     MyDB dbProd("AdamsE2Prod.db");
 #else
-    MyDB dbProd("AdamsE2Prod_t184_2022-6-15.db");
+    MyDB dbProd("AdamsE2Prod.db");
 #endif
     AdamsDeg1d gen_degs;
     array gen_reprs;

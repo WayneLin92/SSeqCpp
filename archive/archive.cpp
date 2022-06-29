@@ -350,3 +350,43 @@ static MMilnor Xi(const uint32_t* xi)
                        | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]];
     return MMilnor(w_raw + e);
 }
+
+void subs_batch(const GenMRes1d& gens, size_t i_start, const Mod1d& map, Mod1d::iterator result)
+{
+    Milnor tmp_a;
+    tmp_a.data.reserve(128);
+    Mod prod, tmp_x;
+    prod.data.reserve(128);
+    tmp_x.data.reserve(128);
+
+    IndexMMod1d heap;
+    for (size_t i = i_start; i < gens.size(); ++i)
+        if (gens[i].diff)
+            heap.push_back(IndexMMod{gens[i].diff.data[0], (unsigned)i, 0});
+    std::make_heap(heap.begin(), heap.end());
+
+    while (!heap.empty()) {
+        MMod term = heap.front().m;
+        prod.data.clear();
+        mulP(term.m(), map[term.v()], tmp_a, prod);
+        int b = 0;
+        while (!heap.empty() && heap.front().m == term) {
+            if (b++)
+                bench::Counter(2);
+            else
+                bench::Counter(3);
+
+            unsigned i = heap.front().i, index = heap.front().index;
+            std::pop_heap(heap.begin(), heap.end());
+
+            result[i].iaddP(prod, tmp_x);
+
+            if (++index < gens[i].diff.data.size()) {
+                heap.back() = IndexMMod{gens[i].diff.data[index], i, index};
+                std::push_heap(heap.begin(), heap.end());
+            }
+            else
+                heap.pop_back();
+        }
+    }
+}

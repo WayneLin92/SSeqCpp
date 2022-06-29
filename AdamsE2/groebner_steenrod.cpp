@@ -811,7 +811,7 @@ void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg)
 
             if (size_t size_k = data_sp1t.size())
 #ifdef TO_GUOZHEN
-                std::cout << "  s=" << s + 2 << " dim=" << size_k << ' ' << time << std::endl;
+                std::cout << "  s=" << s + 2 << " dim=" << size_k << ' ' << time << 's' << std::endl;
 #else
                 std::cout << "  s=" << s + 2 << " dim=" << size_k << std::endl;
 #endif

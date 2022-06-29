@@ -10,7 +10,7 @@ TEST_CASE( "Save and load from database", "[DbAlg]" )
     using Gb = alg::Groebner<FnCmp>;
     constexpr auto GenExp = Poly::GenExp;
 
-    myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/test.db");
+    myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/TestMilnorProduct.db");
     std::vector<alg::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}, {3, 4, 5}};
     std::vector<std::string> gen_names = {"x_1", "x_2", "x_3"};
     Poly1d gen_reprs = {GenExp(1, 1), GenExp(2, 2), GenExp(0, 1)};
@@ -41,7 +41,7 @@ TEST_CASE("Save and load blobs from database", "[DbAlg]")
 {
     using T = std::array<int, 10>;
 
-    myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/test.db");
+    myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/TestMilnorProduct.db");
     db.create_generators_and_delete("table_57fc659c");
     std::vector<alg::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}};
     

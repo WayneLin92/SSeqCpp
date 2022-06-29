@@ -221,7 +221,7 @@ inline void Reduce(Mod& x, const DataMRes1d& y, Mod& tmp)
 {
     for (size_t i = 0; i < y.size(); ++i)
         if (std::binary_search(x.data.begin(), x.data.end(), y[i].x1.GetLead()))
-            x.iadd(y[i].x1, tmp);
+            x.iaddP(y[i].x1, tmp);
 }
 
 class GroebnerMRes
