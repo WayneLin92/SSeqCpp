@@ -12,7 +12,7 @@ void AdamsE2()
     bench::Timer timer;
 
 #ifdef TO_GUOZHEN
-    int t_trunc = DEG_MAX_MULT;
+    int t_trunc = 261;
 #else
     int t_trunc = 100;
 #endif

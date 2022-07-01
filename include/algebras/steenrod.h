@@ -26,7 +26,7 @@ using array4d = std::vector<array3d>;
 
 inline constexpr int DIM_MAX_RES = 300;  /* Assume that we never compute the resolution of the Steenrod algebra over this */
 inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
-inline constexpr size_t XI_MAX_MULT = 7; /* Multiplication support up to \xi_7 */
+inline constexpr size_t XI_MAX_MULT = 8; /* Multiplication support up to \xi_7 */
 
 inline constexpr size_t MMILNOR_E_BITS = 37;
 inline constexpr size_t MMILNOR_W_BITS = 9;
@@ -111,7 +111,6 @@ inline constexpr uint64_t MMILNOR_NULL = ~uint64_t(0);
 
 /* Maximum degree supported in A if `MMILNOR_E_BITS == 37` */
 inline constexpr int DEG_MAX = 383;
-inline constexpr int DEG_MAX_MULT = (1 << (XI_MAX_MULT + 1)) - 2;
 
 inline constexpr auto MMILNOR_Xi0 = detail::MMilnorXiD<1>();
 inline constexpr auto MMILNOR_Xi1 = detail::MMilnorXiD<2>();

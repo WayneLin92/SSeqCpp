@@ -848,102 +848,101 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         }
     }
 
-    int t_begin = gb.t_begin();
+    // int t_begin = gb.t_begin();
+    int t_begin = 1;
     for (int t = t_begin; t <= deg; ++t) {
+        size_t tt = (size_t)t;
         std::cout << "t=" << t << "               " << std::endl;
+        gb.resize_gb(t);
+        std::vector<unsigned> old_size_x2m(tt);
+        for (size_t s = 0; s < tt; ++s)
+            old_size_x2m[s] = (unsigned)gb.basis_degrees_x2m(s).size();
+
+        DataMRes1d data_tmp_neg;
+        auto p_rels_d = rels_graded.find(t);
+        if (p_rels_d != rels_graded.end()) {
+            data_tmp_neg.resize(p_rels_d->second.size());
+            auto& rels_d = p_rels_d->second;
+            ut::for_each_seq(data_tmp_neg.size(), [&](size_t i) { data_tmp_neg[i] = DataMRes(Mod(), gb.Reduce(rels[rels_d[i]], 0), Mod()); });
+        }
+
+        CriMilnor2d cris(tt - 1);
+        Mod2d rels_x2m_cri(tt - 1);
+        DataMRes2d data_tmps(tt - 1);
+        std::vector<unsigned> arr_s;
+        for (size_t s = 0; s < tt - 1; ++s) {
+            cris[s] = gb.Criticals(s, t, rels_x2m_cri[s]);
+            if (!cris[s].empty()) {
+                data_tmps[s].resize(cris[s].size());
+                arr_s.push_back((unsigned)s);
+            }
+        }
+
+        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps](size_t i) {
+            size_t s = arr_s[i];
+            gb.ReduceBatch(cris[s], data_tmps[s], s);
+        });
+
+        /* Triangulate these relations */
+        DataMRes2d data(tt);
+        Mod2d rels_x2m(tt - 1);
         for (int s = t - 2; s >= -1; --s) {
-            std::cout << "  s=" << s + 2 << "                \r";
+            size_t ss = (size_t)s; /* When ss is -1 it will not be used */
             size_t sp1 = size_t(s + 1);
             size_t sp2 = size_t(s + 2);
 
-            /* Populate `data_tmp` */
-            gb.resize_gb(sp2);
-            size_t old_size_x2m_s = 0;
-            size_t old_size_x2m_sp1 = gb.basis_degrees_x2m(sp1).size();
+            auto& data_tmp_s = s >= 0 ? data_tmps[s] : data_tmp_neg;
 
-            DataMRes1d data_tmp;
             Mod1d x2m_st_tmp;
-            Mod1d x2m_st1;
-            if (s == -1) {
-                auto p_rels_d = rels_graded.find(t);
-                if (p_rels_d != rels_graded.end()) {
-                    data_tmp.resize(p_rels_d->second.size());
-                    auto& rels_d = p_rels_d->second;
-                    ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = DataMRes(Mod(), gb.Reduce(rels[rels_d[i]], s + 1), Mod()); });
-                }
-            }
-            else {
-                old_size_x2m_s = gb.basis_degrees_x2m(s).size();
-                CriMilnor1d cris_st = gb.Criticals(s, t, x2m_st1);
-                if (!cris_st.empty()) {
-                    data_tmp.resize(cris_st.size());
-#ifdef TO_GUOZHEN
-                    ut::for_each_par((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
-#else
-                    //ut::for_each_seq((int)data_tmp.size(), [&](size_t i) { data_tmp[i] = gb.Reduce(cris_st[i], s); });
-                    gb.ReduceBatch(cris_st, data_tmp, s);
-#endif
-                }
-            }
-
-            /* Triangulate these relations */
-            DataMRes1d data_st;
             Mod1d kernel_sp1_tmp;
-            for (size_t i = 0; i < data_tmp.size(); ++i) {
-                for (size_t j = 0; j < data_st.size(); ++j)
-                    if (std::binary_search(data_tmp[i].x1.data.begin(), data_tmp[i].x1.data.end(), data_st[j].x1.GetLead()))
-                        data_tmp[i] += data_st[j];
-                if (data_tmp[i].x1) {
+            for (size_t i = 0; i < data_tmp_s.size(); ++i) {
+                if (s >= 0)
+                    for (size_t j = 0; j < data[ss].size(); ++j)
+                        if (std::binary_search(data_tmp_s[i].x1.data.begin(), data_tmp_s[i].x1.data.end(), data[ss][j].x1.GetLead()))
+                            data_tmp_s[i] += data[ss][j];
+                if (data_tmp_s[i].x1) {
                     /* Determine if x2m aligns with x1 */
-                    if (!data_tmp[i].valid_x2m()) {
+                    if (!data_tmp_s[i].valid_x2m()) {
                         x2m_st_tmp.push_back(gb.new_gen_x2m(s, t));
-                        std::swap(x2m_st_tmp.back(), data_tmp[i].x2m);
-                        data_tmp[i].fil = Filtr(data_tmp[i].x1.GetLead());
+                        std::swap(x2m_st_tmp.back(), data_tmp_s[i].x2m);
+                        data_tmp_s[i].fil = Filtr(data_tmp_s[i].x1.GetLead());
                     }
-                    data_st.push_back(std::move(data_tmp[i]));
+                    data[ss].push_back(std::move(data_tmp_s[i]));
                 }
                 else {
-                    if (data_tmp[i].x2)
-                        kernel_sp1_tmp.push_back(std::move(data_tmp[i].x2));
-                    if (data_tmp[i].x2m)
-                        x2m_st_tmp.push_back(std::move(data_tmp[i].x2m));
+                    if (data_tmp_s[i].x2)
+                        kernel_sp1_tmp.push_back(std::move(data_tmp_s[i].x2));
+                    if (data_tmp_s[i].x2m)
+                        x2m_st_tmp.push_back(std::move(data_tmp_s[i].x2m));
                 }
             }
-            DataMRes1d data_sp1t;
             for (size_t i = 0; i < kernel_sp1_tmp.size(); ++i) {
-                Reduce(kernel_sp1_tmp[i], data_sp1t, tmp_Mod);
+                Reduce(kernel_sp1_tmp[i], data[sp1], tmp_Mod);
                 if (kernel_sp1_tmp[i])
-                    data_sp1t.push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
+                    data[sp1].push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
             }
-            Mod1d x2m_st;
             for (size_t i = 0; i < x2m_st_tmp.size(); ++i) {
-                Reduce(x2m_st_tmp[i], x2m_st, tmp_Mod);
+                Reduce(x2m_st_tmp[i], rels_x2m[ss], tmp_Mod);
                 if (x2m_st_tmp[i])
-                    x2m_st.push_back(std::move(x2m_st_tmp[i]));
+                    rels_x2m[ss].push_back(std::move(x2m_st_tmp[i]));
             }
-
-#ifdef TO_GUOZHEN
-            double time = timer.Elapsed();
-            int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
-            int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
-            db.save(data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t);
-            timer.Reset();
-#endif
-
-            for (size_t i = 0; i < data_st.size(); ++i)
-                gb.push_back(data_st[i], s);
-            for (size_t i = 0; i < data_sp1t.size(); ++i)
-                gb.push_back(data_sp1t[i], sp1);
-            for (size_t i = 0; i < x2m_st.size(); ++i)
-                gb.push_back_x2m(x2m_st[i], s);
-
-            if (size_t size_k = data_sp1t.size())
-#ifdef TO_GUOZHEN
-                std::cout << "  s=" << s + 2 << " dim=" << size_k << ' ' << time << 's' << std::endl;
-#else
-                std::cout << "  s=" << s + 2 << " dim=" << size_k << std::endl;
-#endif
         }
+
+        /* Save the result */
+#ifdef TO_GUOZHEN
+        double time = timer.Elapsed();
+        int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
+        int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
+        db.save(data_sp1t, data_st, rels_x2m_cri, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t);
+        timer.Reset();
+#endif
+
+        for (size_t s = tt; s-- > 0;)
+            for (size_t i = 0; i < data[s].size(); ++i)
+                gb.push_back(data[s][i], s);
+        for (size_t s = tt - 1; s-- > 0;)
+            for (size_t i = 0; i < rels_x2m[s].size(); ++i)
+                gb.push_back_x2m(rels_x2m[s][i], s);
     }
 }
 
