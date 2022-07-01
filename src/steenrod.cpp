@@ -353,7 +353,7 @@ std::string MMod::StrXi() const
 Mod MulMay(MMilnor m, const Mod& x)
 {
     Mod result;
-    result.data.reserve(150);
+    result.data.reserve(64);
     Milnor tmp;
     for (MMod m2 : x.data) {
         tmp.data.clear();
@@ -379,12 +379,12 @@ void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp)
     SortMod2(result.data);
 }
 
-Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2)
+Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
 {
-    mulP(m, x, tmp_m1, tmp_a); /* `tmp_m1 = m * x` */
-    tmp_m2.data.clear();
-    std::swap(data, tmp_m2.data);
-    std::set_symmetric_difference(tmp_m1.data.cbegin(), tmp_m1.data.cend(), tmp_m2.data.cbegin(), tmp_m2.data.cend(), std::back_inserter(data));
+    mulP(m, x, tmp_x1, tmp_a); /* `tmp_m1 = m * x` */
+    tmp_x2.data.clear();
+    std::swap(data, tmp_x2.data);
+    std::set_symmetric_difference(tmp_x1.data.cbegin(), tmp_x1.data.cend(), tmp_x2.data.cbegin(), tmp_x2.data.cend(), std::back_inserter(data));
     return *this;
 }
 

@@ -578,7 +578,7 @@ struct Mod
         return iaddP(rhs, tmp);
     }
     /* `*this += m * x` */
-    Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_m1, Mod& tmp_m2);
+    Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2);
     Mod& iaddmulMay(MMilnor m, const Mod& x, Mod& tmp);
     bool operator==(const Mod& rhs) const
     {

@@ -51,7 +51,7 @@ using PtCriMilnor2d = std::vector<PtCriMilnor1d>;
 /* Groebner basis of critical pairs */
 class CriMilnors
 {
-    friend class GroebnerMRes;
+    friend class SteenrodMRes;
 
 private:
     int t_trunc_;                                                        /* Truncation degree */
@@ -179,7 +179,7 @@ public:
 };
 
 /********************************************************
- *                    class GroebnerMRes
+ *                    class SteenrodMRes
  ********************************************************/
 
 struct DataMRes
@@ -224,7 +224,7 @@ inline void Reduce(Mod& x, const DataMRes1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-class GroebnerMRes
+class SteenrodMRes
 {
     using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
 
@@ -243,9 +243,8 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t);
-    static GroebnerMRes load(const std::string& filename, int t_trunc);
-    static void reset(const std::string& filename);
+    SteenrodMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t);
+    static SteenrodMRes load(const std::string& filename, int t_trunc);
 
 public:
     int t_trunc() const
@@ -351,6 +350,7 @@ public:
 
     CriMilnor1d Criticals(size_t s, int t, Mod1d& rels_x2m);
     DataMRes Reduce(const CriMilnor& cp, size_t s) const;
+    void ReduceBatch(const CriMilnor1d& cp, DataMRes1d& results, size_t s) const;
     Mod Reduce(Mod x, size_t s) const;
     Mod ReduceX2m(const CriMilnor& cp, size_t s) const;
 };
@@ -360,7 +360,7 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-void AddRelsMRes(GroebnerMRes& gb, const Mod1d& rels, int deg);
+void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg);
 
 }  // namespace steenrod
 

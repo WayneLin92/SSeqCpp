@@ -34,7 +34,7 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-class GroebnerMResConst
+class SteenrodMResConst
 {
     using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
 
@@ -49,8 +49,8 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    GroebnerMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees);
-    static GroebnerMResConst load(const std::string& filename);
+    SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees);
+    static SteenrodMResConst load(const std::string& filename);
 
 public:
     int t_trunc() const
@@ -108,7 +108,7 @@ public:
     }
 
     Mod DiffInv(Mod x, size_t s) const;
-    void DiffInvMix(Mod1d xs, Mod1d& xs_reduced, size_t s) const;
+    void DiffInvBatch(Mod1d xs, Mod1d& xs_reduced, size_t s) const;
 };
 
 struct GenMRes

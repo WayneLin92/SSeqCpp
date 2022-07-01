@@ -25,10 +25,10 @@ int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64
 }
 
 /********************************************************
- *                    class GroebnerMResConst
+ *                    class SteenrodMResConst
  ********************************************************/
 
-GroebnerMResConst::GroebnerMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees) : t_trunc_(t_trunc), s_trunc_(s_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+SteenrodMResConst::SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees) : t_trunc_(t_trunc), s_trunc_(s_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
 {
     if (basis_degrees_.empty())
         basis_degrees_.push_back({0});
@@ -46,7 +46,7 @@ GroebnerMResConst::GroebnerMResConst(int t_trunc, int s_trunc, DataMResConst2d d
     }
 }
 
-Mod GroebnerMResConst::DiffInv(Mod x, size_t s) const
+Mod SteenrodMResConst::DiffInv(Mod x, size_t s) const
 {
     Milnor tmp_a;
     Mod result, tmp_x1, tmp_x2;
@@ -94,7 +94,7 @@ struct IndexMMod
 };
 using IndexMMod1d = std::vector<IndexMMod>;
 
-void GroebnerMResConst::DiffInvMix(Mod1d xs, Mod1d& result, size_t s) const
+void SteenrodMResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
 {
     Mod tmp_x, prod_x1, prod_x2;
     Milnor tmp_a;
@@ -119,7 +119,7 @@ void GroebnerMResConst::DiffInvMix(Mod1d xs, Mod1d& result, size_t s) const
             prod_x2.data.clear();
             mulP(m, gb_[s][gb_index].x2, prod_x2, tmp_a);
 
-            //int b = 0;
+            // int b = 0;
             while (!heap.empty() && heap.front().m == term) {
                 /*if (b++)
                     bench::Counter(0);
@@ -341,14 +341,14 @@ public:
     }
 };
 
-GroebnerMResConst GroebnerMResConst::load(const std::string& filename)
+SteenrodMResConst SteenrodMResConst::load(const std::string& filename)
 {
     DbMResProd db(filename);
     DataMResConst2d data = db.load_data("SteenrodMRes");
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     int latest_s = 0, latest_t = 0;
     db.latest_st("SteenrodMRes", latest_s, latest_t);
-    return GroebnerMResConst(latest_t, latest_s, std::move(data), std::move(basis_degrees));
+    return SteenrodMResConst(latest_t, latest_s, std::move(data), std::move(basis_degrees));
 }
 
 array HomToK(const Mod& x)
@@ -361,7 +361,7 @@ array HomToK(const Mod& x)
 }
 
 /* Compute the products of gens with gens[[leftFactors]] */
-void compute_products_batch(const GenMRes2d& gens, const GroebnerMResConst& gb, const std::map<int, std::vector<std::pair<int, int>>>& leftFactors, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h, DbMResProd& dbProd,
+void compute_products_batch(const GenMRes2d& gens, const SteenrodMResConst& gb, const std::map<int, std::vector<std::pair<int, int>>>& leftFactors, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h, DbMResProd& dbProd,
                             const std::string& table_prefix)
 {
     static Mod1d tmp_x1(ut::FUTURE_NUM_THREADS);
@@ -467,7 +467,7 @@ void compute_products_batch(const GenMRes2d& gens, const GroebnerMResConst& gb, 
         while (t_max > 0 && image[t_max - 1].empty())
             --t_max;
 
-        ut::for_each_par(t_max, [&gb, &image_diff_by_t, &image, s2](size_t t) { gb.DiffInvMix(image_diff_by_t[t], image[t], s2); });
+        ut::for_each_par(t_max, [&gb, &image_diff_by_t, &image, s2, t_max](size_t t) { gb.DiffInvBatch(image_diff_by_t[t_max - t], image[t_max - t], s2); });
 
         /* Save to map and map_h */
         start = 0;
@@ -522,7 +522,7 @@ void compute_products_ind()
     std::cout << "Compute with loaded indecomposables" << std::endl;
 
     std::string table_SteenrodMRes = "SteenrodMRes";
-    auto gb = GroebnerMResConst::load(filename);
+    auto gb = SteenrodMResConst::load(filename);
     DbMResProd db(filename);
     auto gens = db.load_generators(table_SteenrodMRes, DEG_MAX);
 
@@ -564,7 +564,7 @@ void compute_products(int t_trunc)
     std::cout << "Compute in t<=" << (t_trunc == DEG_MAX ? "inf" : std::to_string(t_trunc)) << std::endl;
 
     std::string table_SteenrodMRes = "SteenrodMRes";
-    auto gb = GroebnerMResConst::load(filename);
+    auto gb = SteenrodMResConst::load(filename);
     DbMResProd db(filename);
     auto gens = db.load_generators(table_SteenrodMRes, t_trunc);
 
