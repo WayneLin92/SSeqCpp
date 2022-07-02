@@ -12,7 +12,7 @@ void AdamsE2()
     bench::Timer timer;
 
 #ifdef TO_GUOZHEN
-    int t_trunc = 261;
+    int t_trunc = 100;
 #else
     int t_trunc = 100;
 #endif

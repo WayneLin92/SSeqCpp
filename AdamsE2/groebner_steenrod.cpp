@@ -1,7 +1,9 @@
 #include "groebner_steenrod.h"
 #include "algebras/benchmark.h"
 #include "algebras/database.h"
+#include <atomic>
 #include <cstring>
+#include <mutex>
 //#include <immintrin.h>
 
 namespace steenrod {
@@ -466,12 +468,7 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
             tmp_x3.data.clear();
             mulP(m, gb_[s][gb_index].x2m, tmp_x3, tmp_a);
 
-            int b = 0;
             while (!heap.empty() && heap.front().m == term) {
-                if (b++)
-                    bench::Counter(0);
-                else
-                    bench::Counter(1);
 
                 unsigned i = heap.front().i, index = heap.front().index;
                 std::pop_heap(heap.begin(), heap.end());
@@ -561,7 +558,6 @@ Mod SteenrodMRes::Reduce(Mod x, size_t s) const
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
             x.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
-            x += m * gb_[s][gb_index].x1;
         }
         else
             ++index;
@@ -644,15 +640,17 @@ public:
         delete_from(table_prefix + "_time");
     }
 
-    void save_generators(const std::string& table_prefix, const DataMRes1d& kernel, int s, int t) const
+    void save_generators(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (diff, s, t) VALUES (?1, ?2, ?3);");
 
-        for (auto& k : kernel) {
-            stmt.bind_blob(1, k.x1.data.data(), int(k.x1.data.size() * sizeof(MMod)));
-            stmt.bind_int(2, s);
-            stmt.bind_int(3, t);
-            stmt.step_and_reset();
+        for (auto& x : rels) {
+            if (x.x2.data.size() == 1 && x.x2.GetLead().deg_m() == 0) {
+                stmt.bind_blob(1, x.x1.data);
+                stmt.bind_int(2, s + 1);
+                stmt.bind_int(3, t);
+                stmt.step_and_reset();
+            }
         }
     }
 
@@ -697,18 +695,18 @@ public:
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_X2m_relations (x2m, s, t) VALUES (?1, ?2, ?3);");
 
         for (auto& rel : rels) {
-            stmt.bind_blob(1, rel.data.data(), (int)rel.data.size() * sizeof(MMod));
+            stmt.bind_blob(1, rel.data);
             stmt.bind_int(2, s);
             stmt.bind_int(3, t);
             stmt.step_and_reset();
         }
     }
 
-    void save_time(const std::string& table_prefix, int s, int t, double time)
+    void save_time(const std::string& table_prefix, int t, double time)
     {
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_time (s, t, time) VALUES (?1, ?2, ?3);");
 
-        stmt.bind_int(1, s);
+        stmt.bind_int(1, -1);
         stmt.bind_int(2, t);
         stmt.bind_double(3, time);
         stmt.step_and_reset();
@@ -738,21 +736,9 @@ public:
         Statement stmt(*this, "SELECT x1, x2, x2m, s FROM " + table_prefix + "_relations ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             DataMRes x;
-            const void* x1_data = stmt.column_blob(0);
-            const void* x2_data = stmt.column_blob(1);
-            const void* x2m_data = stmt.column_blob(2);
-            int x1_bytes = stmt.column_blob_size(0);
-            int x2_bytes = stmt.column_blob_size(1);
-            int x2m_bytes = stmt.column_blob_size(2);
-            size_t x1_size = (size_t)x1_bytes / sizeof(MMod);
-            size_t x2_size = (size_t)x2_bytes / sizeof(MMod);
-            size_t x2m_size = (size_t)x2m_bytes / sizeof(MMod);
-            x.x1.data.resize(x1_size);
-            x.x2.data.resize(x2_size);
-            x.x2m.data.resize(x2m_size);
-            memcpy(x.x1.data.data(), x1_data, x1_bytes);
-            memcpy(x.x2.data.data(), x2_data, x2_bytes);
-            memcpy(x.x2m.data.data(), x2m_data, x2m_bytes);
+            x.x1.data = stmt.column_blob_tpl<MMod>(0);
+            x.x2.data = stmt.column_blob_tpl<MMod>(1);
+            x.x2m.data = stmt.column_blob_tpl<MMod>(2);
 
             x.fil = Filtr(x.x1.GetLead());
 
@@ -770,12 +756,7 @@ public:
         Statement stmt(*this, "SELECT x2m, s FROM " + table_prefix + "_X2m_relations ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             Mod x;
-            const void* x1_data = stmt.column_blob(0);
-            int x1_bytes = stmt.column_blob_size(0);
-            size_t x1_size = (size_t)x1_bytes / sizeof(MMod);
-            x.data.resize(x1_size);
-            memcpy(x.data.data(), x1_data, x1_bytes);
-
+            x.data = stmt.column_blob_tpl<MMod>(0);
             size_t s = (size_t)stmt.column_int(1);
             if (data.size() <= s)
                 data.resize(s + 1);
@@ -796,26 +777,36 @@ public:
         }
     }
 
-    void save(const DataMRes1d& data_sp1t, const DataMRes1d& data_st, const Mod1d& x2m_st1, const Mod1d& x2m_st, int num_x2m_sp1, int num_x2m_s, double time, int s, int t)
+    void save(const DataMRes2d& data, const Mod2d& rels_x2m_cri, const Mod2d& rels_x2m, array num_x2m, double time, int t)
     {
         if (f_.valid())
             f_.wait();
-        f_ = std::async(std::launch::async, [this, data_sp1t, data_st, x2m_st1, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t]() {
+        f_ = std::async(std::launch::async, [this, data, rels_x2m_cri, rels_x2m, num_x2m, time, t]() {
             begin_transaction();
-            save_generators("SteenrodMRes", data_sp1t, s + 2, t);
-            save_relations("SteenrodMRes", data_sp1t, s + 1, t);
-            save_generators_x2m("SteenrodMRes", num_x2m_sp1, s + 1, t);
-            if (s >= 0) {
-                save_relations("SteenrodMRes", data_st, s, t);
-                save_generators_x2m("SteenrodMRes", num_x2m_s, s, t);
-                save_relations_x2m("SteenrodMRes", x2m_st1, s, t);
-                save_relations_x2m("SteenrodMRes", x2m_st, s, t);
+            for (size_t s = data.size(); s-- > 0;) {
+                save_generators("SteenrodMRes", data[s], (int)s, t);
+                save_relations("SteenrodMRes", data[s], (int)s, t);
             }
-            save_time("SteenrodMRes", s + 2, t, time);
+            for (size_t s = num_x2m.size(); s-- > 0;)
+                save_generators_x2m("SteenrodMRes", num_x2m[s], (int)s, t);
+            for (size_t s = rels_x2m_cri.size(); s-- > 0;) {
+                save_relations_x2m("SteenrodMRes", rels_x2m_cri[s], (int)s, t);
+                save_relations_x2m("SteenrodMRes", rels_x2m[s], (int)s, t);
+            }
+            save_time("SteenrodMRes", t, time);
             end_transaction();
         });
     }
 };
+
+void ResetDb(const DbSteenrod& db)
+{
+    db.create_generators_and_delete("SteenrodMRes");
+    db.create_relations_and_delete("SteenrodMRes");
+    db.create_generators_x2m_and_delete("SteenrodMRes");
+    db.create_relations_x2m_and_delete("SteenrodMRes");
+    db.create_time_and_delete("SteenrodMRes");
+}
 
 void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
 {
@@ -826,6 +817,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
 
 #ifdef TO_GUOZHEN
     DbSteenrod db("AdamsE2.db");
+    ResetDb(db);  ////
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
     db.create_generators_x2m("SteenrodMRes");
@@ -878,9 +870,17 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
             }
         }
 
-        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps](size_t i) {
+        std::atomic<int> threadsLeft = (int)arr_s.size();
+        std::mutex print_mutex = {};
+        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft](size_t i) {
             size_t s = arr_s[i];
             gb.ReduceBatch(cris[s], data_tmps[s], s);
+
+            {
+                std::scoped_lock lock(print_mutex);
+                --threadsLeft;
+                std::cout << "  s=" << s << " threadsLeft=" << threadsLeft << '\n';
+            }
         });
 
         /* Triangulate these relations */
@@ -896,10 +896,12 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
             Mod1d x2m_st_tmp;
             Mod1d kernel_sp1_tmp;
             for (size_t i = 0; i < data_tmp_s.size(); ++i) {
-                if (s >= 0)
+                if (s >= 0) {
                     for (size_t j = 0; j < data[ss].size(); ++j)
                         if (std::binary_search(data_tmp_s[i].x1.data.begin(), data_tmp_s[i].x1.data.end(), data[ss][j].x1.GetLead()))
-                            data_tmp_s[i] += data[ss][j];
+                            data_tmp_s[i].iaddP(data[ss][j], tmp_Mod);
+                    Reduce(data_tmp_s[i].x2, data[sp1], tmp_Mod);
+                }
                 if (data_tmp_s[i].x1) {
                     /* Determine if x2m aligns with x1 */
                     if (!data_tmp_s[i].valid_x2m()) {
@@ -922,6 +924,8 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
                     data[sp1].push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
             }
             for (size_t i = 0; i < x2m_st_tmp.size(); ++i) {
+                //x2m_st_tmp[i] = gb.ReduceX2m(std::move(x2m_st_tmp[i]), s);
+                //Reduce(x2m_st_tmp[i], rels_x2m_cri[ss], tmp_Mod);
                 Reduce(x2m_st_tmp[i], rels_x2m[ss], tmp_Mod);
                 if (x2m_st_tmp[i])
                     rels_x2m[ss].push_back(std::move(x2m_st_tmp[i]));
@@ -931,9 +935,10 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         /* Save the result */
 #ifdef TO_GUOZHEN
         double time = timer.Elapsed();
-        int num_x2m_sp1 = int(gb.basis_degrees_x2m(sp1).size() - old_size_x2m_sp1);
-        int num_x2m_s = s >= 0 ? int(gb.basis_degrees_x2m(s).size() - old_size_x2m_s) : 0;
-        db.save(data_sp1t, data_st, rels_x2m_cri, x2m_st, num_x2m_sp1, num_x2m_s, time, s, t);
+        array num_x2m;
+        for (size_t s = 0; s < tt; ++s)
+            num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
+        db.save(data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
         timer.Reset();
 #endif
 
@@ -960,16 +965,6 @@ SteenrodMRes SteenrodMRes::load(const std::string& filename, int t_trunc)
     int latest_s = 0, latest_t = 0;
     db.latest_st("SteenrodMRes", latest_s, latest_t);
     return SteenrodMRes(t_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t);
-}
-
-void ResetDb(const std::string& filename)
-{
-    DbSteenrod db(filename);
-    db.create_generators_and_delete("SteenrodMRes");
-    db.create_relations_and_delete("SteenrodMRes");
-    db.create_generators_x2m_and_delete("SteenrodMRes");
-    db.create_relations_x2m_and_delete("SteenrodMRes");
-    db.create_time_and_delete("SteenrodMRes");
 }
 
 }  // namespace steenrod

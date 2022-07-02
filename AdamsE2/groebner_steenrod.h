@@ -11,10 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-//#define TO_GUOZHEN
-#ifdef TO_GUOZHEN
-//#define MMYDEPLOY_TEST_FILE
-#endif
+#define TO_GUOZHEN
 
 namespace steenrod {
 
@@ -192,17 +189,16 @@ struct DataMRes
         if (x1)
             fil = Filtr(x1.GetLead());
     }
-    DataMRes& operator+=(const DataMRes& rhs)
+    void iaddP(const DataMRes& rhs, Mod& tmp_Mod)
     {
 #ifndef NDEBUG
         if (!rhs.valid_x2m())
             throw MyException(0x2ae8baa3U, "Add only when rhs.x2m is valid");
 #endif
         if (valid_x2m() && fil == rhs.fil)
-            x2m += rhs.x2m;
-        x1 += rhs.x1;
-        x2 += rhs.x2;
-        return *this;
+            x2m.iaddP(rhs.x2m, tmp_Mod);
+        x1.iaddP(rhs.x1, tmp_Mod);
+        x2.iaddP(rhs.x2, tmp_Mod);
     }
     bool valid_x2m() const
     {
@@ -307,7 +303,7 @@ public:
             indices_.resize(s);
             while (criticals_.size() < s)
                 criticals_.push_back(CriMilnors(t_trunc_));
-            if (s >= 0)
+            if (s > 0)
                 gb_x2m_.resize(s - 1);
         }
     }
@@ -353,6 +349,10 @@ public:
     void ReduceBatch(const CriMilnor1d& cp, DataMRes1d& results, size_t s) const;
     Mod Reduce(Mod x, size_t s) const;
     Mod ReduceX2m(const CriMilnor& cp, size_t s) const;
+    Mod ReduceX2m(Mod x2m, size_t s) const
+    {
+        return gb_x2m_.Reduce(std::move(x2m), s);
+    }
 };
 
 /**
