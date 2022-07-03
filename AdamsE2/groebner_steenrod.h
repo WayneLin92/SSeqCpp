@@ -250,7 +250,7 @@ public:
 
     int t_begin() const
     {
-        int t = 0;
+        int t = 1;
         for (size_t s = 0; s < gb_.size(); ++s) {
             if (!gb_[s].empty()) {
                 auto lead = gb_[s].back().x1.GetLead();
@@ -361,6 +361,8 @@ public:
  * return the dimension of the calculated range for debugging.
  */
 void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg);
+
+void ResetDb(const std::string& filename);
 
 }  // namespace steenrod
 

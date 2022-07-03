@@ -12,7 +12,7 @@ void AdamsE2()
     bench::Timer timer;
 
 #ifdef TO_GUOZHEN
-    int t_trunc = 100;
+    int t_trunc = 392.5;
 #else
     int t_trunc = 100;
 #endif
@@ -23,6 +23,7 @@ void AdamsE2()
             break;
     }
 #ifdef TO_GUOZHEN
+    // ResetDb("AdamsE2.db");
     auto gb = SteenrodMRes::load("AdamsE2.db", t_trunc);
 #else
     auto gb = SteenrodMRes(t_trunc, {}, {}, {}, {}, 0, 0);

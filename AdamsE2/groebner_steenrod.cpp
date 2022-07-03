@@ -4,7 +4,6 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
-//#include <immintrin.h>
 
 namespace steenrod {
 
@@ -340,7 +339,7 @@ CriMilnor1d SteenrodMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
     for (size_t i = 0; i < cris.size(); ++i)
         fils[i] = gb_[s][cris[i].i2].fil + cris[i].m2.w_may();
     auto indices = ut::size_t_range(cris.size());
-    std::sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[j] < fils[i]; });
+    std::stable_sort(indices.begin(), indices.end(), [&fils](size_t i, size_t j) { return fils[j] < fils[i]; });
     CriMilnor1d result;
     result.reserve(cris.size());
     for (size_t i = 0; i < cris.size(); ++i)
@@ -466,7 +465,7 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
             tmp_x2.data.clear();
             mulP(m, gb_[s][gb_index].x2, tmp_x2, tmp_a);
             tmp_x3.data.clear();
-            mulP(m, gb_[s][gb_index].x2m, tmp_x3, tmp_a);
+            MulMayP(m, gb_[s][gb_index].x2m, tmp_x3, tmp_a);
 
             while (!heap.empty() && heap.front().m == term) {
 
@@ -799,15 +798,6 @@ public:
     }
 };
 
-void ResetDb(const DbSteenrod& db)
-{
-    db.create_generators_and_delete("SteenrodMRes");
-    db.create_relations_and_delete("SteenrodMRes");
-    db.create_generators_x2m_and_delete("SteenrodMRes");
-    db.create_relations_x2m_and_delete("SteenrodMRes");
-    db.create_time_and_delete("SteenrodMRes");
-}
-
 void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
 {
     int deg_max = gb.t_trunc();
@@ -817,7 +807,6 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
 
 #ifdef TO_GUOZHEN
     DbSteenrod db("AdamsE2.db");
-    ResetDb(db);  ////
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
     db.create_generators_x2m("SteenrodMRes");
@@ -840,8 +829,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         }
     }
 
-    // int t_begin = gb.t_begin();
-    int t_begin = 1;
+    int t_begin = gb.t_begin();  ////
     for (int t = t_begin; t <= deg; ++t) {
         size_t tt = (size_t)t;
         std::cout << "t=" << t << "               " << std::endl;
@@ -879,7 +867,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                std::cout << "  s=" << s << " threadsLeft=" << threadsLeft << '\n';
+                std::cout << "  s=" << s << " threadsLeft=" << threadsLeft << std::endl;
             }
         });
 
@@ -924,8 +912,6 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
                     data[sp1].push_back(DataMRes(std::move(kernel_sp1_tmp[i]), gb.new_gen(sp2, t), gb.new_gen_x2m(sp1, t)));
             }
             for (size_t i = 0; i < x2m_st_tmp.size(); ++i) {
-                //x2m_st_tmp[i] = gb.ReduceX2m(std::move(x2m_st_tmp[i]), s);
-                //Reduce(x2m_st_tmp[i], rels_x2m_cri[ss], tmp_Mod);
                 Reduce(x2m_st_tmp[i], rels_x2m[ss], tmp_Mod);
                 if (x2m_st_tmp[i])
                     rels_x2m[ss].push_back(std::move(x2m_st_tmp[i]));
@@ -939,6 +925,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         for (size_t s = 0; s < tt; ++s)
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
         db.save(data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
+        std::cout << "    time=" << time << std::endl;
         timer.Reset();
 #endif
 
@@ -965,6 +952,16 @@ SteenrodMRes SteenrodMRes::load(const std::string& filename, int t_trunc)
     int latest_s = 0, latest_t = 0;
     db.latest_st("SteenrodMRes", latest_s, latest_t);
     return SteenrodMRes(t_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t);
+}
+
+void ResetDb(const std::string& filename)
+{
+    DbSteenrod db(filename);
+    db.create_generators_and_delete("SteenrodMRes");
+    db.create_relations_and_delete("SteenrodMRes");
+    db.create_generators_x2m_and_delete("SteenrodMRes");
+    db.create_relations_x2m_and_delete("SteenrodMRes");
+    db.create_time_and_delete("SteenrodMRes");
 }
 
 }  // namespace steenrod

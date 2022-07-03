@@ -350,11 +350,9 @@ std::string MMod::StrXi() const
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}';
 }
 
-Mod MulMay(MMilnor m, const Mod& x)
+void MulMayP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp)
 {
-    Mod result;
-    result.data.reserve(64);
-    Milnor tmp;
+    result.data.clear();
     for (MMod m2 : x.data) {
         tmp.data.clear();
         MulMay(m, m2.m(), tmp);
@@ -363,6 +361,13 @@ Mod MulMay(MMilnor m, const Mod& x)
             result.data.push_back(MMod(m.data() + v_raw));
     }
     SortMod2(result.data);
+}
+
+Mod MulMay(MMilnor m, const Mod& x)
+{
+    Mod result;
+    Milnor tmp;
+    MulMayP(m, x, result, tmp);
     return result;
 }
 

@@ -599,6 +599,7 @@ inline Mod operator*(MMilnor m, const Mod& x)
     mulP(m, x, result, tmp);
     return result;
 }
+void MulMayP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
 Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
