@@ -7,7 +7,7 @@
 
 #include "algebras/steenrod.h"
 
-//#define TO_GUOZHEN
+//#define MYDEPLOY
 
 namespace steenrod {
 

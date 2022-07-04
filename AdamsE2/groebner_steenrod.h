@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define TO_GUOZHEN
+#define MYDEPLOY
 
 namespace steenrod {
 
@@ -112,7 +112,7 @@ class GroebnerX2m
     using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
 
 private:
-    int t_trunc_;
+    int t_trunc_, stem_trunc_;
 
     CriMilnors1d criticals_; /* Groebner basis of critical pairs */
 
@@ -123,7 +123,7 @@ private:
     array2d basis_degrees_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
 
 public:
-    GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int latest_s, int latest_t);
+    GroebnerX2m(int t_trunc, int stem_trunc, Mod2d data, array2d basis_degrees, std::map<int, int>& latest_st);
 
 public:
     void resize(size_t s)
@@ -226,6 +226,7 @@ class SteenrodMRes
 
 private:
     int t_trunc_;
+    int stem_trunc_;
 
     CriMilnors1d criticals_; /* Groebner basis of critical pairs */
 
@@ -239,27 +240,13 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    SteenrodMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t);
-    static SteenrodMRes load(const std::string& filename, int t_trunc);
+    SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, std::map<int, int>& latest_st);
+    static SteenrodMRes load(const std::string& db_filename, int t_trunc, int stem_trunc);
 
 public:
     int t_trunc() const
     {
         return t_trunc_;
-    }
-
-    int t_begin() const
-    {
-        int t = 1;
-        for (size_t s = 0; s < gb_.size(); ++s) {
-            if (!gb_[s].empty()) {
-                auto lead = gb_[s].back().x1.GetLead();
-                int t1 = lead.deg_m() + basis_degrees_[s][lead.v()];
-                if (t1 > t)
-                    t = t1;
-            }
-        }
-        return t;
     }
 
     const array& basis_degrees(size_t s) const
@@ -360,7 +347,7 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg);
+void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename);
 
 void ResetDb(const std::string& filename);
 

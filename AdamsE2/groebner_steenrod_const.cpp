@@ -513,7 +513,7 @@ void compute_products_batch(const GenMRes2d& gens, const SteenrodMResConst& gb, 
  */
 void compute_products_ind()
 {
-#ifdef TO_GUOZHEN
+#ifdef MYDEPLOY
     std::string filename = "AdamsE2.db";
 #else
     std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
@@ -555,7 +555,7 @@ void compute_products_ind()
 
 void compute_products(int t_trunc)
 {
-#ifdef TO_GUOZHEN
+#ifdef MYDEPLOY
     std::string filename = "AdamsE2.db";
 #else
     std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";

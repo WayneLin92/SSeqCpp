@@ -82,6 +82,6 @@ if __name__ == "__main__":
             content = file.read()
             content = content.replace("#include \"algebras/", "#include \"")
             content = content.replace("#include <sqlite3.h>", "#include \"sqlite3.h\"")
-            content = content.replace("//#define TO_GUOZHEN", "#define TO_GUOZHEN")
+            content = content.replace("//#define MYDEPLOY", "#define MYDEPLOY")
             with open(os.path.join(args.o, os.path.basename(fn)), "w") as file_out:
                 file_out.write(content)

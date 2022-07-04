@@ -5,7 +5,7 @@
 #include <cstring>
 #include <map>
 
-//#define TO_GUOZHEN
+//#define MYDEPLOY
 
 class MyDB : public myio::DbAdamsSS
 {
@@ -77,7 +77,7 @@ alg::array mul(const std::map<std::pair<int, int>, alg::array>& map_h, int id_in
 void AdamsE2Export()
 {
     using namespace alg;
-#ifdef TO_GUOZHEN
+#ifdef MYDEPLOY
     MyDB dbProd("AdamsE2Prod.db");
 #else
     MyDB dbProd("AdamsE2Prod.db");

@@ -205,7 +205,7 @@ int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64
     return -1;
 }
 
-GroebnerX2m::GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int latest_s, int latest_t) : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+GroebnerX2m::GroebnerX2m(int t_trunc, int stem_trunc, Mod2d data, array2d basis_degrees, std::map<int, int>& latest_st) : t_trunc_(t_trunc), stem_trunc_(stem_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
 {
     leads_.resize(gb_.size());
     indices_.resize(gb_.size());
@@ -219,7 +219,7 @@ GroebnerX2m::GroebnerX2m(int t_trunc, Mod2d data, array2d basis_degrees, int lat
 
     for (size_t s = 0; s < gb_.size(); ++s) {
         criticals_.push_back(CriMilnors(t_trunc_));
-        criticals_.back().init(leads_[s], basis_degrees_[s], s >= latest_s ? latest_t + 1 : latest_t);
+        criticals_.back().init(leads_[s], basis_degrees_[s], latest_st[(int)s] + 1);
     }
 }
 
@@ -306,8 +306,8 @@ Mod1d GroebnerX2m::AddRels(size_t s, int t)
  *                    class SteenrodMRes
  ********************************************************/
 
-SteenrodMRes::SteenrodMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, int latest_s, int latest_t)
-    : t_trunc_(t_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t)
+SteenrodMRes::SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, std::map<int, int>& latest_st)
+    : t_trunc_(t_trunc), stem_trunc_(stem_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, stem_trunc, std::move(data_x2m), std::move(basis_degrees_x2m), latest_st)
 {
     if (basis_degrees_.empty())
         basis_degrees_.push_back({0});
@@ -326,7 +326,7 @@ SteenrodMRes::SteenrodMRes(int t_trunc, DataMRes2d data, array2d basis_degrees, 
 
     for (size_t s = 0; s < gb_.size(); ++s) {
         criticals_.push_back(CriMilnors(t_trunc_));
-        criticals_.back().init(leads_[s], basis_degrees_[s], s >= latest_s ? latest_t + 1 : latest_t);
+        criticals_.back().init(leads_[s], basis_degrees_[s], latest_st[(int)s] + 1);
     }
 }
 
@@ -764,19 +764,19 @@ public:
         return data;
     }
 
-    void latest_st(const std::string& table_prefix, int& s, int& t) const
+    std::map<int, int> latest_st(const std::string& table_prefix) const
     {
-        t = get_int("SELECT coalesce(max(t), 0) FROM " + table_prefix + "_relations;");
-        s = get_int("SELECT coalesce(min(s), 1000) FROM " + table_prefix + "_relations WHERE t=" + std::to_string(t) + ";");
-        int t1 = get_int("SELECT coalesce(max(t), 0) FROM " + table_prefix + "_X2m_relations;");
-        int s1 = get_int("SELECT coalesce(min(s), 1000) FROM " + table_prefix + "_X2m_relations WHERE t=" + std::to_string(t1) + ";");
-        if (t1 > t || (t1 == t && s1 < s)) {
-            s = s1;
-            t = t1;
+        std::map<int, int> result;
+        Statement stmt(*this, "SELECT s, max(t) FROM " + table_prefix + "_relations GROUP BY s ORDER BY s;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int s = stmt.column_int(0);
+            int t = stmt.column_int(1);
+            result[s] = t;
         }
+        return result;
     }
 
-    void save(const DataMRes2d& data, const Mod2d& rels_x2m_cri, const Mod2d& rels_x2m, array num_x2m, double time, int t)
+    void save(const DataMRes2d& data, const Mod2d& rels_x2m_cri, const Mod2d& rels_x2m, const array& num_x2m, double time, int t)
     {
         if (f_.valid())
             f_.wait();
@@ -798,15 +798,15 @@ public:
     }
 };
 
-void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
+void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename)
 {
-    int deg_max = gb.t_trunc();
-    if (deg > deg_max)
-        throw MyException(0xb2474e19U, "deg is bigger than the truncation degree.");
+    int t_trunc = gb.t_trunc();
+    if (t_max > t_trunc)
+        throw MyException(0xb2474e19U, "t_max is bigger than the truncation degree.");
     Mod tmp_Mod;
 
-#ifdef TO_GUOZHEN
-    DbSteenrod db("AdamsE2.db");
+#ifdef MYDEPLOY
+    DbSteenrod db(db_filename);
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
     db.create_generators_x2m("SteenrodMRes");
@@ -824,14 +824,14 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         if (rels[i]) {
             const auto& lead = rels[i].GetLead();
             int t = lead.deg_m();
-            if (t <= deg)
+            if (t <= t_max && t <= stem_max)
                 rels_graded[t].push_back((int)i);
         }
     }
 
-    int t_begin = gb.t_begin();  ////
-    for (int t = t_begin; t <= deg; ++t) {
+    for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
+        size_t s_min = (size_t)std::max(0, t - stem_max - 2);
         std::cout << "t=" << t << "               " << std::endl;
         gb.resize_gb(t);
         std::vector<unsigned> old_size_x2m(tt);
@@ -850,7 +850,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         Mod2d rels_x2m_cri(tt - 1);
         DataMRes2d data_tmps(tt - 1);
         std::vector<unsigned> arr_s;
-        for (size_t s = 0; s < tt - 1; ++s) {
+        for (size_t s = s_min; s < tt - 1; ++s) {
             cris[s] = gb.Criticals(s, t, rels_x2m_cri[s]);
             if (!cris[s].empty()) {
                 data_tmps[s].resize(cris[s].size());
@@ -874,7 +874,8 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         /* Triangulate these relations */
         DataMRes2d data(tt);
         Mod2d rels_x2m(tt - 1);
-        for (int s = t - 2; s >= -1; --s) {
+        int s_min1 = std::max(0, t - stem_max - 2) - 1; /* This can be -1 */
+        for (int s = t - 2; s >= s_min1; --s) {
             size_t ss = (size_t)s; /* When ss is -1 it will not be used */
             size_t sp1 = size_t(s + 1);
             size_t sp2 = size_t(s + 2);
@@ -919,7 +920,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         }
 
         /* Save the result */
-#ifdef TO_GUOZHEN
+#ifdef MYDEPLOY
         double time = timer.Elapsed();
         array num_x2m;
         for (size_t s = 0; s < tt; ++s)
@@ -929,18 +930,18 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg)
         timer.Reset();
 #endif
 
-        for (size_t s = tt; s-- > 0;)
+        for (size_t s = tt; s-- > s_min;)
             for (size_t i = 0; i < data[s].size(); ++i)
                 gb.push_back(data[s][i], s);
-        for (size_t s = tt - 1; s-- > 0;)
+        for (size_t s = tt - 1; s-- > s_min;)
             for (size_t i = 0; i < rels_x2m[s].size(); ++i)
                 gb.push_back_x2m(rels_x2m[s][i], s);
     }
 }
 
-SteenrodMRes SteenrodMRes::load(const std::string& filename, int t_trunc)
+SteenrodMRes SteenrodMRes::load(const std::string& db_filename, int t_trunc, int stem_trunc)
 {
-    DbSteenrod db(filename);
+    DbSteenrod db(db_filename);
     db.create_generators("SteenrodMRes");
     db.create_relations("SteenrodMRes");
     db.create_generators_x2m("SteenrodMRes");
@@ -949,9 +950,8 @@ SteenrodMRes SteenrodMRes::load(const std::string& filename, int t_trunc)
     array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     Mod2d data_x2m = db.load_data_x2m("SteenrodMRes");
     array2d basis_degrees_x2m = db.load_basis_degrees_x2m("SteenrodMRes");
-    int latest_s = 0, latest_t = 0;
-    db.latest_st("SteenrodMRes", latest_s, latest_t);
-    return SteenrodMRes(t_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_s, latest_t);
+    auto latest_st = db.latest_st("SteenrodMRes");
+    return SteenrodMRes(t_trunc, stem_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_st);
 }
 
 void ResetDb(const std::string& filename)

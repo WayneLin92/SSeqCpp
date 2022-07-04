@@ -8,7 +8,7 @@ int main()
     using namespace steenrod;
     bench::Timer timer;
 
-#ifdef TO_GUOZHEN
+#ifdef MYDEPLOY
     compute_products(100);
 #else
     compute_products(50);
