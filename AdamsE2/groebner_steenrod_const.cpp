@@ -13,7 +13,7 @@ namespace steenrod {
  * Return -1 if not found.
  * @param indices indices[v_raw] stores the indices of elements of leads with the given v_raw.
  */
-int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, array>& indices, MMod mon)
+int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, int1d>& indices, MMod mon)
 {
     auto key = mon.v_raw();
     auto p = indices.find(key);
@@ -28,7 +28,7 @@ int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64
  *                    class SteenrodMResConst
  ********************************************************/
 
-SteenrodMResConst::SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees) : t_trunc_(t_trunc), s_trunc_(s_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
+SteenrodMResConst::SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, int2d basis_degrees) : t_trunc_(t_trunc), s_trunc_(s_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees))
 {
     if (basis_degrees_.empty())
         basis_degrees_.push_back({0});
@@ -267,9 +267,9 @@ public:
         }
     }
 
-    void load_products(const std::string& table_prefix, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h) const
+    void load_products(const std::string& table_prefix, std::map<int, Mod2d>& map, std::map<int, int3d>& map_h) const
     {
-        array id2s = get_column_int(table_prefix + "_generators", "s", "ORDER BY id;");
+        int1d id2s = get_column_int(table_prefix + "_generators", "s", "ORDER BY id;");
         Statement stmt(*this, "SELECT id, id_ind, prod, prod_h FROM " + table_prefix + "_generators_products ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
@@ -277,7 +277,7 @@ public:
             int id_ind = stmt.column_int(1);
             Mod prod;
             prod.data = stmt.column_blob_tpl<MMod>(2);
-            array prod_h = stmt.column_blob_tpl<int>(3);
+            int1d prod_h = stmt.column_blob_tpl<int>(3);
             if (map[id_ind].size() <= s) {
                 map[id_ind].resize(size_t(s + 1));
                 map_h[id_ind].resize(size_t(s + 1));
@@ -287,9 +287,9 @@ public:
         }
     }
 
-    array2d load_basis_degrees(const std::string& table_prefix) const
+    int2d load_basis_degrees(const std::string& table_prefix) const
     {
-        array2d result;
+        int2d result;
         Statement stmt(*this, "SELECT s, t FROM " + table_prefix + "_generators ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int s = stmt.column_int(0), t = stmt.column_int(1);
@@ -345,15 +345,15 @@ SteenrodMResConst SteenrodMResConst::load(const std::string& filename)
 {
     DbMResProd db(filename);
     DataMResConst2d data = db.load_data("SteenrodMRes");
-    array2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
+    int2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
     int latest_s = 0, latest_t = 0;
     db.latest_st("SteenrodMRes", latest_s, latest_t);
     return SteenrodMResConst(latest_t, latest_s, std::move(data), std::move(basis_degrees));
 }
 
-array HomToK(const Mod& x)
+int1d HomToK(const Mod& x)
 {
-    array result;
+    int1d result;
     for (MMod m : x.data)
         if (m.deg_m() == 0)
             result.push_back((int)m.v());
@@ -361,7 +361,7 @@ array HomToK(const Mod& x)
 }
 
 /* Compute the products of gens with gens[[leftFactors]] */
-void compute_products_batch(const GenMRes2d& gens, const SteenrodMResConst& gb, const std::map<int, std::vector<std::pair<int, int>>>& leftFactors, std::map<int, Mod2d>& map, std::map<int, array3d>& map_h, DbMResProd& dbProd,
+void compute_products_batch(const GenMRes2d& gens, const SteenrodMResConst& gb, const std::map<int, std::vector<std::pair<int, int>>>& leftFactors, std::map<int, Mod2d>& map, std::map<int, int3d>& map_h, DbMResProd& dbProd,
                             const std::string& table_prefix)
 {
     static Mod1d tmp_x1(ut::FUTURE_NUM_THREADS);
@@ -531,15 +531,15 @@ void compute_products_ind()
         num_gens += (int)gens[i].size();
 
     std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
-    std::map<int, array3d> map_h;
+    std::map<int, int3d> map_h;
 
     DbMResProd dbProd("AdamsE2Prod.db");
     dbProd.create_products(table_SteenrodMRes, gens);
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 
-    array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 ORDER BY id");
+    int1d id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 ORDER BY id");
     std::map<int, std::vector<std::pair<int, int>>> leftFactors;
-    array ids;
+    int1d ids;
     for (size_t s = 1; s < gens.size(); ++s) {
         for (size_t i = 0; i < gens[s].size(); ++i) {
             int id = gens[s][i].id;
@@ -573,18 +573,18 @@ void compute_products(int t_trunc)
         num_gens += (int)gens[i].size();
 
     std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
-    std::map<int, array3d> map_h;
+    std::map<int, int3d> map_h;
 
     DbMResProd dbProd("AdamsE2Prod.db");
     dbProd.create_products(table_SteenrodMRes, gens);
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 
-    array id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 and t<=" + std::to_string(t_trunc) + " ORDER BY id");
+    int1d id_inds = dbProd.get_column_int(table_SteenrodMRes + "_generators", "id", "WHERE indecomposable=1 and t<=" + std::to_string(t_trunc) + " ORDER BY id");
     for (size_t s = 1; s < gens.size(); ++s) {
         std::cout << "s1=" << s << std::endl;
 
         /* Compute the indecomposables in s */
-        array2d fx;
+        int2d fx;
         for (const auto& [i, map_h_i] : map_h) {
             if (map_h_i.size() <= (size_t)s)
                 continue;
@@ -597,20 +597,20 @@ void compute_products(int t_trunc)
                 }
             }
         }
-        array2d image = lina::GetSpace(fx);
-        array r = ut::int_range((int)gens[s].size());
-        array lead_image;
-        for (const array& a : image)
+        int2d image = lina::GetSpace(fx);
+        int1d r = ut::int_range((int)gens[s].size());
+        int1d lead_image;
+        for (const int1d& a : image)
             lead_image.push_back(a[0]);
         std::sort(lead_image.begin(), lead_image.end());
-        array indices = lina::AddVectors(r, lead_image);
+        int1d indices = lina::AddVectors(r, lead_image);
         for (size_t i = 0; i < gens[s].size(); ++i)
             if (std::binary_search(id_inds.begin(), id_inds.end(), gens[s][i].id))
                 indices.push_back((int)i);
         std::sort(indices.begin(), indices.end());
 
         std::map<int, std::vector<std::pair<int, int>>> leftFactors;
-        array ids;
+        int1d ids;
         for (size_t i = 0; i < indices.size(); ++i) {
             if (indices[i] >= (int)gens[s].size())
                 break;

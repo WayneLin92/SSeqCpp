@@ -23,7 +23,7 @@ public:
         delete_from(table_prefix + "_basis_products");
     }
 
-    void load_basis_v2(const std::string& table_prefix, int t_max, Mon1d& basis, array& t_basis) const
+    void load_basis_v2(const std::string& table_prefix, int t_max, Mon1d& basis, int1d& t_basis) const
     {
         Statement stmt(*this, "SELECT mon, t FROM " + table_prefix + "_basis" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY id");
         int count = 0;
@@ -62,9 +62,9 @@ uint64_t hash<GenPow>(const GenPow& p)
 }
 }  // namespace ut
 
-array PolyHash2indices(const PolyRevlex& poly, std::map<uint64_t, int>& hash2index)
+int1d PolyHash2indices(const PolyRevlex& poly, std::map<uint64_t, int>& hash2index)
 {
-    array result;
+    int1d result;
     for (const Mon& m : poly.data) {
         result.push_back(hash2index.at(ut::hash(m)));
     }
@@ -81,15 +81,15 @@ int main()
     using namespace alg;
     MyDB db("AdamsE2Export.db");
 
-    int t_max = 100;
+    int t_max = 119;
 
     AdamsDeg1d gen_degs = db.load_gen_adamsdegs("AdamsE2");
     PolyRevlex1d polys = db.load_gb("AdamsE2", t_max);
     Mon1d basis;
-    array t_basis;
+    int1d t_basis;
     db.load_basis_v2("AdamsE2", t_max, basis, t_basis);
 
-    GroebnerRevlex gb(184, polys);
+    GroebnerRevlex gb(t_max, polys);
 
     std::map<uint64_t, int> hash2index;
     for (size_t i = 0; i < basis.size(); ++i) {
@@ -113,7 +113,7 @@ int main()
                 PolyRevlex poly_prod = gb.Reduce(PolyRevlex::Mon_(basis[i]) * PolyRevlex::Mon_(basis[j]));
 
                 //std::cout << "(" << basis[i] << ") * (" << basis[j] << ") = " << myio::Serialize(poly_prod.data) << '\n';
-                array prod = PolyHash2indices(poly_prod, hash2index);
+                int1d prod = PolyHash2indices(poly_prod, hash2index);
                 stmt.bind_int(1, (int)i);
                 stmt.bind_int(2, (int)j);
                 stmt.bind_str(3, myio::Serialize(prod));

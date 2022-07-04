@@ -15,10 +15,10 @@
 #include <vector>
 
 namespace steenrod {
-using array = std::vector<int>;
-using array2d = std::vector<array>;
-using array3d = std::vector<array2d>;
-using array4d = std::vector<array3d>;
+using int1d = std::vector<int>;
+using int2d = std::vector<int1d>;
+using int3d = std::vector<int2d>;
+using int4d = std::vector<int3d>;
 
 /********************************************************
  *                  class Milnor

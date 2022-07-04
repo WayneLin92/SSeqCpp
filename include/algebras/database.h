@@ -36,9 +36,9 @@ struct is_vector<std::vector<T>> : std::true_type
  */
 namespace myio {
 
-using array = std::vector<int>;
+using int1d = std::vector<int>;
 
-inline std::string Serialize(const array& arr)
+inline std::string Serialize(const int1d& arr)
 {
     return StrCont("", ",", "", "", arr, [](int i) { return std::to_string(i); });
 }
@@ -50,7 +50,7 @@ T Deserialize(const std::string& str)
 }
 
 template <>
-array Deserialize<array>(const std::string& str);
+int1d Deserialize<int1d>(const std::string& str);
 
 class Database;
 

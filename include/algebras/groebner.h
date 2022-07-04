@@ -208,7 +208,7 @@ class GbCriPairs
 private:
     int deg_trunc_;                                                      /* Truncation degree */
     CriticalPair2d pairs_;                                               /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    array2d min_pairs_;                                                  /* Minimal generating set of `pairs_` */
+    int2d min_pairs_;                                                  /* Minimal generating set of `pairs_` */
     std::map<int, CriticalPair2d> buffer_min_pairs_;                     /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
     std::map<int, std::unordered_set<uint64_t>> buffer_trivial_syz_;     /* Trivial Syzyzies */
@@ -405,7 +405,7 @@ class Groebner  // TODO: add gen_degs
 {
 private:
     using TypeIndexKey = int;
-    using TypeIndices = std::unordered_map<TypeIndexKey, array>;
+    using TypeIndices = std::unordered_map<TypeIndexKey, int1d>;
 
 public:
     using Poly = Polynomial<FnCmp>;
@@ -416,7 +416,7 @@ private:
     GbCriPairs gb_pairs_; /* Groebner basis of critical pairs */
 
     /* Caches */
-    array data_degs_;     /* Degrees of data_. */
+    int1d data_degs_;     /* Degrees of data_. */
     Mon1d leads_;         /* Leading monomials */
     MonTrace1d traces_;   /* Cache for fast divisibility test */
     TypeIndices indices_; /* Cache for fast divisibility test */
@@ -456,7 +456,7 @@ public:
     }
 
     /* Initialize from `polys` and `gb_pairs` where `polys` already forms a Groebner basis. */
-    Groebner(Poly1d polys, array polys_degs, GbCriPairs gb_pairs) : data_(std::move(polys)), gb_pairs_(std::move(gb_pairs)), data_degs_(std::move(polys_degs))  // TODO: Cache degrees
+    Groebner(Poly1d polys, int1d polys_degs, GbCriPairs gb_pairs) : data_(std::move(polys)), gb_pairs_(std::move(gb_pairs)), data_degs_(std::move(polys_degs))  // TODO: Cache degrees
     {
         for (int i = 0; i < (int)data_.size(); ++i) {
             leads_.push_back(data_[i].GetLead());
@@ -547,7 +547,7 @@ public: /* Getters and Setters */
         indices_[Key(m)].push_back((int)data_.size());
         data_.push_back(std::move(g));
     }
-    void CacheDegs(const array& gen_degs)  ////
+    void CacheDegs(const int1d& gen_degs)  ////
     {
         data_degs_.clear();
         for (auto& g : data_)
@@ -727,7 +727,7 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, c
 }
 
 template <typename FnCmp>
-void AddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, const array& gen_degs)
+void AddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, const int1d& gen_degs)
 {
     TplAddRels(
         gb, rels, deg, [](const Mon&, const Mon&) { return true; }, [&gen_degs](int i) { return gen_degs[i]; });
@@ -745,7 +745,7 @@ namespace detail {
      * the end location of the first part.
      */
     template <typename TypeMonIter>
-    int GetPart1Deg(const TypeMonIter mon_begin, const TypeMonIter mon_end, const array& gen_degs, TypeMonIter& p)
+    int GetPart1Deg(const TypeMonIter mon_begin, const TypeMonIter mon_end, const int1d& gen_degs, TypeMonIter& p)
     {
         int result = 0;
         for (p = mon_begin; p != mon_end && !(p->gen & GEN_SUB); ++p)
@@ -785,7 +785,7 @@ struct CmpHomology
 {
     using submo = FnCmp;
     static constexpr std::string_view name = "Homology";
-    inline static array gen_degs;
+    inline static int1d gen_degs;
     template <typename Type1, typename Type2>
     static bool cmp(const Type1& m1, const Type2& m2)
     {
@@ -818,13 +818,13 @@ struct CmpHomology
 
 namespace detail {
     template <typename FnCmp>
-    void AddRelsIdeal(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const array& gen_degs, const array& gen_degs_y)
+    void AddRelsIdeal(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
     {
         TplAddRels(
             gb, rels, deg, [](const Mon& m1, const Mon& m2) { return !(m1.back().gen & GEN_IDEAL) && !(m2.back().gen & GEN_IDEAL); }, [&gen_degs, &gen_degs_y](int i) { return ((i & GEN_IDEAL) ? gen_degs_y[i - GEN_IDEAL] : gen_degs[i]); });
     }
     template <typename FnCmp>
-    void AddRelsModule(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const array& gen_degs, const array& gen_degs_y)
+    void AddRelsModule(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
     {
         TplAddRels(
             gb, rels, deg, [](const Mon& m1, const Mon& m2) { return !((m1.back().gen & GEN_IDEAL) && (m2.back().gen & GEN_IDEAL) && (m1.back().gen != m2.back().gen)); },
@@ -857,7 +857,7 @@ namespace detail {
  * The degree of the basis of $R^n$ is determined by `basis_degs`.
  */
 template <typename FnCmp>
-std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCmp>& gb, std::vector<std::vector<Polynomial<FnCmp>>>& vectors, const array& gen_degs, const array& basis_degs)
+std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCmp>& gb, std::vector<std::vector<Polynomial<FnCmp>>>& vectors, const int1d& gen_degs, const int1d& basis_degs)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -871,7 +871,7 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
 
     /* Convert each vector v into a relation \\sum v_iy_i */
     PolyI1d rels;
-    array degs;
+    int1d degs;
     for (auto& v : vectors) {
         PolyI rel;
         for (size_t i = 0; i < basis_degs.size(); ++i)
@@ -890,7 +890,7 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
     }
     ut::RemoveEmptyElements(vectors);
     if (!vectors.empty()) {
-        array indices = ut::int_range((int)vectors.size());
+        int1d indices = ut::int_range((int)vectors.size());
         std::sort(indices.begin(), indices.end(), [&degs](int i, int j) { return degs[i] < degs[j]; });
 
         /* Add relations ordered by degree to gb1 */
@@ -919,7 +919,7 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
  * The result is truncated by `deg<=deg_max`.
  */
 template <typename FnCmp>
-std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& polys, const array& gen_degs, int deg_max)
+std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& polys, const int1d& gen_degs, int deg_max)
 {
     using Poly = Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
@@ -933,7 +933,7 @@ std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, co
     if (polys.empty())
         return result;
     PolyI1d rels;
-    array gen_degs_y;
+    int1d gen_degs_y;
     int n = (int)polys.size();
 
     /* Add relations Xi=polys[i] to gb to obtain gb1 */
@@ -1066,16 +1066,16 @@ void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector
             gb_AoAZ_old_size = gb_AoAZ.size();
             std::map<MayDeg, Mon1d> basis_AoAZ_t = ExtendBasis<FnCmp>(leadings_AoAZ, gen_degs, basis_AoAZ, t);
             for (auto& [deg, b_deg] : basis_AoAZ_t) {
-                array2d map_diff;
+                int2d map_diff;
                 for (const Mon& m : b_deg) {
                     Poly diff_m = gb.Reduce(GetDiff(m, gen_diffs));
                     map_diff.push_back(alg::hash1d(diff_m.data));
                 }
-                array2d image_diff, kernel_diff, g_diff;
+                int2d image_diff, kernel_diff, g_diff;
                 lina::SetLinearMap(map_diff, image_diff, kernel_diff, g_diff);
 
                 /* Add x_i and the relations for x_i */
-                for (const array& k : kernel_diff) {
+                for (const int1d& k : kernel_diff) {
                     gen_names_h.push_back("x_{" + std::to_string(gen_degs_h.size()) + "}");
                     gen_degs_h.push_back(deg);
                     gen_repr_h.push_back({Indices2Poly(k, b_deg)});

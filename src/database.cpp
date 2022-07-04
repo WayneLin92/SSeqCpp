@@ -14,9 +14,9 @@
 namespace myio {
 
 template <>
-array Deserialize<array>(const std::string& str)
+int1d Deserialize<int1d>(const std::string& str)
 {
-    array result;
+    int1d result;
     if (str.empty())
         return result;
     std::stringstream ss(str);

@@ -6,9 +6,9 @@
 
 namespace myio {
 
-using array = std::vector<int>;
-using array2d = std::vector<array>;
-using array3d = std::vector<array2d>;
+using int1d = std::vector<int>;
+using int2d = std::vector<int1d>;
+using int3d = std::vector<int2d>;
 
 template <typename FwdIt, typename FnStr>
 std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str) // TODO: make a performant version
@@ -82,29 +82,29 @@ void load_vector(std::istream& sin, Container& cont, const char* left, const cha
     }
 }
 
-inline void load_array(std::istream& sin, array& a)
+inline void load_array(std::istream& sin, int1d& a)
 {
     load_vector(sin, a, "(", ",", ")");
 }
-inline void load_array2d(std::istream& sin, array2d& a)
+inline void load_array2d(std::istream& sin, int2d& a)
 {
     load_vector(sin, a, "[", ",", "]", load_array);
 }
-inline void load_array3d(std::istream& sin, array3d& a)
+inline void load_array3d(std::istream& sin, int3d& a)
 {
     load_vector(sin, a, "{", ",", "}", load_array2d);
 }
-inline std::istream& operator>>(std::istream& sin, array& a)
+inline std::istream& operator>>(std::istream& sin, int1d& a)
 {
     load_array(sin, a);
     return sin;
 }
-inline std::istream& operator>>(std::istream& sin, array2d& a)
+inline std::istream& operator>>(std::istream& sin, int2d& a)
 {
     load_array2d(sin, a);
     return sin;
 }
-inline std::istream& operator>>(std::istream& sin, array3d& a)
+inline std::istream& operator>>(std::istream& sin, int3d& a)
 {
     load_array3d(sin, a);
     return sin;

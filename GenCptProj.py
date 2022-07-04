@@ -40,6 +40,7 @@ filenames_AdamsE2Prod = [
 filenames_AdamsE2Export = [
 "./include/algebras/benchmark.h",
 "./include/algebras/database.h",
+"./include/algebras/dbAdamsSS.h",
 "./include/algebras/myexception.h",
 "./include/algebras/myio.h",
 "./include/algebras/linalg.h",
@@ -49,6 +50,7 @@ filenames_AdamsE2Export = [
 "./src/algebras.cpp",
 "./src/linalg.cpp",
 "./src/database.cpp",
+"./src/dbAdamsSS.cpp",
 "./src/myio.cpp",
 "./src/steenrod.cpp",
 "./src/utility.cpp",

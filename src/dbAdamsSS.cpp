@@ -46,7 +46,7 @@ Mon1d Deserialize<Mon1d>(const std::string& str)
 }
 
 
-void DbAdamsSS::save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::array& gen_repr) const
+void DbAdamsSS::save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::int1d& gen_repr) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, repr, s, t) VALUES (?1, ?2, ?3, ?4);");
 

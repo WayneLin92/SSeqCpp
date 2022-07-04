@@ -17,7 +17,7 @@ public:
 
 public:
     /* From SteenrodMRes */
-    void load_indecomposables(const std::string& table_prefix, alg::array& array_id, alg::AdamsDeg1d& gen_degs) const
+    void load_indecomposables(const std::string& table_prefix, alg::int1d& array_id, alg::AdamsDeg1d& gen_degs) const
     {
         Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators WHERE indecomposable=1 ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
@@ -33,7 +33,7 @@ public:
      *
      * From SteenrodMRes
      */
-    void load_id_converter(const std::string& table_prefix, alg::array2d& loc2glo, alg::pairint1d& glo2loc) const
+    void load_id_converter(const std::string& table_prefix, alg::int2d& loc2glo, alg::pairii1d& glo2loc) const
     {
         Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_generators ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
@@ -49,23 +49,23 @@ public:
      *
      * From SteenrodMRes
      */
-    std::map<std::pair<int, int>, alg::array> load_products_h(const std::string& table_prefix) const
+    std::map<std::pair<int, int>, alg::int1d> load_products_h(const std::string& table_prefix) const
     {
-        std::map<std::pair<int, int>, alg::array> result;
+        std::map<std::pair<int, int>, alg::int1d> result;
         Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_generators_products;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int id_ind = stmt.column_int(1);
-            alg::array prod_h = stmt.column_blob_tpl<int>(2);
+            alg::int1d prod_h = stmt.column_blob_tpl<int>(2);
             result[std::make_pair(id_ind, id)] = std::move(prod_h);
         }
         return result;
     }
 };
 
-alg::array mul(const std::map<std::pair<int, int>, alg::array>& map_h, int id_ind, const alg::array& repr)
+alg::int1d mul(const std::map<std::pair<int, int>, alg::int1d>& map_h, int id_ind, const alg::int1d& repr)
 {
-    alg::array result;
+    alg::int1d result;
     for (int id : repr) {
         auto it = map_h.find(std::make_pair(id_ind, id));
         if (it != map_h.end())
@@ -74,23 +74,20 @@ alg::array mul(const std::map<std::pair<int, int>, alg::array>& map_h, int id_in
     return result;
 }
 
-void AdamsE2Export()
+void AdamsE2Export(const std::string& db_in, const std::string& db_out)
 {
     using namespace alg;
-#ifdef MYDEPLOY
-    MyDB dbProd("AdamsE2Prod.db");
-#else
-    MyDB dbProd("AdamsE2Prod.db");
-#endif
+    MyDB dbProd(db_in);
+
     AdamsDeg1d gen_degs;
-    array gen_reprs;
+    int1d gen_reprs;
     dbProd.load_indecomposables("SteenrodMRes", gen_reprs, gen_degs);
     auto map_h_dual = dbProd.load_products_h("SteenrodMRes");
 
-    array2d loc2glo;
-    pairint1d glo2loc;
+    int2d loc2glo;
+    pairii1d glo2loc;
     dbProd.load_id_converter("SteenrodMRes", loc2glo, glo2loc);
-    std::map<std::pair<int, int>, array> map_h;
+    std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
         int s_i = glo2loc[p.second].first - glo2loc[p.first].first;
         for (int i : arr)
@@ -100,7 +97,7 @@ void AdamsE2Export()
     PolyRevlex1d gb;
     Mon2d leads;
     std::map<AdamsDeg, Mon1d> basis;
-    std::map<AdamsDeg, array2d> repr;
+    std::map<AdamsDeg, int2d> repr;
 
     /* Add new basis */
     basis[AdamsDeg{0, 0}].push_back(Mon());
@@ -111,7 +108,7 @@ void AdamsE2Export()
     /* Add new basis */
     for (int t = 1; t <= t_trunc; t++) {
         std::map<AdamsDeg, Mon1d> basis_new;
-        std::map<AdamsDeg, array2d> repr_new;
+        std::map<AdamsDeg, int2d> repr_new;
         std::cout << "t=" << t << '/' << t_trunc << '\n';
 
         /* Consider all possible basis in degree t */
@@ -144,18 +141,18 @@ void AdamsE2Export()
             auto indices = ut::size_t_range(it->second.size());
             std::sort(indices.begin(), indices.end(), [&it](size_t a, size_t b) { return CmpRevlex::template cmp<Mon, Mon>(it->second[a], it->second[b]); });
             Mon1d basis_new_d;
-            array2d repr_new_d;
+            int2d repr_new_d;
             for (size_t i = 0; i < indices.size(); ++i) {
                 basis_new_d.push_back(it->second[indices[i]]);
                 repr_new_d.push_back(repr_new.at(it->first)[indices[i]]);
             }
 
-            array2d image, kernel, g;
+            int2d image, kernel, g;
             lina::SetLinearMap(repr_new_d, image, kernel, g);
-            array lead_kernel;
+            int1d lead_kernel;
 
             /* Add to groebner */
-            for (const array& k : kernel) {
+            for (const int1d& k : kernel) {
                 lead_kernel.push_back(k[0]);
                 gb.push_back(PolyRevlex::Sort(Indices2Poly(k, basis_new_d)));
                 int index = gb.back().data.front().front().gen;
@@ -166,7 +163,7 @@ void AdamsE2Export()
 
             /* Add to basis_H */
             std::sort(lead_kernel.begin(), lead_kernel.end());
-            array index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
+            int1d index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
             for (int i : index_basis) {
                 basis[it->first].push_back(std::move(basis_new_d[i]));
                 repr[it->first].push_back(std::move(repr_new_d[i]));
@@ -181,7 +178,7 @@ void AdamsE2Export()
         throw MyException(0, "BUG");
 
     /* Save the results */
-    MyDB dbE2("AdamsE2Export.db");
+    MyDB dbE2(db_out);
     dbE2.create_generators_and_delete("AdamsE2");
     dbE2.create_relations_and_delete("AdamsE2");
     dbE2.create_basis_and_delete("AdamsE2");
@@ -195,8 +192,17 @@ void AdamsE2Export()
     dbE2.end_transaction();
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    AdamsE2Export();
+    std::string db_in = "AdamsE2Prod.db";
+    std::string db_out = "AdamsE2Export.db";
+
+    if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
+        std::cout << "Usage:\n  AdamsE2Export <db_in> <db_out>\n\n";
+        std::cout << "Default values:\n  db_in = " << db_in << "\n  db_out = " << db_out << "\n\n";
+        std::cout << "Version:\n  1.0 (2022-7-4)" << std::endl;
+        return 0;
+    }
+    AdamsE2Export(db_in, db_out);
     return 0;
 }

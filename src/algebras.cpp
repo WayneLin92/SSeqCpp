@@ -197,9 +197,9 @@ Mon LCM(const Mon& mon1, const Mon& mon2)
     return result;
 }
 
-array Poly2Indices(const Mon1d& poly, const Mon1d& basis)
+int1d Poly2Indices(const Mon1d& poly, const Mon1d& basis)
 {
-    array result;
+    int1d result;
     for (const Mon& mon : poly) {
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifndef NDEBUG
@@ -213,7 +213,7 @@ array Poly2Indices(const Mon1d& poly, const Mon1d& basis)
     return result;
 }
 
-Mon1d Indices2Poly(const array& indices, const Mon1d& basis)
+Mon1d Indices2Poly(const int1d& indices, const Mon1d& basis)
 {
     Mon1d result;
     for (int i : indices)

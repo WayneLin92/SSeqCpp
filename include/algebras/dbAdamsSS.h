@@ -1,4 +1,4 @@
-#include "groebner.h"
+#include "algebras.h"
 #include "database.h"
 #include "myio.h"
 #include <map>
@@ -66,7 +66,7 @@ public:
     }
 
 public:
-    void save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::array& gen_repr) const;
+    void save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::int1d& gen_repr) const;
     void save_gb(const std::string& table_prefix, const alg::PolyRevlex1d& gb, const alg::AdamsDeg1d& gen_degs) const;
     void save_basis(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis) const;
 

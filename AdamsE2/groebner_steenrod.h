@@ -79,7 +79,7 @@ public:
     */
     void AddToBuffers(const MMod1d& leads, MMod mon, int t_v);
 
-    void init(const MMod1d& leads, const array& basis_degrees, int t_min_buffer);
+    void init(const MMod1d& leads, const int1d& basis_degrees, int t_min_buffer);
 };
 using CriMilnors1d = std::vector<CriMilnors>;
 
@@ -109,7 +109,7 @@ struct Filtr
 
 class GroebnerX2m
 {
-    using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
+    using TypeIndices = std::vector<std::unordered_map<uint64_t, int1d>>;
 
 private:
     int t_trunc_, stem_trunc_;
@@ -120,10 +120,10 @@ private:
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
-    array2d basis_degrees_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
+    int2d basis_degrees_; /* `basis_degrees_x2m_[s][i]` is the degree of w_{s,i} */
 
 public:
-    GroebnerX2m(int t_trunc, int stem_trunc, Mod2d data, array2d basis_degrees, std::map<int, int>& latest_st);
+    GroebnerX2m(int t_trunc, int stem_trunc, Mod2d data, int2d basis_degrees, std::map<int, int>& latest_st);
 
 public:
     void resize(size_t s)
@@ -155,12 +155,12 @@ public:
         gb_[s].push_back(std::move(g));
     }
 
-    const array& basis_degrees(size_t s)
+    const int1d& basis_degrees(size_t s)
     {
         return basis_degrees_[s];
     }
 
-    const array2d& basis_degrees()
+    const int2d& basis_degrees()
     {
         return basis_degrees_;
     }
@@ -222,7 +222,7 @@ inline void Reduce(Mod& x, const DataMRes1d& y, Mod& tmp)
 
 class SteenrodMRes
 {
-    using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
+    using TypeIndices = std::vector<std::unordered_map<uint64_t, int1d>>;
 
 private:
     int t_trunc_;
@@ -234,13 +234,13 @@ private:
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
-    array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
+    int2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
 
     GroebnerX2m gb_x2m_;
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, array2d basis_degrees, Mod2d data_x2m, array2d basis_degrees_x2m, std::map<int, int>& latest_st);
+    SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st);
     static SteenrodMRes load(const std::string& db_filename, int t_trunc, int stem_trunc);
 
 public:
@@ -249,7 +249,7 @@ public:
         return t_trunc_;
     }
 
-    const array& basis_degrees(size_t s) const
+    const int1d& basis_degrees(size_t s) const
     {
         return basis_degrees_[s];
     }
@@ -270,12 +270,12 @@ public:
         return (int)dim;
     }
 
-    const array& basis_degrees_x2m(size_t s)
+    const int1d& basis_degrees_x2m(size_t s)
     {
         return gb_x2m_.basis_degrees(s);
     }
 
-    const array2d& basis_degrees_x2m()
+    const int2d& basis_degrees_x2m()
     {
         return gb_x2m_.basis_degrees();
     }

@@ -36,7 +36,7 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
 
 class SteenrodMResConst
 {
-    using TypeIndices = std::vector<std::unordered_map<uint64_t, array>>;
+    using TypeIndices = std::vector<std::unordered_map<uint64_t, int1d>>;
 
 private:
     int t_trunc_, s_trunc_; /* t < t_trunc_ or (t == t_trunc_ and s >= s_trunc_) */
@@ -45,11 +45,11 @@ private:
     MMod2d leads_;        /* Leading monomials */
     TypeIndices indices_; /* Cache for fast divisibility test */
 
-    array2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
+    int2d basis_degrees_; /* `basis_degrees[s][i]` is the degree of v_{s,i} */
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, array2d basis_degrees);
+    SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, int2d basis_degrees);
     static SteenrodMResConst load(const std::string& filename);
 
 public:
@@ -72,7 +72,7 @@ public:
         return t;
     }
 
-    const array& basis_degrees(size_t s) const
+    const int1d& basis_degrees(size_t s) const
     {
         return basis_degrees_[s];
     }

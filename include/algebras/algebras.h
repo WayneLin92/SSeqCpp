@@ -20,12 +20,12 @@ namespace alg {
 
 inline constexpr int DEG_MAX = INT_MAX;
 
-using array = std::vector<int>;
-using array2d = std::vector<array>;
-using array3d = std::vector<array2d>;
-using array4d = std::vector<array3d>;
-using pairint = std::pair<int, int>;
-using pairint1d = std::vector<pairint>;
+using int1d = std::vector<int>;
+using int2d = std::vector<int1d>;
+using int3d = std::vector<int2d>;
+using int4d = std::vector<int3d>;
+using pairii = std::pair<int, int>;
+using pairii1d = std::vector<pairii>;
 
 /** The 3d grading for the May spectral sequence.
  *
@@ -195,7 +195,7 @@ inline int TplGetDeg(const Mon& mon, const FnGenDeg& _gen_deg)
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
-inline int GetDeg(const Mon& mon, const array& gen_degs)
+inline int GetDeg(const Mon& mon, const int1d& gen_degs)
 {
     return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i]; });
 }
@@ -439,7 +439,7 @@ struct Polynomial
         return data.front();
     }
 
-    int GetDeg(const array& gen_degs) const
+    int GetDeg(const int1d& gen_degs) const
     {
         if (data.empty())
             return -10000;
@@ -580,9 +580,9 @@ inline uint64_t hash(const Mon& mon)
 /**
  * Convert a polynomial to an array of hashes of the monomials.
  */
-inline array hash1d(const Mon1d& poly)
+inline int1d hash1d(const Mon1d& poly)
 {
-    array result;
+    int1d result;
     for (auto& mon : poly)
         result.push_back((int)hash(mon));
     std::sort(result.begin(), result.end());
@@ -651,7 +651,7 @@ Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& 
  * @param map_gen_id `map_gen_id[i]` is the new id that substitutes the old id `i`.
  */
 template <typename FnCmp>
-Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
+Polynomial<FnCmp> subs(const Mon1d& data, const int1d& map_gen_id)
 {
     using Poly = Polynomial<FnCmp>;
     Poly result;
@@ -666,8 +666,8 @@ Polynomial<FnCmp> subs(const Mon1d& data, const array& map_gen_id)
     return result;
 }
 
-array Poly2Indices(const Mon1d& poly, const Mon1d& basis);
-Mon1d Indices2Poly(const array& indices, const Mon1d& basis);
+int1d Poly2Indices(const Mon1d& poly, const Mon1d& basis);
+Mon1d Indices2Poly(const int1d& indices, const Mon1d& basis);
 
 }  // namespace alg
 
