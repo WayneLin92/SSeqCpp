@@ -218,7 +218,7 @@ GroebnerX2m::GroebnerX2m(int t_trunc, int stem_trunc, Mod2d data, array2d basis_
     }
 
     for (size_t s = 0; s < gb_.size(); ++s) {
-        criticals_.push_back(CriMilnors(t_trunc_));
+        criticals_.push_back(CriMilnors(std::min(t_trunc_, int(s) + stem_trunc_ + 2)));
         criticals_.back().init(leads_[s], basis_degrees_[s], latest_st[(int)s] + 1);
     }
 }
@@ -325,7 +325,7 @@ SteenrodMRes::SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, array2d
     }
 
     for (size_t s = 0; s < gb_.size(); ++s) {
-        criticals_.push_back(CriMilnors(t_trunc_));
+        criticals_.push_back(CriMilnors(std::min(t_trunc_, int(s) + stem_trunc_ + 2)));
         criticals_.back().init(leads_[s], basis_degrees_[s], latest_st[(int)s] + 1);
     }
 }

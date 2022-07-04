@@ -39,7 +39,8 @@ int main(int argc, char** argv)
 
     if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
         std::cout << "Usage:\n  AdamsE2 <t_max> <stem_max> <db_filename> <num_threads>\n\n";
-        std::cout << "Default values:\n  t_max = " << t_max << "\n  stem_max = " << stem_max << "\n  db_filename = " << db_filename << "\n  num_threads = " << num_threads << std::endl;
+        std::cout << "Default values:\n  t_max = " << t_max << "\n  stem_max = " << stem_max << "\n  db_filename = " << db_filename << "\n  num_threads = " << num_threads << "\n\n";
+        std::cout << "Version:\n  2.1 (2022-7-4)" << std::endl;
         return 0;
     }
     if (argc >= 2) {
