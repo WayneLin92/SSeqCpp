@@ -24,7 +24,7 @@ using int4d = std::vector<int3d>;
  *                  class Milnor
  ********************************************************/
 
-inline constexpr int DIM_MAX_RES = 300;  /* Assume that we never compute the resolution of the Steenrod algebra over this */
+inline constexpr int DIM_MAX_RES = 400;  /* Assume that we never compute the resolution of the Steenrod algebra over this */
 inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
 inline constexpr size_t XI_MAX_MULT = 8; /* Multiplication support up to \xi_7 */
 
@@ -367,7 +367,7 @@ struct Milnor
 {
     MMilnor1d data;
     Milnor() {}
-    explicit Milnor(MMilnor m) : data({m}) {}
+    Milnor(MMilnor m) : data({m}) {}
 
     static Milnor P(int i, int j)
     {

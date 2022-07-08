@@ -9,12 +9,12 @@ using namespace alg;
 
 inline std::string Serialize(const Mon& mon)
 {
-    return StrCont("", ",", "", "", mon, [](GenPow p) { return std::to_string(p.gen) + "," + std::to_string(p.exp); });
+    return StrCont("", ",", "", "", mon, [](GE p) { return std::to_string(p.g()) + "," + std::to_string(p.e()); });
 }
 
 inline std::string Serialize(const Mon1d& obj)
 {
-    if (obj.size() == 1 && obj[0].empty())
+    if (obj.size() == 1 && obj[0].data.empty())
         return ";";
     return StrCont("", ";", "", "", obj, [](const Mon& mon) { return Serialize(mon); });
 }
@@ -67,12 +67,12 @@ public:
 
 public:
     void save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::int1d& gen_repr) const;
-    void save_gb(const std::string& table_prefix, const alg::PolyRevlex1d& gb, const alg::AdamsDeg1d& gen_degs) const;
+    void save_gb(const std::string& table_prefix, const Poly1d& gb, const alg::AdamsDeg1d& gen_degs) const;
     void save_basis(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis) const;
 
 public:
     AdamsDeg1d load_gen_adamsdegs(const std::string& table_prefix) const;
-    PolyRevlex1d load_gb(const std::string& table_prefix, int t_max) const;
+    Poly1d load_gb(const std::string& table_prefix, int t_max) const;
     std::map<AdamsDeg, Mon1d> load_basis(const std::string& table_prefix) const;
 };
 

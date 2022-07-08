@@ -64,10 +64,6 @@ public:
     {
         return t_trunc_;
     }
-    bool empty_min_pairs_for_gb(int t) const
-    {
-        return buffer_min_pairs_.find(t) == buffer_min_pairs_.end();
-    }
     /* Return both critical pairs and critical singles */
     CriMilnor1d Criticals(int t);
 

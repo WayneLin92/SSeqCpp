@@ -9,8 +9,8 @@
 #include "myexception.h"
 #include "utility.h"
 #include <array>
-#include <queue>
 #include <climits>
+#include <queue>
 
 /**
  * The namespace `alg` provides the basis types for monomials and polynomials.
@@ -27,6 +27,8 @@ using int4d = std::vector<int3d>;
 using pairii = std::pair<int, int>;
 using pairii1d = std::vector<pairii>;
 
+using uint1d = std::vector<uint32_t>;
+
 /** The 3d grading for the May spectral sequence.
  *
  * v is the complement degree of the May degree.
@@ -36,6 +38,9 @@ using pairii1d = std::vector<pairii>;
 struct MayDeg
 {
     int s, t, v;
+    MayDeg() : s(0), t(0), v(0) {}
+    MayDeg(int s_, int t_, int v_) : s(s_), t(t_), v(v_) {}
+
     bool operator<(const MayDeg& rhs) const
     {
         if (t < rhs.t)
@@ -96,6 +101,8 @@ using MayDeg1d = std::vector<MayDeg>;
 struct AdamsDeg
 {
     int s, t;
+    AdamsDeg() : s(0), t(0) {}
+    AdamsDeg(int s_, int t_) : s(s_), t(t_) {}
     bool operator<(const AdamsDeg& rhs) const
     {
         if (t < rhs.t)
@@ -141,293 +148,217 @@ struct AdamsDeg
 };
 using AdamsDeg1d = std::vector<AdamsDeg>;
 
-/********************************************************
- *                      Monomials
- ********************************************************/
 /** \defgroup Monomials Monomials
  * ------------------------------------------- @{
  */
+/********************************************************
+ *                      Monomials
+ ********************************************************/
 
-/**
- * A factor of a monomial which represents a power of a generator.
- */
-struct GenPow
+struct GE
 {
-    int gen; /**< ID for the generator. */
-    int exp; /**< Exponent. */
-    GenPow() = default;
-    GenPow(int g, int e) : gen(g), exp(e) {} /**< The constructor. */
-    /**
-     * The operator< helps defining a monomial ordering.
-     */
-    bool operator<(const GenPow& rhs) const
+    uint32_t data;
+    constexpr GE() : data(0xffff << 16) {}
+    constexpr explicit GE(uint32_t data_) : data(data_) {}
+    constexpr GE(uint32_t g, uint32_t e) : data((~g << 16) | e) {}
+
+    uint32_t g() const
     {
-        return gen > rhs.gen || (gen == rhs.gen && exp < rhs.exp);
+        return ~data >> 16;
     }
-    /** The operator == */
-    bool operator==(const GenPow& rhs) const
+    uint32_t g_raw() const
     {
-        return gen == rhs.gen && exp == rhs.exp;
+        return data & 0xffff0000;
     }
-    static std::vector<GenPow> Mon(int g, int e = 1)
+    uint32_t e() const
     {
-        return std::vector<GenPow>{{g, e}};
+        return data & 0xffff;
     }
+
+    bool operator==(GE rhs) const
+    {
+        return data == rhs.data;
+    };
+    bool operator<(GE rhs) const
+    {
+        return data < rhs.data;
+    };
+
+    std::string Str() const;
 };
-using Mon = std::vector<GenPow>;
-using Mon1d = std::vector<Mon>;
-using Mon2d = std::vector<Mon1d>;
-using MonInd = Mon::const_iterator;
+
+using GE1d = std::vector<GE>;
+
 using MonTrace = uint64_t;
 using MonTrace1d = std::vector<MonTrace>;
+
+struct Mon
+{
+    GE1d data;
+
+    Mon() {}
+    Mon(GE p) : data({p}) {}
+
+    static Mon Gen(uint32_t index, uint32_t exp = 1)
+    {
+        return GE(index, exp);
+    }
+
+    bool operator==(const Mon& rhs) const
+    {
+        return data == rhs.data;
+    };
+    bool operator<(const Mon& rhs) const
+    {
+        return data < rhs.data;
+    };
+    explicit operator bool() const
+    {
+        return !data.empty();
+    }
+    auto& operator[](size_t i) const
+    {
+        return data[i];
+    }
+    auto begin() const
+    {
+        return data.begin();
+    }
+    auto end() const
+    {
+        return data.end();
+    }
+    auto size() const
+    {
+        return data.size();
+    }
+    void push_back(GE p)
+    {
+        data.push_back(p);
+    }
+
+    MonTrace Trace() const;
+    std::string Str() const;
+};
+
+using Mon1d = std::vector<Mon>;
+using Mon2d = std::vector<Mon1d>;
 
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
 template <typename FnGenDeg>
-inline int TplGetDeg(const Mon& mon, const FnGenDeg& _gen_deg)
+inline auto GetDegTpl(const Mon& mon, const FnGenDeg& _gen_deg)
 {
-    int result = 0;
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += _gen_deg(p->gen) * p->exp;
+    using TypeReturn = decltype(_gen_deg(0));
+    auto result = TypeReturn();
+    for (auto p = mon.begin(); p != mon.end(); ++p)
+        result += _gen_deg(p->g()) * p->e();
     return result;
 }
+
 /**
  * Obtain the degree of a monomial given the degrees of generators.
  */
-inline int GetDeg(const Mon& mon, const int1d& gen_degs)
+template <typename T>
+inline auto GetDeg(const Mon& mon, const std::vector<T>& gen_degs)
 {
-    return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i]; });
+    return GetDegTpl(mon, [&gen_degs](int i) { return gen_degs[i]; });
 }
+
 /**
  * Obtain the t degree of a monomial given the degrees of generators.
  */
-inline int GetDegT(const Mon& mon, const MayDeg1d& gen_degs)
+template <typename T>
+inline int GetDegT(const Mon& mon, const std::vector<T>& gen_degs)
 {
-    return TplGetDeg(mon, [&gen_degs](int i) { return gen_degs[i].t; });
+    return GetDegTpl(mon, [&gen_degs](int i) { return gen_degs[i].t; });
 }
-/**
- * Obtain the May degree of a monomial given the May degrees of generators.
- */
-inline MayDeg GetMayDeg(const Mon& mon, const MayDeg1d& gen_maydegs)
+
+void mulP(const Mon& mon1, const Mon& mon2, Mon& result);
+inline Mon mul(const Mon& mon1, const Mon& mon2)
 {
-    MayDeg result{0, 0, 0};
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_maydegs[p->gen] * p->exp;
-    return result;
-}
-/**
- * Obtain the Adams degree of a monomial given the Adams degrees of generators.
- */
-inline AdamsDeg GetAdamsDeg(const Mon& mon, const AdamsDeg1d& gen_degs)
-{
-    AdamsDeg result{0, 0};
-    for (MonInd p = mon.begin(); p != mon.end(); ++p)
-        result += gen_degs[p->gen] * p->exp;
+    Mon result;
+    mulP(mon1, mon2, result);
     return result;
 }
 
-Mon mul(const Mon& mon1, const Mon& mon2);
+void divP(const Mon& mon1, const Mon& mon2, Mon& result);
+inline Mon div(const Mon& mon1, const Mon& mon2)
+{
+    Mon result;
+    divP(mon1, mon2, result);
+    return result;
+}
 
-/**
- * The funtions returns the quotient of the monomials.
- * It requires that mon2 divides mon1.
- */
-Mon div(const Mon& mon1, const Mon& mon2);
-
-Mon pow(const Mon& m, int e);
+void powP(const Mon& mon, int e, Mon& result);
+inline Mon pow(const Mon& mon, int e)
+{
+    Mon result;
+    powP(mon, e, result);
+    return result;
+}
 
 /**
  * Return if m1 divides m2.
  */
-bool divisible(const Mon& m1, const Mon& m2);
+bool divisible(const Mon& mon1, const Mon& mon2);
 
-/* A function to accelerate the computation of `divisible(m1, m2)` */
-inline MonTrace Trace(const Mon& lead)
+inline bool divisible(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2)
 {
-    MonTrace result = 0;
-    for (size_t i = 0; i < lead.size(); ++i) {
-        const int bits_exp1 = 56;
-        const int bits_exp2 = 64 - bits_exp1;
-        result |= (MonTrace(1) << (lead[i].gen % bits_exp1));
-        if (lead[i].exp >= 2)
-            result |= (MonTrace(1) << ((lead[i].gen % bits_exp2) + bits_exp1));
-    }
-    return result;
-}
-
-inline bool divisible(const Mon& m1, const Mon& m2, MonTrace t1, MonTrace t2)
-{
-    return t2 >= t1 && !(t1 & (t2 - t1)) && divisible(m1, m2);
+    return t2 >= t1 && !(t1 & (t2 - t1)) && divisible(mon1, mon2);
 }
 
 /**
  *  Return the largest integer e where m1 = m2^e * r.
  */
-int log(const Mon& m1, const Mon& m2);
+int log(const Mon& mon1, const Mon& mon2);
 
-/**
- * Greatest common divisor.
- */
-Mon GCD(const Mon& m1, const Mon& m2);
-/**
- * Least common multiple.
- */
-Mon LCM(const Mon& m1, const Mon& m2);
 
-namespace detail {
-    /*
-     * This version of `Mon` is designed to avoid the allocations of memory.
-     */
-    class MonOnStack
-    {
-        static constexpr size_t BUFFER_SIZE = 30;
+void GcdP(const Mon& mon1, const Mon& mon2, Mon& result);
+inline Mon GCD(const Mon& mon1, const Mon& mon2)
+{
+    Mon result;
+    GcdP(mon1, mon2, result);
+    return result;
+}
 
-    public:
-        using const_iterator = std::array<GenPow, BUFFER_SIZE>::const_iterator;
-
-    private:
-        std::array<GenPow, BUFFER_SIZE> data_;
-        size_t size_;
-
-    public:
-        MonOnStack() : size_(0){};
-        explicit operator Mon() const
-        {
-            Mon result;
-            result.reserve(size_);
-            for (auto p = begin(); p < end(); ++p)
-                result.push_back(*p);
-            return result;
-        }
-        size_t size() const
-        {
-            return size_;
-        }
-        const_iterator begin() const
-        {
-            return data_.begin();
-        }
-        const_iterator end() const
-        {
-            return data_.begin() + size_;
-        }
-        GenPow back() const
-        {
-            return data_[size_ - 1];
-        }
-        void clear()
-        {
-            size_ = 0;
-        }
-        void push_back(GenPow gp)
-        {
-            data_[size_++] = gp;
-        }
-        void push_back(MonInd begin, MonInd end)
-        {
-            for (auto p = begin; p < end; ++p)
-                data_[size_++] = *p;
-        }
-        void push_back(const_iterator begin, const_iterator end)
-        {
-            for (auto p = begin; p < end; ++p)
-                data_[size_++] = *p;
-        }
-        void emplace_back(int gen, int exp)
-        {
-            data_[size_++] = {gen, exp};
-        }
-    };
-
-    void mul(const Mon& mon1, const MonOnStack& mon2, Mon& result);
-}  // namespace detail
+void LcmP(const Mon& mon1, const Mon& mon2, Mon& result);
+inline Mon LCM(const Mon& mon1, const Mon& mon2)
+{
+    Mon result;
+    LcmP(mon1, mon2, result);
+    return result;
+}
 
 /** @} ---------------------------------------- */
-
-/********************************************************
- *                      Polynomials
- ********************************************************/
 /** \defgroup Polynomials Polynomials
  * ------------------------------------------- @{
  */
 
-/**
- * Lexicographical monomial ordering
- */
-struct CmpLex
-{
-    static constexpr std::string_view name = "Lex";
-    template <typename TypeIter1, typename TypeIter2>
-    static bool cmp_ranges(TypeIter1 m1begin, TypeIter1 m1end, TypeIter2 m2begin, TypeIter2 m2end)
-    {
-        return std::lexicographical_compare(m2begin, m2end, m1begin, m1end); /* m1 > m2 */
-    }
-    template <typename Type1, typename Type2>
-    static bool cmp(const Type1& m1, const Type2& m2)
-    {
-        return cmp_ranges(m1.begin(), m1.end(), m2.begin(), m2.end());
-    }
-};
+/********************************************************
+ *                      Polynomials
+ ********************************************************/
 
-/**
- * Reversed lexicographical monomial ordering
- */
-struct CmpRevlex
-{
-    static constexpr std::string_view name = "Revlex";
-    template <typename TypeIter1, typename TypeIter2>
-    static bool cmp_ranges(TypeIter1 m1begin, TypeIter1 m1end, TypeIter2 m2begin, TypeIter2 m2end)
-    {
-        return std::lexicographical_compare(m1begin, m1end, m2begin, m2end); /* m1 < m2 */
-    }
-    template <typename Type1, typename Type2>
-    static bool cmp(const Type1& m1, const Type2& m2)
-    {
-        return cmp_ranges(m1.begin(), m1.end(), m2.begin(), m2.end());
-    }
-};
+struct Poly;
+void mulP(const Poly& p1, const Poly& p2, Poly& result);
+void mulP(const Poly& poly, const Mon& mon, Poly& result);
 
-/**
- * Polynomial with a monomial ordering as the template argument
- */
-template <typename FnCmp>
-struct Polynomial
+struct Poly  // TODO: change to Poly
 {
     Mon1d data;
 
-    static Polynomial<FnCmp> Unit()
+    Poly() {}
+    Poly(Mon m) : data({std::move(m)}) {}
+
+    static Poly Unit()
     {
-        return Polynomial<FnCmp>{{{}}};
+        return Mon();
     }
 
-    static Polynomial<FnCmp> Gen(int index)
+    static Poly Gen(uint32_t index, uint32_t exp = 1)
     {
-        return Polynomial<FnCmp>{{{{index, 1}}}};
-    }
-
-    static Polynomial<FnCmp> GenExp(int index, int exp)
-    {
-        if (exp > 0)
-            return Polynomial<FnCmp>{{{{index, exp}}}};
-        else if (exp == 0)
-            return Polynomial<FnCmp>{{
-                {},
-            }};
-        else
-            throw MyException(0x20eb6831U, "Negative exponent.");
-    }
-
-    static Polynomial<FnCmp> Mon_(Mon mon)
-    {
-        return Polynomial<FnCmp>{{std::move(mon)}};
-    }
-
-    static Polynomial<FnCmp> Sort(Mon1d data)
-    {
-        Polynomial<FnCmp> result = {std::move(data)};
-        std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
-        return result;
+        return Mon::Gen(index, exp);
     }
 
     const Mon& GetLead() const
@@ -452,7 +383,15 @@ struct Polynomial
         if (data.empty())
             return MayDeg{-10000, -10000, -10000};
         else
-            return alg::GetMayDeg(data.front(), gen_degs);
+            return alg::GetDeg(data.front(), gen_degs);
+    }
+
+    AdamsDeg GetMayDeg(const AdamsDeg1d& gen_degs) const
+    {
+        if (data.empty())
+            return AdamsDeg{-10000, -10000};
+        else
+            return alg::GetDeg(data.front(), gen_degs);
     }
 
     int GetMayDegT(const MayDeg1d& gen_degs) const
@@ -463,19 +402,26 @@ struct Polynomial
             return alg::GetDegT(data.front(), gen_degs);
     }
 
-    Polynomial<FnCmp> Square() const
+    int GetAdamsDegT(const AdamsDeg1d& gen_degs) const
     {
-        Polynomial<FnCmp> result;
-        for (const Mon& m : data)
-            result.data.push_back(pow(m, 2));
-        return result;
+        if (data.empty())
+            return -10000;
+        else
+            return alg::GetDegT(data.front(), gen_degs);
     }
 
-    bool operator==(const Polynomial<FnCmp>& rhs) const
+    void frobP(Poly& result) const
+    {
+        result.data.clear();
+        for (const Mon& m : data)
+            result.data.push_back(pow(m, 2));
+    }
+
+    bool operator==(const Poly& rhs) const
     {
         return data == rhs.data;
     }
-    bool operator!=(const Polynomial<FnCmp>& rhs) const
+    bool operator!=(const Poly& rhs) const
     {
         return !(data == rhs.data);
     }
@@ -483,191 +429,105 @@ struct Polynomial
     {
         return !data.empty();
     }
-    Polynomial<FnCmp> operator+(const Polynomial<FnCmp>& rhs) const
+    Poly operator+(const Poly& rhs) const
     {
-        Polynomial<FnCmp> result;
-        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data), FnCmp::template cmp<Mon, Mon>);
+        Poly result;
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    Polynomial<FnCmp>& operator+=(const Polynomial<FnCmp>& rhs)
+    Poly& iaddP(const Poly& rhs, Poly& tmp)
     {
-        Polynomial<FnCmp> tmp;
+        tmp.data.clear();
         std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data), FnCmp::template cmp<Mon, Mon>);
+        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
     }
-    Polynomial<FnCmp> operator*(const Mon& rhs) const
+    Poly& operator+=(const Poly& rhs)
     {
-        Polynomial<FnCmp> result;
-        result.data.reserve(data.size());
-        for (const Mon& m : data)
-            result.data.push_back(mul(m, rhs));
+        Poly tmp;
+        return iaddP(rhs, tmp);
+    }
+    Poly operator*(const Mon& rhs) const
+    {
+        Poly result;
+        mulP(*this, rhs, result);
         return result;
     }
-    Polynomial<FnCmp> operator*(const detail::MonOnStack& rhs) const
+    Poly operator*(const Poly& rhs) const
     {
-        Polynomial<FnCmp> result;
-        result.data.resize(data.size());
-        for (size_t i = 0; i < data.size(); ++i)
-            mul(data[i], rhs, result.data[i]);
+        Poly result;
+        mulP(*this, rhs, result);
         return result;
     }
-    Polynomial<FnCmp> operator*(const Polynomial<FnCmp>& rhs) const
+    Poly& imulP(const Poly& rhs, Poly& tmp)
     {
-        Polynomial<FnCmp> result;
-        for (int k = 0; k <= (int)data.size() + (int)rhs.data.size() - 2; ++k) {
-            int i_min = std::max(k - (int)rhs.data.size() + 1, 0);
-            int i_max = std::min((int)data.size() - 1, k);
-            for (int i = i_min; i <= i_max; ++i)
-                result.data.push_back(mul(data[i], rhs.data[k - i]));
-        }
-        std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
-        for (size_t i = 1; i < result.data.size(); ++i) {
-            if (result.data[i] == result.data[i - 1]) {
-                result.data[i] = GenPow::Mon(-1);
-                result.data[i - 1] = GenPow::Mon(-1);
-                ++i;
-            }
-        }
-        ut::RemoveIf(result.data, [](const Mon& m) { return m.size() && m[0].gen == -1; });
-        return result;
+        mulP(*this, rhs, tmp);
+        std::swap(*this, tmp);
+        return *this;
     }
+    std::string Str() const;
 };
-using PolyLex = Polynomial<CmpLex>;
-using PolyLex1d = std::vector<PolyLex>;
-using PolyRevlex = Polynomial<CmpRevlex>;
-using PolyRevlex1d = std::vector<PolyRevlex>;
-template <typename FnCmp>
-using Polynomial1d = std::vector<Polynomial<FnCmp>>;
 
-/**
- * A fast algorithm that computes
- * `poly ** n`
- */
-template <typename FnCmp>
-Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n)
-{
-    using Poly = Polynomial<FnCmp>;
-    Poly result = Poly::Unit();
-    if (n == 0)
-        return result;
-    Poly power = poly;
-    while (n) {
-        if (n % 2 != 0)
-            result = result * power;
-        n >>= 1;
-        if (n)
-            power = power.Square();
-    }
+using Poly1d = std::vector<Poly>;
+
+void powP(const Poly& poly, uint32_t n, Poly& result, Poly& tmp);
+inline Poly pow(const Poly& poly, uint32_t n) {
+    Poly result, tmp;
+    powP(poly, n, result, tmp);
     return result;
 }
 
 /** @} ---------------------------------------- */
 
 /**
- * Hash a monomial.
- */
-inline uint64_t hash(const Mon& mon)
-{
-    uint64_t seed = 0;
-    for (auto& ge : mon) {
-        seed ^= (uint64_t)ge.gen + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= (uint64_t)ge.exp + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    return seed;
-}
-
-/**
- * Convert a polynomial to an array of hashes of the monomials.
- */
-inline int1d hash1d(const Mon1d& poly)
-{
-    int1d result;
-    for (auto& mon : poly)
-        result.push_back((int)hash(mon));
-    std::sort(result.begin(), result.end());
-    return result;
-}
-
-/**
  * Compute the differential of a monomial.
  * `diffs` is the array $(dg_i)$.
  */
-template <typename FnCmp>
-Polynomial<FnCmp> GetDiff(const Mon& mon, const std::vector<Polynomial<FnCmp>>& diffs)
-{
-    using Poly = Polynomial<FnCmp>;
-    Poly result;
-    for (MonInd k = mon.begin(); k != mon.end(); ++k) {
-        if (k->exp % 2)
-            result += diffs[k->gen] * div(mon, GenPow::Mon(k->gen));
-    }
-    return result;
-}
+Poly GetDiff(const Mon& mon, const Poly1d& diffs);
+
 /**
  * Compute the differential of a polynomial.
  * `diffs` is the array $(dg_i)$.
  */
-template <typename FnCmp>
-Polynomial<FnCmp> GetDiff(const Polynomial<FnCmp>& poly, const std::vector<Polynomial<FnCmp>>& diffs)
-{
-    using Poly = Polynomial<FnCmp>;
-    Poly result;
-    for (const Mon& mon : poly.data) {
-        for (MonInd k = mon.begin(); k != mon.end(); ++k) {
-            if (k->exp % 2)
-                result += diffs[k->gen] * div(mon, GenPow::Mon(k->gen));
-        }
-    }
-    return result;
-}
+Poly GetDiff(const Poly& poly, const Poly1d& diffs);
 
 /**
  * Replace the generators in `poly` with elements given in `map`.
  * @param poly The polynomial to be substituted.
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
-template <typename FnCmp, typename FnMap>
-Polynomial<FnCmp> subs(const Mon1d& data, FnMap map)
+template <typename FnMap>
+Poly subsTpl(const Poly& poly, const FnMap& map)
 {
-    using Poly = Polynomial<FnCmp>;
-    Poly result;
-    for (const Mon& m : data) {
+    Poly result, tmp_prod, tmp;
+    for (const Mon& m : poly.data) {
         Poly fm = Poly::Unit();
-        for (MonInd p = m.begin(); p != m.end(); ++p)
-            fm = fm * pow(map(p->gen), p->exp);
+        for (auto p = m.begin(); p != m.end(); ++p) {
+            powP(map(p->g()), p->e(), tmp_prod, tmp);
+            fm.imulP(tmp_prod, tmp);
+        }
         result += fm;
     }
     return result;
 }
-template <typename FnCmp>
-Polynomial<FnCmp> subs(const Mon1d& data, const std::vector<Polynomial<FnCmp>>& map)
+
+inline Poly subs(const Poly& poly, const std::vector<Poly>& map)
 {
-    return subs<FnCmp>(data, [&map](int i) { return map[i]; });
+    return subsTpl(poly, [&map](size_t i) { return map[i]; });
 }
+
 /**
  * Replace the generators in `poly` with new id given in `map_gen_id`.
  * @param poly The polynomial to be substituted.
  * @param map_gen_id `map_gen_id[i]` is the new id that substitutes the old id `i`.
  */
-template <typename FnCmp>
-Polynomial<FnCmp> subs(const Mon1d& data, const int1d& map_gen_id)
+Poly subs(const Poly& poly, const uint1d& map_gen_id)
 {
-    using Poly = Polynomial<FnCmp>;
-    Poly result;
-    for (const Mon& m : data) {
-        Mon m1;
-        for (GenPow ge : m)
-            m1.push_back({map_gen_id[ge.gen], ge.exp});
-        std::sort(m1.begin(), m1.end(), [](const GenPow& lhs, const GenPow& rhs) { return lhs.gen < rhs.gen; });
-        result.data.push_back(m1);
-    }
-    std::sort(result.data.begin(), result.data.end(), FnCmp::template cmp<Mon, Mon>);
-    return result;
+    return subsTpl(poly, [&map_gen_id](size_t i) { return Poly::Gen(map_gen_id[i]); });
 }
 
-int1d Poly2Indices(const Mon1d& poly, const Mon1d& basis);
-Mon1d Indices2Poly(const int1d& indices, const Mon1d& basis);
+uint1d Poly2Indices(const Mon1d& poly, const Mon1d& basis);
+Mon1d Indices2Poly(const uint1d& indices, const Mon1d& basis);
 
 }  // namespace alg
 

@@ -35,11 +35,7 @@ void CriMilnors::Minimize(const MMod1d& leads, int t)
     if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != t)
         return;
     if (buffer_min_pairs_.empty() || buffer_min_pairs_.begin()->first != t)
-#ifdef NDEBUG
         return;
-#else
-        buffer_min_pairs_[t];
-#endif
 
     constexpr uint64_t NULL_J = ~uint64_t(0);
     auto& b_min_pairs_t = buffer_min_pairs_.begin()->second;
@@ -77,16 +73,8 @@ void CriMilnors::Minimize(const MMod1d& leads, int t)
                 }
             }
 #ifndef NDEBUG
-            if (c == end) {
-                std::cout << "i=" << i << '\n';
-                std::cout << "j=" << j << '\n';
-                std::cout << "leads[i]=" << leads[i].Str() << '\n';
-                std::cout << "leads[j]=" << leads[j].Str() << '\n';
-                std::cout << "m2=" << Milnor(m2) << '\n';
-                for (size_t k = 0; k < gb_[j].size(); ++k)
-                    std::cout << "gb_[j][k].m2" << Milnor(gb_[j][k].m2) << '\n';
+            if (c == end)
                 throw MyException(0xfa5db14U, "Should not happen because gb_ is groebner");
-            }
 #endif
         }
     }
@@ -460,11 +448,8 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[s][gb_index].x1.data[0]);
-            tmp_x1.data.clear();
             mulP(m, gb_[s][gb_index].x1, tmp_x1, tmp_a);
-            tmp_x2.data.clear();
             mulP(m, gb_[s][gb_index].x2, tmp_x2, tmp_a);
-            tmp_x3.data.clear();
             MulMayP(m, gb_[s][gb_index].x2m, tmp_x3, tmp_a);
 
             while (!heap.empty() && heap.front().m == term) {
@@ -511,7 +496,6 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[sp1][gb_index].x1.data[0]);
-            tmp_x1.data.clear();
             mulP(m, gb_[sp1][gb_index].x1, tmp_x1, tmp_a);
 
             while (!heap.empty() && heap.front().m == term) {
@@ -832,7 +816,6 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, c
     for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
         size_t s_min = (size_t)std::max(0, t - stem_max - 2);
-        std::cout << "t=" << t << "               " << std::endl;
         gb.resize_gb(t);
         std::vector<unsigned> old_size_x2m(tt);
         for (size_t s = 0; s < tt; ++s)
@@ -860,14 +843,14 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, c
 
         std::atomic<int> threadsLeft = (int)arr_s.size();
         std::mutex print_mutex = {};
-        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft](size_t i) {
+        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft, t](size_t i) {
             size_t s = arr_s[i];
             gb.ReduceBatch(cris[s], data_tmps[s], s);
 
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                std::cout << "  s=" << s << " threadsLeft=" << threadsLeft << std::endl;
+                std::cout << "t=" << t << " s=" << s << " threadsLeft=" << threadsLeft << std::endl;
             }
         });
 

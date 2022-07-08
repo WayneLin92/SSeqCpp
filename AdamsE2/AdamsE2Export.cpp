@@ -174,8 +174,11 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
     size_t size_basis = 0;
     for (auto it = basis.begin(); it != basis.end(); ++it)
         size_basis += it->second.size();
-    if (size_basis != glo2loc.size())
+    if (size_basis != glo2loc.size()) {
+        std::cout << "size_basis=" << size_basis << '\n';
+        std::cout << "glo2loc.size()=" << glo2loc.size() << '\n';
         throw MyException(0, "BUG");
+    }
 
     /* Save the results */
     MyDB dbE2(db_out);

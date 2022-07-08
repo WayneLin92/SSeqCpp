@@ -120,8 +120,8 @@ struct GenMRes
 using GenMRes1d = std::vector<GenMRes>;
 using GenMRes2d = std::vector<GenMRes1d>;
 
-void compute_products_ind();
-void compute_products(int t_trunc);
+void compute_products_ind(int t_trunc, std::string& db_in, std::string& db_out);
+void compute_products(int t_trunc, std::string& db_in, std::string& db_out);
 
 }  // namespace steenrod
 

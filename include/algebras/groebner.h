@@ -18,69 +18,28 @@
 /* extension of namespace alg in algebras.h */
 namespace alg {
 
+struct MMod
+{
+    uint32_t v;
+    Mon m;
+};
+
+using MMod1d = std::vector<MMod>;
+
+struct Mod
+{
+
+};
+
 namespace detail {
-    void mul(const Mon& mon1, const Mon& mon2, MonOnStack& result);
-    void mul(const Mon& mon1, const MonOnStack& mon2, MonOnStack& result);
-    void div(const Mon& mon1, const Mon& mon2, MonOnStack& result);
-    void div(const Mon& mon1, const MonOnStack& mon2, MonOnStack& result);
 
     /*
-     * Assuming that f[i] is divisable by g[0],
+     * Assuming that f[i] is divisible by g[0],
      * this function replaces f with f + g * (f[i]/g[0]).
      *
      * We tried our best to reduce the memory allocations.
      */
-    template <typename FnCmp>
-    void Reduce(Polynomial<FnCmp>& f, const Polynomial<FnCmp>& g, const size_t index)
-    {
-        Mon1d h;
-        h.reserve(f.data.size() + g.data.size() - (size_t)index - 2);
-        MonOnStack q;
-        div(f.data[index], g.data[0], q);
-        size_t i = index + 1, j = 1;
-        MonOnStack prod;
-        bool updateProd = true;
-        while (j < g.data.size()) {
-            if (i == f.data.size()) {
-                f.data.resize(index + h.size() + g.data.size() - j);
-                for (size_t k = 0; k < h.size(); ++k)
-                    f.data[index + k] = std::move(h[k]);
-                size_t index1 = index + h.size();
-                for (size_t k = j; k < g.data.size(); ++k)
-                    mul(g.data[k], q, f.data[index1 + k - j]);
-                return;
-            }
-            if (updateProd)
-                mul(g.data[j], q, prod);
-            if (FnCmp::template cmp(f.data[i], prod)) {
-                updateProd = false;
-                h.push_back(std::move(f.data[i++]));
-            }
-            else {
-                updateProd = true;
-                ++j;
-                if (FnCmp::template cmp(prod, f.data[i]))
-                    h.push_back(Mon(prod));
-                else
-                    ++i;
-            }
-        }
-        size_t index1 = index + h.size();
-        size_t new_size = index1 + f.data.size() - i;
-        if (new_size > f.data.size()) {
-            size_t old_size = f.data.size();
-            f.data.resize(new_size);
-            for (size_t k = old_size; k-- > i;)
-                f.data[index1 + k - i] = std::move(f.data[k]);
-        }
-        else if (new_size < f.data.size()) {
-            for (size_t k = i; k < f.data.size(); ++k)
-                f.data[index1 + k - i] = std::move(f.data[k]);
-            f.data.erase(f.data.begin() + new_size, f.data.end());
-        }
-        for (size_t k = 0; k < h.size(); ++k)
-            f.data[index + k] = std::move(h[k]);
-    }
+    void ReduceP(Poly& f, const Poly& g, const size_t index, Mon& tmp_q, Mon& tmp_prod);
 
     /*
      * Return if `mon1` and `mon2` have a nontrivial common factor.
@@ -91,42 +50,12 @@ namespace detail {
         return (t1 & t2) && HasGCD(mon1, mon2);
     }
 
-    template <typename FnGenDeg>
-    int DegLCM(const Mon& mon1, const Mon& mon2, const FnGenDeg& _gen_deg)
-    {
-        int result = 0;
-        MonInd k = mon1.begin(), l = mon2.begin();
-        while (k != mon1.end() && l != mon2.end()) {
-            if (k->gen < l->gen) {
-                result += _gen_deg(k->gen) * k->exp;
-                ++k;
-            }
-            else if (k->gen > l->gen) {
-                result += _gen_deg(l->gen) * l->exp;
-                ++l;
-            }
-            else {
-                if (k->exp < l->exp)
-                    result += _gen_deg(l->gen) * l->exp;
-                else
-                    result += _gen_deg(k->gen) * k->exp;
-                ++k;
-                ++l;
-            }
-        }
-        for (; k != mon1.end(); ++k)
-            result += _gen_deg(k->gen) * k->exp;
-        for (; l != mon2.end(); ++l)
-            result += _gen_deg(l->gen) * l->exp;
-        return result;
-    }
-
+    int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs);
 }  // namespace detail
 
-template <typename FnCmp>
 class Groebner;
 
-struct CriticalPair
+struct CriPair
 {
     int i1 = -1, i2 = -1;
     Mon m1, m2;
@@ -134,82 +63,31 @@ struct CriticalPair
     MonTrace trace_m2 = 0; /* = Trace(m2) */
 
     /* Compute the pair for two leading monomials. */
-    CriticalPair() = default;
-    static void SetFromLM(CriticalPair& result, const Mon& lead1, const Mon& lead2, int i, int j)
-    {
-        MonInd k = lead1.begin(), l = lead2.begin();
-        while (k != lead1.end() && l != lead2.end()) {
-            if (k->gen < l->gen)
-                result.m2.push_back(*k++);
-            else if (k->gen > l->gen)
-                result.m1.push_back(*l++);
-            else {
-                if (k->exp < l->exp)
-                    result.m1.emplace_back(k->gen, l->exp - k->exp);
-                else if (k->exp > l->exp)
-                    result.m2.emplace_back(k->gen, k->exp - l->exp);
-                k++;
-                l++;
-            }
-        }
-        if (k != lead1.end())
-            result.m2.insert(result.m2.end(), k, lead1.end());
-        else
-            result.m1.insert(result.m1.end(), l, lead2.end());
-        result.i1 = i;
-        result.i2 = j;
-        result.trace_m2 = Trace(result.m2);
-    }
+    CriPair() = default;
+    static void SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int i, int j);
 
     /* Return `m1 * gb[i1] + m2 * gb[i2]` */
-    template <typename FnCmp>
-    Polynomial<FnCmp> Sij(const Groebner<FnCmp>& gb) const
+    void SijP(const Groebner& gb, Poly& result, Poly& tmp1, Poly& tmp2) const
     {
-        Polynomial<FnCmp> result;
-        detail::MonOnStack prod1, prod2;
-        result.data.reserve(gb[i1].data.size() + gb[i2].data.size() - 2);
-        auto p1 = gb[i1].data.begin() + 1, p2 = gb[i2].data.begin() + 1;
-        while (p1 != gb[i1].data.end() && p2 != gb[i2].data.end()) {
-            mul(*p1, m1, prod1);
-            mul(*p2, m2, prod2);
-            if (FnCmp::template cmp(prod1, prod2)) {
-                result.data.push_back(Mon(prod1));
-                ++p1;
-            }
-            else if (FnCmp::template cmp(prod2, prod1)) {
-                result.data.push_back(Mon(prod2));
-                ++p2;
-            }
-            else {
-                ++p1;
-                ++p2;
-            }
-        }
-        while (p1 != gb[i1].data.end()) {
-            mul(*p1++, m1, prod1);
-            result.data.push_back(Mon(prod1));
-        }
-        while (p2 != gb[i2].data.end()) {
-            mul(*p2++, m2, prod2);
-            result.data.push_back(Mon(prod2));
-        }
-        return result;
+        result.data.clear();
+        mulP(gb[i1], m1, tmp1);
+        result.iaddP(tmp1, tmp2);
+        mulP(gb[i2], m2, tmp1);
+        result.iaddP(tmp1, tmp2);
+        return;
     }
 };
-using CriticalPair1d = std::vector<CriticalPair>;
-using CriticalPair2d = std::vector<CriticalPair1d>;
-
-inline constexpr uint32_t CRI_ON = 0x0001; /* `gb_pairs_` is in use */
-inline constexpr uint32_t CRI_GB = 0x0002; /* Groebner basis of critical pairs is recorded. Otherwise it is partial */
+using CriPair1d = std::vector<CriPair>;
+using CriPair2d = std::vector<CriPair1d>;
 
 /* Groebner basis of critical pairs */
 class GbCriPairs
 {
 private:
     int deg_trunc_;                                                      /* Truncation degree */
-    CriticalPair2d pairs_;                                               /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    int2d min_pairs_;                                                  /* Minimal generating set of `pairs_` */
-    std::map<int, CriticalPair2d> buffer_min_pairs_;                     /* To generate `buffer_min_pairs_` and for computing Sij */
+    CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
+    int2d min_pairs_;                                                    /* Minimal generating set of `pairs_` */
+    std::map<int, CriPair2d> buffer_min_pairs_;                          /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
     std::map<int, std::unordered_set<uint64_t>> buffer_trivial_syz_;     /* Trivial Syzyzies */
     uint32_t mode_;                                                      /* This determines how much information will be recorded during the computation */
@@ -220,34 +98,9 @@ public:
     {
         return deg_trunc_;
     }
-    void set_deg_trunc(int d_trunc)
+    CriPair1d Criticals(int d)
     {
-        if (d_trunc <= deg_trunc_) {
-            deg_trunc_ = d_trunc;  ////
-        }
-        else {
-            throw MyException(0x540f459dU, "NotImplemented");  ////
-        }
-    }
-    uint32_t mode() const
-    {
-        return mode_;
-    }
-    void set_mode(uint32_t mode)
-    {
-        mode_ = mode;
-    }
-    bool empty_pairs_for_gb_d(int d) const
-    {
-        return buffer_min_pairs_.find(d) == buffer_min_pairs_.end();
-    }
-    bool empty_pairs_for_gb() const
-    {
-        return buffer_min_pairs_.empty();
-    }
-    CriticalPair1d pairs_for_gb(int d)
-    {
-        CriticalPair1d result;
+        CriPair1d result;
         for (int j = 0; j < (int)buffer_min_pairs_.at(d).size(); ++j)
             for (auto& pair : buffer_min_pairs_.at(d)[j])
                 if (pair.i2 != -1)
@@ -259,24 +112,25 @@ public:
     /* Minimize `buffer_min_pairs_[d]` and maintain `pairs_` */
     void Minimize(const Mon1d& leads, int d)
     {
+        if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != d)
+            return;
+        if (buffer_min_pairs_.empty() || buffer_min_pairs_.begin()->first != d)
+#ifdef NDEBUG
+            return;
+#else
+            buffer_min_pairs_[t];
+#endif
         /* Add to the Groebner basis of critical pairs */
-        auto& b_min_pairs_d = buffer_min_pairs_.at(d);
-        if (pairs_.size() < b_min_pairs_d.size())
-            pairs_.resize(b_min_pairs_d.size());
-        for (int j = 0; j < (int)b_min_pairs_d.size(); ++j)
-            for (const auto& pair : b_min_pairs_d[j])
-                pairs_[j].push_back(pair);
-
-        /* Minimize `buffer_min_pairs_` */
         constexpr uint64_t NULL_J = ~uint64_t(0);
-        for (uint64_t ij : buffer_redundent_pairs_[d]) {
+        auto& b_min_pairs_d = buffer_min_pairs_.begin()->second;
+        for (uint64_t ij : buffer_redundent_pairs_.begin()->second) {
             uint64_t i, j;
             ut::UnBind(ij, i, j);
             while (j != NULL_J) {
                 Mon gcd = GCD(leads[i], leads[j]);
                 Mon m2 = div(leads[i], gcd);
                 if (j < (int)b_min_pairs_d.size()) {
-                    auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [&m2](const CriticalPair& c) { return c.m2 == m2; });
+                    auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [&m2](const CriPair& c) { return c.m2 == m2; });
                     /* Remove it from `buffer_min_pairs_` */
                     if (p != b_min_pairs_d[j].end()) {
                         p->i2 = -1;
@@ -285,9 +139,9 @@ public:
                 }
 
                 /* Reduce (i, j) */
-                MonTrace t_m2 = Trace(m2);
-                auto c = pairs_[j].begin();
-                auto end = pairs_[j].end();
+                MonTrace t_m2 = m2.Trace();
+                auto c = gb_[j].begin();
+                auto end = gb_[j].end();
                 for (; c < end; ++c) {
                     if (divisible(c->m2, m2, c->trace_m2, t_m2)) {
                         Mon m1 = div(leads[j], gcd);
@@ -303,25 +157,10 @@ public:
                         }
                     }
                 }
-                if (c == end) /* We need this when trivial Syz is not recorded in `pairs_` */
-                    break;
-            }
-        }
-
-        if (mode_ & CRI_GB) {
-            for (size_t j = 0; j < b_min_pairs_d.size(); ++j)
-                for (size_t i = 0; i < b_min_pairs_d[j].size(); ++i)
-                    if (b_min_pairs_d[j][i].i2 != -1)
-                        min_pairs_[j].push_back((int)i);
-
-            for (uint64_t ij : buffer_trivial_syz_[d]) {
-                uint64_t i, j;
-                ut::UnBind(ij, i, j);
-                if (j < b_min_pairs_d.size()) {
-                    auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [i](const CriticalPair& c) { return c.i1 == i; });
-                    if (p != b_min_pairs_d[j].end())
-                        p->i2 = -1;
-                }
+#ifndef NDEBUG
+                if (c == end)
+                    throw MyException(0xfa5db14U, "Should not happen because gb_ is groebner");
+#endif
             }
         }
 
@@ -335,8 +174,10 @@ public:
     template <typename FnPred, typename FnDeg>
     void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const Mon& mon, const FnPred& pred, const FnDeg& _gen_deg)
     {
+        size_t lead_size = leads.size();
+        std::vector<std::pair<int, CriPair>> new_pairs(leads.size());
         MonTrace t = Trace(mon);
-        std::vector<std::pair<int, CriticalPair>> new_pairs(leads.size());
+
         size_t s = leads.size();
         ut::Range range(0, (int)leads.size());
         if (mode_ & CRI_GB) {
@@ -345,7 +186,7 @@ public:
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
-                        CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
+                        CriPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                         if (!detail::HasGCD(leads[i], mon, traces[i], t))
                             buffer_trivial_syz_[d_pair].insert(ut::Bind(i, s));  // change the type of bindpair
                     }
@@ -362,7 +203,7 @@ public:
                     int d_pair = detail::DegLCM(leads[i], mon, _gen_deg);
                     if (d_pair <= deg_trunc_) {
                         new_pairs[i].first = d_pair;
-                        CriticalPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
+                        CriPair::SetFromLM(new_pairs[i].second, leads[i], mon, (int)i, (int)s);
                     }
                     else
                         new_pairs[i].first = -1;
@@ -400,7 +241,6 @@ public:
     }
 };
 
-template <typename FnCmp>
 class Groebner  // TODO: add gen_degs
 {
 private:
@@ -408,7 +248,7 @@ private:
     using TypeIndices = std::unordered_map<TypeIndexKey, int1d>;
 
 public:
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     using Poly1d = std::vector<Poly>;
 
 private:
@@ -469,9 +309,9 @@ public:
     template <typename FnCmp1>
     Groebner<FnCmp1> ExtendMO() const
     {
-        Polynomial1d<FnCmp1> data1;
+        Poly1d<FnCmp1> data1;
         for (const auto& p : data_)
-            data1.push_back(Polynomial<FnCmp1>{p.data});
+            data1.push_back(Poly<FnCmp1>{p.data});
         return Groebner<FnCmp1>(std::move(data1), data_degs_, gb_pairs_);
     }
 
@@ -522,9 +362,9 @@ public: /* Getters and Setters */
         gb_pairs_.set_mode(mode);
     }
     /* This function will erase `gb_pairs_.buffer_min_pairs[d]` */
-    CriticalPair1d pairs(int d)
+    CriPair1d pairs(int d)
     {
-        return gb_pairs_.pairs_for_gb(d);
+        return gb_pairs_.Criticals(d);
     }
 
     auto size() const
@@ -557,7 +397,7 @@ public: /* Getters and Setters */
     {
         gb_pairs_.Minimize(leads_, deg);
     }
-    bool operator==(const Groebner<FnCmp>& rhs) const
+    bool operator==(const Groebner& rhs) const
     {
         return data_ == rhs.data_;
     }
@@ -608,9 +448,9 @@ using GroebnerRevlex = Groebner<CmpRevlex>;
  * `poly ** n` modulo `gb`
  */
 template <typename FnCmp>
-Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n, const Groebner<FnCmp>& gb)
+Poly pow(const Poly& poly, int n, const Groebner& gb)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     Poly result = Poly::Unit();
     if (n == 0)
         return result;
@@ -633,14 +473,14 @@ Polynomial<FnCmp> pow(const Polynomial<FnCmp>& poly, int n, const Groebner<FnCmp
  * @param gb A Groebner basis.
  */
 template <typename FnCmp, typename FnMap>
-Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const FnMap& map)
+Poly SubsMGb(const Mon1d& data, const Groebner& gb, const FnMap& map)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     Poly result;
     for (const Mon& m : data) {
         Poly fm = Poly::Unit();
         for (MonInd p = m.begin(); p != m.end(); ++p)
-            fm = gb.Reduce(fm * pow(map(p->gen), p->exp, gb));
+            fm = gb.Reduce(fm * pow(map(p->g()), p->e(), gb));
         result += fm;
     }
     return result;
@@ -651,7 +491,7 @@ Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const Fn
  * @see SubsMGb(const Poly&, const GbType&, FnType)
  */
 template <typename FnCmp>
-Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& map)
+Poly SubsMGb(const Mon1d& data, const Groebner& gb, const std::vector<Poly>& map)
 {
     return SubsMGb(data, gb, [&map](int i) { return map[i]; });
 }
@@ -660,9 +500,9 @@ Polynomial<FnCmp> SubsMGb(const Mon1d& data, const Groebner<FnCmp>& gb, const st
  * Comsume relations from 'rels` and `gb.gb_pairs_` in degree `<= deg`
  */
 template <typename FnCmp, typename FnPred, typename FnDeg>
-void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, const FnPred& pred, const FnDeg& _gen_deg)
+void TplAddRels(Groebner& gb, const Poly1d<FnCmp>& rels, int deg, const FnPred& pred, const FnDeg& _gen_deg)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     using Poly1d = std::vector<Poly>;
     using PPoly1d = std::vector<const Poly*>;
 
@@ -676,7 +516,7 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, c
     std::map<int, PPoly1d> rels_graded;
     for (const auto& rel : rels) {
         if (rel) {
-            int d = TplGetDeg(rel.GetLead(), _gen_deg);
+            int d = GetDegTpl(rel.GetLead(), _gen_deg);
             if (d <= deg)
                 rels_graded[d].push_back(&rel);
         }
@@ -685,7 +525,7 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, c
     for (int d = 1; d <= deg && (d <= deg_max_rels || !gb.gb_pairs().empty_pairs_for_gb()); ++d) {
         // std::cout << "d=" << d << '\n';  ////
         int size_pairs_d;
-        CriticalPair1d pairs_d;
+        CriPair1d pairs_d;
         if (gb.gb_pairs().empty_pairs_for_gb_d(d))
             size_pairs_d = 0;
         else {
@@ -727,7 +567,7 @@ void TplAddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, c
 }
 
 template <typename FnCmp>
-void AddRels(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, const int1d& gen_degs)
+void AddRels(Groebner& gb, const Poly1d<FnCmp>& rels, int deg, const int1d& gen_degs)
 {
     TplAddRels(
         gb, rels, deg, [](const Mon&, const Mon&) { return true; }, [&gen_degs](int i) { return gen_degs[i]; });
@@ -748,8 +588,8 @@ namespace detail {
     int GetPart1Deg(const TypeMonIter mon_begin, const TypeMonIter mon_end, const int1d& gen_degs, TypeMonIter& p)
     {
         int result = 0;
-        for (p = mon_begin; p != mon_end && !(p->gen & GEN_SUB); ++p)
-            result += gen_degs[p->gen] * p->exp;
+        for (p = mon_begin; p != mon_end && !(p->g() & GEN_SUB); ++p)
+            result += gen_degs[p->g()] * p->e();
         return result;
     };
 }  // namespace detail
@@ -818,20 +658,20 @@ struct CmpHomology
 
 namespace detail {
     template <typename FnCmp>
-    void AddRelsIdeal(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
+    void AddRelsIdeal(Groebner& gb, const std::vector<Poly>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
     {
         TplAddRels(
             gb, rels, deg, [](const Mon& m1, const Mon& m2) { return !(m1.back().gen & GEN_IDEAL) && !(m2.back().gen & GEN_IDEAL); }, [&gen_degs, &gen_degs_y](int i) { return ((i & GEN_IDEAL) ? gen_degs_y[i - GEN_IDEAL] : gen_degs[i]); });
     }
     template <typename FnCmp>
-    void AddRelsModule(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
+    void AddRelsModule(Groebner& gb, const std::vector<Poly>& rels, int deg, const int1d& gen_degs, const int1d& gen_degs_y)
     {
         TplAddRels(
             gb, rels, deg, [](const Mon& m1, const Mon& m2) { return !((m1.back().gen & GEN_IDEAL) && (m2.back().gen & GEN_IDEAL) && (m1.back().gen != m2.back().gen)); },
             [&gen_degs, &gen_degs_y](int i) { return ((i & GEN_IDEAL) ? gen_degs_y[i - GEN_IDEAL] : gen_degs[i]); });
     }
     template <typename FnCmp>
-    void AddRelsHomology(Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& rels, int deg, const MayDeg1d& gen_degs, const MayDeg1d& gen_degs_x, const MayDeg1d& gen_degs_b)
+    void AddRelsHomology(Groebner& gb, const std::vector<Poly>& rels, int deg, const MayDeg1d& gen_degs, const MayDeg1d& gen_degs_x, const MayDeg1d& gen_degs_b)
     {
         TplAddRels(
             gb, rels, deg, [](const Mon& m1, const Mon& m2) { return true; },
@@ -857,12 +697,12 @@ namespace detail {
  * The degree of the basis of $R^n$ is determined by `basis_degs`.
  */
 template <typename FnCmp>
-std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCmp>& gb, std::vector<std::vector<Polynomial<FnCmp>>>& vectors, const int1d& gen_degs, const int1d& basis_degs)
+std::vector<std::vector<Poly>>& Indecomposables(const Groebner& gb, std::vector<std::vector<Poly>>& vectors, const int1d& gen_degs, const int1d& basis_degs)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     using Poly1d = std::vector<Poly>;
-    using Gb = alg::Groebner<FnCmp>;
-    using PolyI = Polynomial<CmpIdeal<FnCmp>>;
+    using Gb = alg::Groebner;
+    using PolyI = Poly<CmpIdeal<FnCmp>>;
     using PolyI1d = std::vector<PolyI>;
     using GbI = alg::Groebner<CmpIdeal<FnCmp>>;
 
@@ -919,13 +759,13 @@ std::vector<std::vector<Polynomial<FnCmp>>>& Indecomposables(const Groebner<FnCm
  * The result is truncated by `deg<=deg_max`.
  */
 template <typename FnCmp>
-std::vector<std::vector<Polynomial<FnCmp>>> AnnSeq(const Groebner<FnCmp>& gb, const std::vector<Polynomial<FnCmp>>& polys, const int1d& gen_degs, int deg_max)
+std::vector<std::vector<Poly>> AnnSeq(const Groebner& gb, const std::vector<Poly>& polys, const int1d& gen_degs, int deg_max)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     using Poly1d = std::vector<Poly>;
     using Poly2d = std::vector<Poly1d>;
-    using Gb = alg::Groebner<FnCmp>;
-    using PolyI = Polynomial<CmpIdeal<FnCmp>>;
+    using Gb = alg::Groebner;
+    using PolyI = Poly<CmpIdeal<FnCmp>>;
     using PolyI1d = std::vector<PolyI>;
     using GbI = alg::Groebner<CmpIdeal<FnCmp>>;
 
@@ -1011,14 +851,14 @@ std::map<MayDeg, Mon1d> ExtendBasis(const Mon2d& leadings, const MayDeg1d& gen_d
 }
 
 template <typename FnCmp>
-void Homology(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector<std::string>& gen_names, */ const std::vector<Polynomial<FnCmp>>& gen_diffs, const MayDeg& deg_diff, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h,
-              std::vector<std::string>& gen_names_h, std::vector<Polynomial<FnCmp>>& gen_repr_h, int t_trunc)
+void Homology(const Groebner& gb, const MayDeg1d& gen_degs, /*std::vector<std::string>& gen_names, */ const std::vector<Poly>& gen_diffs, const MayDeg& deg_diff, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h, std::vector<std::string>& gen_names_h,
+              std::vector<Poly>& gen_repr_h, int t_trunc)
 {
-    using Poly = Polynomial<FnCmp>;
+    using Poly = Poly;
     using Poly1d = std::vector<Poly>;
-    using PolyH = Polynomial<CmpHomology<FnCmp>>;
+    using PolyH = Poly<CmpHomology<FnCmp>>;
     using PolyH1d = std::vector<PolyH>;
-    using Gb = Groebner<FnCmp>;
+    using Gb = Groebner;
     using GbH = Groebner<CmpHomology<FnCmp>>;
 
     CmpHomology<FnCmp>::gen_degs.clear();
@@ -1161,13 +1001,13 @@ namespace template_examples {
     using FnPred = bool (*)(alg::Mon, alg::Mon);
     using FnDeg = int (*)(int);
 
-    inline void TplAddRels_(Groebner<FnCmp>& gb, const Polynomial1d<FnCmp>& rels, int deg, FnPred pred, FnDeg _gen_deg)
+    inline void TplAddRels_(Groebner& gb, const Poly1d<FnCmp>& rels, int deg, FnPred pred, FnDeg _gen_deg)
     {
         return alg::TplAddRels(gb, rels, deg, pred, _gen_deg);
     }
 
-    inline void Homology_(const Groebner<FnCmp>& gb, const MayDeg1d& gen_degs, /*std::vector<std::string>& gen_names, */ const std::vector<Polynomial<FnCmp>>& gen_diffs, const MayDeg& deg_diff, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h,
-                          std::vector<std::string>& gen_names_h, std::vector<Polynomial<FnCmp>>& gen_repr_h, int t_max)
+    inline void Homology_(const Groebner& gb, const MayDeg1d& gen_degs, /*std::vector<std::string>& gen_names, */ const std::vector<Poly>& gen_diffs, const MayDeg& deg_diff, GroebnerRevlex& gb_h, MayDeg1d& gen_degs_h,
+                          std::vector<std::string>& gen_names_h, std::vector<Poly>& gen_repr_h, int t_max)
     {
         Homology(gb, gen_degs, gen_diffs, deg_diff, gb_h, gen_degs_h, gen_names_h, gen_repr_h, t_max);
     }

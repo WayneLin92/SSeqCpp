@@ -114,9 +114,7 @@ void SteenrodMResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[s][gb_index].x1.data[0]);
-            prod_x1.data.clear();
             mulP(m, gb_[s][gb_index].x1, prod_x1, tmp_a);
-            prod_x2.data.clear();
             mulP(m, gb_[s][gb_index].x2, prod_x2, tmp_a);
 
             // int b = 0;
@@ -170,7 +168,6 @@ void SteenrodMResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[sp1][gb_index].x1.data[0]);
-            prod_x1.data.clear();
             mulP(m, gb_[sp1][gb_index].x1, prod_x1, tmp_a);
 
             while (!heap.empty() && heap.front().m == term) {
@@ -511,20 +508,14 @@ void compute_products_batch(const GenMRes2d& gens, const SteenrodMResConst& gb, 
 /**
  * Compute products with the loaded indecomposables
  */
-void compute_products_ind()
+void compute_products_ind(int t_trunc, std::string& db_in, std::string& db_out)
 {
-#ifdef MYDEPLOY
-    std::string filename = "AdamsE2.db";
-#else
-    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
-#endif
-
     std::cout << "Compute with loaded indecomposables" << std::endl;
 
     std::string table_SteenrodMRes = "SteenrodMRes";
-    auto gb = SteenrodMResConst::load(filename);
-    DbMResProd db(filename);
-    auto gens = db.load_generators(table_SteenrodMRes, DEG_MAX);
+    auto gb = SteenrodMResConst::load(db_in);
+    DbMResProd db(db_in);
+    auto gens = db.load_generators(table_SteenrodMRes, t_trunc);
 
     int num_gens = 0;
     for (size_t i = 0; i < gens.size(); ++i)
@@ -533,7 +524,7 @@ void compute_products_ind()
     std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
     std::map<int, int3d> map_h;
 
-    DbMResProd dbProd("AdamsE2Prod.db");
+    DbMResProd dbProd(db_out);
     dbProd.create_products(table_SteenrodMRes, gens);
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 
@@ -553,29 +544,23 @@ void compute_products_ind()
     compute_products_batch(gens, gb, leftFactors, map, map_h, dbProd, table_SteenrodMRes);
 }
 
-void compute_products(int t_trunc)
+void compute_products(int t_trunc, std::string& db_in, std::string& db_out)
 {
-#ifdef MYDEPLOY
-    std::string filename = "AdamsE2.db";
-#else
-    std::string filename = "C:\\Users\\lwnpk\\Documents\\MyData\\Math_AlgTop\\AdamsE2_t100.db";
-#endif
-
-    std::cout << "Compute in t<=" << (t_trunc == DEG_MAX ? "inf" : std::to_string(t_trunc)) << std::endl;
+    std::cout << "Compute in t<=" << std::to_string(t_trunc) << std::endl;
 
     std::string table_SteenrodMRes = "SteenrodMRes";
-    auto gb = SteenrodMResConst::load(filename);
-    DbMResProd db(filename);
+    auto gb = SteenrodMResConst::load(db_in);
+    DbMResProd db(db_in);
     auto gens = db.load_generators(table_SteenrodMRes, t_trunc);
 
     int num_gens = 0;
     for (size_t i = 0; i < gens.size(); ++i)
         num_gens += (int)gens[i].size();
 
-    std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after dbProd._future */
+    std::map<int, Mod2d> map; /* `map` and `map_h` should be destructed after  dbProd._future */
     std::map<int, int3d> map_h;
 
-    DbMResProd dbProd("AdamsE2Prod.db");
+    DbMResProd dbProd(db_out);
     dbProd.create_products(table_SteenrodMRes, gens);
     dbProd.load_products(table_SteenrodMRes, map, map_h);
 

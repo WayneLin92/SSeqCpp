@@ -11,7 +11,7 @@ Mon Deserialize<Mon>(const std::string& str)
     while (ss.good()) {
         int gen, exp;
         ss >> gen >> "," >> exp;
-        result.emplace_back(gen, exp);
+        result.data.push_back(GE(gen, exp));
         if (ss.peek() == ',')
             ss.ignore();
     }
@@ -33,18 +33,17 @@ Mon1d Deserialize<Mon1d>(const std::string& str)
         int gen, exp;
         ss >> gen >> "," >> exp;
         if (result.empty())
-            result.emplace_back();
-        result.back().emplace_back(gen, exp);
+            result.push_back(Mon());
+        result.back().push_back(GE(gen, exp));
         if (ss.peek() == ',')
             ss.ignore();
         else if (ss.peek() == ';') {
             ss.ignore();
-            result.emplace_back();
+            result.push_back(Mon());
         }
     }
     return result;
 }
-
 
 void DbAdamsSS::save_generators(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, alg::int1d& gen_repr) const
 {
@@ -61,12 +60,12 @@ void DbAdamsSS::save_generators(const std::string& table_prefix, const alg::Adam
     std::clog << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
 }
 
-void DbAdamsSS::save_gb(const std::string& table_prefix, const alg::PolyRevlex1d& gb, const alg::AdamsDeg1d& gen_degs) const
+void DbAdamsSS::save_gb(const std::string& table_prefix, const Poly1d& gb, const alg::AdamsDeg1d& gen_degs) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (rel, s, t) VALUES (?1, ?2, ?3);");
 
     for (size_t i = 0; i < gb.size(); ++i) {
-        alg::AdamsDeg deg = alg::GetAdamsDeg(gb[i].GetLead(), gen_degs);
+        alg::AdamsDeg deg = alg::GetDeg(gb[i].GetLead(), gen_degs);
         stmt.bind_str(1, Serialize(gb[i].data));
         stmt.bind_int(2, deg.s);
         stmt.bind_int(3, deg.t);
@@ -105,12 +104,13 @@ AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
     return result;
 }
 
-PolyRevlex1d DbAdamsSS::load_gb(const std::string& table_prefix, int t_max) const
+Poly1d DbAdamsSS::load_gb(const std::string& table_prefix, int t_max) const
 {
-    PolyRevlex1d result;
+    Poly1d result;
     Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     while (stmt.step() == MYSQLITE_ROW) {
-        PolyRevlex g = PolyRevlex::Sort(Deserialize<Mon1d>(stmt.column_str(0)));
+        Poly g;
+        g.data = Deserialize<Mon1d>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
     std::clog << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
@@ -131,4 +131,4 @@ std::map<AdamsDeg, Mon1d> DbAdamsSS::load_basis(const std::string& table_prefix)
     return result;
 }
 
-}
+}  // namespace myio
