@@ -384,12 +384,12 @@ void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp)
     SortMod2(result.data);
 }
 
-Mod& Mod::iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
+Mod& Mod::iaddmulP(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
 {
     mulP(m, x, tmp_x1, tmp_a); /* `tmp_m1 = m * x` */
     tmp_x2.data.clear();
-    std::swap(data, tmp_x2.data);
-    std::set_symmetric_difference(tmp_x1.data.cbegin(), tmp_x1.data.cend(), tmp_x2.data.cbegin(), tmp_x2.data.cend(), std::back_inserter(data));
+    std::set_symmetric_difference(tmp_x1.data.cbegin(), tmp_x1.data.cend(), data.cbegin(), data.cend(), std::back_inserter(tmp_x2.data));
+    ut::copy(tmp_x2.data, data);
     return *this;
 }
 
@@ -397,8 +397,8 @@ Mod& Mod::iaddmulMay(MMilnor m, const Mod& x, Mod& tmp)
 {
     Mod mx = MulMay(m, x);  ////
     tmp.data.clear();
-    std::swap(data, tmp.data);
-    std::set_symmetric_difference(mx.data.cbegin(), mx.data.cend(), tmp.data.cbegin(), tmp.data.cend(), std::back_inserter(data));
+    std::set_symmetric_difference(data.cbegin(), data.cend(), mx.data.cbegin(), mx.data.cend(), std::back_inserter(tmp.data));
+    ut::copy(tmp.data, data);
     return *this;
 }
 

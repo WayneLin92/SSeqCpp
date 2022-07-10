@@ -60,8 +60,8 @@ Mod SteenrodMResConst::DiffInv(Mod x, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
-            x.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
-            result.iaddmul(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
+            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.iaddmulP(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -74,7 +74,7 @@ Mod SteenrodMResConst::DiffInv(Mod x, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.data[index], gb_[sp1][gb_index].x1.data[0]);
-            result.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
         }
         else
             ++index;

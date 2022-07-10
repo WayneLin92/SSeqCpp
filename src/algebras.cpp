@@ -1,6 +1,7 @@
 #include "algebras.h"
 #include "myexception.h"
 #include "myio.h"
+#include "utility.h"
 #include <iterator>
 
 #ifndef NDEBUG
@@ -21,32 +22,32 @@ std::string GE::Str() const
 
     if (upper.size() > 1)
         result += "^{" + upper + '}';
-    else
+    else if (e() != 1)
         result += '^' + upper;
     return result;
 }
 
-MonTrace Mon::Trace() const  // TODO: Try two bits for one exponents
+MonTrace Mon::Trace() const
 {
     MonTrace result = 0;
-    for (size_t i = 0; i < data.size(); ++i) {
+    for (size_t i = 0; i < (size_t)size_; ++i) {
         const int bits_exp1 = 56;
         const int bits_exp2 = 64 - bits_exp1;
-        result |= (MonTrace(1) << (data[i].g() % bits_exp1));
-        if (data[i].e() >= 2)
-            result |= (MonTrace(1) << ((data[i].g() % bits_exp2) + bits_exp1));
+        result |= (MonTrace(1) << (data_[i].g() % bits_exp1));
+        if (data_[i].e() >= 2)
+            result |= (MonTrace(1) << ((data_[i].g() % bits_exp2) + bits_exp1));
     }
     return result;
 }
 
 std::string Mon::Str() const
 {
-    return myio::TplStrCont("", "", "", "1", data.begin(), data.end(), [](GE p) { return p.Str(); });
+    return myio::TplStrCont("", "", "", "1", begin(), end(), [](GE p) { return p.Str(); });
 }
 
-void mulP(const Mon& mon1, const Mon& mon2, Mon& result)
+Mon operator*(const Mon& mon1, const Mon& mon2)
 {
-    result.data.clear();
+    Mon result;
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw())
@@ -60,14 +61,15 @@ void mulP(const Mon& mon1, const Mon& mon2, Mon& result)
         }
     }
     if (k != mon1.end())
-        result.data.insert(result.end(), k, mon1.end());
+        result.insert(k, mon1.end());
     else
-        result.data.insert(result.end(), l, mon2.end());
+        result.insert(l, mon2.end());
+    return result;
 }
 
-void divP(const Mon& mon1, const Mon& mon2, Mon& result)
+Mon operator/(const Mon& mon1, const Mon& mon2)
 {
-    result.data.clear();
+    Mon result;
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw())
@@ -100,7 +102,8 @@ void divP(const Mon& mon1, const Mon& mon2, Mon& result)
         throw MyException(0x6cdd66bd, "mon1/mon2 not divisible!\n");
     else
 #endif
-        result.data.insert(result.end(), k, mon1.end());
+        result.insert(k, mon1.end());
+    return result;
 }
 
 bool divisible(const Mon& mon1, const Mon& mon2)
@@ -123,24 +126,25 @@ bool divisible(const Mon& mon1, const Mon& mon2)
     return true;
 }
 
-void powP(const Mon& mon, int e, Mon& result)
+Mon pow(const Mon& mon, int e)
 {
-    result.data.clear();
+    Mon result;
     if (e == 0)
-        return;
+        return result;
     else if (e == 1) {
         result = mon;
-        return;
+        return result;
     }
     for (auto p = mon.begin(); p != mon.end(); ++p)
         result.push_back(GE(p->g_raw() | (p->e() * e)));
+    return result;
 }
 
 int log(const Mon& mon1, const Mon& mon2)
 {
     if (!mon2) {
         /* log with 0 base */
-        throw "f50d7f56";
+        throw MyException(0x88dc0b9bU, "Log with base 1");
     }
     int q = -1;
 
@@ -170,9 +174,9 @@ int log(const Mon& mon1, const Mon& mon2)
     return q;
 }
 
-void GcdP(const Mon& mon1, const Mon& mon2, Mon& result)
+Mon GCD(const Mon& mon1, const Mon& mon2)
 {
-    result.data.clear();
+    Mon result;
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw())
@@ -185,11 +189,12 @@ void GcdP(const Mon& mon1, const Mon& mon2, Mon& result)
             ++l;
         }
     }
+    return result;
 }
 
-void LcmP(const Mon& mon1, const Mon& mon2, Mon& result)
+Mon LCM(const Mon& mon1, const Mon& mon2)
 {
-    result.data.clear();
+    Mon result;
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw())
@@ -203,9 +208,15 @@ void LcmP(const Mon& mon1, const Mon& mon2, Mon& result)
         }
     }
     if (k != mon1.end())
-        result.data.insert(result.end(), k, mon1.end());
+        result.insert(k, mon1.end());
     else
-        result.data.insert(result.end(), l, mon2.end());
+        result.insert(l, mon2.end());
+    return result;
+}
+
+std::string Poly::Str() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const Mon& m) { return m.Str(); });
 }
 
 /**
@@ -213,24 +224,13 @@ void LcmP(const Mon& mon1, const Mon& mon2, Mon& result)
  */
 void SortMod2(Mon1d& data)
 {
-    static const Mon MON_NULL = GE(0xffff);
     std::sort(data.begin(), data.end());
     for (size_t i = 0; i + 1 < data.size(); ++i)
         if (data[i] == data[i + 1]) {
-            data[i] = MON_NULL;
-            data[++i] = MON_NULL;
+            data[i] = Mon::Null();
+            data[++i] = Mon::Null();
         }
-    ut::RemoveIf(data, [](const Mon& m) { return m == MON_NULL; });
-}
-
-void mulP(const Poly& p1, const Poly& p2, Poly& result)
-{
-    result.data.clear();
-    for (size_t i = 0; i < p1.data.size(); ++i)
-        for (size_t j = 0; j < p2.data.size(); ++j)
-            result.data.push_back(mul(p1.data[i], p2.data[j]));
-    std::sort(result.data.begin(), result.data.end());
-    SortMod2(result.data);
+    ut::RemoveIf(data, [](const Mon& m) { return m.IsNull(); });
 }
 
 void mulP(const Poly& poly, const Mon& mon, Poly& result)
@@ -238,7 +238,17 @@ void mulP(const Poly& poly, const Mon& mon, Poly& result)
     result.data.clear();
     result.data.reserve(poly.data.size());
     for (const Mon& m : poly.data)
-        result.data.push_back(mul(m, mon));
+        result.data.push_back(m * mon);
+}
+
+void mulP(const Poly& p1, const Poly& p2, Poly& result)
+{
+    result.data.clear();
+    result.data.reserve(p1.data.size());
+    for (size_t i = 0; i < p1.data.size(); ++i)
+        for (size_t j = 0; j < p2.data.size(); ++j)
+            result.data.push_back(p1.data[i] * p2.data[j]);
+    SortMod2(result.data);
 }
 
 void powP(const Poly& poly, uint32_t n, Poly& result, Poly& tmp)
@@ -264,7 +274,7 @@ Poly GetDiff(const Mon& mon, const Poly1d& diffs)
     Poly result, tmp_prod, tmp;
     for (auto k = mon.begin(); k != mon.end(); ++k) {
         if (k->e() % 2) {
-            mulP(diffs[k->g()], div(mon, GE(k->g_raw() | 1)), tmp_prod);
+            mulP(diffs[k->g()], mon / GE(k->g_raw() | 1), tmp_prod);
             result.iaddP(tmp_prod, tmp);
         }
     }
@@ -277,7 +287,7 @@ Poly GetDiff(const Poly& poly, const Poly1d& diffs)
     for (const Mon& mon : poly.data) {
         for (auto k = mon.begin(); k != mon.end(); ++k) {
             if (k->e() % 2) {
-                mulP(diffs[k->g()], div(mon, GE(k->g_raw() | 1)), tmp_prod);
+                mulP(diffs[k->g()], mon / GE(k->g_raw() | 1), tmp_prod);
                 result.iaddP(tmp_prod, tmp);
             }
         }
@@ -292,8 +302,7 @@ uint1d Poly2Indices(const Mon1d& poly, const Mon1d& basis)
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifndef NDEBUG
         if (p == basis.end() || mon < (*p)) {
-            std::cout << "index not found\n";
-            throw "178905cf";
+            throw MyException(0x57f14e21U, "Index not found");
         }
 #endif
         result.push_back(uint32_t(p - basis.begin()));
@@ -307,11 +316,6 @@ Mon1d Indices2Poly(const uint1d& indices, const Mon1d& basis)
     for (int i : indices)
         result.push_back(basis[i]);
     return result;
-}
-
-std::string Poly::Str() const
-{
-    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const Mon& m) { return m.Str(); });
 }
 
 }  // namespace alg

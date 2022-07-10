@@ -17,15 +17,15 @@ constexpr int kLevelMax = 10000;
 
 struct BasisComplex
 {
-    alg::array2d boundaries;
-    alg::array2d cycles;
+    alg::int2d boundaries;
+    alg::int2d cycles;
 };
 
 struct Staircase
 {
-    alg::array2d basis_ind;
-    alg::array2d diffs_ind; /* ={-1} means null */
-    alg::array levels;
+    alg::int2d basis_ind;
+    alg::int2d diffs_ind; /* ={-1} means null */
+    alg::int1d levels;
 };
 
 }  // namespace alg
@@ -88,25 +88,25 @@ inline std::string Serialize(const Mon1d& obj)
 class DbAlg : public Database
 {
     template <typename FnCmp>
-    using Polynomial1d = std::vector<Polynomial<FnCmp>>;
+    using Poly1d = std::vector<Poly<FnCmp>>;
     template <typename FnCmp>
-    using Poly1d = std::vector<Polynomial<FnCmp>>;
+    using Poly1d = std::vector<Poly<FnCmp>>;
 
 public:
     DbAlg() = default;
     explicit DbAlg(const std::string& filename) : Database(filename) {}
 
 public:
-    std::vector<array> get_column_array(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
+    std::vector<int1d> get_column_array(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
     template <typename FnCmp>
     Poly1d<FnCmp> get_column_Poly(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
     {
-        return get_column_from_str<Polynomial<FnCmp>>(table_name, column_name, conditions, [](const std::string& s) { return Polynomial<FnCmp>{Deserialize<Mon1d>(s)}; });
+        return get_column_from_str<Poly<FnCmp>>(table_name, column_name, conditions, [](const std::string& s) { return Poly<FnCmp>{Deserialize<Mon1d>(s)}; });
     }
     template <typename FnCmp>
-    Poly1d<FnCmp> get_column_Poly_with_null(const std::string& table_name, const std::string& column_name, const Polynomial<FnCmp>& null_poly, const std::string& conditions) const
+    Poly1d<FnCmp> get_column_Poly_with_null(const std::string& table_name, const std::string& column_name, const Poly<FnCmp>& null_poly, const std::string& conditions) const
     {
-        return get_column_from_str_with_null<Polynomial<FnCmp>>(table_name, column_name, null_poly, conditions, [](const std::string& s) { return Polynomial<FnCmp>{Deserialize<Mon1d>(s)}; });
+        return get_column_from_str_with_null<Poly<FnCmp>>(table_name, column_name, null_poly, conditions, [](const std::string& s) { return Poly<FnCmp>{Deserialize<Mon1d>(s)}; });
     }
 
 public:
@@ -118,7 +118,7 @@ public:
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_diffs(const std::string& table_prefix) const
     {
-        return get_column_Poly_with_null<FnCmp>(table_prefix + "_generators", "gen_diff", Polynomial<FnCmp>::Gen(-1), " ORDER BY gen_id");
+        return get_column_Poly_with_null<FnCmp>(table_prefix + "_generators", "gen_diff", Poly<FnCmp>::Gen(-1), " ORDER BY gen_id");
     }
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_reprs(const std::string& table_prefix) const
@@ -128,19 +128,19 @@ public:
     template <typename FnCmp>
     Poly1d<FnCmp> load_gen_images(const std::string& table_prefix, const std::string& column_name) const
     {
-        return get_column_Poly_with_null<FnCmp>(table_prefix + "_generators", column_name, Polynomial<FnCmp>::Gen(-1), " ORDER BY gen_id");
+        return get_column_Poly_with_null<FnCmp>(table_prefix + "_generators", column_name, Poly<FnCmp>::Gen(-1), " ORDER BY gen_id");
     }
     Mon2d load_leading_terms(const std::string& table_prefix, int t_max) const; /* The leading monomials are grouped by the first generator */
     template <typename FnCmp>
     Groebner<FnCmp> load_gb(const std::string& table_prefix, int t_max) const
     {
-        Polynomial1d<FnCmp> polys;
+        Poly1d<FnCmp> polys;
         Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
         while (stmt.step() == MYSQLITE_ROW) {
-            Polynomial<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
-            Polynomial<FnCmp> basis = Polynomial<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1)));  ////
+            Poly<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
+            Poly<FnCmp> basis = Poly<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1)));  ////
 
-            Polynomial<FnCmp> g = basis + lead;
+            Poly<FnCmp> g = basis + lead;
             polys.push_back(std::move(g));
         }
         std::clog << "gb loaded from " << table_prefix + "_relations, size=" << polys.size() << '\n';
@@ -165,11 +165,11 @@ public:
     {
         return group_by_Maydeg<Mon>(table_prefix + "_basis", "mon", (t_max == alg::DEG_MAX ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;", Deserialize<Mon>);
     }
-    std::map<MayDeg, array2d> load_mon_diffs_ind(const std::string& table_prefix, int t_max) const
+    std::map<MayDeg, int2d> load_mon_diffs_ind(const std::string& table_prefix, int t_max) const
     {
-        return group_by_Maydeg<array>(table_prefix + "_basis", "diff", (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<array>);
+        return group_by_Maydeg<int1d>(table_prefix + "_basis", "diff", (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<int1d>);
     }
-    std::map<MayDeg, array2d> load_mon_diffs_ind_with_null(const std::string& table_prefix, int t_max) const;
+    std::map<MayDeg, int2d> load_mon_diffs_ind_with_null(const std::string& table_prefix, int t_max) const;
     template <typename FnCmp>
     std::map<MayDeg, Poly1d<FnCmp>> load_mon_diffs(const std::string& table_prefix, const std::map<MayDeg, Mon1d>& basis, int r, int t_max) const
     {
@@ -180,8 +180,8 @@ public:
         while (stmt.step() == MYSQLITE_ROW) {
             ++count;
             MayDeg deg = {stmt.column_int(0), stmt.column_int(1), stmt.column_int(2)};
-            array diff_index = Deserialize<array>(stmt.column_str(3));
-            result[deg].push_back(diff_index.empty() ? Polynomial<FnCmp>{} : Polynomial<FnCmp>{alg::Indices2Poly(std::move(diff_index), basis.at(deg + MayDeg{1, 0, -r}))});
+            int1d diff_index = Deserialize<int1d>(stmt.column_str(3));
+            result[deg].push_back(diff_index.empty() ? Poly<FnCmp>{} : Poly<FnCmp>{alg::Indices2Poly(std::move(diff_index), basis.at(deg + MayDeg{1, 0, -r}))});
         }
         std::clog << "diffs loaded from " << table_prefix + "_basis, size=" << count << '\n';
         return result;
@@ -209,22 +209,22 @@ public:
             table_prefix + "_generators", "gen_name", "gen_id", gen_names, [](const std::string& c) { return c; }, 0);
     }
     template <typename FnCmp>
-    void save_gen_reprs(const std::string& table_prefix, const std::vector<Polynomial<FnCmp>>& gen_reprs) const
+    void save_gen_reprs(const std::string& table_prefix, const std::vector<Poly<FnCmp>>& gen_reprs) const
     {
         update_str_column(
-            table_prefix + "_generators", "repr", "gen_id", gen_reprs, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
+            table_prefix + "_generators", "repr", "gen_id", gen_reprs, [](const Poly<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>
-    void save_gen_diffs(const std::string& table_prefix, const std::vector<Polynomial<FnCmp>>& gen_diffs) const
+    void save_gen_diffs(const std::string& table_prefix, const std::vector<Poly<FnCmp>>& gen_diffs) const
     {
         update_str_column(
-            table_prefix + "_generators", "gen_diff", "gen_id", gen_diffs, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
+            table_prefix + "_generators", "gen_diff", "gen_id", gen_diffs, [](const Poly<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>
-    void save_gen_images(const std::string& table_prefix, const std::string& column_name, const std::vector<Polynomial<FnCmp>>& gen_images) const
+    void save_gen_images(const std::string& table_prefix, const std::string& column_name, const std::vector<Poly<FnCmp>>& gen_images) const
     {
         update_str_column(
-            table_prefix + "_generators", column_name, "gen_id", gen_images, [](const Polynomial<FnCmp>& p) { return Serialize(p.data); }, 0);
+            table_prefix + "_generators", column_name, "gen_id", gen_images, [](const Poly<FnCmp>& p) { return Serialize(p.data); }, 0);
     }
     template <typename FnCmp>
     void save_gb(const std::string& table_prefix, const Groebner<FnCmp>& gb, const std::vector<MayDeg>& gen_degs, size_t i_start = 0) const
@@ -281,14 +281,14 @@ public:
         }
         std::clog << count << " bases are inserted into " + table_prefix + "_basis!\n";
     }
-    void save_mon_reprs(const std::string& table_prefix, const std::map<MayDeg, array2d>& mon_reprs) const
+    void save_mon_reprs(const std::string& table_prefix, const std::map<MayDeg, int2d>& mon_reprs) const
     {
-        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const alg::array& a) { return Serialize(a); });
+        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const alg::int1d& a) { return Serialize(a); });
     }
     template <typename FnCmp>
     void save_mon_reprs(const std::string& table_prefix, const std::map<MayDeg, Poly1d<FnCmp>>& mon_reprs) const
     {
-        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const Polynomial<FnCmp>& a) { return Serialize(a); });
+        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const Poly<FnCmp>& a) { return Serialize(a); });
     }
     void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;
     void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;

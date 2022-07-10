@@ -567,8 +567,8 @@ struct Mod
     Mod& iaddP(const Mod& rhs, Mod& tmp)
     {
         tmp.data.clear();
-        std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(tmp.data));
+        ut::copy(tmp.data, data);
         return *this;
     }
     Mod& operator+=(const Mod& rhs)
@@ -577,7 +577,7 @@ struct Mod
         return iaddP(rhs, tmp);
     }
     /* `*this += m * x` */
-    Mod& iaddmul(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2);
+    Mod& iaddmulP(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2);
     Mod& iaddmulMay(MMilnor m, const Mod& x, Mod& tmp);
     bool operator==(const Mod& rhs) const
     {
@@ -623,7 +623,7 @@ Mod mulLF(MMilnor m, const Mod& x);
 inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
 {
     for (const MMod& mv : x.data)
-        result.iaddmul(mv.m(), map[mv.v()], tmp_a, tmp_x1, tmp_x2);
+        result.iaddmulP(mv.m(), map[mv.v()], tmp_a, tmp_x1, tmp_x2);
 }
 
 /**

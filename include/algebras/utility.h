@@ -19,7 +19,7 @@
  */
 namespace ut {
 
-inline size_t FUTURE_NUM_THREADS = 256;
+inline size_t FUTURE_NUM_THREADS = 128;
 
 /*
  * A "random access" iterator of [begin, end) generated on the fly.
@@ -133,7 +133,7 @@ inline std::vector<size_t> size_t_range(size_t n)
  * Remove elements of `cont` for which the Predicate is true
  */
 template <typename Container1d, typename FnPred>
-inline void RemoveIf(Container1d& cont, const FnPred& pred)
+void RemoveIf(Container1d& cont, const FnPred& pred)
 {
     cont.erase(std::remove_if(cont.begin(), cont.end(), pred), cont.end());
 }
@@ -142,7 +142,7 @@ inline void RemoveIf(Container1d& cont, const FnPred& pred)
  * Remove elements of `cont` which are empty containers
  */
 template <typename Container1d>
-inline void RemoveEmptyElements(Container1d& cont)
+void RemoveEmptyElements(Container1d& cont)
 {
     RemoveIf(cont, [](const typename Container1d::value_type& g) { return g.empty(); });
 }
@@ -151,9 +151,21 @@ inline void RemoveEmptyElements(Container1d& cont)
  * Remove elements of `cont` which are zero
  */
 template <typename Container>
-inline void RemoveZeroElements(Container& cont)
+void RemoveZeroElements(Container& cont)
 {
     RemoveIf(cont, [](const typename Container::value_type& g) { return !g; });
+}
+
+/* This function tries to avoid dest capacity way too bigger than size */
+template <typename T>
+void copy(std::vector<T>& tmp, std::vector<T>& dest)
+{
+    if (tmp.capacity() <= tmp.size() + tmp.size() / 2)
+        std::swap(dest, tmp);
+    else {
+        dest.clear();
+        dest.insert(dest.end(), tmp.cbegin(), tmp.cend());
+    }
 }
 
 namespace detail {

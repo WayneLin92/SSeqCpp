@@ -28,7 +28,7 @@ int main(int argc, char** argv)
     }
 
     if (argc >= 3) {
-        std::istringstream ss(argv[3]);
+        std::istringstream ss(argv[2]);
         if (!(ss >> db_in)) {
             std::cerr << "Invalid db_in: " << argv[2] << '\n';
             return 2;

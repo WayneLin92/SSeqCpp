@@ -90,10 +90,12 @@ void CriMilnors::Minimize(const MMod1d& leads, int t)
 void CriMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
 {
     size_t lead_size = leads.size();
+    if (gb_.size() < lead_size + 1)
+        gb_.resize(lead_size + 1);
     std::vector<std::pair<int, CriMilnor>> new_pairs(lead_size);
 
     /* Populate `new_pairs` */
-    for (size_t i = 0; i < leads.size(); ++i) {
+    for (size_t i = 0; i < lead_size; ++i) {
         new_pairs[i].first = -1;
         if (leads[i].v_raw() == mon.v_raw()) {
             int d_pair = lcmLF(leads[i].m_no_weight(), mon.m_no_weight()).deg() + t_v;
@@ -127,7 +129,6 @@ void CriMilnors::AddToBuffers(const MMod1d& leads, MMod mon, int t_v)
     }
     for (size_t i = 0; i < new_pairs.size(); ++i) {
         if (new_pairs[i].first != -1) {
-            gb_.resize(lead_size + 1);
             gb_[lead_size].push_back(new_pairs[i].second);
             buffer_min_pairs_[new_pairs[i].first].resize(lead_size + 1);
             buffer_min_pairs_[new_pairs[i].first][lead_size].push_back(new_pairs[i].second);
@@ -358,13 +359,13 @@ DataMRes SteenrodMRes::Reduce(const CriMilnor& cp, size_t s) const
     tmp_x2.data.reserve(64);
 
     if (cp.i1 >= 0) {
-        result.x1.iaddmul(cp.m1, gb_[s][cp.i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmul(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
-        result.x2.iaddmul(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
+        result.x1.iaddmulP(cp.m1, gb_[s][cp.i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
+        result.x2.iaddmulP(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
         result.x2m.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp_x1).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_x1);
     }
     else {
-        result.x1.iaddmul(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
-        result.x2.iaddmul(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
+        result.x1.iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
+        result.x2.iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
         result.x2m.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_x1);
     }
     result.fil = gb_[s][cp.i2].fil + cp.m2.w_may();
@@ -377,8 +378,8 @@ DataMRes SteenrodMRes::Reduce(const CriMilnor& cp, size_t s) const
             MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
             if (result.valid_x2m() && result.fil == Filtr(result.x1.data[index]))
                 result.x2m.iaddmulMay(m, gb_[s][gb_index].x2m, tmp_x1);
-            result.x1.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
-            result.x2.iaddmul(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
+            result.x1.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.x2.iaddmulP(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -389,7 +390,7 @@ DataMRes SteenrodMRes::Reduce(const CriMilnor& cp, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.x2.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.x2.data[index], gb_[sp1][gb_index].x1.data[0]);
-            result.x2.iaddmul(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.x2.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -425,13 +426,13 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
 
     for (size_t i = 0; i < cps.size(); ++i) {
         if (cps[i].i1 >= 0) {
-            results[i].x1.iaddmul(cps[i].m1, gb_[s][cps[i].i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmul(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
-            results[i].x2.iaddmul(cps[i].m1, gb_[s][cps[i].i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmul(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
+            results[i].x1.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
+            results[i].x2.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
             results[i].x2m.iaddmulMay(cps[i].m1, gb_[s][cps[i].i1].x2m, tmp_x1).iaddmulMay(cps[i].m2, gb_[s][cps[i].i2].x2m, tmp_x1);
         }
         else {
-            results[i].x1.iaddmul(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
-            results[i].x2.iaddmul(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
+            results[i].x1.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
+            results[i].x2.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
             results[i].x2m.iaddmulMay(cps[i].m2, gb_[s][cps[i].i2].x2m, tmp_x1);
         }
         results[i].fil = gb_[s][cps[i].i2].fil + cps[i].m2.w_may();
@@ -540,7 +541,7 @@ Mod SteenrodMRes::Reduce(Mod x, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
-            x.iaddmul(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
         }
         else
             ++index;

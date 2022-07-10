@@ -36,20 +36,26 @@ struct is_map<std::map<K, T>> : std::true_type
     using value_type = T;
 };
 
+template <typename It>
+uint64_t hash(It begin, It end)
+{
+    uint64_t seed = 0;
+    for (auto it = begin; it != end; ++it)
+        ut::hash_combine(seed, hash(*it));
+    return seed;
+}
+
 template <typename T>
 uint64_t hash(const T& x)
 {
     if constexpr (is_sequence<T>::value) {
-        uint64_t seed = 0;
-        for (auto it = x.begin(); it != x.end(); ++it)
-            ut::hash_combine(seed, hash<typename is_sequence<T>::value_type>(*it));
-        return seed;
+        hash(x.begin(), x.end());
     }
     else if constexpr (is_map<T>::value) {
         uint64_t seed = 0;
         for (auto it = x.begin(); it != x.end(); ++it) {
-            ut::hash_combine(seed, hash<typename is_map<T>::key_type>(it->first));
-            ut::hash_combine(seed, hash<typename is_map<T>::value_type>(it->second));
+            ut::hash_combine(seed, hash(it->first));
+            ut::hash_combine(seed, hash(it->second));
         }
         return seed;
     }

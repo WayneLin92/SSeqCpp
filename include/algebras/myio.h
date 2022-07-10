@@ -1,6 +1,7 @@
 #ifndef MYIO_H
 #define MYIO_H
 
+#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -11,7 +12,7 @@ using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 
 template <typename FwdIt, typename FnStr>
-std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str) // TODO: make a performant version
+std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str)  // TODO: make a performant version
 {
     std::string result;
     if (first == last)
@@ -108,6 +109,19 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
 {
     load_array3d(sin, a);
     return sin;
+}
+
+template <typename T>
+int load_arg(int argc, char** argv, int index, const char* name, T& x)
+{
+    if (argc > index) {
+        std::istringstream ss(argv[index]);
+        if (!(ss >> x)) {
+            std::cerr << "Invalid " << name << ": " << argv[index] << '\n';
+            return 1;
+        }
+    }
+    return 0;
 }
 
 }  // namespace myio

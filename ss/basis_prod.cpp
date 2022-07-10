@@ -33,63 +33,43 @@ public:
         }
         std::clog << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
-
-    /* void save_basis_products(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis) const
-    {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (id, mon, s, t) VALUES (?1, ?2, ?3, ?4);");
-
-        int count = 0;
-        for (auto& [deg, basis_d] : basis) {
-            for (auto& m : basis_d) {
-                stmt.bind_int(1, count);
-                stmt.bind_str(2, Serialize(m));
-                stmt.bind_int(3, deg.s);
-                stmt.bind_int(4, deg.t);
-                stmt.step_and_reset();
-                ++count;
-            }
-        }
-
-        std::clog << count << " bases are inserted into " + table_prefix + "_basis!\n";
-    }*/
 };
 
 namespace ut {
 template <>
-uint64_t hash<GenPow>(const GenPow& p)
+uint64_t hash<GE>(const GE& p)
 {
-    return (uint64_t(p.gen) << 32) + uint64_t(p.exp);
+    return p.data;
+}
+template <>
+uint64_t hash<Mon>(const Mon& m)
+{
+    return hash(m.begin(), m.end());
 }
 }  // namespace ut
 
-int1d PolyHash2indices(const PolyRevlex& poly, std::map<uint64_t, int>& hash2index)
+int1d PolyHash2indices(const Poly& poly, std::map<uint64_t, int>& hash2index)
 {
     int1d result;
-    for (const Mon& m : poly.data) {
+    for (const Mon& m : poly.data)
         result.push_back(hash2index.at(ut::hash(m)));
-    }
     return result;
 }
 
-std::ostream& operator<<(std::ostream& sout, const Mon& mon)
-{
-    return sout << myio::Serialize(mon);
-}
-
-int main()
+int main_basis_prod()
 {
     using namespace alg;
     MyDB db("AdamsE2Export.db");
 
-    int t_max = 119;
+    int t_max = 210;
 
     AdamsDeg1d gen_degs = db.load_gen_adamsdegs("AdamsE2");
-    PolyRevlex1d polys = db.load_gb("AdamsE2", t_max);
+    Poly1d polys = db.load_gb("AdamsE2", t_max);
     Mon1d basis;
     int1d t_basis;
     db.load_basis_v2("AdamsE2", t_max, basis, t_basis);
 
-    GroebnerRevlex gb(t_max, polys);
+    Groebner gb(t_max, {}, polys);
 
     std::map<uint64_t, int> hash2index;
     for (size_t i = 0; i < basis.size(); ++i) {
@@ -110,7 +90,7 @@ int main()
         std::cout << "i=" << i << '\n';
         for (size_t j = i; j < basis.size(); ++j) {
             if (t_basis[i] + t_basis[j] <= t_max) {
-                PolyRevlex poly_prod = gb.Reduce(PolyRevlex::Mon_(basis[i]) * PolyRevlex::Mon_(basis[j]));
+                Poly poly_prod = gb.Reduce(Poly(basis[i]) * basis[j]);
 
                 //std::cout << "(" << basis[i] << ") * (" << basis[j] << ") = " << myio::Serialize(poly_prod.data) << '\n';
                 int1d prod = PolyHash2indices(poly_prod, hash2index);

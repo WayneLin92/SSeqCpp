@@ -14,7 +14,7 @@ inline std::string Serialize(const Mon& mon)
 
 inline std::string Serialize(const Mon1d& obj)
 {
-    if (obj.size() == 1 && obj[0].data.empty())
+    if (obj.size() == 1 && !obj[0])
         return ";";
     return StrCont("", ";", "", "", obj, [](const Mon& mon) { return Serialize(mon); });
 }

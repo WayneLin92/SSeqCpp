@@ -8,9 +8,9 @@
 
 #include "myexception.h"
 #include "utility.h"
+#include <algorithm>
 #include <array>
-#include <climits>
-#include <queue>
+#include <iostream>
 
 /**
  * The namespace `alg` provides the basis types for monomials and polynomials.
@@ -179,6 +179,10 @@ struct GE
     {
         return data == rhs.data;
     };
+    bool operator!=(GE rhs) const
+    {
+        return data != rhs.data;
+    };
     bool operator<(GE rhs) const
     {
         return data < rhs.data;
@@ -191,13 +195,31 @@ using GE1d = std::vector<GE>;
 
 using MonTrace = uint64_t;
 using MonTrace1d = std::vector<MonTrace>;
+constexpr size_t MONSIZE = 19;
 
-struct Mon
+class Mon
 {
-    GE1d data;
+public:
+    using It = std::array<GE, MONSIZE>::const_iterator;
 
-    Mon() {}
-    Mon(GE p) : data({p}) {}
+private:
+    uint32_t size_;
+    std::array<GE, MONSIZE> data_;
+
+public:
+    constexpr Mon() : size_(0) {}
+    constexpr Mon(GE p) : size_(1)
+    {
+        data_[0] = p;
+    }
+
+    /* This is made for `SortMod2()` */
+    constexpr static Mon Null()
+    {
+        Mon result;
+        result.size_ = 0xffffffff;
+        return result;
+    }
 
     static Mon Gen(uint32_t index, uint32_t exp = 1)
     {
@@ -206,36 +228,78 @@ struct Mon
 
     bool operator==(const Mon& rhs) const
     {
-        return data == rhs.data;
+        if (size_ != rhs.size_)
+            return false;
+        for (size_t i = 0; i < (size_t)size_; ++i)
+            if (data_[i] != rhs.data_[i])
+                return false;
+        return true;
     };
-    bool operator<(const Mon& rhs) const
-    {
-        return data < rhs.data;
-    };
+
     explicit operator bool() const
     {
-        return !data.empty();
+        return size_;
     }
-    auto& operator[](size_t i) const
+
+    /* This is made for `SortMod2()` */
+    bool IsNull() const
     {
-        return data[i];
+        return size_ == 0xffffffff;
     }
+
+    auto& front() const
+    {
+#ifndef NDEBUG
+        if (size_ == 0)
+            throw MyException(0xfebc8802U, "Calling front() on empty");
+#endif
+        return data_[0];
+    }
+
+    auto& back() const
+    {
+#ifndef NDEBUG
+        if (size_ == 0)
+            throw MyException(0xfebc8802U, "Calling back() on empty");
+#endif
+        return data_[size_t(size_ - 1)];
+    }
+
     auto begin() const
     {
-        return data.begin();
+        return data_.begin();
     }
+
     auto end() const
     {
-        return data.end();
+        return data_.begin() + size_;
     }
-    auto size() const
+
+    constexpr auto size() const
     {
-        return data.size();
+        return size_;
     }
     void push_back(GE p)
     {
-        data.push_back(p);
+#ifndef NDEBUG
+        if (size_ >= MONSIZE)
+            throw MyException(0x9b96a118U, "Mon overflow");
+#endif
+        data_[size_++] = p;
     }
+    auto& operator[](size_t i) const
+    {
+        return data_[i];
+    }
+    void insert(It it_begin, It it_end)
+    {
+        for (It it = it_begin; it != it_end; ++it)
+            push_back(*it);
+    }
+    bool operator<(const Mon& rhs) const
+    {
+        return std::lexicographical_compare(begin(), end(), rhs.begin(), rhs.end());
+    };
 
     MonTrace Trace() const;
     std::string Str() const;
@@ -243,6 +307,11 @@ struct Mon
 
 using Mon1d = std::vector<Mon>;
 using Mon2d = std::vector<Mon1d>;
+
+inline std::ostream& operator<<(std::ostream& sout, const Mon& x)
+{
+    return std::cout << x.Str();
+}
 
 /**
  * Obtain the degree of a monomial given the degrees of generators.
@@ -275,29 +344,9 @@ inline int GetDegT(const Mon& mon, const std::vector<T>& gen_degs)
     return GetDegTpl(mon, [&gen_degs](int i) { return gen_degs[i].t; });
 }
 
-void mulP(const Mon& mon1, const Mon& mon2, Mon& result);
-inline Mon mul(const Mon& mon1, const Mon& mon2)
-{
-    Mon result;
-    mulP(mon1, mon2, result);
-    return result;
-}
-
-void divP(const Mon& mon1, const Mon& mon2, Mon& result);
-inline Mon div(const Mon& mon1, const Mon& mon2)
-{
-    Mon result;
-    divP(mon1, mon2, result);
-    return result;
-}
-
-void powP(const Mon& mon, int e, Mon& result);
-inline Mon pow(const Mon& mon, int e)
-{
-    Mon result;
-    powP(mon, e, result);
-    return result;
-}
+Mon operator*(const Mon& mon1, const Mon& mon2);
+Mon operator/(const Mon& mon1, const Mon& mon2);
+Mon pow(const Mon& mon, int e);
 
 /**
  * Return if m1 divides m2.
@@ -314,22 +363,8 @@ inline bool divisible(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2
  */
 int log(const Mon& mon1, const Mon& mon2);
 
-
-void GcdP(const Mon& mon1, const Mon& mon2, Mon& result);
-inline Mon GCD(const Mon& mon1, const Mon& mon2)
-{
-    Mon result;
-    GcdP(mon1, mon2, result);
-    return result;
-}
-
-void LcmP(const Mon& mon1, const Mon& mon2, Mon& result);
-inline Mon LCM(const Mon& mon1, const Mon& mon2)
-{
-    Mon result;
-    LcmP(mon1, mon2, result);
-    return result;
-}
+Mon GCD(const Mon& mon1, const Mon& mon2);
+Mon LCM(const Mon& mon1, const Mon& mon2);
 
 /** @} ---------------------------------------- */
 /** \defgroup Polynomials Polynomials
@@ -341,8 +376,8 @@ inline Mon LCM(const Mon& mon1, const Mon& mon2)
  ********************************************************/
 
 struct Poly;
-void mulP(const Poly& p1, const Poly& p2, Poly& result);
 void mulP(const Poly& poly, const Mon& mon, Poly& result);
+void mulP(const Poly& p1, const Poly& p2, Poly& result);
 
 struct Poly  // TODO: change to Poly
 {
@@ -438,8 +473,8 @@ struct Poly  // TODO: change to Poly
     Poly& iaddP(const Poly& rhs, Poly& tmp)
     {
         tmp.data.clear();
-        std::swap(data, tmp.data);
-        std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(tmp.data));
+        ut::copy(tmp.data, data);
         return *this;
     }
     Poly& operator+=(const Poly& rhs)
@@ -470,8 +505,14 @@ struct Poly  // TODO: change to Poly
 
 using Poly1d = std::vector<Poly>;
 
+inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
+{
+    return std::cout << x.Str();
+}
+
 void powP(const Poly& poly, uint32_t n, Poly& result, Poly& tmp);
-inline Poly pow(const Poly& poly, uint32_t n) {
+inline Poly pow(const Poly& poly, uint32_t n)
+{
     Poly result, tmp;
     powP(poly, n, result, tmp);
     return result;
@@ -506,7 +547,7 @@ Poly subsTpl(const Poly& poly, const FnMap& map)
             powP(map(p->g()), p->e(), tmp_prod, tmp);
             fm.imulP(tmp_prod, tmp);
         }
-        result += fm;
+        result.iaddP(fm, tmp);
     }
     return result;
 }
@@ -521,7 +562,7 @@ inline Poly subs(const Poly& poly, const std::vector<Poly>& map)
  * @param poly The polynomial to be substituted.
  * @param map_gen_id `map_gen_id[i]` is the new id that substitutes the old id `i`.
  */
-Poly subs(const Poly& poly, const uint1d& map_gen_id)
+inline Poly subs(const Poly& poly, const uint1d& map_gen_id)
 {
     return subsTpl(poly, [&map_gen_id](size_t i) { return Poly::Gen(map_gen_id[i]); });
 }

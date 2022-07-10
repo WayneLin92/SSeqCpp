@@ -11,7 +11,7 @@ Mon Deserialize<Mon>(const std::string& str)
     while (ss.good()) {
         int gen, exp;
         ss >> gen >> "," >> exp;
-        result.data.push_back(GE(gen, exp));
+        result.push_back(GE(gen, exp));
         if (ss.peek() == ',')
             ss.ignore();
     }
