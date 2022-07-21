@@ -57,7 +57,7 @@ void DbAdamsSS::save_generators(const std::string& table_prefix, const alg::Adam
         stmt.step_and_reset();
     }
 
-    std::clog << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
+    std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
 }
 
 void DbAdamsSS::save_gb(const std::string& table_prefix, const Poly1d& gb, const alg::AdamsDeg1d& gen_degs) const
@@ -72,7 +72,7 @@ void DbAdamsSS::save_gb(const std::string& table_prefix, const Poly1d& gb, const
         stmt.step_and_reset();
     }
 
-    std::clog << gb.size() << " relations are inserted into " + table_prefix + "_relations!\n";
+    std::cout << gb.size() << " relations are inserted into " + table_prefix + "_relations!\n";
 }
 
 void DbAdamsSS::save_basis(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis) const
@@ -91,7 +91,7 @@ void DbAdamsSS::save_basis(const std::string& table_prefix, const std::map<alg::
         }
     }
 
-    std::clog << count << " bases are inserted into " + table_prefix + "_basis!\n";
+    std::cout << count << " bases are inserted into " + table_prefix + "_basis!\n";
 }
 
 AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
@@ -100,7 +100,7 @@ AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
     Statement stmt(*this, "SELECT s, t FROM " + table_prefix + "_generators ORDER BY id;");
     while (stmt.step() == MYSQLITE_ROW)
         result.push_back({stmt.column_int(0), stmt.column_int(1)});
-    std::clog << "gen_adamsdegs loaded from " << table_prefix + "_generators, size=" << result.size() << '\n';
+    std::cout << "gen_adamsdegs loaded from " << table_prefix + "_generators, size=" << result.size() << '\n';
     return result;
 }
 
@@ -113,7 +113,7 @@ Poly1d DbAdamsSS::load_gb(const std::string& table_prefix, int t_max) const
         g.data = Deserialize<Mon1d>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
-    std::clog << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
+    std::cout << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
     return result;
 }
 
@@ -127,7 +127,7 @@ std::map<AdamsDeg, Mon1d> DbAdamsSS::load_basis(const std::string& table_prefix)
         AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
         result[deg].push_back(Deserialize<Mon>(stmt.column_str(2)));
     }
-    std::clog << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
+    std::cout << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
     return result;
 }
 

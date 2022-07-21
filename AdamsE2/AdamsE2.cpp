@@ -51,13 +51,13 @@ int main(int argc, char** argv)
         return 0;
     }
     int index = 0;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "stem_max", stem_max))
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "db_filename", db_filename))
+    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "num_threads", num_threads))
+    if (myio::load_op_arg(argc, argv, ++index, "num_threads", num_threads))
         return index;
 
     ut::FUTURE_NUM_THREADS = num_threads;

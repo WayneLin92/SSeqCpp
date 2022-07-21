@@ -6,13 +6,7 @@
 #define GROEBNER_H
 
 #include "algebras.h"
-#include "linalg.h"
-#include "myio.h"  ////
-#include <execution>
-#include <iostream>  ////
 #include <map>
-#include <memory>
-#include <unordered_map>
 #include <unordered_set>
 
 /* extension of namespace alg in algebras.h */

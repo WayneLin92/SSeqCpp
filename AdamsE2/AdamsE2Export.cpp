@@ -109,7 +109,7 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
     for (int t = 1; t <= t_trunc; t++) {
         std::map<AdamsDeg, Mon1d> basis_new;
         std::map<AdamsDeg, int2d> repr_new;
-        std::cout << "t=" << t << '/' << t_trunc << '\n';
+        std::cout << "t=" << t << '/' << t_trunc << std::endl;
 
         /* Consider all possible basis in degree t */
         for (size_t gen_id = gen_degs.size(); gen_id-- > 0;) {

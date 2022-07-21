@@ -112,14 +112,39 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
 }
 
 template <typename T>
-int load_arg(int argc, char** argv, int index, const char* name, T& x)
+int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
 {
     if (argc > index) {
+        if constexpr (std::is_same<T, std::string>::value) {
+            if (strlen(argv[index]) == 0)
+                return 0;
+        }
         std::istringstream ss(argv[index]);
         if (!(ss >> x)) {
             std::cerr << "Invalid " << name << ": " << argv[index] << '\n';
             return 1;
         }
+    }
+    return 0;
+}
+
+template <typename T>
+int load_arg(int argc, char** argv, int index, const char* name, T& x)
+{
+    if (argc > index) {
+        if constexpr (std::is_same<T, std::string>::value) {
+            if (strlen(argv[index]) == 0)
+                return 0;
+        }
+        std::istringstream ss(argv[index]);
+        if (!(ss >> x)) {
+            std::cerr << "Invalid " << name << ": " << argv[index] << '\n';
+            return 1;
+        }
+    }
+    else {
+        std::cerr << "Mising argument <" << name << ">\n";
+        return 2;
     }
     return 0;
 }

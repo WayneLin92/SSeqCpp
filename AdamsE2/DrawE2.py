@@ -2,6 +2,8 @@
 import sqlite3
 import math
 from collections import defaultdict
+# TODO: command line arguments
+# TODO: select struct line
 
 path_db = (
     R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\AdamsE2Export.db"
@@ -12,7 +14,7 @@ path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsS
 
 class Config:
     bullets_tilt_angle = -20 / 180 * math.pi
-    bullets_radius = 0.1
+    bullets_radius = 0.08
 
 cosA = math.cos(Config.bullets_tilt_angle)
 sinA = math.sin(Config.bullets_tilt_angle)
@@ -33,28 +35,16 @@ with conn:
 
     content_js = "const basis = [\n"
     sql = f"SELECT mon, s, t FROM AdamsE2_basis ORDER BY id"
-    mon2index = {}
     index = 0
     for str_mon, s, t in c.execute(sql):
         mon = str2mon(str_mon)
-        mon2index[mon] = index
         bullets[(t - s, s)].append(index)
         content_js += f" [{str_mon}],\n"
         if len(mon) == 1 and mon[0][1] == 1:
             bullets_ind[(t - s, s)].add(index)
-        dict_mon = dict(mon)
-        for i in range(3):
-            dict_mon1 = dict_mon.copy()
-            if i in dict_mon1:
-                if dict_mon1[i] == 1:
-                    del dict_mon1[i]
-                else:
-                    dict_mon1[i] -= 1
-            mon1 = tuple(sorted(dict_mon1.items()))
         index += 1
     content_js += f"];\n\n"
 
-    tpl_bullets = ""
     radius = defaultdict(lambda: 0.1)
 
     # Determine the maximum radius
@@ -70,7 +60,7 @@ with conn:
             radius[(x, y)] = r
     
     # Make the radius smooth
-    radius_ub = defaultdict(lambda: 0.1)
+    radius = defaultdict(lambda: Config.bullets_radius)
     b_changed = True
     while b_changed:
         for x, y in radius:
@@ -87,6 +77,7 @@ with conn:
                 b_changed = True
 
     # Plot the bullets
+    tpl_bullets = ""
     index2xyr = {}
     for x, y in bullets:
         r = radius[(x, y)]
@@ -109,6 +100,7 @@ with conn:
     # Multiplicative structure
     lines = [[], [], []] # h0,h1,h2
     b2g = {1: 0, 2: 1, 5: 2}
+    # b2g = {1: 0, 2: 1, 558: 2}
     sql = f"SELECT id1, id2, prod FROM AdamsE2_basis_products"
     content_js += "const basis_prod = {\n"
     for id1, id2, prod in c.execute(sql):
@@ -123,6 +115,7 @@ with conn:
                     lines[b2g[id2]].append((id1, id3))
     content_js += "};\n\n"
 
+    # Store gen_names
     sql = f"SELECT id, name, s FROM AdamsE2_generators order by id"
     gens = defaultdict(int)
     content_js += "gen_names = [\n"

@@ -295,10 +295,10 @@ Poly GetDiff(const Poly& poly, const Poly1d& diffs)
     return result;
 }
 
-uint1d Poly2Indices(const Mon1d& poly, const Mon1d& basis)
+int1d Poly2Indices(const Poly& poly, const Mon1d& basis)
 {
-    uint1d result;
-    for (const Mon& mon : poly) {
+    int1d result;
+    for (const Mon& mon : poly.data) {
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifndef NDEBUG
         if (p == basis.end() || mon < (*p)) {
@@ -310,11 +310,11 @@ uint1d Poly2Indices(const Mon1d& poly, const Mon1d& basis)
     return result;
 }
 
-Mon1d Indices2Poly(const uint1d& indices, const Mon1d& basis)
+Poly Indices2Poly(const int1d& indices, const Mon1d& basis)
 {
-    Mon1d result;
+    Poly result;
     for (int i : indices)
-        result.push_back(basis[i]);
+        result.data.push_back(basis[i]);
     return result;
 }
 

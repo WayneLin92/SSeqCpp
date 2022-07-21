@@ -101,8 +101,17 @@ using MayDeg1d = std::vector<MayDeg>;
 struct AdamsDeg
 {
     int s, t;
-    AdamsDeg() : s(0), t(0) {}
-    AdamsDeg(int s_, int t_) : s(s_), t(t_) {}
+    constexpr AdamsDeg() : s(0), t(0) {}
+    constexpr AdamsDeg(int s_, int t_) : s(s_), t(t_) {}
+
+    constexpr static AdamsDeg Null()
+    {
+        return AdamsDeg(-1024, -1024);
+    }
+    bool IsNull() const
+    {
+        return s == -1024 && t == -1024;
+    }
     bool operator<(const AdamsDeg& rhs) const
     {
         if (t < rhs.t)
@@ -145,8 +154,17 @@ struct AdamsDeg
     {
         return AdamsDeg{s * rhs, t * rhs};
     };
+    std::string Str() const
+    {
+        return '(' + std::to_string(s) + ',' + std::to_string(t) + ')';
+    }
 };
 using AdamsDeg1d = std::vector<AdamsDeg>;
+
+inline std::ostream& operator<<(std::ostream& sout, const AdamsDeg& deg)
+{
+    return sout << deg.Str();
+}
 
 /** \defgroup Monomials Monomials
  * ------------------------------------------- @{
@@ -421,10 +439,10 @@ struct Poly  // TODO: change to Poly
             return alg::GetDeg(data.front(), gen_degs);
     }
 
-    AdamsDeg GetMayDeg(const AdamsDeg1d& gen_degs) const
+    AdamsDeg GetAdamsDeg(const AdamsDeg1d& gen_degs) const
     {
         if (data.empty())
-            return AdamsDeg{-10000, -10000};
+            return AdamsDeg::Null();
         else
             return alg::GetDeg(data.front(), gen_degs);
     }
@@ -567,8 +585,8 @@ inline Poly subs(const Poly& poly, const uint1d& map_gen_id)
     return subsTpl(poly, [&map_gen_id](size_t i) { return Poly::Gen(map_gen_id[i]); });
 }
 
-uint1d Poly2Indices(const Mon1d& poly, const Mon1d& basis);
-Mon1d Indices2Poly(const uint1d& indices, const Mon1d& basis);
+int1d Poly2Indices(const Poly& poly, const Mon1d& basis);
+Poly Indices2Poly(const int1d& indices, const Mon1d& basis);
 
 }  // namespace alg
 
