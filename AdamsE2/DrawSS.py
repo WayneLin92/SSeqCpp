@@ -5,14 +5,14 @@ from collections import defaultdict
 import argparse
 import os
 import subprocess
+from turtle import st
 
-path_db = R"C:\Users\lwnpk\Documents\Projects\AdamsSSDB\AdamsSS.db"
 path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index_tpl.html"
 path_html = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index.html"
 path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\scripts\data.js"
 
 class Config:
-    bullets_tilt_angle = -15 / 180 * math.pi
+    bullets_tilt_angle = -17 / 180 * math.pi
     bullets_radius = 0.08
 
 cosA = math.cos(Config.bullets_tilt_angle)
@@ -30,6 +30,7 @@ if __name__ == "__main__":
     # parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
+    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\AdamsE2Export_t220.db', help='the database of the spectral sequence')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)
@@ -37,14 +38,14 @@ if __name__ == "__main__":
 
     # actions
 
-    conn = sqlite3.connect(path_db)
+    conn = sqlite3.connect(args.i)
     with conn:
         c = conn.cursor()
-        with open(path_tpl) as fp:
+        with open(path_tpl, encoding="utf-8") as fp:
             content_tpl = fp.read()
         tpl_title = "Adams Spectral Sequence"
         
-        # Computes `basis`, `bullets` and `bullets_ind`
+        # Load `basis`, `bullets` and `bullets_ind`
         basis = []
         bullets = defaultdict(list)
         bullets_ind = defaultdict(set)
@@ -58,16 +59,16 @@ if __name__ == "__main__":
                 bullets_ind[(t - s, s)].add(index)
             index += 1
 
-        # Compute `ids`
+        # Load `ids`
         ids = defaultdict(int)
         sql = "SELECT s, t, min(id) FROM AdamsE2_ss GROUP BY t, s;"
         for s, t, id in c.execute(sql):
             ids[(s, t)] = id
 
-        # Compute `basis_ss`
+        # Load `basis_ss`
+        basis_ss = []
         sql = f"SELECT base, level, diff, s, t FROM AdamsE2_ss ORDER BY id"
         index = 0
-        basis_ss = []
         for base, level, diff, s, t in c.execute(sql):
             if level > 5000:
                 r = 10000 - level
@@ -75,6 +76,12 @@ if __name__ == "__main__":
             else:
                 s1, t1 = s - level, t - level + 1
             basis_ss.append((base, level, diff, ids[(s, t)], ids[(s1, t1)]))
+
+        # Load `stable_levels`
+        stable_levels = {}
+        sql = "SELECT s, t, l FROM AdamsE2_ss_stable_levels GROUP BY t, s;"
+        for s, t, l in c.execute(sql):
+            stable_levels[(t - s, s)] = l
 
         # Determine the maximum radius
         radius = defaultdict(lambda: Config.bullets_radius)
@@ -95,10 +102,15 @@ if __name__ == "__main__":
         while b_changed:
             for x, y in radius:
                 r = radius[(x, y)] * 1.085
+                r1 = radius[(x, y)] * 1.13
                 radius_ub[(x + 1, y)] = min(radius_ub[(x + 1, y)], r)
                 radius_ub[(x - 1, y)] = min(radius_ub[(x - 1, y)], r)
                 radius_ub[(x, y + 1)] = min(radius_ub[(x, y + 1)], r)
                 radius_ub[(x, y - 1)] = min(radius_ub[(x, y - 1)], r)
+                radius_ub[(x + 1, y + 1)] = min(radius_ub[(x + 1, y + 1)], r1)
+                radius_ub[(x + 1, y - 1)] = min(radius_ub[(x + 1, y - 1)], r1)
+                radius_ub[(x - 1, y + 1)] = min(radius_ub[(x - 1, y + 1)], r1)
+                radius_ub[(x - 1, y - 1)] = min(radius_ub[(x - 1, y - 1)], r1)
             
             b_changed = False
             for x, y in radius:
@@ -108,7 +120,7 @@ if __name__ == "__main__":
 
         # Plot the bullets. Compute `index2xyr` for lines
         tpl_bullets = ""
-        index2xyr = {}
+        index2xyrp = {}
         for x, y in bullets:
             r = radius[(x, y)]
             len_bullets_xy = len(bullets[(x, y)])
@@ -122,9 +134,18 @@ if __name__ == "__main__":
                 cy = bottom_right_y - i * sep_world * sinA
                 base, level, diff, offset, offsetD = basis_ss[index]
                 str_fill = ' fill="blue"' if "," not in base and (offset + int(base)) in bullets_ind[(x, y)] else ''
-                tpl_bullets += f'<circle id=b{index} class=b cx={cx:.6g} cy={cy:.6g} r={r:.6g}{str_fill} data-b={base} data-l={level} data-d="{diff}" data-i={offset} data-j={offset} data-g={int(len(str_fill) > 0)}>'
+                if level >= stable_levels[(x, y)]:
+                    if diff:
+                        page = 10000 - level
+                    else:
+                        page = 200
+                elif level >= 5000:
+                    page = 200
+                else:
+                    page = level
+                tpl_bullets += f'<circle id=b{index} class=b cx={cx:.6g} cy={cy:.6g} r={r:.6g}{str_fill} data-b={base} data-l={level} data-d="{diff}" data-i={offset} data-j={offsetD} data-g={int(len(str_fill) > 0)} data-page={page}>'
                 tpl_bullets += f'<title>({x:.6g}, {y:.6g}) id: {index}</title></circle>\n'
-                index2xyr[index] = (cx, cy, r)
+                index2xyrp[index] = (cx, cy, r, page)
 
         # Store gen_names
         sql = f"SELECT id, name, s FROM AdamsE2_generators order by id"
@@ -132,6 +153,7 @@ if __name__ == "__main__":
         content_js = "gen_names = [\n"
         for id, name, s in c.execute(sql):
             if name:
+                name = name.replace("\\", "\\\\")
                 content_js += f' "{name}",\n'
             else:
                 content_js += f' "x_{{{gens[s]},{s}}}",\n'
@@ -145,13 +167,14 @@ if __name__ == "__main__":
         content_js += f"];\n\n"
 
         # Store multiplicative structure in path_js
+        arr_factors = {1, 2, 5, 13, 21, 28, 33, 42}
         lines = [[], [], []] # h0,h1,h2
-        b2g = {1: 0, 2: 1, 5: 2}
+        b2g = {1: 0, 2: 1, 5: 2} # basis_id to gen_id
         # b2g = {1: 0, 2: 1, 558: 2}
         sql = f"SELECT id1, id2, prod FROM AdamsE2_ss_products"
         content_js += "const basis_prod = {\n"
         for id1, id2, prod in c.execute(sql):
-            if len(prod) > 0:
+            if len(prod) > 0 and ({id1, id2} & arr_factors):
                 content_js += f' "{id1},{id2}": [{prod}],\n'
 
                 if id1 in b2g:
@@ -162,12 +185,19 @@ if __name__ == "__main__":
                         lines[b2g[id2]].append((id1, id3))
         content_js += "};\n\n"
 
-        diff_lines = [[], [], [], [], []] # h2,h3,h4,h5,h6
+        diff_lines = [[], [], [], [], []] # d2,d3,d4,d5,d6
         sql = f"SELECT src, r, tgt FROM AdamsE2_ss_diffs"
         for src, r, tgt in c.execute(sql):
-            gid = min(r - 2, 4)
+            index = min(r - 2, 4)
             for id_tgt in map(int, tgt.split(",")):
-                diff_lines[gid].append((src, id_tgt))
+                diff_lines[index].append((src, id_tgt))
+
+        null_diff_lines = [[], [], [], [], []] # d2,d3,d4,d5,d6
+        sql = f"SELECT src, r, tgt FROM AdamsE2_ss_nd"
+        for src, r, tgt in c.execute(sql):
+            index = min(r - 2, 4)
+            for id_tgt in map(int, tgt.split(",")):
+                null_diff_lines[index].append((src, id_tgt))
 
         with open(path_js, "w") as file:
             file.write(content_js)
@@ -176,13 +206,19 @@ if __name__ == "__main__":
         tpl_lines = ["", "", ""]
         for i in range(3):
             for i1, i2 in lines[i]:
-                tpl_lines[i] += f'<line x1={index2xyr[i1][0]:.6g} y1={index2xyr[i1][1]:.6g} x2={index2xyr[i2][0]:.6g} y2={index2xyr[i2][1]:.6g} stroke-width={min(index2xyr[i1][2], index2xyr[i2][2]) / 5:.6g}></line>\n'
+                tpl_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />'
                 
         # Plot the diff lines
         tpl_diff_lines = ["", "", "", "", ""]
         for i in range(5):
             for i1, i2 in diff_lines[i]:
-                tpl_diff_lines[i] += f'<line x1={index2xyr[i1][0]:.6g} y1={index2xyr[i1][1]:.6g} x2={index2xyr[i2][0]:.6g} y2={index2xyr[i2][1]:.6g} stroke-width={min(index2xyr[i1][2], index2xyr[i2][2]) / 5:.6g}></line>\n'
+                tpl_diff_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />\n'
+                
+        # Plot the null diff lines
+        for i in range(5):
+            for i1, i2 in null_diff_lines[i]:
+                if round(index2xyrp[i1][0]) <= 110:
+                    tpl_diff_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} stroke-dasharray="0.2,0.2" data-page={index2xyrp[i1][3]} />\n'
 
         content = content_tpl.replace("title:13dd3d15", tpl_title)
         content = content.replace("bullets:b8999a4e", tpl_bullets)
@@ -196,7 +232,7 @@ if __name__ == "__main__":
         content = content.replace("d4_lines:7d935e97", tpl_diff_lines[2])
         content = content.replace("d5_lines:f6d7f992", tpl_diff_lines[3])
         content = content.replace("d6_lines:05c49c4a", tpl_diff_lines[4])
-        with open(path_html, "w") as file:
+        with open(path_html, "w", encoding="utf-8") as file:
             file.write(content)
 
         c.close()

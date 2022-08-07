@@ -138,14 +138,14 @@ void SS::CacheNullDiffs(int maxPoss)
                 if (sc.levels[i] > kLevelPC) {
                     int r = kLevelMax - sc.levels[i];
                     AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
-                    auto [index, count] = CountPossDrTgt1(deg_tgt, r);
+                    auto [index, count] = CountPossDrTgt(deg_tgt, r);
                     if (count <= maxPoss)
                         nd_.back().push_back(NullDiff{deg, (unsigned)i, index, count});
                 }
                 else if (sc.levels[i] < kLevelMax / 2) {
                     int r = sc.levels[i];
                     AdamsDeg deg_src = deg - AdamsDeg{r, r - 1};
-                    auto [index, count] = CountPossDrSrc1(deg_src, r);
+                    auto [index, count] = CountPossDrSrc(deg_src, r);
                     if (count <= maxPoss)
                         nd_.back().push_back(NullDiff{deg, (unsigned)i, index, count});
                 }
@@ -155,7 +155,7 @@ void SS::CacheNullDiffs(int maxPoss)
     std::sort(nd_.back().begin(), nd_.back().end(), [&](const NullDiff& nd1, const NullDiff& nd2) { return nd1.count < nd2.count; });
 }
 
-bool SS::PossTgt(AdamsDeg deg, int r) const
+bool SS::IsPossTgt(AdamsDeg deg, int r) const
 {
     int r_max = std::min(r, deg.s - 1);
     for (int r1 = kLevelMin; r1 <= r_max; ++r1) {
@@ -167,7 +167,7 @@ bool SS::PossTgt(AdamsDeg deg, int r) const
     return false;
 }
 
-bool SS::PossSrc(AdamsDeg deg, int r) const
+bool SS::IsPossSrc(AdamsDeg deg, int r) const
 {
     int r_max = (deg.t - deg.s * 3 + 2) / 2;
     for (int r1 = r; r1 <= r_max; ++r1) {
@@ -182,6 +182,22 @@ bool SS::PossSrc(AdamsDeg deg, int r) const
     return false;
 }
 
+int SS::GetFirstFixedLevelForPlot(AdamsDeg deg) const
+{
+    auto& sc = GetRecentStaircase(deg);
+    int result = kLevelMax - kLevelMin;
+    for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= kLevelPC;) {
+        if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
+            int r = kLevelMax - sc.levels[i];
+            if (IsPossTgt(deg + AdamsDeg{r, r - 1}, r - 1))
+                break;
+            else
+                result = sc.levels[i];
+        }
+    }
+    return result;
+}
+
 size_t SS::GetFirstIndexOfFixedLevels(AdamsDeg deg, int level) const
 {
     auto& sc = GetRecentStaircase(deg);
@@ -191,7 +207,7 @@ size_t SS::GetFirstIndexOfFixedLevels(AdamsDeg deg, int level) const
             break;
         if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
             int r = kLevelMax - sc.levels[i];
-            if (PossTgt(deg + AdamsDeg{r, r - 1}, r - 1))
+            if (IsPossTgt(deg + AdamsDeg{r, r - 1}, r - 1))
                 break;
             else
                 result = i;
@@ -200,7 +216,7 @@ size_t SS::GetFirstIndexOfFixedLevels(AdamsDeg deg, int level) const
     return result;
 }
 
-std::pair<int, int> SS::CountPossDrTgt1(const AdamsDeg& deg_tgt, int r) const
+std::pair<int, int> SS::CountPossDrTgt(const AdamsDeg& deg_tgt, int r) const
 {
     std::pair<int, int> result;
     if (basis_ss_.front().find(deg_tgt) != basis_ss_.front().end()) {
@@ -215,7 +231,7 @@ std::pair<int, int> SS::CountPossDrTgt1(const AdamsDeg& deg_tgt, int r) const
     return result;
 }
 
-std::pair<int, int> SS::CountPossDrSrc1(const AdamsDeg& deg_src, int r) const
+std::pair<int, int> SS::CountPossDrSrc(const AdamsDeg& deg_src, int r) const
 {
     std::pair<int, int> result;
     if (basis_ss_.front().find(deg_src) != basis_ss_.front().end()) {
@@ -228,7 +244,7 @@ std::pair<int, int> SS::CountPossDrSrc1(const AdamsDeg& deg_src, int r) const
     return result;
 }
 
-std::tuple<AdamsDeg, int, int> SS::CountPossTgt1(const AdamsDeg& deg, int r, int r_max) const
+std::tuple<AdamsDeg, int, int> SS::CountPossTgt(const AdamsDeg& deg, int r, int r_max) const
 {
     AdamsDeg deg_tgt;
     int count = 0, index = -1;
@@ -240,7 +256,7 @@ std::tuple<AdamsDeg, int, int> SS::CountPossTgt1(const AdamsDeg& deg, int r, int
             count = 10086;
             break;
         }
-        auto [first, c] = CountPossDrTgt1(d_tgt, r1);
+        auto [first, c] = CountPossDrTgt(d_tgt, r1);
         if (c > 0) {
             if (count == 0) {
                 deg_tgt = d_tgt;
@@ -254,7 +270,7 @@ std::tuple<AdamsDeg, int, int> SS::CountPossTgt1(const AdamsDeg& deg, int r, int
     return std::make_tuple(deg_tgt, index, count);
 }
 
-std::tuple<AdamsDeg, int, int> SS::CountPossSrc1(const AdamsDeg& deg, int level) const
+std::tuple<AdamsDeg, int, int> SS::CountPossSrc(const AdamsDeg& deg, int level) const
 {
     AdamsDeg deg_src;
     int count = 0, index = -1;
@@ -290,7 +306,7 @@ int SS::NextRTgt(AdamsDeg deg, int r) const
         if (deg.t + r1 - 1 > t_max_)
             return r1;
         AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 - 1};
-        auto [index, count] = CountPossDrTgt1(d_tgt, r1);
+        auto [index, count] = CountPossDrTgt(d_tgt, r1);
         if (count > 0)
             return r1;
     }
@@ -305,7 +321,7 @@ int SS::NextRSrc(AdamsDeg deg, int r) const
     const Staircase& sc = GetRecentStaircase(deg);
     for (int r1 = r_max; r1 >= kLevelMin; --r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
-        auto [index, count] = CountPossDrSrc1(d_src, r1);
+        auto [index, count] = CountPossDrSrc(d_src, r1);
         if (count > 0)
             return r1;
     }
@@ -406,8 +422,8 @@ void SS::SetDiff(AdamsDeg deg_x, int1d x, int1d dx, int r)
 void SS::SetImage(AdamsDeg deg_dx, int1d dx, int1d x, int r)
 {
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
-    if (deg_x.s <= 0)
-        throw SSException(0x7dc5fa8cU, "No source for the image");
+    if (deg_x.s < 0)
+        throw SSException(0x7dc5fa8cU, "7dc5fa8cU: No source for the image. deg_dx=" + deg_dx.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
 
     /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
     const Staircase& sc = GetRecentStaircase(deg_dx);
@@ -426,8 +442,8 @@ void SS::SetImage(AdamsDeg deg_dx, int1d dx, int1d x, int r)
         size_t first_rp2 = GetFirstIndexOnLevel(sc, r + 1);
         dx = lina::Residue(sc.basis_ind.begin() + first_r, sc.basis_ind.begin() + first_rp2, dx);
         if (!dx.empty()) {
-            if (!PossTgt(deg_dx, r))
-                throw SSException(0x75989376U, "No source for the image");
+            if (!IsPossTgt(deg_dx, r))
+                throw SSException(0x75989376U, "75989376U: No source for the image. deg_dx=" + deg_dx.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
             UpdateStaircase(deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
         }
     }
@@ -502,10 +518,11 @@ int SS::SetDiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min)
 int SS::SetDiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
+    int result = 0;
 
     if (x.empty()) {
         if (!dx.empty() && !IsZeroOnLevel(GetRecentStaircase(deg_dx), dx, r))
-            return SetImageLeibniz(deg_dx, dx, r - 1);
+            result += SetImageLeibniz(deg_dx, dx, r - 1);
     }
     else if (IsNewDiff(deg_x, x, dx, r)) {
         int r_min = kLevelMin;
@@ -518,9 +535,19 @@ int SS::SetDiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r)
             else
                 r = r_max - 1;
         }
-        return SetDiffLeibniz(deg_x, x, dx, r, r_min);
+        if (r == kRPC - 1 && deg_x.stem() % 2 == 1 && deg_x.t * 2 + 1 <= t_max_) {
+            Poly poly_x = Indices2Poly(x, basis_.at(deg_x));
+            Poly poly_h0x2 = gb_.Reduce(poly_x * poly_x * Poly::Gen(0));
+            if (poly_h0x2) {
+                AdamsDeg deg_h0x2 = deg_x * 2 + AdamsDeg(1, 1);
+                int1d h0x2 = Poly2Indices(poly_h0x2, basis_.at(deg_h0x2));
+                if (!IsZeroOnLevel(GetRecentStaircase(deg_h0x2), h0x2, kRPC))
+                    result += SetImageLeibniz(deg_h0x2, h0x2, kRPC);
+            }
+        }
+        result += SetDiffLeibniz(deg_x, x, dx, r, r_min);
     }
-    return 0;
+    return result;
 }
 
 int SS::SetImageLeibniz(AdamsDeg deg_x, int1d x, int r)
@@ -528,7 +555,7 @@ int SS::SetImageLeibniz(AdamsDeg deg_x, int1d x, int r)
     int count = 0;
     r = NextRSrc(deg_x, r);
     if (r == -1)
-        throw SSException(0xbef9931bU, "No source for the image. deg=" + deg_x.Str() + " r=" + std::to_string(r) + " x=" + myio::Serialize(x));
+        throw SSException(0xbef9931bU, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
 
     for (auto& [deg_y, basis_ss_d_original] : basis_ss_.front()) {
         const Staircase& basis_ss_d = GetRecentStaircase(deg_y);

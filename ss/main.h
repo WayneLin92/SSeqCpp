@@ -88,34 +88,47 @@ public:
         return const_cast<Staircase&>(const_cast<const SS*>(this)->GetRecentStaircase(deg));
     }
 
+    auto& GetBasis() const
+    {
+        return basis_;
+    }
+
+    auto& GetND() const
+    {
+        return nd_;
+    }
+
     /* Return it is a possible target */
-    bool PossTgt(AdamsDeg deg, int r) const;
+    bool IsPossTgt(AdamsDeg deg, int r) const;
 
     /* Return it is a possible source */
-    bool PossSrc(AdamsDeg deg, int r) const;
+    bool IsPossSrc(AdamsDeg deg, int r) const;
+
+    /* This is used for plotting Er pages. The actual result might differ by a linear combination. */
+    int SS::GetFirstFixedLevelForPlot(AdamsDeg deg) const;
 
     /* Return the first index (>=`level`) such that all levels above are already fixed */
     size_t GetFirstIndexOfFixedLevels(AdamsDeg deg, int level) const;
 
     /* Count the number of all possible d_r targets. Return (count, index). */
-    std::pair<int, int> CountPossDrTgt1(const AdamsDeg& deg_tgt, int r) const;
+    std::pair<int, int> CountPossDrTgt(const AdamsDeg& deg_tgt, int r) const;
 
     /* Count the number of all possible d_r sources. Return (count, index). */
-    std::pair<int, int> CountPossDrSrc1(const AdamsDeg& deg_src, int r) const;
+    std::pair<int, int> CountPossDrSrc(const AdamsDeg& deg_src, int r) const;
 
     /*
      * Count the number of all possible d_r1 targets where r<=r1<=r_max.
      * Return (count, index).
      * count>=2 are all treated as the same.
      */
-    std::tuple<AdamsDeg, int, int> CountPossTgt1(const AdamsDeg& deg, int r, int r_max) const;
+    std::tuple<AdamsDeg, int, int> CountPossTgt(const AdamsDeg& deg, int r, int r_max) const;
 
     /*
      * Count the number of all possible d_r1 sources where r1<=r.
      * Return (count, index).
      * count>=2 are all treated as the same.
      */
-    std::tuple<AdamsDeg, int, int> CountPossSrc1(const AdamsDeg& deg, int level) const;
+    std::tuple<AdamsDeg, int, int> CountPossSrc(const AdamsDeg& deg, int level) const;
 
     /*
      * Return the smallest r1>=r such that d_{r1} has a possible target
@@ -176,6 +189,7 @@ public:
     /**
      * Add d_r(x)=dx;
      * Add d_s(xy)=d_s(x)y+xd_s(y) for y with level <= kLevelMax - s and s>=r_min.
+     * Return the number of changed degrees.
      *
      * dx should not be null.
      */
@@ -184,6 +198,8 @@ public:
     /**
      * Check first if it is a new differential before adding it.
      * Do some deductions by degree.
+     * 
+     * Return the number of changed degrees.
      */
     int SetDiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r);
 
@@ -194,6 +210,7 @@ public:
 
 public:
     int DeduceZeroDiffs();
+    int DeduceImageJ();
     int DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& timer);
 };
 
@@ -228,9 +245,10 @@ public:
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
 
 int main_basis_prod(int argc, char** argv, int index);
-int main_ss_prod(int argc, char** argv, int index);
+int main_plot(int argc, char** argv, int index);
 int main_generate_ss(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
+int main_try_add_diff(int argc, char** argv, int index);
 int main_deduce(int argc, char** argv, int index);
 
 #endif

@@ -103,6 +103,10 @@ struct AdamsDeg
     int s, t;
     constexpr AdamsDeg() : s(0), t(0) {}
     constexpr AdamsDeg(int s_, int t_) : s(s_), t(t_) {}
+    int stem() const
+    {
+        return t - s;
+    }
 
     constexpr static AdamsDeg Null()
     {
@@ -157,6 +161,10 @@ struct AdamsDeg
     std::string Str() const
     {
         return '(' + std::to_string(s) + ',' + std::to_string(t) + ')';
+    }
+    std::string StrCoor() const
+    {
+        return '(' + std::to_string(stem()) + ',' + std::to_string(s) + ')';
     }
 };
 using AdamsDeg1d = std::vector<AdamsDeg>;

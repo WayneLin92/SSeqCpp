@@ -1,5 +1,6 @@
 #include "algebras/linalg.h"
 #include "main.h"
+#include <set>
 
 #ifndef MYDEPLOY
 std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0};
@@ -47,19 +48,52 @@ int SS::DeduceZeroDiffs()
     return count_new_diffs;
 }
 
+/* Deduce zero differentials using the image of J
+ * t_test is for DeduceDiffs() */
+int SS::DeduceImageJ()
+{
+    int count_new_diffs = 0;
+    int prev_t = -1;
+    AdamsDeg1d arr_degs_image_of_J = {AdamsDeg(1, 2), AdamsDeg(2, 4), AdamsDeg(3, 6), AdamsDeg(1, 4), AdamsDeg(2, 5), AdamsDeg(2, 9), AdamsDeg(3, 10), AdamsDeg(4, 11), AdamsDeg(3, 11), AdamsDeg(4, 13)};
+    std::set<AdamsDeg> degs_image_of_J;
+    for (int i = 0; i < 30; ++i)
+        for (size_t j = 0; j < arr_degs_image_of_J.size(); ++j)
+            degs_image_of_J.insert(arr_degs_image_of_J[j] + AdamsDeg(4, 12) * i);
+    for (auto& [d, basis_ss_d] : basis_ss_.front()) {
+        if (d.t != prev_t) {
+            std::cout << d.t << " " << count_new_diffs << "     \r";
+            prev_t = d.t;
+        }
+        const Staircase& sc = GetRecentStaircase(d);
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            if (sc.diffs_ind[i] == int1d{-1} && sc.levels[i] > kLevelPC) {
+                int r = kLevelMax - sc.levels[i];
+                AdamsDeg deg_tgt = d + AdamsDeg(r, r - 1);
+                if (degs_image_of_J.find(deg_tgt) != degs_image_of_J.end()) {
+                    SetDiffLeibnizV2(d, sc.basis_ind[i], {}, kLevelPC - 1);
+                    ++count_new_diffs;
+                }
+            }
+        }
+    }
+    return count_new_diffs;
+}
+
 // TODO: keep only one of (nd1->nd2), (nd2->nd1) in the deduction tree
 int SS::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& timer)
 {
     if (timer.timeout())
         return 0;
-    int old_count = -1, count = 0;
+    int old_count = 0, count = 0;
 
+    DeduceZeroDiffs();
     CacheNullDiffs(maxPoss);
     size_t index_nd = 0;
-    while (nd_.back().size() > 0 && (index_nd < nd_.back().size() || old_count != count)) {
-        if (index_nd >= nd_.back().size())
+    while (nd_.back().size() > 0 && (old_count != count || index_nd < nd_.back().size())) {
+        if (index_nd >= nd_.back().size()) {
             index_nd = 0;
-        old_count = count;
+            old_count = count;
+        }
 
         if (depth == top_depth)
             std::cout << "index_nd = " << index_nd << '/' << nd_.back().size() << "                    \r";
@@ -77,8 +111,16 @@ int SS::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& tim
                 tgt.clear();
                 if (i) {
                     const Staircase& sc_tgt = GetRecentStaircase(deg_tgt);
-                    for (int j : two_expansion(i))
+                    bool bBreak = false;
+                    for (int j : two_expansion(i)) {
+                        if (sc_tgt.levels[(size_t)(nd.first + j)] == 5000) { /* skip permanent cycles */
+                            bBreak = true;
+                            break;
+                        }
                         tgt = lina::AddVectors(tgt, sc_tgt.basis_ind[(size_t)(nd.first + j)]);
+                    }
+                    if (bBreak)
+                        continue;
                 }
 
                 AddNode(); /* Warning: the reallocation invalidates the reference sc above */
@@ -113,6 +155,7 @@ int SS::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& tim
             else if (count_pass == 1) {
                 ++count;
                 SetDiffLeibnizV2(nd.deg, src, tgt_pass, r);
+                DeduceZeroDiffs(); //TODO: Implement this after CacheNullDiffs
                 CacheNullDiffs(maxPoss);
                 if (depth == top_depth)
                     std::clog << '(' << nd.deg.t - nd.deg.s << ',' << nd.deg.s << ") d_{" << r << '}' << src << '=' << tgt_pass << "          \n";
@@ -172,9 +215,10 @@ int SS::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& tim
             else if (count_pass == 1) {
                 ++count;
                 SetDiffLeibnizV2(deg_src, src_pass, tgt, r);
+                DeduceZeroDiffs();  // TODO: Implement this after CacheNullDiffs
                 CacheNullDiffs(maxPoss);
                 if (depth == top_depth)
-                    std::clog << '(' << nd.deg.t - nd.deg.s << ',' << nd.deg.s << ") d_{" << r << '}' << src_pass << '=' << tgt << "          \n";
+                    std::clog << '(' << nd.deg.t - nd.deg.s + 1 << ',' << nd.deg.s - r << ") d_{" << r << '}' << src_pass << '=' << tgt << "          \n";
                 if (timer.timeout())
                     break;
                 if (depth > 1)
@@ -364,7 +408,7 @@ int main_deduce_zero(int argc, char** argv, int index)
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Manually input a differential into the ss table\n";
+        std::cout << "Deduce trivial differentials for degree reason\n";
         std::cout << "Usage:\n  ss deduce zero <db_filename> <table_prefix>\n\n";
 
         std::cout << "Default values:\n";
@@ -392,6 +436,54 @@ int main_deduce_zero(int argc, char** argv, int index)
         db.update_basis_ss(table_prefix, ss.GetChanges());
         db.end_transaction();
     }
+    /*catch (SSException& e) {
+        std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
+    }
+    catch (MyException& e) {
+        std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
+    }*/
+    catch (NoException&) {
+        ;
+    }
+
+    std::cout << "Changed differentials: " << count << '\n';
+    return 0;
+}
+
+int main_deduce_j(int argc, char** argv, int index)
+{
+    std::string db_filename = "AdamsE2Export_t220.db";
+    std::string table_prefix = "AdamsE2";
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Deduce trivial differentials because of image of J\n";
+        std::cout << "Usage:\n  ss deduce j [db_filename] [table_prefix]\n\n";
+
+        std::cout << "Default values:\n";
+
+        std::cout << "  db_filename = " << db_filename << "\n";
+        std::cout << "  table_prefix = " << table_prefix << "\n\n";
+
+        std::cout << "Version:\n  1.0 (2022-7-12)" << std::endl;
+        return 0;
+    }
+    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "table_prefix", table_prefix))
+        return index;
+
+    bench::Timer timer;
+    SSDB db(db_filename);
+    SS ss = db.load_ss("AdamsE2");
+
+    int count = 0;
+    try {
+        count = ss.DeduceImageJ();
+
+        db.begin_transaction();
+        db.update_basis_ss(table_prefix, ss.GetChanges());
+        db.end_transaction();
+    }
     catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
     }
@@ -411,7 +503,7 @@ int main_deduce_diff(int argc, char** argv, int index)
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Manually input a differential into the ss table\n";
+        std::cout << "Deduce differentials by Leibniz rule\n";
         std::cout << "Usage:\n  ss deduce diff [r_max] [maxPoss] [depth] [stop_time] [db_filename] [table_prefix]\n\n";
 
         std::cout << "Default values:\n";
@@ -463,7 +555,59 @@ int main_deduce_diff(int argc, char** argv, int index)
     }
 
     std::cout << "Changed differentials: " << count << '\n';
-    bench::Counter::print();
+    //bench::Counter::print();
+    return 0;
+}
+
+/* This is for debugging */
+int main_deduce_tmp(int argc, char** argv, int index)
+{
+    std::string db_filename = "AdamsE2Export_t220.db";
+    std::string table_prefix = "AdamsE2";
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Debugging\n";
+        std::cout << "Usage:\n  ss deduce tmp [db_filename] [table_prefix]\n\n";
+
+        std::cout << "Default values:\n";
+
+        std::cout << "  db_filename = " << db_filename << "\n";
+        std::cout << "  table_prefix = " << table_prefix << "\n\n";
+
+        std::cout << "Version:\n  1.0 (2022-7-19)" << std::endl;
+        return 0;
+    }
+    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "table_prefix", table_prefix))
+        return index;
+
+    //bench::Timer timer;
+    SSDB db(db_filename);
+    SS ss = db.load_ss("AdamsE2");
+
+    //int count = 0;
+    try {
+        ss.CacheNullDiffs(10);
+        for (size_t i = 0; i < ss.GetND().back().size(); ++i) {
+            auto& nd = ss.GetND().back()[i];
+            if (nd.deg.s == 9 && nd.deg.t == 70 + 9)
+                std::cout << nd.first << ' ' << nd.count << '\n';
+        }
+        std::cout << "i=" << ss.GetFirstIndexOfFixedLevels(AdamsDeg(13, 47 + 13), 9994) << std::endl;
+    }
+    /*catch (SSException& e) {
+        std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
+    }
+    catch (MyException& e) {
+        std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
+    }*/
+    catch (NoException&) {
+        ;
+    }
+
+    //std::cout << "Changed differentials: " << count << '\n';
+    //bench::Counter::print();
     return 0;
 }
 
@@ -478,6 +622,7 @@ int main_deduce(int argc, char** argv, int index)
         std::cout << "<cmd> can be one of the following:\n";
 
         std::cout << "  zero: deduce trivial differentials for degree reason\n";
+        std::cout << "  j: deduce trivial differentials because of image of J\n";
         std::cout << "  diff: deduce differentials by Leibniz rule\n\n";
 
         std::cout << "Version:\n  1.0 (2022-7-10)" << std::endl;
@@ -488,8 +633,12 @@ int main_deduce(int argc, char** argv, int index)
 
     if (cmd == "zero")
         return main_deduce_zero(argc, argv, index);
+    else if (cmd == "j")
+        return main_deduce_j(argc, argv, index);
     else if (cmd == "diff")
         return main_deduce_diff(argc, argv, index);
+    else if (cmd == "tmp")
+        return main_deduce_tmp(argc, argv, index);
     else
         std::cerr << "Invalid cmd: " << argv[1] << '\n';
     return 0;

@@ -130,8 +130,8 @@ int main_generate_ss(int argc, char** argv, int index)
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Generate the ss table\n";
-        std::cout << "Usage:\n  ss ss [db_filename] [table_prefix]\n\n";
+        std::cout << "Initialize the ss table\n";
+        std::cout << "Usage:\n  ss init [db_filename] [table_prefix]\n\n";
 
         std::cout << "Default values:\n";
 

@@ -1,5 +1,5 @@
-#include "main.h"
 #include "algebras/linalg.h"
+#include "main.h"
 
 using namespace alg;
 
@@ -42,6 +42,28 @@ public:
     {
         create_ss_diff(table_prefix);
         delete_from(table_prefix + "_ss_diffs");
+    }
+
+    void create_ss_nd(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_nd (src INTEGER PRIMARY KEY, r SMALLINT, tgt TEXT);");
+    }
+
+    void create_ss_nd_and_delete(const std::string& table_prefix) const
+    {
+        create_ss_nd(table_prefix);
+        delete_from(table_prefix + "_ss_nd");
+    }
+
+    void create_ss_stable_levels(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_stable_levels (s SMALLINT, t SMALLINT, l SMALLINT, PRIMARY KEY(s, t));");
+    }
+
+    void create_ss_stable_levels_and_delete(const std::string& table_prefix) const
+    {
+        create_ss_stable_levels(table_prefix);
+        delete_from(table_prefix + "_ss_stable_levels");
     }
 
     void load_basis_v2(const std::string& table_prefix, Mon1d& basis, AdamsDeg1d& deg_basis) const
@@ -121,14 +143,14 @@ int main_basis_prod(int argc, char** argv, int index)
     return 0;
 }
 
-int main_ss_prod(int argc, char** argv, int index)
+int main_plot(int argc, char** argv, int index)
 {
     std::string db_filename = "AdamsE2Export_t220.db";
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Generate the ss_prod table and ss_diff table\n";
-        std::cout << "Usage:\n  ss ss_prod [db_filename] [table_prefix]\n\n";
+        std::cout << "Generate tables: ss_prod,ss_diff,ss_nd,ss_stable_levels for plotting\n";
+        std::cout << "Usage:\n  ss plot [db_filename] [table_prefix]\n\n";
 
         std::cout << "Default values:\n";
         std::cout << "  db_filename = " << db_filename << "\n";
@@ -145,7 +167,7 @@ int main_ss_prod(int argc, char** argv, int index)
     MyDB db(db_filename);
     Poly1d polys = db.load_gb(table_prefix, DEG_MAX);
     auto basis = db.load_basis(table_prefix);
-    Staircases basis_ss = db.load_basis_ss(table_prefix);
+    const Staircases basis_ss = db.load_basis_ss(table_prefix);
     auto ids = db.load_indices(table_prefix);
     int2d basis_ss_v2;
     AdamsDeg1d deg_basis;
@@ -156,6 +178,7 @@ int main_ss_prod(int argc, char** argv, int index)
 
     db.begin_transaction();
 
+    /* ss_products */
     {
         db.create_ss_products_and_delete(table_prefix);
         myio::Statement stmt(db, "INSERT INTO " + table_prefix + "_ss_products (id1, id2, prod) VALUES (?1, ?2, ?3);");
@@ -168,7 +191,8 @@ int main_ss_prod(int argc, char** argv, int index)
                     Poly bj = Indices2Poly(basis_ss_v2[j], basis[deg_basis[j]]);
                     Poly poly_prod = gb.Reduce(bi * bj);
                     int1d prod = Poly2Indices(poly_prod, basis[deg_prod]);
-                    prod = lina::GetInvImage(basis_ss[deg_prod].basis_ind, prod);
+                    if (!prod.empty())
+                        prod = lina::GetInvImage(basis_ss.at(deg_prod).basis_ind, prod);
                     for (size_t k = 0; k < prod.size(); ++k)
                         prod[k] += ids[deg_prod];
 
@@ -180,7 +204,8 @@ int main_ss_prod(int argc, char** argv, int index)
             }
         }
     }
-    
+
+    /* ss_diffs */
     {
         db.create_ss_diff_and_delete(table_prefix);
         myio::Statement stmt(db, "INSERT INTO " + table_prefix + "_ss_diffs (src, r, tgt) VALUES (?1, ?2, ?3);");
@@ -190,7 +215,7 @@ int main_ss_prod(int argc, char** argv, int index)
                 if (basis_ss_d.levels[i] > 9800 && basis_ss_d.diffs_ind[i] != int1d{-1}) {
                     int r = kLevelMax - basis_ss_d.levels[i];
                     AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
-                    int1d tgt = lina::GetInvImage(basis_ss[deg_tgt].basis_ind, basis_ss_d.diffs_ind[i]);
+                    int1d tgt = lina::GetInvImage(basis_ss.at(deg_tgt).basis_ind, basis_ss_d.diffs_ind[i]);
                     for (size_t k = 0; k < tgt.size(); ++k)
                         tgt[k] += ids[deg_tgt];
 
@@ -200,6 +225,50 @@ int main_ss_prod(int argc, char** argv, int index)
                     stmt.step_and_reset();
                 }
             }
+        }
+    }
+
+    /* ss_nd */
+    {
+        db.create_ss_nd_and_delete(table_prefix);
+        myio::Statement stmt(db, "INSERT INTO " + table_prefix + "_ss_nd (src, r, tgt) VALUES (?1, ?2, ?3);");
+        SS ss(gb, basis, basis_ss);
+        ss.CacheNullDiffs(5);
+        auto& nds = ss.GetND();
+
+        for (size_t i = 0; i < nds.back().size(); ++i) {
+            auto& nd = nds.back()[i];
+            int src = ids[nd.deg] + (int)nd.index;
+            auto& basis_ss_d = basis_ss.at(nd.deg);
+            if (basis_ss_d.levels[nd.index] > 9800) {
+                int r = kLevelMax - basis_ss_d.levels[nd.index];
+                AdamsDeg deg_tgt = nd.deg + AdamsDeg(r, r - 1);
+                int1d tgt;
+                for (int j = nd.first; j < nd.first + nd.count; ++j)
+                    tgt.push_back(j);
+                for (size_t k = 0; k < tgt.size(); ++k)
+                    tgt[k] += ids[deg_tgt];
+
+                stmt.bind_int(1, src);
+                stmt.bind_int(2, r);
+                stmt.bind_str(3, myio::Serialize(tgt));
+                stmt.step_and_reset();
+            }
+        }
+    }
+
+    /* ss_stable_levels */
+    {
+        db.create_ss_stable_levels_and_delete(table_prefix);
+        myio::Statement stmt(db, "INSERT INTO " + table_prefix + "_ss_stable_levels (s, t, l) VALUES (?1, ?2, ?3);");
+        SS ss(gb, basis, basis_ss);
+
+        for (auto& [deg, basis_ss_d] : basis_ss) {
+            stmt.bind_int(1, deg.s);
+            stmt.bind_int(2, deg.t);
+            int level = ss.GetFirstFixedLevelForPlot(deg);
+            stmt.bind_int(3, level);
+            stmt.step_and_reset();
         }
     }
 
