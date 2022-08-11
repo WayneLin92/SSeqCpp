@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <climits>
 
 /**
  * The namespace `alg` provides the basis types for monomials and polynomials.

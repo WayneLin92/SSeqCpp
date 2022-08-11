@@ -23,7 +23,7 @@ int main(int argc, char** argv)
         std::cout << "Version:\n  1.0 (2022-7-29)" << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "cmd", cmd))
+    if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
         return index;
 
     if (cmd == "init")

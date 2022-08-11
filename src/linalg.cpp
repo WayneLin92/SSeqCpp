@@ -20,6 +20,15 @@ int2d GetSpace(const int2d& vectors)
     return result;
 }
 
+int1d GetLeads(const int2d& spaceV)
+{
+    int1d result;
+    for (size_t i = 0; i < spaceV.size(); ++i)
+        result.push_back(spaceV[i][0]);
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
 int2d& SimplifySpace(int2d& spaceV)
 {
     for (size_t i = spaceV.size() - 1; i != -1; i--)

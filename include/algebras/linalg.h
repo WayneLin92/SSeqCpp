@@ -28,6 +28,7 @@ inline int1d AddVectors(const int1d& v1, const int1d& v2)
 
 /* Return the space spanned by `vectors` */
 int2d GetSpace(const int2d& vectors);
+int1d GetLeads(const int2d& spaceV);
 
 /* Reduce the space to rref form */
 int2d& SimplifySpace(int2d& spaceV);

@@ -292,10 +292,10 @@ Mod1d GroebnerX2m::AddRels(size_t s, int t)
 }
 
 /********************************************************
- *                    class SteenrodMRes
+ *                    class AdamsRes
  ********************************************************/
 
-SteenrodMRes::SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st)
+AdamsRes::AdamsRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st)
     : t_trunc_(t_trunc), stem_trunc_(stem_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, stem_trunc, std::move(data_x2m), std::move(basis_degrees_x2m), latest_st)
 {
     if (basis_degrees_.empty())
@@ -319,7 +319,7 @@ SteenrodMRes::SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d b
     }
 }
 
-CriMilnor1d SteenrodMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
+CriMilnor1d AdamsRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
 {
     rels_x2m = gb_x2m_.AddRels(s, t);
     criticals_[s].Minimize(leads_[s], t);
@@ -348,7 +348,7 @@ CriMilnor1d SteenrodMRes::Criticals(size_t s, int t, Mod1d& rels_x2m)
     return result;
 }
 
-DataMRes SteenrodMRes::Reduce(const CriMilnor& cp, size_t s) const
+DataMRes AdamsRes::Reduce(const CriMilnor& cp, size_t s) const
 {
     DataMRes result;
 
@@ -414,7 +414,7 @@ using IndexMMod1d = std::vector<IndexMMod>;
 /**
  * results are expected to be zero initially
  */
-void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size_t s) const
+void AdamsRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size_t s) const
 {
     Mod tmp_x, tmp_x1, tmp_x2, tmp_x3;
     Milnor tmp_a;
@@ -531,7 +531,7 @@ void SteenrodMRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size
         results[i].x2m = gb_x2m_.Reduce(std::move(results[i].x2m), s);
 }
 
-Mod SteenrodMRes::Reduce(Mod x, size_t s) const
+Mod AdamsRes::Reduce(Mod x, size_t s) const
 {
     size_t index;
     index = 0;
@@ -550,7 +550,7 @@ Mod SteenrodMRes::Reduce(Mod x, size_t s) const
     return x;
 }
 
-Mod SteenrodMRes::ReduceX2m(const CriMilnor& cp, size_t s) const
+Mod AdamsRes::ReduceX2m(const CriMilnor& cp, size_t s) const
 {
     Mod result;
 
@@ -639,14 +639,16 @@ public:
     }
 
     /* insert v_{0, 0} */
-    void save_v0(const std::string& table_prefix) const
+    void save_fil_0(const std::string& table_prefix) const
     {
-        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
-        stmt.bind_int(1, 0);
-        stmt.bind_blob(2, Mod().data);
-        stmt.bind_int(3, 0);
-        stmt.bind_int(4, 0);
-        stmt.step_and_reset();
+        if (get_int("SELECT MIN(t) from " + table_prefix + "_generators;") != 0) {
+            Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
+            stmt.bind_int(1, 0);
+            stmt.bind_blob(2, Mod().data);
+            stmt.bind_int(3, 0);
+            stmt.bind_int(4, 0);
+            stmt.step_and_reset();
+        }
     }
 
     void save_relations(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
@@ -783,7 +785,7 @@ public:
     }
 };
 
-void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename)
+void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename)
 {
     int t_trunc = gb.t_trunc();
     if (t_max > t_trunc)
@@ -797,7 +799,7 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, c
     db.create_generators_x2m("SteenrodMRes");
     db.create_relations_x2m("SteenrodMRes");
     db.create_time("SteenrodMRes");
-    db.save_v0("SteenrodMRes");
+    db.save_fil_0("SteenrodMRes");
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -923,29 +925,29 @@ void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int t_max, int stem_max, c
     }
 }
 
-SteenrodMRes SteenrodMRes::load(const std::string& db_filename, int t_trunc, int stem_trunc)
+AdamsRes AdamsRes::load(const std::string& db_filename, const std::string& tablename, int t_trunc, int stem_trunc)
 {
     DbSteenrod db(db_filename);
-    db.create_generators("SteenrodMRes");
-    db.create_relations("SteenrodMRes");
-    db.create_generators_x2m("SteenrodMRes");
-    db.create_relations_x2m("SteenrodMRes");
-    DataMRes2d data = db.load_data("SteenrodMRes");
-    int2d basis_degrees = db.load_basis_degrees("SteenrodMRes");
-    Mod2d data_x2m = db.load_data_x2m("SteenrodMRes");
-    int2d basis_degrees_x2m = db.load_basis_degrees_x2m("SteenrodMRes");
-    auto latest_st = db.latest_st("SteenrodMRes");
-    return SteenrodMRes(t_trunc, stem_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_st);
+    db.create_generators(tablename);
+    db.create_relations(tablename);
+    db.create_generators_x2m(tablename);
+    db.create_relations_x2m(tablename);
+    DataMRes2d data = db.load_data(tablename);
+    int2d basis_degrees = db.load_basis_degrees(tablename);
+    Mod2d data_x2m = db.load_data_x2m(tablename);
+    int2d basis_degrees_x2m = db.load_basis_degrees_x2m(tablename);
+    auto latest_st = db.latest_st(tablename);
+    return AdamsRes(t_trunc, stem_trunc, std::move(data), std::move(basis_degrees), std::move(data_x2m), std::move(basis_degrees_x2m), latest_st);
 }
 
-void ResetDb(const std::string& filename)
+void ResetDb(const std::string& filename, const std::string& tablename)
 {
     DbSteenrod db(filename);
-    db.create_generators_and_delete("SteenrodMRes");
-    db.create_relations_and_delete("SteenrodMRes");
-    db.create_generators_x2m_and_delete("SteenrodMRes");
-    db.create_relations_x2m_and_delete("SteenrodMRes");
-    db.create_time_and_delete("SteenrodMRes");
+    db.create_generators_and_delete(tablename);
+    db.create_relations_and_delete(tablename);
+    db.create_generators_x2m_and_delete(tablename);
+    db.create_relations_x2m_and_delete(tablename);
+    db.create_time_and_delete(tablename);
 }
 
 }  // namespace steenrod

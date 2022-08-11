@@ -17,9 +17,9 @@ public:
 
 public:
     /* From SteenrodMRes */
-    void load_indecomposables(const std::string& table_prefix, alg::int1d& array_id, alg::AdamsDeg1d& gen_degs) const
+    void load_indecomposables(const std::string& table_prefix, alg::int1d& array_id, alg::AdamsDeg1d& gen_degs, int t_trunc) const
     {
-        Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators WHERE indecomposable=1 ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s, t FROM " + table_prefix + "_generators WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             array_id.push_back(id);
@@ -33,9 +33,9 @@ public:
      *
      * From SteenrodMRes
      */
-    void load_id_converter(const std::string& table_prefix, alg::int2d& loc2glo, alg::pairii1d& glo2loc) const
+    void load_id_converter(const std::string& table_prefix, alg::int2d& loc2glo, alg::pairii1d& glo2loc, int t_trunc) const
     {
-        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_generators ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_generators WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1);
             if (loc2glo.size() <= (size_t)s)
@@ -49,10 +49,10 @@ public:
      *
      * From SteenrodMRes
      */
-    std::map<std::pair<int, int>, alg::int1d> load_products_h(const std::string& table_prefix) const
+    std::map<std::pair<int, int>, alg::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
     {
         std::map<std::pair<int, int>, alg::int1d> result;
-        Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_generators_products;");
+        Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_products LEFT JOIN " + table_prefix + "_generators USING(id) WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int id_ind = stmt.column_int(1);
@@ -74,19 +74,20 @@ alg::int1d mul(const std::map<std::pair<int, int>, alg::int1d>& map_h, int id_in
     return result;
 }
 
-void AdamsE2Export(const std::string& db_in, const std::string& db_out)
+void AdamsE2Export(const std::string& db_in, const std::string& table_in, const std::string& db_out, int t_trunc)
 {
+    bench::Timer timer;
     using namespace alg;
     MyDB dbProd(db_in);
 
     AdamsDeg1d gen_degs;
     int1d gen_reprs;
-    dbProd.load_indecomposables("SteenrodMRes", gen_reprs, gen_degs);
-    auto map_h_dual = dbProd.load_products_h("SteenrodMRes");
+    dbProd.load_indecomposables(table_in, gen_reprs, gen_degs, t_trunc);
+    auto map_h_dual = dbProd.load_products_h(table_in, t_trunc);
 
     int2d loc2glo;
     pairii1d glo2loc;
-    dbProd.load_id_converter("SteenrodMRes", loc2glo, glo2loc);
+    dbProd.load_id_converter(table_in, loc2glo, glo2loc, t_trunc);
     std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
         int s_i = glo2loc[p.second].first - glo2loc[p.first].first;
@@ -94,7 +95,7 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
             map_h[std::make_pair(p.first, loc2glo[s_i][i])].push_back(p.second);
     }
 
-    PolyRevlex1d gb;
+    Poly1d gb;
     Mon2d leads;
     std::map<AdamsDeg, Mon1d> basis;
     std::map<AdamsDeg, int2d> repr;
@@ -103,13 +104,10 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
     basis[AdamsDeg{0, 0}].push_back(Mon());
     repr[AdamsDeg{0, 0}].push_back({0});
 
-    /* Consider generators one by one */
-    int t_trunc = dbProd.get_int("SELECT MAX(t) from SteenrodMRes_generators");
     /* Add new basis */
     for (int t = 1; t <= t_trunc; t++) {
         std::map<AdamsDeg, Mon1d> basis_new;
         std::map<AdamsDeg, int2d> repr_new;
-        std::cout << "t=" << t << '/' << t_trunc << std::endl;
 
         /* Consider all possible basis in degree t */
         for (size_t gen_id = gen_degs.size(); gen_id-- > 0;) {
@@ -120,10 +118,10 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
                 auto p2 = basis.lower_bound(AdamsDeg{0, t1 + 1});
                 for (auto p = p1; p != p2; ++p) {
                     for (size_t i = 0; i < p->second.size(); ++i) {
-                        auto& m = p->second[i];
+                        Mon& m = p->second[i];
                         auto& repr_m = repr.at(p->first)[i];
-                        if (m.empty() || (int)gen_id <= m[0].gen) {
-                            Mon mon(mul(m, GenPow::Mon((int)gen_id)));
+                        if (!m || (int)gen_id <= m[0].g()) {
+                            Mon mon = m * Mon::Gen((uint32_t)gen_id);
                             auto repr_mon = mul(map_h, repr_g, repr_m);
                             auto deg_mon = p->first + gen_degs[gen_id];
                             if (gen_id >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&mon](const Mon& _m) { return divisible(_m, mon); })) {
@@ -139,7 +137,7 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
         /* Compute groebner and basis in degree t */
         for (auto it = basis_new.begin(); it != basis_new.end(); ++it) {
             auto indices = ut::size_t_range(it->second.size());
-            std::sort(indices.begin(), indices.end(), [&it](size_t a, size_t b) { return CmpRevlex::template cmp<Mon, Mon>(it->second[a], it->second[b]); });
+            std::sort(indices.begin(), indices.end(), [&it](size_t a, size_t b) { return it->second[a] < it->second[b]; });
             Mon1d basis_new_d;
             int2d repr_new_d;
             for (size_t i = 0; i < indices.size(); ++i) {
@@ -154,8 +152,8 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
             /* Add to groebner */
             for (const int1d& k : kernel) {
                 lead_kernel.push_back(k[0]);
-                gb.push_back(PolyRevlex::Sort(Indices2Poly(k, basis_new_d)));
-                int index = gb.back().data.front().front().gen;
+                gb.push_back(Indices2Poly(k, basis_new_d));
+                int index = gb.back().data.front().front().g();
                 if (leads.size() <= (size_t)index)
                     leads.resize(size_t(index + 1));
                 leads[index].push_back(gb.back().data.front());
@@ -177,35 +175,51 @@ void AdamsE2Export(const std::string& db_in, const std::string& db_out)
     if (size_basis != glo2loc.size()) {
         std::cout << "size_basis=" << size_basis << '\n';
         std::cout << "glo2loc.size()=" << glo2loc.size() << '\n';
-        throw MyException(0, "BUG");
+        throw MyException(0, "Error: sizes of bases do not match.");
     }
 
     /* Save the results */
     MyDB dbE2(db_out);
-    dbE2.create_generators_and_delete("AdamsE2");
-    dbE2.create_relations_and_delete("AdamsE2");
-    dbE2.create_basis_and_delete("AdamsE2");
+    const std::string table_out = "AdamsE2";
+    dbE2.create_generators_and_delete(table_out);
+    dbE2.create_relations_and_delete(table_out);
+    dbE2.create_basis_and_delete(table_out);
 
     dbE2.begin_transaction();
 
-    dbE2.save_generators("AdamsE2", gen_degs, gen_reprs);
-    dbE2.save_gb("AdamsE2", gb, gen_degs);
-    dbE2.save_basis("AdamsE2", basis);
+    dbE2.save_generators(table_out, gen_degs, gen_reprs);
+    dbE2.save_gb(table_out, gb, gen_degs);
+    dbE2.save_basis(table_out, basis);
 
     dbE2.end_transaction();
 }
 
-int main(int argc, char** argv)
+int main_export(int argc, char** argv, int index)
 {
-    std::string db_in = "AdamsE2Prod.db";
-    std::string db_out = "AdamsE2Export.db";
+    int t_trunc = 100;
+    std::string db_in = "S0_Adams_res_prod.db";
+    std::string table_in = "S0_Adams_res";
+    std::string db_out = "S0_AdamsSS.db";
 
-    if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
-        std::cout << "Usage:\n  AdamsE2Export <db_in> <db_out>\n\n";
-        std::cout << "Default values:\n  db_in = " << db_in << "\n  db_out = " << db_out << "\n\n";
-        std::cout << "Version:\n  1.0 (2022-7-4)" << std::endl;
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Usage:\n  Adams export <t_trunc> [db_in] [table_in] [db_out]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  db_in = " << db_in << "\n";
+        std::cout << "  table_in = " << table_in << "\n";
+        std::cout << "  db_out = " << db_out << "\n";
         return 0;
     }
-    AdamsE2Export(db_in, db_out);
+
+    if (myio::load_arg(argc, argv, ++index, "t_trunc", t_trunc))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "db_in", db_in))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "table_in", table_in))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
+        return index;
+
+    AdamsE2Export(db_in, table_in, db_out, t_trunc);
     return 0;
 }

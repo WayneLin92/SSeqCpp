@@ -48,7 +48,7 @@ using PtCriMilnor2d = std::vector<PtCriMilnor1d>;
 /* Groebner basis of critical pairs */
 class CriMilnors
 {
-    friend class SteenrodMRes;
+    friend class AdamsRes;
 
 private:
     int t_trunc_;                                                        /* Truncation degree */
@@ -172,7 +172,7 @@ public:
 };
 
 /********************************************************
- *                    class SteenrodMRes
+ *                    class AdamsRes
  ********************************************************/
 
 struct DataMRes
@@ -216,7 +216,7 @@ inline void Reduce(Mod& x, const DataMRes1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-class SteenrodMRes
+class AdamsRes
 {
     using TypeIndices = std::vector<std::unordered_map<uint64_t, int1d>>;
 
@@ -236,8 +236,8 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    SteenrodMRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st);
-    static SteenrodMRes load(const std::string& db_filename, int t_trunc, int stem_trunc);
+    AdamsRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st);
+    static AdamsRes load(const std::string& db_filename, const std::string& tablename, int t_trunc, int stem_trunc);
 
 public:
     int t_trunc() const
@@ -343,9 +343,9 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-void ResolveMRes(SteenrodMRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename);
+void Resolve(AdamsRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename);
 
-void ResetDb(const std::string& filename);
+void ResetDb(const std::string& filename, const std::string& tablename);
 
 }  // namespace steenrod
 

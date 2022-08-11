@@ -34,12 +34,13 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-class SteenrodMResConst
+class DbAdamsResProd;
+
+class AdamsResConst
 {
     using TypeIndices = std::vector<std::unordered_map<uint64_t, int1d>>;
 
 private:
-    int t_trunc_, s_trunc_; /* t < t_trunc_ or (t == t_trunc_ and s >= s_trunc_) */
 
     DataMResConst2d gb_;
     MMod2d leads_;        /* Leading monomials */
@@ -49,29 +50,10 @@ private:
 
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
-    SteenrodMResConst(int t_trunc, int s_trunc, DataMResConst2d data, int2d basis_degrees);
-    static SteenrodMResConst load(const std::string& filename);
+    AdamsResConst(DataMResConst2d data, int2d basis_degrees);
+    static AdamsResConst load(const DbAdamsResProd& db, int t_trunc);
 
 public:
-    int t_trunc() const
-    {
-        return t_trunc_;
-    }
-
-    int t_begin() const
-    {
-        int t = 0;
-        for (size_t s = 0; s < gb_.size(); ++s) {
-            if (!gb_[s].empty()) {
-                auto lead = gb_[s].back().x1.GetLead();
-                int t1 = lead.deg_m() + basis_degrees_[s][lead.v()];
-                if (t1 > t)
-                    t = t1;
-            }
-        }
-        return t;
-    }
-
     const int1d& basis_degrees(size_t s) const
     {
         return basis_degrees_[s];
@@ -119,9 +101,6 @@ struct GenMRes
 
 using GenMRes1d = std::vector<GenMRes>;
 using GenMRes2d = std::vector<GenMRes1d>;
-
-void compute_products_ind(int t_trunc, std::string& db_in, std::string& db_out);
-void compute_products(int t_trunc, std::string& db_in, std::string& db_out);
 
 }  // namespace steenrod
 

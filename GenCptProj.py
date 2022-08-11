@@ -3,58 +3,31 @@ import argparse
 import os
 import subprocess
 
-filenames_AdamsE2 = [
-"./include/algebras/benchmark.h",
-"./include/algebras/database.h",
-"./include/algebras/myexception.h",
-"./include/algebras/myio.h",
-"./include/algebras/steenrod.h",
-"./include/algebras/utility.h",
-"./src/database.cpp",
-"./src/myio.cpp",
-"./src/steenrod.cpp",
-"./src/utility.cpp",
-"./AdamsE2/groebner_steenrod.h",
-"./AdamsE2/groebner_steenrod.cpp",
-"./AdamsE2/AdamsE2.cpp",
-]
-
-filenames_AdamsE2Prod = [
-"./include/algebras/benchmark.h",
-"./include/algebras/database.h",
-"./include/algebras/myexception.h",
-"./include/algebras/myio.h",
-"./include/algebras/linalg.h",
-"./include/algebras/steenrod.h",
-"./include/algebras/utility.h",
-"./src/linalg.cpp",
-"./src/database.cpp",
-"./src/myio.cpp",
-"./src/steenrod.cpp",
-"./src/utility.cpp",
-"./AdamsE2/groebner_steenrod_const.h",
-"./AdamsE2/groebner_steenrod_const.cpp",
-"./AdamsE2/AdamsE2Prod.cpp",
-]
-
-filenames_AdamsE2Export = [
+filenames_Adams = [
+"./Adams/AdamsRes.cpp",
+"./Adams/AdamsResExport.cpp",
+"./Adams/AdamsResProd.cpp",
+"./Adams/groebner_steenrod_const.h",
+"./Adams/groebner_steenrod.cpp",
+"./Adams/groebner_steenrod.h",
+"./Adams/main.h",
+"./Adams/main.cpp",
+"./include/algebras/algebras.h",
 "./include/algebras/benchmark.h",
 "./include/algebras/database.h",
 "./include/algebras/dbAdamsSS.h",
+"./include/algebras/linalg.h",
 "./include/algebras/myexception.h",
 "./include/algebras/myio.h",
-"./include/algebras/linalg.h",
 "./include/algebras/steenrod.h",
 "./include/algebras/utility.h",
-"./include/algebras/algebras.h",
 "./src/algebras.cpp",
-"./src/linalg.cpp",
 "./src/database.cpp",
-"./src/dbAdamsSS.cpp",
+"./src/linalg.cpp",
 "./src/myio.cpp",
 "./src/steenrod.cpp",
 "./src/utility.cpp",
-"./AdamsE2/AdamsE2Export.cpp",
+"./src/dbAdamsSS.cpp",
 ]
 
 if __name__ == "__main__":
@@ -73,12 +46,10 @@ if __name__ == "__main__":
         print("Need -o -p options")
         exit()
 
-    if args.p == "AdamsE2":
-        filenames = filenames_AdamsE2
-    elif args.p == "AdamsE2Prod":
-        filenames = filenames_AdamsE2Prod
-    elif args.p == "AdamsE2Export":
-        filenames = filenames_AdamsE2Export
+    if args.p == "Adams":
+        filenames = filenames_Adams
+    else:
+        exit()
     for fn in filenames:
         with open(fn) as file:
             content = file.read()
