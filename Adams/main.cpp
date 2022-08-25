@@ -1,7 +1,12 @@
 #include "main.h"
 #include "algebras/utility.h"
 #include "algebras/myio.h"
+#include "algebras/benchmark.h"
 #include <iostream>
+
+#ifndef MYDEPLOY
+std::vector<int> bench::Counter::counts_ = {0, 0, 0};
+#endif
 
 int main(int argc, char** argv)
 {
@@ -14,7 +19,7 @@ int main(int argc, char** argv)
         std::cout << "<cmd> can be one of the following:\n";
 
         std::cout << "  res: Compute an A-resolution\n";
-        std::cout << "  cell: Generate the basis of Ext for a cell complex\n";
+        std::cout << "  2cell: Generate the basis of Ext for a cell complex\n";
         std::cout << "  prod: Compute the multiplications\n";
         std::cout << "  export: Extract info of Ext from the resolution data\n";
         std::cout << "  plot: Generate an html file (feature not supported yet)\n";
@@ -27,6 +32,8 @@ int main(int argc, char** argv)
 
     if (cmd == "res")
         return main_res(argc, argv, index);
+    else if (cmd == "2cell")
+        return main_2cell(argc, argv, index);
     else if (cmd == "prod")
         return main_prod(argc, argv, index);
     else if (cmd == "export")

@@ -2,14 +2,42 @@
  * A Component for Groebner bases.
  */
 
-#ifndef GROEBNER_STEENROD_CPT_H
-#define GROEBNER_STEENROD_CPT_H
+#ifndef GROEBNER_STEENROD_CONST_H
+#define GROEBNER_STEENROD_CONST_H
 
 #include "algebras/steenrod.h"
+#include <map>
 
-//#define MYDEPLOY
+using namespace steenrod;
 
-namespace steenrod {
+struct AdamsDegV2
+{
+    int s, t;
+    constexpr AdamsDegV2() : s(0), t(0) {}
+    constexpr AdamsDegV2(int s_, int t_) : s(s_), t(t_) {}
+
+    /* Order by (t, -s) */
+    bool operator<(const AdamsDegV2& rhs) const
+    {
+        if (t < rhs.t)
+            return true;
+        if (t > rhs.t)
+            return false;
+        if (s > rhs.s)
+            return true;
+        return false;
+    };
+    bool operator==(const AdamsDegV2& rhs) const
+    {
+        return s == rhs.s && t == rhs.t;
+    };
+    int stem() const
+    {
+        return t - s;
+    }
+};
+
+int1d HomToK(const Mod& x);
 
 struct DataMResConst
 {
@@ -34,7 +62,25 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-class DbAdamsResProd;
+class DbAdamsResLoader : public myio::Database
+{
+    using Statement = myio::Statement;
+
+public:
+    explicit DbAdamsResLoader(const std::string& filename) : Database(filename) {}
+
+public:
+    /**
+     * loc2glo[s][i] = id
+     * glo2loc[id] = (s, i)
+     *
+     * From SteenrodMRes
+     */
+    void load_id_converter(const std::string& table_in, int2d& loc2glo, std::vector<std::pair<int, int>>& glo2loc) const;
+    int2d load_basis_degrees(const std::string& table_prefix, int t_trunc) const;
+    void load_generators(const std::string& table_prefix, std::map<int, AdamsDegV2>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc) const;
+    DataMResConst2d load_data(const std::string& table_prefix, int t_trunc) const;
+};
 
 class AdamsResConst
 {
@@ -51,7 +97,7 @@ private:
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
     AdamsResConst(DataMResConst2d data, int2d basis_degrees);
-    static AdamsResConst load(const DbAdamsResProd& db, int t_trunc);
+    static AdamsResConst load(const DbAdamsResLoader& db, int t_trunc);
 
 public:
     const int1d& basis_degrees(size_t s) const
@@ -101,7 +147,5 @@ struct GenMRes
 
 using GenMRes1d = std::vector<GenMRes>;
 using GenMRes2d = std::vector<GenMRes1d>;
-
-}  // namespace steenrod
 
 #endif

@@ -6,10 +6,6 @@
 #include <cstring>
 #include <sstream>
 
-#ifndef MYDEPLOY
-std::vector<int> bench::Counter::counts_ = {0, 0, 0};
-#endif
-
 void ResolveV2(const std::string& X, int t_trunc, int stem_trunc, std::string& db_filename, const std::string& tablename)
 {
     using namespace steenrod;
@@ -27,12 +23,7 @@ void ResolveV2(const std::string& X, int t_trunc, int stem_trunc, std::string& d
         return;
     }
 
-#ifdef MYDEPLOY
-    // ResetDb(db_filename);
     auto gb = AdamsRes::load(db_filename, tablename, t_trunc, stem_trunc);
-#else
-    auto gb = AdamsRes(t_trunc, {}, {}, {}, {}, 0, 0);
-#endif
 
     Resolve(gb, rels, t_trunc, stem_trunc, db_filename);
 

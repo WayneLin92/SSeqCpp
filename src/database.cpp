@@ -75,6 +75,18 @@ int Database::get_int(const std::string& sql) const
     throw MyException(0xeffbf28c, "Failed to get_int using: " + sql);
 }
 
+int Database::get_int(const std::string& sql, int default_) const
+{
+    Statement stmt(*this, sql);
+    if (stmt.step() == SQLITE_ROW) {
+        if (stmt.column_type(0) == SQLITE_INTEGER)
+            return stmt.column_int(0);
+        else
+            MyException(0xa429d1aU, "Incorrect type using: " + sql);
+    }
+    return default_;
+}
+
 std::string Database::get_str(const std::string& sql) const
 {
     Statement stmt(*this, sql);

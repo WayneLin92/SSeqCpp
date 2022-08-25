@@ -5,8 +5,6 @@
 #include <cstring>
 #include <mutex>
 
-namespace steenrod {
-
 /********************************************************
  *                    class CriMilnors
  ********************************************************/
@@ -949,5 +947,3 @@ void ResetDb(const std::string& filename, const std::string& tablename)
     db.create_relations_x2m_and_delete(tablename);
     db.create_time_and_delete(tablename);
 }
-
-}  // namespace steenrod

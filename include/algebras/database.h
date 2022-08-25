@@ -150,6 +150,7 @@ public:
 
 public:
     int get_int(const std::string& sql) const;
+    int get_int(const std::string& sql, int default_) const;
     std::string get_str(const std::string& sql) const;
     std::vector<int> get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
     /*

@@ -11,9 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define MYDEPLOY
-
-namespace steenrod {
+using namespace steenrod;
 
 struct CriMilnor
 {
@@ -346,7 +344,5 @@ public:
 void Resolve(AdamsRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename);
 
 void ResetDb(const std::string& filename, const std::string& tablename);
-
-}  // namespace steenrod
 
 #endif
