@@ -49,7 +49,7 @@ template <typename T>
 uint64_t hash(const T& x)
 {
     if constexpr (is_sequence<T>::value) {
-        hash(x.begin(), x.end());
+        return hash(x.begin(), x.end());
     }
     else if constexpr (is_map<T>::value) {
         uint64_t seed = 0;
