@@ -174,7 +174,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
     //const std::string db_in_prod = "S0_Adams_res_prod.db";
     //const std::string table_in_prod = "S0_Adams_res";
     const std::string db_out = complex_name + "_Adams_chain.db";
-    const std::string table_out = complex_name + "_Adams_chain";
+    const std::string table_out = complex_name + "_Adams";
 
     DbAdamsResLoader dbRes(db_in);
     auto gb = AdamsResConst::load(dbRes, t_trunc);
