@@ -567,9 +567,6 @@ class DbSteenrod : public myio::Database
 {
     using Statement = myio::Statement;
 
-private:
-    std::future<void> f_;
-
 public:
     DbSteenrod() = default;
     explicit DbSteenrod(const std::string& filename) : Database(filename) {}
@@ -596,30 +593,30 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, time REAL, UNIQUE(s, t));");
     }
 
-    void create_generators_and_delete(const std::string& table_prefix) const
+    void drop_and_create_generators(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_generators");
         create_generators(table_prefix);
-        delete_from(table_prefix + "_generators");
     }
-    void create_relations_and_delete(const std::string& table_prefix) const
+    void drop_and_create_relations(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_relations");
         create_relations(table_prefix);
-        delete_from(table_prefix + "_relations");
     }
-    void create_generators_x2m_and_delete(const std::string& table_prefix) const
+    void drop_and_create_generators_x2m(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_X2m_generators");
         create_generators_x2m(table_prefix);
-        delete_from(table_prefix + "_X2m_generators");
     }
-    void create_relations_x2m_and_delete(const std::string& table_prefix) const
+    void drop_and_create_relations_x2m(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_X2m_relations");
         create_relations_x2m(table_prefix);
-        delete_from(table_prefix + "_X2m_relations");
     }
-    void create_time_and_delete(const std::string& table_prefix) const
+    void drop_and_create_time(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_time");
         create_time(table_prefix);
-        delete_from(table_prefix + "_time");
     }
 
     void save_generators(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
@@ -639,14 +636,12 @@ public:
     /* insert v_{0, 0} */
     void save_fil_0(const std::string& table_prefix) const
     {
-        if (get_int("SELECT MIN(t) from " + table_prefix + "_generators;") != 0) {
-            Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
-            stmt.bind_int(1, 0);
-            stmt.bind_blob(2, Mod().data);
-            stmt.bind_int(3, 0);
-            stmt.bind_int(4, 0);
-            stmt.step_and_reset();
-        }
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
+        stmt.bind_int(1, 0);
+        stmt.bind_blob(2, Mod().data);
+        stmt.bind_int(3, 0);
+        stmt.bind_int(4, 0);
+        stmt.step_and_reset();
     }
 
     void save_relations(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
@@ -761,47 +756,49 @@ public:
         return result;
     }
 
-    void save(const DataMRes2d& data, const Mod2d& rels_x2m_cri, const Mod2d& rels_x2m, const int1d& num_x2m, double time, int t)
+    void save(const std::string& tablename, const DataMRes2d& data, const Mod2d& rels_x2m_cri, const Mod2d& rels_x2m, const int1d& num_x2m, double time, int t)
     {
-        if (f_.valid())
-            f_.wait();
-        f_ = std::async(std::launch::async, [this, data, rels_x2m_cri, rels_x2m, num_x2m, time, t]() {
-            begin_transaction();
-            for (size_t s = data.size(); s-- > 0;) {
-                save_generators("SteenrodMRes", data[s], (int)s, t);
-                save_relations("SteenrodMRes", data[s], (int)s, t);
-            }
-            for (size_t s = num_x2m.size(); s-- > 0;)
-                save_generators_x2m("SteenrodMRes", num_x2m[s], (int)s, t);
-            for (size_t s = rels_x2m_cri.size(); s-- > 0;) {
-                save_relations_x2m("SteenrodMRes", rels_x2m_cri[s], (int)s, t);
-                save_relations_x2m("SteenrodMRes", rels_x2m[s], (int)s, t);
-            }
-            save_time("SteenrodMRes", t, time);
-            end_transaction();
-        });
+        begin_transaction();
+        for (size_t s = data.size(); s-- > 0;) {
+            save_generators(tablename, data[s], (int)s, t);
+            save_relations(tablename, data[s], (int)s, t);
+        }
+        for (size_t s = num_x2m.size(); s-- > 0;)
+            save_generators_x2m(tablename, num_x2m[s], (int)s, t);
+        for (size_t s = rels_x2m_cri.size(); s-- > 0;) {
+            save_relations_x2m(tablename, rels_x2m_cri[s], (int)s, t);
+            save_relations_x2m(tablename, rels_x2m[s], (int)s, t);
+        }
+        save_time(tablename, t, time);
+        end_transaction();
     }
 };
 
-void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename)
+void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename, const std::string& tablename)
 {
     int t_trunc = gb.t_trunc();
     if (t_max > t_trunc)
         throw MyException(0xb2474e19U, "t_max is bigger than the truncation degree.");
     Mod tmp_Mod;
 
-#ifdef MYDEPLOY
     DbSteenrod db(db_filename);
-    db.create_generators("SteenrodMRes");
-    db.create_relations("SteenrodMRes");
-    db.create_generators_x2m("SteenrodMRes");
-    db.create_relations_x2m("SteenrodMRes");
-    db.create_time("SteenrodMRes");
-    db.save_fil_0("SteenrodMRes");
+#ifdef MYDEPLOY
+    db.create_generators(tablename);
+    db.create_relations(tablename);
+    db.create_generators_x2m(tablename);
+    db.create_relations_x2m(tablename);
+    db.create_time(tablename);
+#else
+    db.drop_and_create_generators(tablename);
+    db.drop_and_create_relations(tablename);
+    db.drop_and_create_generators_x2m(tablename);
+    db.drop_and_create_relations_x2m(tablename);
+    db.drop_and_create_time(tablename);
+#endif
+    db.save_fil_0(tablename);
 
     bench::Timer timer;
     timer.SuppressPrint();
-#endif
 
     /* Group `rels` by degree */
     std::map<int, int1d> rels_graded;
@@ -904,15 +901,13 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std
         }
 
         /* Save the result */
-#ifdef MYDEPLOY
         double time = timer.Elapsed();
         int1d num_x2m;
         for (size_t s = 0; s < tt; ++s)
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
-        db.save(data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
+        db.save(tablename, data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
         std::cout << "    time=" << time << std::endl;
         timer.Reset();
-#endif
 
         for (size_t s = tt; s-- > s_min;)
             for (size_t i = 0; i < data[s].size(); ++i)
@@ -941,9 +936,9 @@ AdamsRes AdamsRes::load(const std::string& db_filename, const std::string& table
 void ResetDb(const std::string& filename, const std::string& tablename)
 {
     DbSteenrod db(filename);
-    db.create_generators_and_delete(tablename);
-    db.create_relations_and_delete(tablename);
-    db.create_generators_x2m_and_delete(tablename);
-    db.create_relations_x2m_and_delete(tablename);
-    db.create_time_and_delete(tablename);
+    db.drop_and_create_generators(tablename);
+    db.drop_and_create_relations(tablename);
+    db.drop_and_create_generators_x2m(tablename);
+    db.drop_and_create_relations_x2m(tablename);
+    db.drop_and_create_time(tablename);
 }

@@ -318,4 +318,62 @@ Poly Indices2Poly(const int1d& indices, const Mon1d& basis)
     return result;
 }
 
+/********************************************************
+ *                      Modules
+ ********************************************************/
+
+std::string MMod::Str() const
+{
+    std::string result = m.Str();
+    if (result == "1")
+        result = "v_";
+    else
+        result += "v_";
+    std::string under = std::to_string(v);
+    if (under.size() > 1)
+        result += '{' + under + '}';
+    else
+        result += under;
+    return result;
+}
+
+std::string Mod::Str() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const MMod& m) { return m.Str(); });
+}
+
+void mulP(const Mod& poly, const Mon& mon, Mod& result)
+{
+    result.data.clear();
+    result.data.reserve(poly.data.size());
+    for (const MMod& m : poly.data)
+        result.data.emplace_back(m.m * mon, m.v);
+}
+
+
+
+int1d Mod2Indices(const Mod& x, const MMod1d& basis)
+{
+    int1d result;
+    for (const MMod& mon : x.data) {
+        auto p = std::lower_bound(basis.begin(), basis.end(), mon);
+#ifndef NDEBUG
+        if (p == basis.end() || mon < (*p)) {
+            std::cerr << "MyException(0xc3389529U): Index not found\n";
+            throw MyException(0xc3389529U, "Index not found");
+        }
+#endif
+        result.push_back(uint32_t(p - basis.begin()));
+    }
+    return result;
+}
+
+Mod Indices2Mod(const int1d& indices, const MMod1d& basis)
+{
+    Mod result;
+    for (int i : indices)
+        result.data.push_back(basis[i]);
+    return result;
+}
+
 }  // namespace alg

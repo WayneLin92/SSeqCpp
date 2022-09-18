@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
-    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\AdamsE2Export_t220.db', help='the database of the spectral sequence')
+    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t245.db', help='the database of the spectral sequence')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)
@@ -65,17 +65,35 @@ if __name__ == "__main__":
         for s, t, id in c.execute(sql):
             ids[(s, t)] = id
 
-        # Load `basis_ss`
+        # Load `AdamsE2_ss`
         basis_ss = []
-        sql = f"SELECT base, level, diff, s, t FROM AdamsE2_ss ORDER BY id"
-        index = 0
-        for base, level, diff, s, t in c.execute(sql):
+        primitive_candidates = {}
+        sql = f"SELECT base, level, diff, s, t, id FROM AdamsE2_ss ORDER BY id"
+        for base, level, diff, s, t, id in c.execute(sql):
             if level > 5000:
                 r = 10000 - level
                 s1, t1 = s + r, t + r - 1
             else:
                 s1, t1 = s - level, t - level + 1
             basis_ss.append((base, level, diff, ids[(s, t)], ids[(s1, t1)]))
+            primitive_candidates[(base, level, ids[(s, t)])] = id
+            
+        # Load `AdamsE2_ss_primitives`
+        primitive_bullets = set()  # set of (base, level, ids[(s,t)])
+        primitive_diffs = set()  # set of (src, r)
+        if c.execute("SELECT name FROM sqlite_master WHERE name='AdamsE2_ss_primitives'").fetchone() is not None:
+            sql = f"SELECT base, level, diff, s, t FROM AdamsE2_ss_primitives WHERE t-s<=110 ORDER BY t-s,s"
+            for base, level, diff, s, t in c.execute(sql):
+                if diff is None:
+                    primitive_bullets.add((base, level, ids[(s, t)]))
+                else:
+                    k = (base, level, ids[(s, t)])
+                    if k in primitive_candidates:
+                        primitive_diffs.add(primitive_candidates[k])
+                    else:
+                        print(f"Migration input ({base=}, {level=}, {diff=}) changed!")
+        else:
+            print("ignoring AdamsE2_ss_primitives because it is not found")
 
         # Load `stable_levels`
         stable_levels = {}
@@ -143,7 +161,8 @@ if __name__ == "__main__":
                     page = 200
                 else:
                     page = level
-                tpl_bullets += f'<circle id=b{index} class=b cx={cx:.6g} cy={cy:.6g} r={r:.6g}{str_fill} data-b={base} data-l={level} data-d="{diff}" data-i={offset} data-j={offsetD} data-g={int(len(str_fill) > 0)} data-page={page}>'
+                str_class = '"b prim_b"' if (base, level, offset) in primitive_bullets else 'b'
+                tpl_bullets += f'<circle id=b{index} class={str_class} cx={cx:.6g} cy={cy:.6g} r={r:.6g}{str_fill} data-b={base} data-l={level} data-d="{diff}" data-i={offset} data-j={offsetD} data-g={int(len(str_fill) > 0)} data-page={page}>'
                 tpl_bullets += f'<title>({x:.6g}, {y:.6g}) id: {index}</title></circle>\n'
                 index2xyrp[index] = (cx, cy, r, page)
 
@@ -190,7 +209,7 @@ if __name__ == "__main__":
         for src, r, tgt in c.execute(sql):
             index = min(r - 2, 4)
             for id_tgt in map(int, tgt.split(",")):
-                diff_lines[index].append((src, id_tgt))
+                diff_lines[index].append((src, id_tgt, ))
 
         null_diff_lines = [[], [], [], [], []] # d2,d3,d4,d5,d6
         sql = f"SELECT src, r, tgt FROM AdamsE2_ss_nd"
@@ -198,6 +217,7 @@ if __name__ == "__main__":
             index = min(r - 2, 4)
             for id_tgt in map(int, tgt.split(",")):
                 null_diff_lines[index].append((src, id_tgt))
+                break
 
         with open(path_js, "w") as file:
             file.write(content_js)
@@ -206,19 +226,20 @@ if __name__ == "__main__":
         tpl_lines = ["", "", ""]
         for i in range(3):
             for i1, i2 in lines[i]:
-                tpl_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />'
+                tpl_lines[i] += f'<line class=strt_l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />'
                 
         # Plot the diff lines
         tpl_diff_lines = ["", "", "", "", ""]
         for i in range(5):
             for i1, i2 in diff_lines[i]:
-                tpl_diff_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />\n'
-                
+                str_class = '"diff_l prim_l"' if i1 in primitive_diffs else 'diff_l'
+                tpl_diff_lines[i] += f'<line class={str_class} x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} data-page={min(index2xyrp[i1][3], index2xyrp[i2][3])} />\n'
+
         # Plot the null diff lines
         for i in range(5):
             for i1, i2 in null_diff_lines[i]:
-                if round(index2xyrp[i1][0]) <= 110:
-                    tpl_diff_lines[i] += f'<line class=l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} stroke-dasharray="0.2,0.2" data-page={index2xyrp[i1][3]} />\n'
+                if round(index2xyrp[i1][0]) <= 127:
+                    tpl_diff_lines[i] += f'<line class=dashed_l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} stroke-dasharray="0.2,0.2" data-r={round(index2xyrp[i2][1]) - round(index2xyrp[i1][1])} />\n'
 
         content = content_tpl.replace("title:13dd3d15", tpl_title)
         content = content.replace("bullets:b8999a4e", tpl_bullets)

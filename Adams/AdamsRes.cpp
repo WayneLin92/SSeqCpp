@@ -2,6 +2,7 @@
 #include "algebras/myio.h"
 #include "algebras/utility.h"
 #include "groebner_steenrod.h"
+#include "main.h"
 
 #include <cstring>
 #include <sstream>
@@ -25,7 +26,7 @@ void ResolveV2(const std::string& X, int t_trunc, int stem_trunc, std::string& d
 
     auto gb = AdamsRes::load(db_filename, tablename, t_trunc, stem_trunc);
 
-    Resolve(gb, rels, t_trunc, stem_trunc, db_filename);
+    Resolve(gb, rels, t_trunc, stem_trunc, db_filename, tablename);
 
     std::cout << "gb.dim_Ext()=" << gb.dim_Ext() << '\n';
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
@@ -39,7 +40,7 @@ int main_res(int argc, char** argv, int index)
     std::string tablename = "S0_Adams_res";
     int num_threads = 128;
 
-    if (argc >= 2 && strcmp(argv[1], "-h") == 0) {
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Calculate the minimal resolution for the Adams spectral sequence\n";
         std::cout << "Usage:\n  Adams res [X] [t_max] [stem_max] [db_filename] [tablename] [num_threads]\n\n";
 

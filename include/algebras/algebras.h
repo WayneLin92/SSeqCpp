@@ -327,6 +327,10 @@ public:
     {
         return std::lexicographical_compare(begin(), end(), rhs.begin(), rhs.end());
     };
+    void clear()
+    {
+        size_ = 0;
+    }
 
     MonTrace Trace() const;
     std::string Str() const;
@@ -393,10 +397,6 @@ int log(const Mon& mon1, const Mon& mon2);
 Mon GCD(const Mon& mon1, const Mon& mon2);
 Mon LCM(const Mon& mon1, const Mon& mon2);
 
-/** @} ---------------------------------------- */
-/** \defgroup Polynomials Polynomials
- * ------------------------------------------- @{
- */
 
 /********************************************************
  *                      Polynomials
@@ -545,8 +545,6 @@ inline Poly pow(const Poly& poly, uint32_t n)
     return result;
 }
 
-/** @} ---------------------------------------- */
-
 /**
  * Compute the differential of a monomial.
  * `diffs` is the array $(dg_i)$.
@@ -596,6 +594,101 @@ inline Poly subs(const Poly& poly, const uint1d& map_gen_id)
 
 int1d Poly2Indices(const Poly& poly, const Mon1d& basis);
 Poly Indices2Poly(const int1d& indices, const Mon1d& basis);
+
+/********************************************************
+ *                      Modules
+ ********************************************************/
+
+struct MMod
+{
+    uint32_t v;
+    Mon m;
+
+    MMod(const Mon& m_, uint32_t v_) : m(m_), v(v_) {}
+
+    bool operator<(const MMod& rhs) const
+    {
+        if (v > rhs.v)
+            return true;
+        if (v < rhs.v)
+            return false;
+        if (m < rhs.m)
+            return true;
+        return false;
+    }
+
+    bool operator==(const MMod& rhs) const
+    {
+        return m == rhs.m && v == rhs.v;
+    }
+
+    std::string Str() const;
+};
+
+using MMod1d = std::vector<MMod>;
+using MMod2d = std::vector<MMod1d>;
+
+inline MMod operator*(const Mon& m, const MMod& x)
+{
+    return MMod(m * x.m, x.v);
+}
+
+struct Mod
+{
+    MMod1d data;
+    Mod() {}
+    Mod(MMod mv) : data({mv}) {}
+    Mod(const Poly& poly, uint32_t v)
+    {
+        data.reserve(poly.data.size());
+        for (const Mon& m : poly.data)
+            data.emplace_back(m, v);
+    }
+
+    MMod GetLead() const
+    {
+#ifndef NDEBUG
+        if (data.empty())
+            throw MyException(0x488793f0U, "Trying to GetLead() for empty Mod.");
+#endif
+        return data[0];
+    }
+
+    Mod& iaddP(const Mod& rhs, Mod& tmp)
+    {
+        tmp.data.clear();
+        std::set_symmetric_difference(data.cbegin(), data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(tmp.data));
+        ut::copy(tmp.data, data);
+        return *this;
+    }
+
+    explicit operator bool() const
+    {
+        return !data.empty();
+    }
+
+    bool operator==(const Mod& rhs) const
+    {
+        return data == rhs.data;
+    }
+
+    std::string Str() const;
+};
+
+using Mod1d = std::vector<Mod>;
+
+inline Mod operator*(const Mon& m, const Mod& x)
+{
+    Mod result;
+    for (auto& xm : x.data)
+        result.data.emplace_back(m * xm.m, xm.v);
+    return result;
+}
+
+void mulP(const Mod& poly, const Mon& mon, Mod& result);
+
+int1d Mod2Indices(const Mod& x, const MMod1d& basis);
+Mod Indices2Mod(const int1d& indices, const MMod1d& basis);
 
 }  // namespace alg
 

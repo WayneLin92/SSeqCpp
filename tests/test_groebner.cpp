@@ -61,55 +61,6 @@ TEST_CASE("Compute the Groebner basis of B7 wrt revlex ordering", "[alg::AddRels
     REQUIRE(gb.size() == answer);
 }
 
-//TEST_CASE("Compute the Groebner basis of B7 wrt lex ordering", "[alg::AddRels]")
-//{
-//    using FnCmp = alg::CmpLex;
-//    using Poly = alg::Polynomial<FnCmp>;
-//    using Poly1d = std::vector<Poly>;
-//    using Gb = alg::Groebner<FnCmp>;
-//    constexpr auto GenExp = Poly::GenExp;
-//
-//#ifndef NDEBUG
-//    int n_max = 7;
-//#else
-//    int n_max = 8;
-//#endif
-//    alg::array gen_degs;
-//    for (int i = 0; i < n_max; ++i) {
-//        for (int j = i + 1; j <= n_max; ++j) {
-//            gen_degs.push_back((1 << j) - (1 << i));
-//        }
-//    }
-//    Poly1d rels;
-//    for (int d = 2; d <= n_max; d++) {
-//        for (int i = 0; i <= n_max - d; i++) {
-//            int j = i + d;
-//            Poly rel;
-//            for (int k = i + 1; k < j; k++) {
-//                int a = (1 << k) - (1 << i);
-//                int b = (1 << j) - (1 << k);
-//                auto p1 = std::find(gen_degs.begin(), gen_degs.end(), a);
-//                auto p2 = std::find(gen_degs.begin(), gen_degs.end(), b);
-//                int index1 = int(p1 - gen_degs.begin());
-//                int index2 = int(p2 - gen_degs.begin());
-//                rel += GenExp(index1, 1) * GenExp(index2, 1);
-//            }
-//            rels.push_back(std::move(rel));
-//        }
-//    }
-//
-//    Gb gb(alg::DEG_MAX);
-//    std::sort(rels.begin(), rels.end(), [&gen_degs](const Poly& p1, const Poly& p2) { return p1.GetDeg(gen_degs) < p2.GetDeg(gen_degs); });
-//    alg::AddRels(gb, std::move(rels), alg::DEG_MAX, gen_degs);
-//
-//#ifndef NDEBUG
-//    size_t answer = 78; /* n_max = 7 */
-//#else
-//    size_t answer = 181; /* n_max = 8 */
-//    // size_t answer = 402; /* n_max = 9 */
-//#endif
-//    REQUIRE(gb.size() == answer);
-//}
 //
 //TEST_CASE("Compute annihilator with FnCmp=CmpLex", "[alg::AnnSeq]")
 //{

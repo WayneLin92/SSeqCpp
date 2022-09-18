@@ -2,7 +2,7 @@
 
 using namespace alg;
 
-void SSDB::save_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const
+void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_ss (id, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
     int count = 0;
@@ -23,10 +23,10 @@ void SSDB::save_basis_ss(const std::string& table_prefix, const std::map<AdamsDe
     std::cout << count << " basis_ss are inserted into " + table_prefix + "_ss.\n";
 }
 
-std::map<AdamsDeg, int> SSDB::load_indices(const std::string& table_prefix) const
+std::map<AdamsDeg, int> DBSS::load_indices(const std::string& table_prefix) const
 {
     std::map<AdamsDeg, int> result;
-    Statement stmt(*this, "SELECT s, t, min(id) FROM " + table_prefix + "_ss GROUP BY t, s;");
+    Statement stmt(*this, "SELECT s, t, min(id) FROM " + table_prefix + "_basis GROUP BY t, s;");
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {
         ++count;
@@ -37,7 +37,7 @@ std::map<AdamsDeg, int> SSDB::load_indices(const std::string& table_prefix) cons
     return result;
 }
 
-void SSDB::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const
+void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const
 {
     std::map<AdamsDeg, int> indices = load_indices(table_prefix);
     Statement stmt(*this, "UPDATE " + table_prefix + "_ss SET base=?1, diff=?2, level=?3 WHERE id=?4;");
@@ -59,10 +59,10 @@ void SSDB::update_basis_ss(const std::string& table_prefix, const std::map<Adams
     std::cout << table_prefix + "_ss is updated, num_of_change=" << count << '\n';
 }
 
-Staircases SSDB::load_basis_ss(const std::string& table_prefix) const
+Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
 {
     Staircases basis_ss;
-    Statement stmt(*this, "SELECT base, diff, level, s, t FROM " + table_prefix + "_ss;");
+    Statement stmt(*this, "SELECT base, COALESCE(diff, \"-1\"), level, s, t FROM " + table_prefix + "_ss;");
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {
         ++count;
@@ -72,18 +72,15 @@ Staircases SSDB::load_basis_ss(const std::string& table_prefix) const
 
         basis_ss[deg].basis_ind.push_back(std::move(base));
         basis_ss[deg].levels.push_back(level);
-        if (stmt.column_type(1) == MYSQLITE3_TEXT) {
-            int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
-            basis_ss[deg].diffs_ind.push_back(diff);
-        }
-        else
-            basis_ss[deg].diffs_ind.push_back({-1});
+
+        int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
+        basis_ss[deg].diffs_ind.push_back(std::move(diff));
     }
     std::cout << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return basis_ss;
 }
 
-SS SSDB::load_ss(const std::string& table_prefix) const
+SS DBSS::LoadSS(const std::string& table_prefix) const
 {
     Staircases basis_ss = load_basis_ss("AdamsE2");
     Poly1d polys = load_gb("AdamsE2", DEG_MAX);
@@ -92,12 +89,21 @@ SS SSDB::load_ss(const std::string& table_prefix) const
     return SS(std::move(gb), std::move(basis), std::move(basis_ss));
 }
 
+S0SS DBSS::LoadS0SS(const std::string& table_prefix) const
+{
+    Staircases basis_ss = load_basis_ss("AdamsE2");
+    Poly1d polys = load_gb("AdamsE2", DEG_MAX);
+    auto basis = load_basis("AdamsE2");
+    Groebner gb(basis.rbegin()->first.t, {}, std::move(polys));
+    return S0SS(std::move(gb), std::move(basis), std::move(basis_ss));
+}
+
 /* generate the table of the spectral sequence */
 void generate_ss(const std::string& db_filename, const std::string& table_prefix, int r)
 {
     using namespace alg;
 
-    SSDB db(db_filename);
+    DBSS db(db_filename);
     std::map<AdamsDeg, Mon1d> basis = db.load_basis(table_prefix);
 
     int s_diff = 2;
@@ -126,7 +132,7 @@ void generate_ss(const std::string& db_filename, const std::string& table_prefix
 
 int main_generate_ss(int argc, char** argv, int index)
 {
-    std::string db_filename = "AdamsE2Export_t220.db";
+    std::string db_filename = db_ss_default;
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {

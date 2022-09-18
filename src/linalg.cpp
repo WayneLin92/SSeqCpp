@@ -7,6 +7,11 @@
 
 namespace lina {
 
+bool is_sorted(const int2d& vectors)
+{
+    return std::all_of(vectors.begin(), vectors.end(), [](const int1d& v) { return std::is_sorted(v.begin(), v.end()); });
+}
+
 int2d GetSpace(const int2d& vectors)
 {
     int2d result;
@@ -74,6 +79,10 @@ void GetInvMap(const int2d& fx, int2d& image, int2d& g)
 
 void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g)
 {
+#ifndef NDEBUG
+    if (!is_sorted(fx))
+        throw MyException(0x98e11820U, "fx is not sorted");
+#endif
     /* f(g[i]) = image[i] */
     for (size_t i = 0; i < fx.size(); ++i) {
         int1d src = {int(i)};
@@ -116,6 +125,10 @@ void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt f
 
 void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel, int2d& g)
 {
+#ifndef NDEBUG
+    if (!is_sorted(fx))
+        throw MyException(0xad97b098U, "fx is not sorted");
+#endif
     /* f(g[i]) = image[i] */
     for (size_t i = 0; i < fx.size(); ++i) {
         int1d src = {x[i]};

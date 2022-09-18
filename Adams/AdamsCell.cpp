@@ -2,7 +2,6 @@
 #include "algebras/database.h"
 #include "algebras/linalg.h"
 #include "algebras/utility.h"
-#include "algebras/myhash.h"////
 #include "groebner_steenrod_const.h"
 #include "main.h"
 #include <cstring>
@@ -45,7 +44,7 @@ public:
 public:
     void create_products(const std::string& table_prefix)
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS S0_Adams_hi_products (id INTEGER PRIMARY KEY, prod_h TEXT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS S0_Adams_hi_products (id INTEGER PRIMARY KEY, prod_h TEXT, s SMALLINT, t SMALLINT);");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_E2 (id INTEGER PRIMARY KEY, cell SMALLINT, indecomposable TINYINT, h_repr TEXT, coh_repr TEXT, s SMALLINT, t SMALLINT);");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products_whole (S0_id INTEGER, cell SMALLINT, id_ind INTEGER, prod BLOB, prod_h TEXT, s SMALLINT, PRIMARY KEY (S0_id, cell, id_ind));");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products (id INTEGER, id_ind INTEGER, prod_h TEXT, PRIMARY KEY (id, id_ind));");
@@ -91,7 +90,7 @@ public:
     std::map<int, int> load_id_ind_to_s(const std::string& table_prefix) const
     {
         std::map<int, int> result;
-        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_E2 WHERE indecomposable=1 ORDER BY id;");
+        Statement stmt(*this, "SELECT id, s FROM " + table_prefix + "_E2 WHERE indecomposable=1 AND cell=1 ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int s = stmt.column_int(1);
@@ -107,6 +106,7 @@ int1d HomToKCell(const Mod& x, int t_cell)
     for (MMod m : x.data)
         if (m.deg_m() == t_cell && m.w() == 1)
             result.push_back((int)m.v());
+    std::sort(result.begin(), result.end());
     return result;
 }
 
@@ -132,31 +132,6 @@ void add_prod_h(int1d& x, const int1d& y, int1d& tmp)
     std::swap(x, tmp);
 };
 
-namespace ut {
-template <>
-inline uint64_t hash<MMod>(const MMod& x)
-{
-    return uint64_t(x.data());
-}
-template <>
-inline uint64_t hash<Mod>(const Mod& x)
-{
-    return ut::hash(x.data);
-}
-template <>
-inline uint64_t hash<AdamsDegV2>(const AdamsDegV2& x)
-{
-    return ut::hash(uint64_t(x.s) + (uint64_t(x.t) << 32));
-}
-template <>
-inline uint64_t hash<std::pair<int, int>>(const std::pair<int, int>& x)
-{
-    uint64_t seed = (uint64_t)x.first;
-    ut::hash_combine(seed, x.second);
-    return seed;
-}
-}
-
 void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, const std::string& db_in, const std::string& table_in)
 {
     int t_cell = 0;
@@ -171,13 +146,11 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
     else
         throw MyException(0xd2e1e176U, complex_name + " is not supported");
 
-    //const std::string db_in_prod = "S0_Adams_res_prod.db";
-    //const std::string table_in_prod = "S0_Adams_res";
     const std::string db_out = complex_name + "_Adams_chain.db";
     const std::string table_out = complex_name + "_Adams";
 
     DbAdamsResLoader dbRes(db_in);
-    auto gb = AdamsResConst::load(dbRes, t_trunc);
+    auto gb = AdamsResConst::load(dbRes, table_in, t_trunc);
     std::map<int, AdamsDegV2> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
@@ -185,8 +158,6 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
     int2d loc2glo;
     std::vector<std::pair<int, int>> glo2loc;
     dbRes.load_id_converter(table_in, loc2glo, glo2loc);
-
-    //DbAdamsResProdLoader dbResProd(db_in_prod);
 
     DbAdamsResCell dbProd(db_out);
     dbProd.create_products(table_out);
@@ -203,7 +174,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
     std::map<int, int> id_ind_to_s = dbProd.load_id_ind_to_s(table_out);
     int gen_id = dbProd.get_int("SELECT COALESCE(MAX(id) + 1, 0) FROM " + table_out + "_E2");
 
-    myio::Statement stmt_hi_prod(dbProd, "INSERT INTO S0_Adams_hi_products (id, prod_h) values (?1, ?2);");
+    myio::Statement stmt_hi_prod(dbProd, "INSERT INTO S0_Adams_hi_products (id, prod_h, s, t) values (?1, ?2, ?3, ?4);");
     myio::Statement stmt_gen(dbProd, "INSERT INTO " + table_out + "_E2 (id, cell, indecomposable, h_repr, coh_repr, s, t) values (?1, ?2, ?3, ?4, ?5, ?6, ?7);");
     myio::Statement stmt_ind(dbProd, "UPDATE " + table_out + "_E2 SET indecomposable=1 WHERE id=?1 and indecomposable=0;");
     myio::Statement stmt_prod_whole(dbProd, "INSERT INTO " + table_out + "_products_whole (S0_id, cell, id_ind, prod, prod_h, s) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
@@ -261,6 +232,8 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
 
             stmt_hi_prod.bind_int(1, id + (int)i);
             stmt_hi_prod.bind_str(2, myio::Serialize(prod_hi.back()));
+            stmt_hi_prod.bind_int(3, deg.s);
+            stmt_hi_prod.bind_int(4, deg.t);
             stmt_hi_prod.step_and_reset();
             dbProd.reg_transaction();
         }
@@ -309,8 +282,17 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
             stmt_gen.step_and_reset();
             dbProd.reg_transaction();
         }
+        if (deg.t == 0) {
+            stmt_ind.bind_int(1, 0);
+            stmt_ind.step_and_reset();
 
-        if (deg.t > 0) {
+            stmt_prod.bind_int(1, 0);
+            stmt_prod.bind_int(2, 0);
+            stmt_prod.bind_str(3, myio::Serialize(one_h));
+            stmt_prod.step_and_reset();
+            dbProd.reg_transaction();
+        }
+        else {
             if (deg1.t > 0 && diffs_d1_size) {
                 std::map<int, Mod1d> f_cell1_sm2 = dbProd.load_products(table_out, 1, deg.s - 2, glo2loc);
 
@@ -331,8 +313,6 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                     size_t j = i % diffs_d1_size;
                     fd.at(id_ind)[j] = subs(diffs_d1[j], f_cell1_sm2.at(id_ind));
                 });
-
-                //std::cout << "ut::hash(id_ind_to_s)=" << ut::hash(id_ind_to_s) << '\n';  //////////////////
 
                 /* compute f */
                 std::map<int, Mod1d> f;
@@ -361,7 +341,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                             stmt_prod_whole.bind_int(3, id_ind);
                             stmt_prod_whole.bind_blob(4, f_id_ind[i].data);
                             stmt_prod_whole.bind_str(5, myio::Serialize(fh.at(id_ind)[i]));
-                            stmt_prod_whole.bind_int(6, deg1.s); 
+                            stmt_prod_whole.bind_int(6, deg1.s);
                             stmt_prod_whole.step_and_reset();
                             dbProd.reg_transaction();
                         }
@@ -376,8 +356,10 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                         if (!fh_id_ind[index].empty()) {
                             stmt_prod.bind_int(1, gen_id_cell1_start + (int)i);
                             stmt_prod.bind_int(2, id_ind);
-
-                            stmt_prod.bind_str(3, myio::Serialize(fh_id_ind[index]));
+                            int1d prod_h_g;
+                            for (int i : fh_id_ind[index])
+                                prod_h_g.push_back(loc2glo[size_t(deg1.s - id_ind_to_s.at(id_ind))][i]);
+                            stmt_prod.bind_str(3, myio::Serialize(prod_h_g));
                             stmt_prod.step_and_reset();
                             dbProd.reg_transaction();
 
@@ -461,7 +443,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                 ut::for_each_par(id_inds.size(), [&id_inds, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[id_inds[i]], f[id_inds[i]], s1[i]); });
 
                 /* compute fh */
-                std::map<int, int2d> fh;
+                std::map<int, int2d> fh; /* fh[id_ind][deg_id]={s_id,...} */
                 for (auto& [id_ind, f_id_ind] : f)
                     for (size_t i = 0; i < diffs_d_size; ++i)
                         fh[id_ind].push_back(HomToK(f_id_ind[i]));
@@ -484,13 +466,15 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                 int1d tmp_prod_h;
                 for (auto& [id_ind, fh_id_ind] : fh) { /* multiply with id_ind */
                     for (size_t i = 0; i < kernel_ht.size(); ++i) {
-                        int1d prod_h;
+                        int1d prod_h, prod_h_g;
                         for (int j : kernel_ht[i])
                             add_prod_h(prod_h, fh.at(id_ind)[j], tmp_prod_h);
+                        for (int i : prod_h)
+                            prod_h_g.push_back(loc2glo[size_t(deg.s - id_ind_to_s.at(id_ind))][i]);
                         if (!prod_h.empty()) {
                             stmt_prod.bind_int(1, gen_id_cell0_start + (int)i);
                             stmt_prod.bind_int(2, id_ind);
-                            stmt_prod.bind_str(3, myio::Serialize(prod_h));
+                            stmt_prod.bind_str(3, myio::Serialize(prod_h_g));
                             stmt_prod.step_and_reset();
                             dbProd.reg_transaction();
                         }
@@ -514,7 +498,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
         std::cout << "t=" << deg.t << " s=" << deg.s << " time=" << time << std::endl;
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
-        dbProd.end_transaction(); ////
+        dbProd.end_transaction(2000);
         diffs.erase(deg1);
     }
 }
@@ -528,22 +512,20 @@ int main_2cell_prod(int argc, char** argv, int index)
     std::string table_in = "SteenrodMRes";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams complex [complex_name] [t_max] [db_in] [table_in]\n\n";
+        std::cout << "Usage:\n  Adams 2cell prod <complex_name> <t_max> [db_in] [table_in]\n\n";
 
         std::cout << "complex_name=C2/Ceta/Cnu/Csigma\n\n";
 
         std::cout << "Default values:\n";
-        std::cout << "  complex_name = " << complex_name << "\n";
-        std::cout << "  t_max = " << t_max << "\n";
         std::cout << "  db_in = " << db_in << "\n";
         std::cout << "  table_in = " << table_in << "\n\n";
 
         std::cout << "Version:\n  2.0 (2022-08-17)" << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "complex_name", complex_name))
+    if (myio::load_arg(argc, argv, ++index, "complex_name", complex_name))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "db_in", db_in))
         return index;
@@ -574,8 +556,10 @@ int main_2cell(int argc, char** argv, int index)
 
     if (cmd == "prod")
         return main_2cell_prod(argc, argv, index);
+    if (cmd == "export")
+        return main_2cell_export(argc, argv, index);
     else
-        std::cerr << "Invalid cmd: " << argv[1] << '\n';
+        std::cerr << "Invalid cmd: " << cmd << '\n';
 
     return 0;
 }

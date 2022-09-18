@@ -173,7 +173,7 @@ if __name__ == "__main__":
     # parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
-    parser.add_argument('-i', default=R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\AdamsE2Export_t220.db", help='the database file of the spectral sequence')
+    parser.add_argument('-i', default=R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t245.db", help='the database file of the spectral sequence')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)

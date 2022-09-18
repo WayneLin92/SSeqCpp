@@ -21,7 +21,7 @@ int main_add_diff(int argc, char** argv, int index)
 {
     int stem = 0, s = 0, r = 0;
     std::string x_str, dx_str;
-    std::string db_filename = "AdamsE2Export_t220.db";
+    std::string db_filename = db_ss_default;
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -56,8 +56,8 @@ int main_add_diff(int argc, char** argv, int index)
     int1d x = myio::Deserialize<int1d>(x_str);
     int1d dx = myio::Deserialize<int1d>(dx_str);
 
-    SSDB db(db_filename);
-    SS ss = db.load_ss("AdamsE2");
+    DBSS db(db_filename);
+    SS ss = db.LoadSS("AdamsE2");
 
     /* Check if x, dx are valid */
     std::sort(x.begin(), x.end());
@@ -97,7 +97,7 @@ int main_try_add_diff(int argc, char** argv, int index)
 {
     int stem = 0, s = 0, r = 0;
     std::string x_str, dx_str;
-    std::string db_filename = "AdamsE2Export_t220.db";
+    std::string db_filename = db_ss_default;
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -132,8 +132,8 @@ int main_try_add_diff(int argc, char** argv, int index)
     int1d x = myio::Deserialize<int1d>(x_str);
     int1d dx = myio::Deserialize<int1d>(dx_str);
 
-    SSDB db(db_filename);
-    SS ss = db.load_ss("AdamsE2");
+    DBSS db(db_filename);
+    SS ss = db.LoadSS("AdamsE2");
 
     /* Check if x, dx are valid */
     std::sort(x.begin(), x.end());

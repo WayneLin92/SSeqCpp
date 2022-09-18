@@ -5,6 +5,9 @@
 #include "algebras/dbAdamsSS.h"
 #include "algebras/groebner.h"
 
+inline const char* db_ss_default = "S0_AdamsSS_t245.db";
+inline const char* table_ss_default = "AdamsE2";
+
 using namespace alg;
 
 constexpr int kLevelMax = 10000;
@@ -67,7 +70,7 @@ public:
 
 class SS
 {
-private:
+protected:
     int t_max_;
     Groebner gb_;
     std::map<AdamsDeg, Mon1d> basis_;
@@ -86,6 +89,11 @@ public:
     Staircase& GetRecentStaircase(AdamsDeg deg)
     {
         return const_cast<Staircase&>(const_cast<const SS*>(this)->GetRecentStaircase(deg));
+    }
+
+    auto& GetBasisSS() const
+    {
+        return basis_ss_;
     }
 
     auto& GetBasis() const
@@ -153,7 +161,7 @@ public:
         return basis_ss_[1];
     }
 
-private:
+protected:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
     void SetDiff(AdamsDeg deg_x, int1d x, int1d dx, int r);
 
@@ -210,17 +218,28 @@ public:
 
 public:
     int DeduceZeroDiffs();
-    int DeduceImageJ();
     int DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& timer);
 };
 
-class SSDB : public myio::DbAdamsSS
+class S0SS : public SS
+{
+public:
+    S0SS(Groebner gb, std::map<AdamsDeg, Mon1d> basis, Staircases basis_ss) : SS(std::move(gb), std::move(basis), std::move(basis_ss))
+    {
+    }
+
+public:
+    int DeduceImageJ();
+
+};
+
+class DBSS : public myio::DbAdamsSS
 {
     using Statement = myio::Statement;
 
 public:
-    SSDB() = default;
-    explicit SSDB(const std::string& filename) : DbAdamsSS(filename) {}
+    DBSS() = default;
+    explicit DBSS(const std::string& filename) : DbAdamsSS(filename) {}
 
     void create_basis_ss(const std::string& table_prefix) const
     {
@@ -229,8 +248,8 @@ public:
 
     void create_basis_ss_and_delete(const std::string& table_prefix) const
     {
+        drop_table(table_prefix + "_ss");
         create_basis_ss(table_prefix);
-        delete_from(table_prefix + "_ss");
     }
 
     void save_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
@@ -239,7 +258,8 @@ public:
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
 
-    SS load_ss(const std::string& table_prefix) const;
+    SS LoadSS(const std::string& table_prefix) const;
+    S0SS LoadS0SS(const std::string& table_prefix) const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
@@ -249,6 +269,10 @@ int main_plot(int argc, char** argv, int index);
 int main_generate_ss(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
 int main_try_add_diff(int argc, char** argv, int index);
+
 int main_deduce(int argc, char** argv, int index);
+int main_deduce_migrate(int argc, char** argv, int index);
+
+int main_mod(int argc, char** argv, int index);
 
 #endif

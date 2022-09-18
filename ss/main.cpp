@@ -1,6 +1,6 @@
 #include "main.h"
-#include "algebras/utility.h"
 #include "algebras/myio.h"
+#include "algebras/utility.h"
 #include <iostream>
 
 int main(int argc, char** argv)
@@ -14,11 +14,12 @@ int main(int argc, char** argv)
         std::cout << "<cmd> can be one of the following:\n";
 
         std::cout << "  init: Initialize the ss table\n";
-        std::cout << "  basis_prod: Generate the basis_prod table\n";
+        std::cout << "  basis_prod: Generate the basis_prod table for S0\n";
         std::cout << "  plot: Generate tables: ss_prod,ss_diff,ss_nd,ss_stable_levels for plotting\n";
         std::cout << "  add_diff: Manually input a differential into the ss table\n";
         std::cout << "  try_add_diff: Try to input a differential into the ss table and detect contradictions without changing the database\n";
         std::cout << "  deduce: Deduce differentials by Leibniz rules\n\n";
+        std::cout << "  mod: Deal with a complex where the its AdamsSS is a module over S0_AdamsSS\n\n";
 
         std::cout << "Version:\n  1.0 (2022-7-29)" << std::endl;
         return 0;
@@ -38,6 +39,8 @@ int main(int argc, char** argv)
         return main_try_add_diff(argc, argv, index);
     else if (cmd == "deduce")
         return main_deduce(argc, argv, index);
+    else if (cmd == "mod")
+        return main_mod(argc, argv, index);
     else
-        std::cerr << "Invalid cmd: " << argv[1] << '\n';
+        std::cerr << "Invalid cmd: " << cmd << '\n';
 }

@@ -73,8 +73,6 @@ public:
     /**
      * loc2glo[s][i] = id
      * glo2loc[id] = (s, i)
-     *
-     * From SteenrodMRes
      */
     void load_id_converter(const std::string& table_in, int2d& loc2glo, std::vector<std::pair<int, int>>& glo2loc) const;
     int2d load_basis_degrees(const std::string& table_prefix, int t_trunc) const;
@@ -97,7 +95,7 @@ private:
 public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
     AdamsResConst(DataMResConst2d data, int2d basis_degrees);
-    static AdamsResConst load(const DbAdamsResLoader& db, int t_trunc);
+    static AdamsResConst load(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
 
 public:
     const int1d& basis_degrees(size_t s) const

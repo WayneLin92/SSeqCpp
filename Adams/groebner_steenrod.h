@@ -341,7 +341,7 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-void Resolve(AdamsRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename);
+void Resolve(AdamsRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename, const std::string& tablename);
 
 void ResetDb(const std::string& filename, const std::string& tablename);
 

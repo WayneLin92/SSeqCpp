@@ -213,7 +213,8 @@ int2d DbAdamsResLoader::load_basis_degrees(const std::string& table_prefix, int 
     return result;
 }
 
-void assign_vid_num(int2d& vid_num, AdamsDegV2 deg, int id_max) {
+void assign_vid_num(int2d& vid_num, AdamsDegV2 deg, int id_max)
+{
     if ((int)vid_num.size() <= deg.s)
         vid_num.resize(size_t(deg.s + 1));
     size_t old_size = vid_num[deg.s].size();
@@ -318,10 +319,10 @@ public:
     }
 };
 
-AdamsResConst AdamsResConst::load(const DbAdamsResLoader& db, int t_trunc)
+AdamsResConst AdamsResConst::load(const DbAdamsResLoader& db, const std::string& table, int t_trunc)
 {
-    DataMResConst2d data = db.load_data("SteenrodMRes", t_trunc);
-    int2d basis_degrees = db.load_basis_degrees("SteenrodMRes", t_trunc);
+    DataMResConst2d data = db.load_data(table, t_trunc);
+    int2d basis_degrees = db.load_basis_degrees(table, t_trunc);
     return AdamsResConst(std::move(data), std::move(basis_degrees));
 }
 
@@ -339,16 +340,8 @@ void compute_products_by_t(int t_trunc, const std::string& db_in, const std::str
     const std::string table_out = "S0_Adams_res";
 
     DbAdamsResLoader dbRes(db_in);
-    {  ////////////////// Convert old version to new
-        int id_min = dbRes.get_int("SELECT MIN(id) FROM " + table_in + "_generators;");
-        if (id_min != 0) {
-            if (id_min != 1)
-                throw MyException(0x4473a085U, "Table SteenrodMRes_generators is probably broken.");
-            dbRes.execute_cmd("update SteenrodMRes_generators set id=id-1;");
-        }
-    }
 
-    auto gb = AdamsResConst::load(dbRes, t_trunc);
+    auto gb = AdamsResConst::load(dbRes, table_in, t_trunc);
     std::map<int, AdamsDegV2> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
@@ -488,8 +481,13 @@ void compute_products_by_t(int t_trunc, const std::string& db_in, const std::str
 int main_prod(int argc, char** argv, int index)
 {
     int t_max = 100;
+#ifdef MYDEPLOY
     std::string db_in = "AdamsE2.db";
     std::string table_in = "SteenrodMRes";
+#else
+    std::string db_in = "S0_Adams_res.db";
+    std::string table_in = "S0_Adams_res";
+#endif
     std::string db_out = "S0_Adams_res_prod.db";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {

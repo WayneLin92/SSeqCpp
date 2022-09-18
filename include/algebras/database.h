@@ -143,9 +143,9 @@ public:
     }
 
 public:
-    void delete_from(const std::string& table_name) const
+    void drop_table(const std::string& table_name) const
     {
-        execute_cmd("DELETE FROM " + table_name);
+        execute_cmd("DROP TABLE IF EXISTS " + table_name);
     }
 
 public:

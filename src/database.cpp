@@ -45,15 +45,17 @@ Database::~Database()
 void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const
 {
     int error_code = sqlite3_prepare_v2(conn_, zSql, int(strlen(zSql)) + 1, ppStmt, NULL);
-    if (error_code != SQLITE_OK)
+    if (error_code != SQLITE_OK) {
+        std::cout << "0xbce2dcfeU: Sqlite3 compiling " + std::string(zSql) + " :" + sqlite3_errstr(error_code) << '\n';
         throw MyException(0xbce2dcfeU, std::string("Sqlite3 compiling ") + zSql + " :" + sqlite3_errstr(error_code));
+    }
 }
 
 void Database::sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) const
 {
     int error_code = sqlite3_prepare_v2(conn_, sql.c_str(), int(sql.size()) + 1, ppStmt, NULL);
     if (error_code != SQLITE_OK) {
-        std::cout << "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code) << '\n';
+        std::cout << "0xda6ab7f6U: Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code) << '\n';
         throw MyException(0xda6ab7f6U, "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code));
     }
 }

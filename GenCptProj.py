@@ -7,12 +7,14 @@ filenames_Adams = [
 "./Adams/AdamsRes.cpp",
 "./Adams/AdamsResExport.cpp",
 "./Adams/AdamsResProd.cpp",
+"./Adams/AdamsCell.cpp",
 "./Adams/groebner_steenrod_const.h",
 "./Adams/groebner_steenrod.cpp",
 "./Adams/groebner_steenrod.h",
 "./Adams/main.h",
 "./Adams/main.cpp",
 "./include/algebras/algebras.h",
+"./include/algebras/groebner.h",
 "./include/algebras/benchmark.h",
 "./include/algebras/database.h",
 "./include/algebras/dbAdamsSS.h",
@@ -22,6 +24,7 @@ filenames_Adams = [
 "./include/algebras/steenrod.h",
 "./include/algebras/utility.h",
 "./src/algebras.cpp",
+"./src/groebner.cpp",
 "./src/database.cpp",
 "./src/linalg.cpp",
 "./src/myio.cpp",
@@ -35,15 +38,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
     parser.add_argument('-o', help='output folder')
-    parser.add_argument('-p', help='name of the project')
+    parser.add_argument('-p', default='Adams', help='name of the project')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)
         os.sys.exit()
 
     # actions
-    if args.o is None or args.p is None:
-        print("Need -o -p options")
+    if args.o is None:
+        print("Need -o options")
         exit()
 
     if args.p == "Adams":
