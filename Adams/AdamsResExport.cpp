@@ -16,12 +16,53 @@ public:
     explicit MyDB(const std::string& filename) : DbAdamsSS(filename) {}
 
 public:
-    void load_indecomposables(const std::string& table, alg::int1d& array_id, alg::AdamsDeg1d& gen_degs, int t_trunc) const
+    void create_generators_cell(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, from_S0 TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT);");
+    }
+
+    void drop_and_create_generators_cell(const std::string& table_prefix) const
+    {
+        drop_table(table_prefix + "_generators");
+        create_generators_cell(table_prefix);
+    }
+
+    void save_generators_cell(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, const alg::Poly1d& fromS0, const alg::Poly1d& toS0) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, from_S0, to_S0, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
+
+        for (size_t i = 0; i < gen_degs.size(); ++i) {
+            stmt.bind_int(1, (int)i);
+            stmt.bind_str(2, myio::Serialize(fromS0[i]));
+            stmt.bind_str(3, myio::Serialize(toS0[i]));
+            stmt.bind_int(4, gen_degs[i].s);
+            stmt.bind_int(5, gen_degs[i].t);
+            stmt.step_and_reset();
+        }
+
+        std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
+    }
+
+    void load_indecomposables(const std::string& table, alg::int1d& ids, alg::AdamsDeg1d& gen_degs, int t_trunc) const
     {
         Statement stmt(*this, "SELECT id, s, t FROM " + table + " WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
-            array_id.push_back(id);
+            ids.push_back(id);
+            gen_degs.push_back(alg::AdamsDeg{s, t});
+        }
+    }
+
+    void load_indecomposables_cell(const std::string& table, alg::int1d& ids, alg::int2d& toS0res, alg::AdamsDeg1d& gen_degs, int t_trunc) const
+    {
+        Statement stmt(*this, "SELECT id, coh_repr, s, t FROM " + table + " WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0), s = stmt.column_int(2), t = stmt.column_int(3);
+            if (id == 0)
+                toS0res.push_back(alg::int1d{});
+            else
+                toS0res.push_back(myio::Deserialize<alg::int1d>(stmt.column_str(1)));
+            ids.push_back(id);
             gen_degs.push_back(alg::AdamsDeg{s, t});
         }
     }
@@ -222,6 +263,18 @@ void ExportS0(const std::string& db_in, const std::string& table_in, const std::
 
 void Export2Cell(const std::string& complex_name, int t_trunc)
 {
+    int t_cell = 0;
+    if (complex_name == "C2")
+        t_cell = 1;
+    else if (complex_name == "Ceta")
+        t_cell = 2;
+    else if (complex_name == "Cnu")
+        t_cell = 4;
+    else if (complex_name == "Csigma")
+        t_cell = 8;
+    else
+        throw MyException(0x7ffc598U, complex_name + " is not supported");
+
     bench::Timer timer;
     using namespace alg;
     const std::string db_in = complex_name + "_Adams_chain.db";
@@ -234,7 +287,8 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
     MyDB dbProd(db_in);
     AdamsDeg1d v_degs;
     int1d gen_reprs;
-    dbProd.load_indecomposables(table_in + "_E2", gen_reprs, v_degs, t_trunc);
+    int2d toS0res;
+    dbProd.load_indecomposables_cell(table_in + "_E2", gen_reprs, toS0res, v_degs, t_trunc);
     auto map_h_dual = dbProd.load_cell_products_h(table_in, t_trunc);
     std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
@@ -247,6 +301,19 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
     MyDB dbS0(db_S0);
     auto S0_basis = dbS0.load_basis(table_S0);
     auto S0_basis_repr = dbS0.load_basis_repr(table_S0);
+
+    size_t gen_size = gen_reprs.size();
+    Poly1d fromS0(gen_size), toS0(gen_size);
+    if (gen_size)
+        fromS0[0] = Mon();
+    for (size_t i = 1; i < gen_size; ++i) {
+        AdamsDeg d = v_degs[i] - AdamsDeg(0, t_cell);
+        const Mon1d& b = S0_basis.at(d);
+        const int2d& r = S0_basis_repr.at(d);
+        int2d image, _k, g;
+        lina::SetLinearMap(r, image, _k, g);
+        toS0[i] = Indices2Poly(lina::GetImage(image, g, toS0res[i]), b);
+    }
 
     std::map<AdamsDeg, Mod1d> gbm;
     Mon2d leads;
@@ -328,13 +395,13 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
 
     /* Save the results */
     MyDB dbE2(db_out);
-    dbE2.drop_and_create_generators(table_out);
+    dbE2.drop_and_create_generators_cell(table_out);
     dbE2.drop_and_create_relations(table_out);
     dbE2.drop_and_create_basis(table_out);
 
     dbE2.begin_transaction();
 
-    dbE2.save_generators(table_out, v_degs, gen_reprs);
+    dbE2.save_generators_cell(table_out, v_degs, fromS0, toS0);
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
 
