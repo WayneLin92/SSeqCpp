@@ -40,9 +40,9 @@ public:
 };
 
 /* Copy */
-void migrate(const S0SS& ss1, S0SS& ss2, Staircases& primitives, int t_max_zero)
+void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max_zero)
 {
-    const auto& basis_ss1 = ss1.GetBasisSS();
+    const auto& basis_ss1 = ss1.GetS0().basis_ss;
 
     Timer timer(3600);
     ss2.DeduceDiffs(10, 10, 1, 1, timer);
@@ -53,14 +53,14 @@ void migrate(const S0SS& ss1, S0SS& ss2, Staircases& primitives, int t_max_zero)
         degs.push_back(d);
     std::sort(degs.begin(), degs.end(), [](AdamsDeg d1, AdamsDeg d2) { return d1.stem() < d2.stem() || (d1.stem() == d2.stem() && d1.s < d2.s); });
     for (AdamsDeg deg : degs) {
-        const auto& sc = ss1.GetRecentStaircase(deg);
+        const auto& sc = ss1.GetRecentStaircase(ss1.GetS0().basis_ss, deg);
         for (size_t i = 0; i < sc.levels.size(); ++i) {
             if (sc.levels[i] > kLevelMax / 2) {
                 int rt = 0;
                 if (sc.diffs_ind[i] != int1d{-1})
-                    rt = ss2.SetDiffLeibnizV2(deg, sc.basis_ind[i], sc.diffs_ind[i], kLevelMax - sc.levels[i]);
+                    rt = ss2.SetS0DiffLeibnizV2(deg, sc.basis_ind[i], sc.diffs_ind[i], kLevelMax - sc.levels[i]);
                 else if (sc.levels[i] > kLevelPC || deg.stem() <= t_max_zero)
-                    rt = ss2.SetDiffLeibnizV2(deg, sc.basis_ind[i], int1d{}, kLevelMax - sc.levels[i] - 1);
+                    rt = ss2.SetS0DiffLeibnizV2(deg, sc.basis_ind[i], int1d{}, kLevelMax - sc.levels[i] - 1);
                 if (rt) {
                     primitives[deg].basis_ind.push_back(sc.basis_ind[i]);
                     primitives[deg].diffs_ind.push_back(sc.diffs_ind[i]);
@@ -77,10 +77,10 @@ void migrate(const S0SS& ss1, S0SS& ss2, Staircases& primitives, int t_max_zero)
 
 int main_deduce_migrate(int argc, char** argv, int index)
 {
-    std::string db_in = db_ss_default;
+    std::string db_in = "S0_AdamsSS_t245.db";
     std::string table_in = "AdamsE2";
-    std::string db_out = "S0_AdamsSS_t245.db";
-    std::string table_out = "AdamsE2";
+    std::string db_out = DB_DEFAULT;
+    std::string table_out = TABLE_DEFAULT;
     int t_max_zero = 381;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -95,16 +95,16 @@ int main_deduce_migrate(int argc, char** argv, int index)
         std::cout << "  table_out = " << table_out << "\n";
         std::cout << "  t_max_zero = " << t_max_zero << "\n\n";
 
-        std::cout << "Version:\n  2.0 (2022-8-31)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_arg(argc, argv, ++index, "db_in", db_in))
+    if (myio::load_op_arg(argc, argv, ++index, "db_in", db_in))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "table_in", table_in))
+    if (myio::load_op_arg(argc, argv, ++index, "table_in", table_in))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "db_out", db_out))
+    if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "table_out", table_out))
+    if (myio::load_op_arg(argc, argv, ++index, "table_out", table_out))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "t_max_zero", t_max_zero))
         return index;
@@ -112,14 +112,15 @@ int main_deduce_migrate(int argc, char** argv, int index)
     bench::Timer timer;
     DBSS db1(db_in);
     DbMiagrate db2(db_out);
-    S0SS ss1 = db1.LoadS0SS(table_in), ss2 = db2.LoadS0SS(table_out);
+
+    Diagram diagram1({db_in}), diagram2({db_out});
 
     try {
         Staircases primitives;
-        migrate(ss1, ss2, primitives, t_max_zero);
+        migrate(diagram1, diagram2, primitives, t_max_zero);
 
         db2.begin_transaction();
-        db2.update_basis_ss(table_out, ss2.GetChanges());
+        db2.update_basis_ss(table_out, diagram2.GetChanges(0));
         db2.drop_and_create_ss_primitives(table_out);
         db2.save_ss_primitives(table_out, primitives);
         db2.end_transaction();

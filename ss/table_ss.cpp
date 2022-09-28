@@ -6,7 +6,9 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basi
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_ss (id, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
     int count = 0;
-    for (const auto& [deg, basis_ss_d] : basis_ss) {
+    auto degs = OrderDegsV2(basis_ss);
+    for (const auto& deg : degs) {
+        auto& basis_ss_d = basis_ss.at(deg);
         for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
             stmt.bind_int(1, count++);
             stmt.bind_str(2, myio::Serialize(basis_ss_d.basis_ind[i]));
@@ -80,24 +82,6 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
     return basis_ss;
 }
 
-SS DBSS::LoadSS(const std::string& table_prefix) const
-{
-    Staircases basis_ss = load_basis_ss("AdamsE2");
-    Poly1d polys = load_gb("AdamsE2", DEG_MAX);
-    auto basis = load_basis("AdamsE2");
-    Groebner gb(basis.rbegin()->first.t, {}, std::move(polys));
-    return SS(std::move(gb), std::move(basis), std::move(basis_ss));
-}
-
-S0SS DBSS::LoadS0SS(const std::string& table_prefix) const
-{
-    Staircases basis_ss = load_basis_ss("AdamsE2");
-    Poly1d polys = load_gb("AdamsE2", DEG_MAX);
-    auto basis = load_basis("AdamsE2");
-    Groebner gb(basis.rbegin()->first.t, {}, std::move(polys));
-    return S0SS(std::move(gb), std::move(basis), std::move(basis_ss));
-}
-
 /* generate the table of the spectral sequence */
 void generate_ss(const std::string& db_filename, const std::string& table_prefix, int r)
 {
@@ -125,15 +109,15 @@ void generate_ss(const std::string& db_filename, const std::string& table_prefix
 
     /* insert into the database */
     db.begin_transaction();
-    db.create_basis_ss_and_delete(table_prefix);
+    db.drop_and_create_basis_ss(table_prefix);
     db.save_basis_ss(table_prefix, basis_ss);
     db.end_transaction();
 }
 
 int main_generate_ss(int argc, char** argv, int index)
 {
-    std::string db_filename = db_ss_default;
-    std::string table_prefix = "AdamsE2";
+    std::string db_filename = DB_DEFAULT;
+    std::string table_prefix = TABLE_DEFAULT;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Initialize the ss table\n";
@@ -144,7 +128,7 @@ int main_generate_ss(int argc, char** argv, int index)
         std::cout << "  db_filename = " << db_filename << "\n";
         std::cout << "  table_prefix = " << table_prefix << "\n\n";
 
-        std::cout << "Version:\n  1.0 (2022-7-11)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
     if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
@@ -153,5 +137,6 @@ int main_generate_ss(int argc, char** argv, int index)
         return index;
 
     generate_ss(db_filename, table_prefix, 2);
+    std::cout << "Done" << std::endl;
     return 0;
 }

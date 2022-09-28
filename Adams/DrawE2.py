@@ -20,68 +20,22 @@ sinA = math.sin(Config.bullets_tilt_angle)
 
 def str2array(str_array: str):
     return tuple(int(i) for i in str_array.split(","))
-
-if __name__ == "__main__":
-    # parser
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--edit', action='store_true', help='open the script in vscode')
-    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\C2_AdamsSS.db', help='the database of the spectral sequence of a complex')
-    parser.add_argument('--table', default='C2_AdamsE2', help='the database of the spectral sequence of a complex')
-    args = parser.parse_args()
-    if args.edit:
-        subprocess.Popen(f"code {__file__}", shell=True)
-        os.sys.exit()
-
-    # actions
-    conn = sqlite3.connect(args.i)
-    c = conn.cursor()
-
-    path_plot = args.i.replace(".db", "_plot.db")
-    conn_plot = sqlite3.connect(path_plot)
-    c_plot = conn_plot.cursor()
-
-    path_S0 = R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t249.db'
-    conn_S0 = sqlite3.connect(path_S0)
-    c_S0 = conn_S0.cursor()
-
-    with open(path_tpl, encoding="utf-8") as fp:
-        content_tpl = fp.read()
-    tpl_title = "Adams Spectral Sequence"
-        
-    # Load `basis`, `bullets'
-    basis = []
-    bullets = defaultdict(list)
-    bullets_color = defaultdict(list)
-    index = 0
-    sql = f"SELECT mon, s, t FROM {args.table}_basis ORDER BY id"
-    for str_mon, s, t in c.execute(sql):
-        mon = list(map(int, str_mon.split(",")))
-        basis.append(mon)
-        bullets[(t - s, s)].append(index)
-        if len(mon) == 1:
-            bullets_color[(t - s, s)].append("darkorange")
-        elif len(mon) == 3 and mon[-1] == 0 and mon[-2] == 1:
-            bullets_color[(t - s, s)].append("blue")
-        elif mon[-1] == 0:
-            bullets_color[(t - s, s)].append("black")
-        else:
-            bullets_color[(t - s, s)].append("Maroon")
-        index += 1
-
-    # Determine the maximum radius
-    radius = defaultdict(lambda: Config.bullets_radius)
-    for x, y in bullets:
-        len_bullets_xy = len(bullets[(x, y)])
-        length_world = (len_bullets_xy - 1) * Config.bullets_radius * 3
-        if (length_world > 1 - Config.bullets_radius * 6):
-            length_world = 1 - Config.bullets_radius * 6
-        sep_world = length_world / (len_bullets_xy - 1) if len_bullets_xy > 1 else Config.bullets_radius * 3
-        r = sep_world / 3
-
-        if r < radius[(x, y)]:
-            radius[(x, y)] = r
     
-    # Make the radius smooth
+def get_table_prefix(db):
+    if (db[1] == '0'):
+        return "S0_AdamsE2"
+    elif (db[1] == '2'):
+        return "C2_AdamsE2"
+    elif (db[1] == 'e'):
+        return "Ceta_AdamsE2"
+    elif (db[1] == 'n'):
+        return "Cnu_AdamsE2"
+    elif (db[1] == 's'):
+        return "Csigma_AdamsE2"
+    else:
+        raise ValueError(f"{db=} is not recognized")
+
+def smoothen(radius):
     radius_ub = defaultdict(lambda: 0.1)
     b_changed = True
     while b_changed:
@@ -102,6 +56,69 @@ if __name__ == "__main__":
             if radius[(x, y)] > radius_ub[(x, y)] * 1.005:
                 radius[(x, y)] = radius_ub[(x, y)]
                 b_changed = True
+
+if __name__ == "__main__":
+    # parser
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--edit', action='store_true', help='open the script in vscode')
+    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\C2_AdamsSS.db', help='the database of the spectral sequence of a complex')
+    args = parser.parse_args()
+    if args.edit:
+        subprocess.Popen(f"code {__file__}", shell=True)
+        os.sys.exit()
+
+    # actions
+    table = get_table_prefix(args.i)
+    conn = sqlite3.connect(args.i)
+    c = conn.cursor()
+
+    path_plot = args.i.replace(".db", "_plot.db")
+    conn_plot = sqlite3.connect(path_plot)
+    c_plot = conn_plot.cursor()
+
+    path_S0 = R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t255.db'
+    conn_S0 = sqlite3.connect(path_S0)
+    c_S0 = conn_S0.cursor()
+
+    with open(path_tpl, encoding="utf-8") as fp:
+        content_tpl = fp.read()
+    tpl_title = "Adams Spectral Sequence"
+        
+    # Load `basis`, `bullets'
+    basis = []
+    bullets = defaultdict(list)
+    bullets_color = defaultdict(list)
+    index = 0
+    sql = f"SELECT mon, s, t FROM {table}_basis ORDER BY id"
+    for str_mon, s, t in c.execute(sql):
+        mon = list(map(int, str_mon.split(",")))
+        basis.append(mon)
+        bullets[(t - s, s)].append(index)
+        if len(mon) == 1:
+            bullets_color[(t - s, s)].append("Maroon")
+        elif len(mon) == 3 and mon[-1] == 0 and mon[-2] == 1:
+            bullets_color[(t - s, s)].append("blue")
+        elif mon[-1] == 0:
+            bullets_color[(t - s, s)].append("black")
+        else:
+            bullets_color[(t - s, s)].append("purple")
+        index += 1
+
+    # Determine the maximum radius
+    radius = defaultdict(lambda: Config.bullets_radius)
+    for x, y in bullets:
+        len_bullets_xy = len(bullets[(x, y)])
+        length_world = (len_bullets_xy - 1) * Config.bullets_radius * 3
+        if (length_world > 1 - Config.bullets_radius * 6):
+            length_world = 1 - Config.bullets_radius * 6
+        sep_world = length_world / (len_bullets_xy - 1) if len_bullets_xy > 1 else Config.bullets_radius * 3
+        r = sep_world / 3
+
+        if r < radius[(x, y)]:
+            radius[(x, y)] = r
+    
+    # Make the radius smooth
+    smoothen(radius)
 
     # Plot the bullets. Compute `index2xyr` for lines
     tpl_bullets = ""
@@ -138,7 +155,7 @@ if __name__ == "__main__":
             content_js += f' "a_{{{s},{gens[s]}}}",\n'
         gens[s] += 1
         offset_names += 1
-    sql = f"SELECT id, name, s FROM {args.table}_generators order by id"
+    sql = f"SELECT id, name, s FROM {table}_generators order by id"
     gens = defaultdict(int)
     for id, name, s in c.execute(sql):
         if name:
@@ -159,11 +176,11 @@ if __name__ == "__main__":
     content_js += f"];\n\n"
 
     # Store multiplicative structure in path_js
-    arr_factors = {1, 2, 5, 13, 21, 28, 33, 42}
+    arr_factors = {1, 3, 7, 15, 23, 29, 33, 42}
     lines = [[], [], []] # h0,h1,h2
-    b2g = {1: 0, 2: 1, 5: 2} # basis_id to gen_id
+    b2g = {1: 0, 3: 1, 7: 2} # basis_id to gen_id
     # b2g = {1: 0, 2: 1, 558: 2}
-    sql = f"SELECT id1, id2, prod FROM {args.table}_basis_products"
+    sql = f"SELECT id1, id2, prod FROM {table}_basis_products"
     content_js += "const basis_prod = {\n"
     for id1, id2, prod in c_plot.execute(sql):
         if len(prod) > 0 and id1 in arr_factors:
@@ -202,3 +219,5 @@ if __name__ == "__main__":
     conn.close()
     c_S0.close()
     conn_S0.close()
+    c_plot.close()
+    conn_plot.close()

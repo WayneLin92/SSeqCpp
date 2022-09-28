@@ -3,6 +3,7 @@ import argparse
 import os
 import subprocess
 import sqlite3
+from collections import defaultdict
 
 gen_names = {
 0: "h_0",
@@ -166,24 +167,90 @@ gen_names = {
 251: "(\\Delta h_6g)",
 76: "[H_1]",
 234: "[\\Delta^2D_1+h_0h_6d_0i]",
-
 }
+
+def tex_outside_delimiter(text: str, symbol: str):
+    """Return if symbol appears in text and is outside any pair of delimiters including ()[]{}"""
+    left, right = "([{", ")]}"
+    left_minus_right = 0
+    for c in text:
+        if c in left:
+            left_minus_right += 1
+        elif c in right:
+            left_minus_right -= 1
+        elif c == symbol and left_minus_right == 0:
+            return True
+    return False
+
+def tex_pow(base, exp: int) -> str:
+    """Return base^exp in latex."""
+    if type(base) != str:
+        base = str(base)
+    if exp == 1:
+        return base
+    else:
+        if tex_outside_delimiter(base, "^"):
+            base = "(" + base + ")"
+        return f"{base}^{exp}" if len(str(exp)) == 1 else f"{base}^{{{exp}}}"
+
+def get_mon_name(m):
+    it = map(int, m.split(','))
+    return "".join(tex_pow(gen_names[i], e) for i, e in zip(it, it))
+
+def get_poly_name(p):
+    coeff = '+'.join(map(get_mon_name, p.split(';')))
+    if tex_outside_delimiter(coeff, "+"):
+        coeff = "(" + coeff + ")"
+    return '(' + coeff + R"\iota_1)"
 
 if __name__ == "__main__":
     # parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
-    parser.add_argument('-i', default=R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t245.db", help='the database file of the spectral sequence')
+    parser.add_argument('--S0', default=R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t255.db", help='the database file of the spectral sequence for S0')
+    parser.add_argument('--cdb', help='the database file of the spectral sequence for a cofiber')
+    parser.add_argument('--cname', default="C2", help='The cofiber name')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)
         os.sys.exit()
 
     # actions
-    conn = sqlite3.connect(args.i)
-    with conn:
-        c = conn.cursor()
-        sql = f"Update AdamsE2_generators SET name=?2 where id=?1"
-        c.executemany(sql, gen_names.items())
-        c.close()
-    conn.close()
+    conn_S0 = sqlite3.connect(args.S0)
+    c_S0 = conn_S0.cursor()
+    if args.cdb is not None:
+        conn_C = sqlite3.connect(args.cdb)
+        c_C = conn_C.cursor()
+
+    # populate `gen_names`
+    sql = f"select id, s, t from S0_AdamsE2_generators"
+    sid = defaultdict(int)
+    for id, s, t in c_S0.execute(sql):
+        if id not in gen_names:
+            gen_names[id] = f"a_{{{s}, {sid[s]}}}"
+        sid[s] += 1
+
+    if args.cdb is None:
+        print("output to S0")
+        sql = f"Update S0_AdamsE2_generators SET name=?2 where id=?1"
+        c_S0.executemany(sql, gen_names.items())
+    else:
+        print(f"output to {args.cname}")
+        gen_names_C = {}
+        sql = f"select id, to_S0 from {args.cname}_AdamsE2_generators"
+        for id, toS0 in c_C.execute(sql):
+            if id == 0:
+                gen_names_C[id] = R"\iota_0"
+            else:
+                gen_names_C[id] = get_poly_name(toS0)
+
+        sql = f"Update {args.cname}_AdamsE2_generators SET name=?2 where id=?1"
+        c_C.executemany(sql, gen_names_C.items())
+
+    c_S0.close()
+    conn_S0.commit()
+    conn_S0.close()
+    if args.cdb is not None:
+        c_C.close()
+        conn_C.commit()
+        conn_C.close()

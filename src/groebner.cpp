@@ -89,9 +89,9 @@ void CriPair::SijMod(const Groebner& gb, const GroebnerMod& gbm, Mod& result, Mo
     if (i1 & FLAG_INDEX_X)
         tmp1 = Mod(gb[i1 ^ FLAG_INDEX_X] * m1, gbm[i2].GetLead().v);
     else
-        mulP(gbm[i1], m1, tmp1);
+        mulP(m1, gbm[i1], tmp1);
     result.iaddP(tmp1, tmp2);
-    mulP(gbm[i2], m2, tmp1);
+    mulP(m2, gbm[i2], tmp1);
     result.iaddP(tmp1, tmp2);
     return;
 }
@@ -517,7 +517,7 @@ Mod GroebnerMod::Reduce(Mod poly) const
         int gbmod_index = IndexOfDivisibleLeading(poly.data[index]);
         if (gbmod_index != -1) {
             Mon q = poly.data[index].m / data_[gbmod_index].GetLead().m;
-            mulP(data_[gbmod_index], q, tmp_prod);
+            mulP(q, data_[gbmod_index], tmp_prod);
             poly.iaddP(tmp_prod, tmp);
         }
         else {

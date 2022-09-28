@@ -41,6 +41,8 @@ int main(int argc, char** argv)
         return main_deduce(argc, argv, index);
     else if (cmd == "mod")
         return main_mod(argc, argv, index);
-    else
+    else {
         std::cerr << "Invalid cmd: " << cmd << '\n';
+        return 0;
+    }
 }

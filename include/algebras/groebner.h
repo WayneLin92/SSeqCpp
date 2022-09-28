@@ -116,6 +116,7 @@ private:
     int1d gen_degs_; /* degree of generators */
 
 public:
+    Groebner() : criticals_(DEG_MAX) {}
     Groebner(int deg_trunc, int1d gen_degs) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
@@ -267,6 +268,7 @@ private:
     int1d v_degs_; /* degree of generators of modules */
 
 public:
+    GroebnerMod() : pGb_(nullptr), criticals_(DEG_MAX) {}
     GroebnerMod(Groebner* pGb, int deg_trunc, int1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */

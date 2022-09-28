@@ -27,16 +27,15 @@ public:
         create_generators_cell(table_prefix);
     }
 
-    void save_generators_cell(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, const alg::Poly1d& fromS0, const alg::Poly1d& toS0) const
+    void save_generators_cell(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, const alg::Poly1d& toS0) const
     {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, from_S0, to_S0, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, to_S0, s, t) VALUES (?1, ?2, ?3, ?4);");
 
         for (size_t i = 0; i < gen_degs.size(); ++i) {
             stmt.bind_int(1, (int)i);
-            stmt.bind_str(2, myio::Serialize(fromS0[i]));
-            stmt.bind_str(3, myio::Serialize(toS0[i]));
-            stmt.bind_int(4, gen_degs[i].s);
-            stmt.bind_int(5, gen_degs[i].t);
+            stmt.bind_str(2, myio::Serialize(toS0[i]));
+            stmt.bind_int(3, gen_degs[i].s);
+            stmt.bind_int(4, gen_degs[i].t);
             stmt.step_and_reset();
         }
 
@@ -303,9 +302,7 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
     auto S0_basis_repr = dbS0.load_basis_repr(table_S0);
 
     size_t gen_size = gen_reprs.size();
-    Poly1d fromS0(gen_size), toS0(gen_size);
-    if (gen_size)
-        fromS0[0] = Mon();
+    Poly1d toS0(gen_size);
     for (size_t i = 1; i < gen_size; ++i) {
         AdamsDeg d = v_degs[i] - AdamsDeg(0, t_cell);
         const Mon1d& b = S0_basis.at(d);
@@ -401,7 +398,7 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
 
     dbE2.begin_transaction();
 
-    dbE2.save_generators_cell(table_out, v_degs, fromS0, toS0);
+    dbE2.save_generators_cell(table_out, v_degs, toS0); 
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
 

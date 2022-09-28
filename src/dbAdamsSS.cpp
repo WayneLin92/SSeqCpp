@@ -20,27 +20,27 @@ Mon Deserialize<Mon>(const std::string& str)
 }
 
 template <>
-Mon1d Deserialize<Mon1d>(const std::string& str)
+Poly Deserialize<Poly>(const std::string& str)
 {
-    Mon1d result;
+    Poly result;
     if (str.empty())
         return result; /* Return 0 as a polynomial */
     else if (str == ";") {
-        result.push_back({});
+        result.data.push_back({});
         return result; /* Return 1 as a polynomial */
     }
     std::istringstream ss(str);
     while (ss.good()) {
         int gen, exp;
         ss >> gen >> "," >> exp;
-        if (result.empty())
-            result.push_back(Mon());
-        result.back().push_back(GE(gen, exp));
+        if (result.data.empty())
+            result.data.push_back(Mon());
+        result.data.back().push_back(GE(gen, exp));
         if (ss.peek() == ',')
             ss.ignore();
         else if (ss.peek() == ';') {
             ss.ignore();
-            result.push_back(Mon());
+            result.data.push_back(Mon());
         }
     }
     return result;
@@ -69,9 +69,9 @@ MMod Deserialize<MMod>(const std::string& str)
 }
 
 template <>
-MMod1d Deserialize<MMod1d>(const std::string& str)
+Mod Deserialize<Mod>(const std::string& str)
 {
-    MMod1d result;
+    Mod result;
     if (str.empty())
         return result; /* Return 0 as a polynomial */
 
@@ -89,7 +89,7 @@ MMod1d Deserialize<MMod1d>(const std::string& str)
         else {
             v = gen;
             ss.clear();
-            result.push_back(MMod(m, v));
+            result.data.push_back(MMod(m, v));
         }
         if (ss.peek() == ',')
             ss.ignore();
@@ -123,7 +123,7 @@ void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg
     int count = 0;
     for (auto& [deg, polys] : gb) {
         for (auto& poly : polys) {
-            stmt.bind_str(1, Serialize(poly.data));
+            stmt.bind_str(1, Serialize(poly));
             stmt.bind_int(2, deg.s);
             stmt.bind_int(3, deg.t);
             stmt.step_and_reset();
@@ -131,7 +131,7 @@ void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg
         }
     }
 
-    std::cout << gb.size() << " relations are inserted into " + table_prefix + "_relations!\n";
+    std::cout << count << " relations are inserted into " + table_prefix + "_relations!\n";
 }
 
 void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<AdamsDeg, Mod1d>& gbm) const
@@ -141,7 +141,7 @@ void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<Adam
     int count = 0;
     for (auto& [deg, xs] : gbm) {
         for (auto& x : xs) {
-            stmt.bind_str(1, Serialize(x.data));
+            stmt.bind_str(1, Serialize(x));
             stmt.bind_int(2, deg.s);
             stmt.bind_int(3, deg.t);
             stmt.step_and_reset();
@@ -152,15 +152,23 @@ void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<Adam
     std::cout << gbm.size() << " relations are inserted into " + table_prefix + "_relations!\n";
 }
 
+template <typename T>
+AdamsDeg1d OrderDegsV2(const T& cont)
+{
+    AdamsDeg1d result;
+    for (auto& [d, _] : cont) {
+        result.push_back(d);
+    }
+    std::sort(result.begin(), result.end(), [](const AdamsDeg& d1, const AdamsDeg& d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+    return result;
+}
+
 void DbAdamsSS::save_basis(const std::string& table_prefix, const std::map<alg::AdamsDeg, alg::Mon1d>& basis, const std::map<AdamsDeg, int2d>& repr) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (id, mon, repr, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
 
     int count = 0;
-    AdamsDeg1d degs;
-    for (auto& [deg, basis_d] : basis)
-        degs.push_back(deg);
-    std::sort(degs.begin(), degs.end(), [](AdamsDeg d1, AdamsDeg d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+    auto degs = OrderDegsV2(basis);
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
@@ -182,10 +190,7 @@ void DbAdamsSS::save_basis_mod(const std::string& table_prefix, const std::map<a
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (id, mon, repr, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
 
     int count = 0;
-    AdamsDeg1d degs;
-    for (auto& [deg, basis_d] : basis)
-        degs.push_back(deg);
-    std::sort(degs.begin(), degs.end(), [](AdamsDeg d1, AdamsDeg d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+    auto degs = OrderDegsV2(basis);
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
@@ -217,8 +222,7 @@ Poly1d DbAdamsSS::load_gb(const std::string& table_prefix, int t_max) const
     Poly1d result;
     Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     while (stmt.step() == MYSQLITE_ROW) {
-        Poly g;
-        g.data = Deserialize<Mon1d>(stmt.column_str(0));
+        Poly g = Deserialize<Poly>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
     std::cout << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
@@ -230,8 +234,7 @@ Mod1d DbAdamsSS::load_gb_mod(const std::string& table_prefix, int t_max) const
     Mod1d result;
     Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     while (stmt.step() == MYSQLITE_ROW) {
-        Mod g;
-        g.data = Deserialize<MMod1d>(stmt.column_str(0));
+        Mod g = Deserialize<Mod>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
     std::cout << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';

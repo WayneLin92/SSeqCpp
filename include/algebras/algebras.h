@@ -169,6 +169,7 @@ struct AdamsDeg
     }
 };
 using AdamsDeg1d = std::vector<AdamsDeg>;
+using AdamsDeg2d = std::vector<AdamsDeg1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const AdamsDeg& deg)
 {
@@ -677,6 +678,13 @@ struct Mod
 
 using Mod1d = std::vector<Mod>;
 
+inline Mod operator+(const Mod& x, const Mod& y)
+{
+    Mod result;
+    std::set_symmetric_difference(x.data.cbegin(), x.data.cend(), y.data.cbegin(), y.data.cend(), std::back_inserter(result.data));
+    return result;
+}
+
 inline Mod operator*(const Mon& m, const Mod& x)
 {
     Mod result;
@@ -685,7 +693,34 @@ inline Mod operator*(const Mon& m, const Mod& x)
     return result;
 }
 
-void mulP(const Mod& poly, const Mon& mon, Mod& result);
+inline Mod operator*(const Poly& p, const Mod& x)
+{
+    Mod result, tmp;
+    for (auto& m : p.data)
+        result.iaddP(m * x, tmp);
+    return result;
+}
+
+void mulP(const Mon& mon, const Mod& poly, Mod& result);
+
+/**
+ * Replace the generators in `poly` with elements given in `map`.
+ * @param poly The polynomial to be substituted.
+ * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
+ */
+template <typename FnMap>
+Poly subsModTpl(const Mod& x, const FnMap& map)
+{
+    Poly result, tmp_prod, tmp;
+    for (const MMod& m : x.data)
+        result.iaddP(map(m.v) * m.m, tmp);
+    return result;
+}
+
+inline Poly subsMod(const Mod& x, const std::vector<Poly>& map)
+{
+    return subsModTpl(x, [&map](size_t i) { return map[i]; });
+}
 
 int1d Mod2Indices(const Mod& x, const MMod1d& basis);
 Mod Indices2Mod(const int1d& indices, const MMod1d& basis);

@@ -115,7 +115,7 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
 template <typename T>
 int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
 {
-    if (argc > index) {
+    if (index < argc) {
         if constexpr (std::is_same<T, std::string>::value) {
             if (strlen(argv[index]) == 0)
                 return 0;
@@ -132,20 +132,25 @@ int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
 template <typename T>
 int load_arg(int argc, char** argv, int index, const char* name, T& x)
 {
-    if (argc > index) {
-        if constexpr (std::is_same<T, std::string>::value) {
-            if (strlen(argv[index]) == 0)
-                return 0;
-        }
-        std::istringstream ss(argv[index]);
-        if (!(ss >> x)) {
-            std::cerr << "Invalid " << name << ": " << argv[index] << '\n';
-            return 1;
-        }
+    if (index < argc) {
+        return load_op_arg(argc, argv, index, name, x);
     }
     else {
         std::cerr << "Mising argument <" << name << ">\n";
         return 2;
+    }
+    return 0;
+}
+
+template <typename T>
+int load_args(int argc, char** argv, int index, const char* name, std::vector<T>& x)
+{
+    if (index < argc) {
+        x.resize(size_t(argc - index));
+        for (size_t i = index; i < (int)argc; ++i) {
+            if (int error = load_op_arg(argc, argv, (int)i, name, x[i - (size_t)index]))
+                return error;
+        }
     }
     return 0;
 }

@@ -342,15 +342,13 @@ std::string Mod::Str() const
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const MMod& m) { return m.Str(); });
 }
 
-void mulP(const Mod& poly, const Mon& mon, Mod& result)
+void mulP(const Mon& mon, const Mod& poly, Mod& result)
 {
     result.data.clear();
     result.data.reserve(poly.data.size());
     for (const MMod& m : poly.data)
         result.data.emplace_back(m.m * mon, m.v);
 }
-
-
 
 int1d Mod2Indices(const Mod& x, const MMod1d& basis)
 {

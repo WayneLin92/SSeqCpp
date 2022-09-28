@@ -20,29 +20,29 @@ inline std::string Serialize(const MMod& mon)
         return std::to_string(mon.v);
 }
 
-inline std::string Serialize(const Mon1d& obj)
+inline std::string Serialize(const Poly& poly)
 {
-    if (obj.size() == 1 && !obj[0])
+    if (poly.data.size() == 1 && !poly.data[0])
         return ";";
-    return StrCont("", ";", "", "", obj, [](const Mon& mon) { return Serialize(mon); });
+    return StrCont("", ";", "", "", poly.data, [](const Mon& mon) { return Serialize(mon); });
 }
 
-inline std::string Serialize(const MMod1d& obj)
+inline std::string Serialize(const Mod& x)
 {
-    return StrCont("", ";", "", "", obj, [](const MMod& mon) { return Serialize(mon); });
+    return StrCont("", ";", "", "", x.data, [](const MMod& mon) { return Serialize(mon); });
 }
 
 template <>
 Mon Deserialize<Mon>(const std::string& str);
 
 template <>
-Mon1d Deserialize<Mon1d>(const std::string& str);
+Poly Deserialize<Poly>(const std::string& str);
 
 template <>
 MMod Deserialize<MMod>(const std::string& str);
 
 template <>
-MMod1d Deserialize<MMod1d>(const std::string& str);
+Mod Deserialize<Mod>(const std::string& str);
 
 /*****************************************************
  *             class DbAdamsSS
