@@ -5,8 +5,9 @@
 
 int main(int argc, char** argv)
 {
-    std::string cmd;
+    bench::Timer timer;
 
+    std::string cmd;
     int index = 0;
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Usage:\n  ss <cmd> [-h] ...\n\n";
@@ -21,7 +22,7 @@ int main(int argc, char** argv)
         std::cout << "  deduce: Deduce differentials by Leibniz rules\n\n";
         std::cout << "  mod: Deal with a complex where the its AdamsSS is a module over S0_AdamsSS\n\n";
 
-        std::cout << "Version:\n  1.0 (2022-7-29)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
@@ -35,8 +36,6 @@ int main(int argc, char** argv)
         return main_plot(argc, argv, index);
     else if (cmd == "add_diff")
         return main_add_diff(argc, argv, index);
-    else if (cmd == "try_add_diff")
-        return main_try_add_diff(argc, argv, index);
     else if (cmd == "deduce")
         return main_deduce(argc, argv, index);
     else if (cmd == "mod")

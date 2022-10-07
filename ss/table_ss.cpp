@@ -83,11 +83,12 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
 }
 
 /* generate the table of the spectral sequence */
-void generate_ss(const std::string& db_filename, const std::string& table_prefix, int r)
+void generate_ss(const std::string& db_filename, int r)
 {
     using namespace alg;
 
     DBSS db(db_filename);
+    std::string table_prefix = GetTablePrefix(db_filename);
     std::map<AdamsDeg, Mon1d> basis = db.load_basis(table_prefix);
 
     int s_diff = 2;
@@ -116,27 +117,19 @@ void generate_ss(const std::string& db_filename, const std::string& table_prefix
 
 int main_generate_ss(int argc, char** argv, int index)
 {
-    std::string db_filename = DB_DEFAULT;
-    std::string table_prefix = TABLE_DEFAULT;
+    std::string db_filename = "";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Initialize the ss table\n";
-        std::cout << "Usage:\n  ss init [db_filename] [table_prefix]\n\n";
-
-        std::cout << "Default values:\n";
-
-        std::cout << "  db_filename = " << db_filename << "\n";
-        std::cout << "  table_prefix = " << table_prefix << "\n\n";
+        std::cout << "Usage:\n  ss init <db_filename>\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "table_prefix", table_prefix))
+    if (myio::load_arg(argc, argv, ++index, "db_filename", db_filename))
         return index;
 
-    generate_ss(db_filename, table_prefix, 2);
+    generate_ss(db_filename, 2);
     std::cout << "Done" << std::endl;
     return 0;
 }

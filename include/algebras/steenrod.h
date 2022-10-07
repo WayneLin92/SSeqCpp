@@ -24,7 +24,6 @@ using int4d = std::vector<int3d>;
  *                  class Milnor
  ********************************************************/
 
-inline constexpr int DIM_MAX_RES = 400;  /* Assume that we never compute the resolution of the Steenrod algebra over this */
 inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
 inline constexpr size_t XI_MAX_MULT = 8; /* Multiplication support up to \xi_7 */
 
@@ -119,6 +118,7 @@ inline constexpr auto MMILNOR_Xi3 = detail::MMilnorXiD<4>();
 inline constexpr auto MMILNOR_Xi4 = detail::MMilnorXiD<5>();
 inline constexpr auto MMILNOR_Xi5 = detail::MMilnorXiD<6>();
 inline constexpr auto MMILNOR_Xi6 = detail::MMilnorXiD<7>();
+inline constexpr auto MMILNOR_Xi7 = detail::MMilnorXiD<8>();
 
 /** Milnor basis for A ordered by May filtration $w(xi_j^{2^i})=2j-1$
  *
@@ -154,8 +154,8 @@ public:
     /* This is a critial function */
     static MMilnor Xi(const uint32_t* xi)
     {
-        const uint64_t w_raw = uint64_t(1 * ut::popcount(xi[0]) + 3 * ut::popcount(xi[1]) + 5 * ut::popcount(xi[2]) + 7 * ut::popcount(xi[3]) + 9 * ut::popcount(xi[4]) + 11 * ut::popcount(xi[5]) + 13 * ut::popcount(xi[6])) << MMILNOR_E_BITS;
-        const uint64_t e = MMILNOR_Xi0[xi[0]] | MMILNOR_Xi1[xi[1]] | MMILNOR_Xi2[xi[2]] | MMILNOR_Xi3[xi[3]] | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]];
+        const uint64_t w_raw = uint64_t(1 * ut::popcount(xi[0]) + 3 * ut::popcount(xi[1]) + 5 * ut::popcount(xi[2]) + 7 * ut::popcount(xi[3]) + 9 * ut::popcount(xi[4]) + 11 * ut::popcount(xi[5]) + 13 * ut::popcount(xi[6]) + 15 * ut::popcount(xi[7])) << MMILNOR_E_BITS;
+        const uint64_t e = MMILNOR_Xi0[xi[0]] | MMILNOR_Xi1[xi[1]] | MMILNOR_Xi2[xi[2]] | MMILNOR_Xi3[xi[3]] | MMILNOR_Xi4[xi[4]] | MMILNOR_Xi5[xi[5]] | MMILNOR_Xi6[xi[6]] | MMILNOR_Xi7[xi[7]];
         return MMilnor(w_raw | e);
     }
 

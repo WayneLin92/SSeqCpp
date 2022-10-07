@@ -6,104 +6,105 @@
 std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0};
 #endif
 
-/* If n = 2^k1 + ... + 2^kn,
- * return the array k1, ..., kn. */
-int1d two_expansion(unsigned n)
-{
-    int1d result;
-    int k = 0;
-    while (n > 0) {
-        if (n & 1)
-            result.push_back(k);
-        n >>= 1;
-        ++k;
-    }
-    return result;
-}
-
 /* Deduce zero differentials for degree reason
  * t_test is for DeduceDiffs() */
 int Diagram::DeduceZeroDiffs()
 {
-    int count_new_diffs = 0;
-    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
-        auto& basis_ss = *all_basis_ss_[k];
-        int t_max = all_t_max_[k];
-        for (auto& [d, basis_ss_d] : basis_ss.front()) {
-            const Staircase& sc = GetRecentStaircase(basis_ss, d);
-            for (size_t i = 0; i < sc.levels.size(); ++i) {
-                if (sc.diffs_ind[i] == int1d{-1} && sc.levels[i] > kLevelPC) {
-                    int r = kLevelMax - sc.levels[i];
-                    /* Find the first possible d_{r1} target for r1>=r */
-                    int r1 = NextRTgt(basis_ss, t_max, d, r);
-                    if (r != r1) {
-                        SetDiffLeibnizV2(k, d, sc.basis_ind[i], {}, r);
-                        ++count_new_diffs;
+    int old_count = 0, count_new_diffs = 0;
+    while (true) {
+        for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
+            auto& basis_ss = *all_basis_ss_[k];
+            int t_max = all_t_max_[k];
+            for (auto& [d, basis_ss_d] : basis_ss.front()) {
+                const Staircase& sc = GetRecentStaircase(basis_ss, d);
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    if (sc.diffs_ind[i] == int1d{-1}) {
+                        if (sc.levels[i] > kLevelPC) {
+                            const int r = kLevelMax - sc.levels[i];
+                            /* Find the first possible d_{r1} target for r1>=r */
+                            int r1 = NextRTgt(basis_ss, t_max, d, r);
+                            if (r != r1) {
+                                SetDiffLeibnizV2(k, d, sc.basis_ind[i], {}, r);
+                                ++count_new_diffs;
+                            }
+                        }
+                        else if (sc.levels[i] < kLevelMax / 2) {
+                            const int r = sc.levels[i];
+                            int r1 = NextRSrc(basis_ss, d, r);
+                            if (r != r1) {
+                                SetDiffLeibnizV2(k, d - AdamsDeg(r, r - 1), {}, sc.basis_ind[i], r);
+                                ++count_new_diffs;
+                            }
+                        }
                     }
                 }
             }
         }
+        if (old_count != count_new_diffs)
+            old_count = count_new_diffs;
+        else
+            break;
     }
     return count_new_diffs;
 }
 
-// TODO: keep only one of (nd1->nd2), (nd2->nd1) in the deduction tree
-int Diagram::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& timer)
+/*
+ * Stage 0: Fast nd cache, Try{Leibniz}, maxPoss = 4
+ * Stage 1: Fast nd cache, Try{Leibniz}, maxPoss = 10
+ * Stage 2: Full nd cache, Try{Leibniz}, maxPoss = 8
+ * Stage 3: Fast nd cache, Try{Leibniz, {Stage<=0, epoch<=0, fast Leibniz}}, maxPoss = 4
+ */
+int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache diff to add
 {
     if (timer.timeout())
         return 0;
-    int old_count = 0, count = 0;
+    int stage = depth == 0;
+    int epoch = 0;
+    size_t iSS = 0;
+
+    int maxPoss = 4;
+    int maxStem = depth == 0 ? (stage == 3 ? 127 : DEG_MAX) : 127;
 
     DeduceZeroDiffs();
-    CacheNullDiffs(maxPoss);
+    CacheNullDiffs(maxPoss, maxStem, stage == 2);
 
-    size_t k = 0;
-    while (k < all_basis_ss_.size()) {
-        auto& basis_ss = *all_basis_ss_[k];
-        auto& nd = *all_nd_[k];
+    int old_count = 0, count = 0;
+    while (iSS < all_basis_ss_.size()) {
+        auto& basis_ss = *all_basis_ss_[iSS];
+        auto& nds = *all_nd_[iSS];
 
         size_t index_nd = 0;
-        while (index_nd < nd.back().size()) {
-            if (depth == top_depth)
-                std::cout << "k=" << k << " index_nd = " << index_nd << '/' << nd.back().size() << "                    \r ";
-            const NullDiff ndi = nd.back()[index_nd];
-            const Staircase& sc = GetRecentStaircase(basis_ss, ndi.deg);
+        while (index_nd < nds.back().size()) {
+            if (depth == 0)
+                std::cout << "stage=" << stage << " epoch=" << epoch << " iSS=" << iSS << " i=" << index_nd << '/' << nds.back().size() << "                     \r";
+
+            const NullDiff nd = nds.back()[index_nd];
+            int1d x, dx;
+            AdamsDeg deg;
+            int r;
+            bool bNewDiff = false;
             /* Fixed source, find target. */
-            if (sc.levels[ndi.index] > kLevelMax / 2) {
-                const int r = kLevelMax - sc.levels[ndi.index];
-                const AdamsDeg deg_tgt = ndi.deg + AdamsDeg{r, r - 1};
-                const int1d src = sc.basis_ind[ndi.index];
+            if (nd.r > 0) {
+                deg = nd.deg;
+                r = nd.r;
+                const AdamsDeg deg_tgt = nd.deg + AdamsDeg{r, r - 1};
+                x = nd.x;
 
-                int1d tgt, tgt_pass;
+                int1d dx1;
                 int count_pass = 0;
-                unsigned i_max = 1 << ndi.count;
+                unsigned i_max = 1 << nd.count;
                 for (unsigned i = 0; i < i_max; ++i) {
-                    tgt.clear();
-                    if (i) {
-                        const Staircase& sc_tgt = GetRecentStaircase(basis_ss, deg_tgt);
-                        bool bBreak = false;
-                        for (int j : two_expansion(i)) {
-                            if (sc_tgt.levels[(size_t)(ndi.first + j)] == 5000) { /* skip permanent cycles */
-                                bBreak = true;
-                                break;
-                            }
-                            tgt = lina::AddVectors(tgt, sc_tgt.basis_ind[(size_t)(ndi.first + j)]);
-                        }
-                        if (bBreak)
-                            continue;
-                    }
+                    const Staircase& sc_tgt = GetRecentStaircase(basis_ss, deg_tgt);
+                    dx1.clear();
+                    for (int j : two_expansion(i))
+                        dx1 = lina::AddVectors(dx1, sc_tgt.basis_ind[(size_t)(nd.first + j)]);
 
-                    AddNode(); /* Warning: the reallocation invalidates the reference sc above */
+                    AddNode(); /* Warning: the reallocation invalidates the reference sc_tgt above */
                     bool bException = false;
                     try {
-                        int nChanges = SetDiffLeibnizV2(k, ndi.deg, src, tgt, r);
-                        if (!tgt.empty() || r <= r_max) {
-                            if (depth > 1) {
-                                int nDeductions = DeduceDiffs(r_max, maxPoss, top_depth, 1, timer);
-                                if (depth > 2 && nChanges >= 20 && nDeductions > 0) {
-                                    DeduceDiffs(r_max, maxPoss, top_depth, depth - 1, timer);
-                                }
-                            }
+                        SetDiffLeibnizV2(iSS, deg, x, dx1, r, depth == 1);
+                        if (depth == 0 && stage == 3) {
+                            DeduceDiffs(depth + 1, 0, timer);
                         }
                     }
                     catch (SSException&) {
@@ -112,7 +113,7 @@ int Diagram::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer
                     PopNode();
 
                     if (!bException) {
-                        tgt_pass = std::move(tgt);
+                        dx = std::move(dx1);
                         ++count_pass;
                         if (count_pass > 1)
                             break;
@@ -122,49 +123,32 @@ int Diagram::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer
                     throw SSException(0x66d5bd9aU, "No compatible differentials");
                 else if (count_pass == 1) {
                     ++count;
-                    int nChanges = SetDiffLeibnizV2(k, ndi.deg, src, tgt_pass, r);
-                    DeduceZeroDiffs();  // TODO: Implement this after CacheNullDiffs
-                    CacheNullDiffs(maxPoss);
-                    if (depth == top_depth)
-                        std::clog << "k=" << k << " (" << ndi.deg.t - ndi.deg.s << ',' << ndi.deg.s << ") d_{" << r << '}' << src << '=' << tgt_pass << "          \n";
-                    if (timer.timeout()) {
-                        k = 1000;
-                        break;
-                    }
-                    if (depth > 1)
-                        count += DeduceDiffs(r_max, maxPoss, top_depth == depth ? 1 : top_depth, 1, timer);
+                    bNewDiff = true;
                 }
                 else
                     ++index_nd;
             }
             /* Fixed target, find source. */
             else {
-                const int r = sc.levels[ndi.index];
-                const AdamsDeg deg_src = ndi.deg - AdamsDeg{r, r - 1};
-                const int1d tgt = sc.basis_ind[ndi.index];
+                r = -nd.r;
+                deg = nd.deg - AdamsDeg{r, r - 1};
+                const Staircase& sc_src = GetRecentStaircase(basis_ss, deg);
+                dx = nd.x;
 
-                int1d src, src_pass;
+                int1d x1;
                 int count_pass = 0;
-                unsigned i_max = 1 << ndi.count;
+                unsigned i_max = 1 << nd.count;
                 for (unsigned i = 0; i < i_max; ++i) {
-                    src.clear();
-                    if (i) {
-                        const Staircase& sc_src = GetRecentStaircase(basis_ss, deg_src);
-                        for (int j : two_expansion(i))
-                            src = lina::AddVectors(src, sc_src.basis_ind[(size_t)(ndi.first + j)]);
-                    }
+                    x1.clear();
+                    for (int j : two_expansion(i))
+                        x1 = lina::AddVectors(x1, sc_src.basis_ind[(size_t)(nd.first + j)]);
 
-                    AddNode(); /* Warning: the reallocation invalidates the reference sc above */
+                    AddNode(); /* Warning: the reallocation invalidates the reference sc_src above */
                     bool bException = false;
                     try {
-                        int nChanges = SetDiffLeibnizV2(k, deg_src, src, tgt, r);
-                        if (!tgt.empty() || r <= r_max) {
-                            if (depth > 1) {
-                                int nDeductions = DeduceDiffs(r_max, maxPoss, top_depth, 1, timer);
-                                if (depth > 2 && nChanges >= 20 && nDeductions > 0) {
-                                    DeduceDiffs(r_max, maxPoss, top_depth, depth - 1, timer);
-                                }
-                            }
+                        SetDiffLeibnizV2(iSS, deg, x1, dx, r, depth == 1);
+                        if (depth == 0 && stage == 3) {
+                            DeduceDiffs(depth + 1, 0, timer);
                         }
                     }
                     catch (SSException&) {
@@ -173,7 +157,7 @@ int Diagram::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer
                     PopNode();
 
                     if (!bException) {
-                        src_pass = std::move(src);
+                        x = std::move(x1);
                         ++count_pass;
                         if (count_pass > 1)
                             break;
@@ -183,26 +167,62 @@ int Diagram::DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer
                     throw SSException(0x66d5bd9aU, "No compatible differentials");
                 else if (count_pass == 1) {
                     ++count;
-                    int nChanges = SetDiffLeibnizV2(k, deg_src, src_pass, tgt, r);
-                    DeduceZeroDiffs();  // TODO: Implement this after CacheNullDiffs
-                    CacheNullDiffs(maxPoss);
-                    if (depth == top_depth)
-                        std::clog << "k=" << k << " (" << ndi.deg.t - ndi.deg.s + 1 << ',' << ndi.deg.s - r << ") d_{" << r << '}' << src_pass << '=' << tgt << "          \n";
-                    if (timer.timeout()) {
-                        k = 1000;
-                        break;
-                    }
-                    if (depth > 1)
-                        count += DeduceDiffs(r_max, maxPoss, top_depth == depth ? 1 : top_depth, 1, timer);
+                    bNewDiff = true;
                 }
                 else
                     ++index_nd;
             }
+
+            if (bNewDiff) {
+                SetDiffLeibnizV2(iSS, deg, x, dx, r);
+                if (depth == 0) {
+                    std::string color, color_end;
+                    if (x.empty() || dx.empty()) {
+                        if (nd.deg.stem() <= 127) {
+                            color = "\033[38;2;156;64;64m";
+                            color_end = "\033[0m";
+                        }
+                        else {
+                            color = "\033[38;2;128;128;128m";
+                            color_end = "\033[0m";
+                        }
+                    }
+                    else if (nd.deg.stem() <= 127) {
+                        color = "\033[38;2;255;128;128m";
+                        color_end = "\033[0m";
+                    }
+                    std::cout << color + "iSS=" << iSS << " (" << nd.deg.stem() << ',' << nd.deg.s << ") d_{" << r << '}' << x << '=' << dx << "                  " + color_end + '\n';
+                }
+                DeduceZeroDiffs();
+                CacheNullDiffs(maxPoss, maxStem, stage == 2);
+            }
         }
-        if ((++k) == all_basis_ss_.size()) {
+
+        if (timer.timeout())
+            break;
+        if ((++iSS) == all_basis_ss_.size() && depth == 0) {
             if (old_count != count) {
-                k = 0;
+                ++epoch;
+                iSS = 0;
                 old_count = count;
+            }
+            else if (stage < max_stage) {
+                ++stage;
+                epoch = 0;
+                iSS = 0;
+                if (stage == 1) {
+                    maxPoss = 10;
+                    CacheNullDiffs(maxPoss, maxStem, stage == 2);
+                }
+                else if (stage == 2) {
+                    maxPoss = 8;
+                    CacheNullDiffs(maxPoss, maxStem, stage == 2);
+                }
+                else if (stage == 3) {
+                    maxPoss = 4;
+                    maxStem = 126;
+                    CacheNullDiffs(maxPoss, maxStem, stage == 2);
+                }
             }
         }
     }
@@ -244,7 +264,7 @@ int main_deduce_zero(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_DEFAULT;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t200.db",
+        "C2_AdamsSS_t221.db",
         "Ceta_AdamsSS_t200.db",
         "Cnu_AdamsSS_t200.db",
         "Csigma_AdamsSS_t200.db",
@@ -266,7 +286,6 @@ int main_deduce_zero(int argc, char** argv, int index)
         return index;
     dbnames.insert(dbnames.begin(), db_S0);
 
-    bench::Timer timer;
     Diagram diagram(dbnames);
 
     int count = 0;
@@ -341,12 +360,10 @@ int main_deduce_j(int argc, char** argv, int index)
 
 int main_deduce_diff(int argc, char** argv, int index)
 {
-    int r_max = 10, maxPoss = 10, depth = 1;
     double stop_time = 600;
-    size_t kInput = 0;
     std::string db_S0 = DB_DEFAULT;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t200.db",
+        "C2_AdamsSS_t221.db",
         "Ceta_AdamsSS_t200.db",
         "Cnu_AdamsSS_t200.db",
         "Csigma_AdamsSS_t200.db",
@@ -354,25 +371,16 @@ int main_deduce_diff(int argc, char** argv, int index)
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Deduce differentials by Leibniz rule\n";
-        std::cout << "Usage:\n  ss deduce diff [r_max] [maxPoss] [depth] [stop_time] [db_S0] [db_Cofibs ...]\n\n";
+        std::cout << "Usage:\n  ss deduce diff [stop_time] [db_S0] [db_Cofibs ...]\n\n";
 
         std::cout << "Default values:\n";
 
-        std::cout << "  r_max = " << r_max << "\n";
-        std::cout << "  maxPoss = " << maxPoss << "\n";
-        std::cout << "  depth = " << depth << "\n";
         std::cout << "  stop_time = " << stop_time << "\n";
-        std::cout << "  db_S0 = " << db_S0 << "\n";
+        std::cout << "  db_S0 = " << db_S0 << "\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "r_max", r_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "maxPoss", maxPoss))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "depth", depth))
-        return index;
     if (myio::load_op_arg(argc, argv, ++index, "stop_time", stop_time))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
@@ -381,13 +389,13 @@ int main_deduce_diff(int argc, char** argv, int index)
         return index;
     dbnames.insert(dbnames.begin(), db_S0);
 
-    bench::Timer timer;
     Diagram diagram(dbnames);
 
     int count = 0;
     try {
         Timer timer(stop_time);
-        count = diagram.DeduceDiffs(r_max, maxPoss, depth, depth, timer);
+        count = diagram.DeduceDiffs(0, 3, timer);
+        diagram.ApplyChanges(1);
 
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
@@ -440,7 +448,7 @@ int main_deduce_tmp(int argc, char** argv, int index)
 
     // int count = 0;
     try {
-        ss.CacheNullDiffs(10);
+        ss.CacheNullDiffs(10, DEG_MAX, 0);
         for (size_t i = 0; i < ss.GetS0().nd.back().size(); ++i)
             auto& nd = ss.GetS0().nd.back()[i];
         std::cout << "i=" << ss.GetFirstIndexOfFixedLevels(ss.GetS0().basis_ss, AdamsDeg(13, 47 + 13), 9994) << std::endl;

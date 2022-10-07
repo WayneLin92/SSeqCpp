@@ -4,10 +4,11 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
 #include "algebras/groebner.h"
+#include <set>
 
-inline const char* DB_DEFAULT = "S0_AdamsSS_t255.db";
-inline const char* TABLE_DEFAULT = "S0_AdamsE2";
-inline const char* VERSION = "Version:\n  2.2 (2022-9-27)";
+
+inline const char* DB_DEFAULT = "S0_AdamsSS_t254.db";
+inline const char* VERSION = "Version:\n  2.2 (2022-10-4)";
 
 using namespace alg;
 
@@ -62,7 +63,8 @@ public:
 struct NullDiff
 {
     AdamsDeg deg;
-    unsigned index;
+    int1d x;
+    int r;
     int first, count;
 };
 
@@ -206,7 +208,7 @@ public:
     void ApplyChanges(size_t index);
 
     /* Combine the last two records in basis_ss */
-    void ApplyRecentChanges();
+    void ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs);
 
     /* Add a node */
     void AddNode()
@@ -229,7 +231,7 @@ public:
     void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, int1d x, int1d dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
-    void CacheNullDiffs(int maxPoss);
+    void CacheNullDiffs(int maxPoss, int maxStem, bool bFull);
 
     /**
      * Add d_r(x)=dx;
@@ -238,8 +240,8 @@ public:
      *
      * dx should not be null.
      */
-    int SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min);
-    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min);
+    int SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry = false);
+    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry = false);
 
     /**
      * Check first if it is a new differential before adding it.
@@ -247,9 +249,9 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r);
-    int SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r);
-    int SetDiffLeibnizV2(size_t index, AdamsDeg deg_x, int1d x, int1d dx, int r);
+    int SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
+    int SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
+    int SetDiffLeibnizV2(size_t index, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_ry=0 (y in level < kLevelMax - r);
@@ -259,7 +261,7 @@ public:
 
 public:
     int DeduceZeroDiffs();
-    int DeduceDiffs(int r_max, int maxPoss, int top_depth, int depth, Timer& timer);
+    int DeduceDiffs(int depth, int max_stage, Timer& timer);
     int DeduceImageJ();
 };
 
@@ -304,11 +306,25 @@ AdamsDeg1d OrderDegsV2(const T& cont)
     return result;
 }
 
+/* If n = 2^k1 + ... + 2^kn,
+ * return the array k1, ..., kn. */
+inline int1d two_expansion(unsigned n)
+{
+    int1d result;
+    int k = 0;
+    while (n > 0) {
+        if (n & 1)
+            result.push_back(k);
+        n >>= 1;
+        ++k;
+    }
+    return result;
+}
+
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);
 int main_generate_ss(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
-int main_try_add_diff(int argc, char** argv, int index);
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_migrate(int argc, char** argv, int index);

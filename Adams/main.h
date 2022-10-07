@@ -1,5 +1,6 @@
 #ifndef MAIN_H
 #define MAIN_H
+inline const char* VERSION = "Version:\n  2.2 (2022-10-06)";
 
 //#define MYDEPLOY
 

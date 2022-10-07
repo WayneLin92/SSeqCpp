@@ -9,7 +9,7 @@ from turtle import st
 
 path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index_tpl.html"
 path_html = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\index.html"
-path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\scripts\data.js"
+path_js = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss\AdamsSS_tmp\data.js"
 
 class Config:
     bullets_tilt_angle = -17 / 180 * math.pi
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # parser
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--edit', action='store_true', help='open the script in vscode')
-    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t255.db', help='the database of the spectral sequence')
+    parser.add_argument('-i', default=R'C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release\S0_AdamsSS_t254.db', help='the database of the spectral sequence')
     args = parser.parse_args()
     if args.edit:
         subprocess.Popen(f"code {__file__}", shell=True)
@@ -94,6 +94,7 @@ if __name__ == "__main__":
     basis = []
     bullets = defaultdict(list)
     bullets_ind = defaultdict(set)
+    bullets_from_S0 = defaultdict(set)
     index = 0
     sql = f"SELECT mon, s, t FROM {table}_basis ORDER BY id"
     for str_mon, s, t in c.execute(sql):
@@ -106,6 +107,8 @@ if __name__ == "__main__":
         else:
             if len(mon) == 1:
                 bullets_ind[(t - s, s)].add(index)
+            if mon[-1] == 0:
+                bullets_from_S0[(t - s, s)].add(index)
         index += 1
 
     # Load `ids`
@@ -185,7 +188,13 @@ if __name__ == "__main__":
             if table.startswith("S0"):
                 str_fill = ' fill="blue"' if (offset + int(base.split(",")[0])) in bullets_ind[(x, y)] else ''
             else:
-                str_fill = ' fill="Maroon"' if (offset + int(base.split(",")[0])) in bullets_ind[(x, y)] else ''
+                index_first_bullet = offset + int(base.split(",")[0])
+                if index_first_bullet in bullets_ind[(x, y)]:
+                    str_fill = ' fill="Maroon"'
+                elif index_first_bullet in bullets_from_S0[(x, y)]:
+                    str_fill = ''
+                else:
+                    str_fill = ' fill="purple"'
             if level >= stable_levels[(x, y)]:
                 if diff:
                     page = 10000 - level

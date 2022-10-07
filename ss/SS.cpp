@@ -193,15 +193,18 @@ void Diagram::ApplyChanges(size_t index)
     }
 }
 
-void Diagram::ApplyRecentChanges()
+void Diagram::ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs)
 {
     for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
         auto& basis_ss = *all_basis_ss_[k];
         if (basis_ss.size() <= 2)
             throw MyException(0xc1b36735U, "ApplyRecentChanges() requires at least two new records");
         size_t index_before_last = basis_ss.size() - 2;
-        for (auto p = basis_ss.back().begin(); p != basis_ss.back().end(); ++p)
+        degs[k].clear();
+        for (auto p = basis_ss.back().begin(); p != basis_ss.back().end(); ++p) {
             basis_ss[index_before_last][p->first] = std::move(p->second);
+            degs[k].insert(p->first);
+        }
     }
     PopNode();
 }
@@ -216,35 +219,66 @@ void Diagram::UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Stairc
     triangularize(basis_ss.back()[deg], i_insert, std::move(x), std::move(dx), level, image, level_image);
 }
 
-void Diagram::CacheNullDiffs(int maxPoss)
+void Diagram::CacheNullDiffs(int maxPoss, int maxStem, bool bFull)
 {
-    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
-        auto& basis_ss = *all_basis_ss_[k];
-        auto& nd = *all_nd_[k];
-        int t_max = all_t_max_[k];
-        nd.back().clear();
+    for (size_t iSS = 0; iSS < all_basis_ss_.size(); ++iSS) {
+        auto& basis_ss = *all_basis_ss_[iSS];
+        int t_max = all_t_max_[iSS];
+        all_nd_[iSS]->back().clear();
         for (auto& [deg, _] : basis_ss.front()) {
+            if (deg.stem() > maxStem)
+                continue;
             const Staircase& sc = GetRecentStaircase(basis_ss, deg);
-            for (size_t i = sc.diffs_ind.size(); i-- > 0;) {
+            for (size_t i = 0; i < sc.diffs_ind.size(); ++i) {
                 if (sc.diffs_ind[i] == int1d{-1}) {
+                    NullDiff nd;
+                    nd.deg = deg;
                     if (sc.levels[i] > kLevelPC) {
                         int r = kLevelMax - sc.levels[i];
                         AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
                         auto [index, count] = CountPossDrTgt(basis_ss, t_max, deg_tgt, r);
-                        if (count <= maxPoss)
-                            all_nd_[k]->back().push_back(NullDiff{deg, (unsigned)i, index, count});
+                        nd.r = r;
+                        nd.first = index;
+                        nd.count = count;
+                        if (nd.count > maxPoss)
+                            continue;
                     }
                     else if (sc.levels[i] < kLevelMax / 2) {
                         int r = sc.levels[i];
                         AdamsDeg deg_src = deg - AdamsDeg{r, r - 1};
                         auto [index, count] = CountPossDrSrc(basis_ss, deg_src, r);
-                        if (count <= maxPoss)
-                            all_nd_[k]->back().push_back(NullDiff{deg, (unsigned)i, index, count});
+                        nd.r = -r;
+                        nd.first = index;
+                        nd.count = count;
+                        if (nd.count > maxPoss)
+                            continue;
                     }
+                    else
+                        continue;
+
+                    size_t j = i + 1;
+                    while (j < sc.levels.size() && sc.diffs_ind[j] == int1d{-1} && sc.levels[i] == sc.levels[j])
+                        ++j;
+                    if (!bFull) {
+                        for (size_t k = 0; k < j - i; ++k) {
+                            nd.x = sc.basis_ind[i + k];
+                            all_nd_[iSS]->back().push_back(nd);
+                        }
+                    }
+                    else {
+                        const unsigned k_max = unsigned(1) << (j - i);
+                        for (unsigned k = 1; k < k_max; ++k) {
+                            nd.x.clear();
+                            for (int l : two_expansion(k))
+                                nd.x = lina::AddVectors(nd.x, sc.basis_ind[i + l]);
+                            all_nd_[iSS]->back().push_back(nd);
+                        }
+                    }
+                    i = j - 1;
                 }
             }
         }
-        std::sort(all_nd_[k]->back().begin(), all_nd_[k]->back().end(), [&](const NullDiff& nd1, const NullDiff& nd2) { return nd1.count < nd2.count; });
+        std::stable_sort(all_nd_[iSS]->back().begin(), all_nd_[iSS]->back().end(), [&](const NullDiff& nd1, const NullDiff& nd2) { return nd1.count < nd2.count; });
     }
 }
 
@@ -560,7 +594,7 @@ void Diagram::SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, int1d dx, int1d 
     }
 }
 
-int Diagram::SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min)
+int Diagram::SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry)
 {
 #ifndef NDEBUG
     if (dx == int1d{-1})
@@ -573,19 +607,26 @@ int Diagram::SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_mi
         auto& basis_ss = *all_basis_ss_[k];
         int t_max = all_t_max_[k];
         for (auto& [deg_y, basis_ss_d_original] : basis_ss.front()) {
-            const Staircase& basis_ss_d = GetRecentStaircase(basis_ss, deg_y);
             AdamsDeg deg_xy = deg_x + deg_y;
+            const Staircase& basis_ss_d = GetRecentStaircase(basis_ss, deg_y);
             if (deg_xy.t > t_max)
                 break;
             for (size_t i = 0; i < basis_ss_d.levels.size(); ++i) {
                 if (basis_ss_d.levels[i] > kLevelMax - r_min)
                     break;
-                int r1 = kLevelMax - basis_ss_d.levels[i];
-                int R = std::min(r, r1);
+                const int r1 = kLevelMax - basis_ss_d.levels[i];
+                const int R = std::min(r, r1);
                 if (R == r1 && basis_ss_d.diffs_ind[i] == int1d{-1})
                     continue;
                 AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
                 AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
+
+                if (bFastTry) {
+                    auto& degs_changed = basis_ss.back();
+                    const auto degs_changed_end = degs_changed.end();
+                    if (degs_changed.find(deg_y) == degs_changed_end && degs_changed.find(deg_xy) == degs_changed_end && degs_changed.find(deg_dxy) == degs_changed_end)
+                        continue;
+                }
 
                 Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ssS0_.basis.at(deg_dx)) : Poly();
                 int1d xy, dxy;
@@ -634,7 +675,7 @@ int Diagram::SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_mi
     return count;
 }
 
-int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min)
+int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry)
 {
 #ifndef NDEBUG
     if (dx == int1d{-1})
@@ -663,6 +704,13 @@ int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, i
             AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
             AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
 
+            if (bFastTry) {
+                auto& degs_changed = basis_ss.back();
+                const auto degs_changed_end = degs_changed.end();
+                if (degs_changed.find(deg_y) == degs_changed_end && degs_changed.find(deg_xy) == degs_changed_end && degs_changed.find(deg_dxy) == degs_changed_end)
+                    continue;
+            }
+
             Mod poly_dx = (R == r && !dx.empty()) ? Indices2Mod(dx, basis.at(deg_dx)) : Mod();
 
             Poly poly_y = Indices2Poly(basis_ss_d.basis_ind[i], ssS0_.basis.at(deg_y));
@@ -689,7 +737,7 @@ int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, i
     return count;
 }
 
-int Diagram::SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r)
+int Diagram::SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
     int result = 0;
@@ -723,12 +771,12 @@ int Diagram::SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r)
                     result += SetS0ImageLeibniz(deg_h0x2, h0x2, kRPC);
             }
         }
-        result += SetS0DiffLeibniz(deg_x, x, dx, r, r_min);
+        result += SetS0DiffLeibniz(deg_x, x, dx, r, r_min, bFastTry);
     }
     return result;
 }
 
-int Diagram::SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r)
+int Diagram::SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
     int count = 0;
@@ -761,7 +809,7 @@ int Diagram::SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx,
             else
                 r = r_max - 1;
         }
-        count += SetCofDiffLeibniz(iCof, deg_x, x, dx, r, r_min);
+        count += SetCofDiffLeibniz(iCof, deg_x, x, dx, r, r_min, bFastTry);
 
         Mod mod_x = Indices2Mod(x, basis.at(deg_x));
         Poly poly_x_S0 = ssS0_.gb.Reduce(subsMod(mod_x, ssCofs_[iCof].f_top_cell));
@@ -772,18 +820,18 @@ int Diagram::SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx,
             int1d x_S0 = poly_x_S0 ? Poly2Indices(poly_x_S0, ssS0_.basis.at(deg_x_S0)) : int1d{};
             AdamsDeg deg_dx_S0 = deg_dx - ssCofs_[iCof].deg_f_top_cell;
             int1d dx_S0 = poly_dx_S0 ? Poly2Indices(poly_dx_S0, ssS0_.basis.at(deg_dx_S0)) : int1d{};
-            count += SetS0DiffLeibnizV2(deg_x_S0, x_S0, dx_S0, r);
+            count += SetS0DiffLeibnizV2(deg_x_S0, x_S0, dx_S0, r, bFastTry);
         }
     }
     return count;
 }
 
-int Diagram::SetDiffLeibnizV2(size_t index, AdamsDeg deg_x, int1d x, int1d dx, int r)
+int Diagram::SetDiffLeibnizV2(size_t index, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry)
 {
     if (index == 0)
-        return SetS0DiffLeibnizV2(deg_x, x, dx, r);
+        return SetS0DiffLeibnizV2(deg_x, x, dx, r, bFastTry);
     else
-        return SetCofDiffLeibnizV2(index - 1, deg_x, x, dx, r);
+        return SetCofDiffLeibnizV2(index - 1, deg_x, x, dx, r, bFastTry);
 }
 
 int Diagram::SetS0ImageLeibniz(AdamsDeg deg_x, int1d x, int r)

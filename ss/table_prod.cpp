@@ -103,11 +103,11 @@ public:
 int main_basis_prod(int argc, char** argv, int index)
 {
     std::string db_filename = DB_DEFAULT;
-    std::string table_prefix = TABLE_DEFAULT;
+    std::string table_prefix = GetTablePrefix(db_filename);
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Generate the basis_prod table for S0\n";
-        std::cout << "Usage:\n  ss basis_prod [db_filename] [table_prefix]\n\n";
+        std::cout << "Usage:\n  ss basis_prod [db_filename] [table_prefix]\n\n"; //TODO: delete tables
 
         std::cout << "Default values:\n";
         std::cout << "  db_filename = " << db_filename << "\n";
@@ -163,9 +163,9 @@ int main_basis_prod(int argc, char** argv, int index)
 int main_mod_basis_prod(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_DEFAULT;
-    std::string table_S0 = TABLE_DEFAULT;
+    std::string table_S0 = GetTablePrefix(db_S0);
     std::string db_complex = DB_DEFAULT;
-    std::string table_complex = TABLE_DEFAULT;
+    std::string table_complex = GetTablePrefix(db_complex);
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Generate the basis_prod table for a complex\n";
@@ -241,7 +241,7 @@ int main_plot(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_DEFAULT;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t200.db",
+        "C2_AdamsSS_t221.db",
         "Ceta_AdamsSS_t200.db",
         "Cnu_AdamsSS_t200.db",
         "Csigma_AdamsSS_t200.db",
@@ -388,14 +388,19 @@ int main_plot(int argc, char** argv, int index)
     for (size_t k = 0; k < dbPlots.size(); ++k) {
         dbPlots[k].drop_and_create_ss_nd(tables[k]);
         myio::Statement stmt(dbPlots[k], "INSERT INTO " + tables[k] + "_ss_nd (src, r, tgt) VALUES (?1, ?2, ?3);");
-        diagram.CacheNullDiffs(5);
+        diagram.CacheNullDiffs(4, 127, 0);
 
         for (size_t i = 0; i < all_nd[k]->back().size(); ++i) {
             auto& nd = all_nd[k]->back()[i];
-            int src = deg2ids[k][nd.deg] + (int)nd.index;
             auto& basis_ss_d = all_basis_ss[k]->front().at(nd.deg);
-            if (basis_ss_d.levels[nd.index] > 9800) {
-                int r = kLevelMax - basis_ss_d.levels[nd.index];
+            size_t index = 0;
+            while (index < basis_ss_d.basis_ind.size() && basis_ss_d.basis_ind[index] != nd.x)
+                ++index;
+            if (index == basis_ss_d.basis_ind.size())
+                throw MyException(0xef63215fU, "nd could be wrong");
+            int src = deg2ids[k][nd.deg] + (int)index;
+            if (basis_ss_d.levels[index] > 9800) {
+                int r = kLevelMax - basis_ss_d.levels[index];
                 AdamsDeg deg_tgt = nd.deg + AdamsDeg(r, r - 1);
                 int1d tgt;
                 for (int j = nd.first; j < nd.first + nd.count; ++j)

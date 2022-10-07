@@ -753,6 +753,12 @@ public:
             int t = stmt.column_int(1);
             result[s] = t;
         }
+        for (auto p = result.rbegin(); p != result.rend(); ++p) {
+            int s = p->first, t = p->second;
+            if (result.find(s + 1) != result.end())
+                if (t < result.at(s + 1) - 1)
+                    p->second = result.at(s + 1) - 1;
+        }
         return result;
     }
 

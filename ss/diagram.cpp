@@ -45,7 +45,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
     const auto& basis_ss1 = ss1.GetS0().basis_ss;
 
     Timer timer(3600);
-    ss2.DeduceDiffs(10, 10, 1, 1, timer);
+    ss2.DeduceDiffs(0, 3, timer);
     ss2.DeduceImageJ();
 
     AdamsDeg1d degs;
@@ -67,7 +67,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
                     primitives[deg].levels.push_back(sc.levels[i]);
 
                     Timer timer(3600);
-                    ss2.DeduceDiffs(10, 10, 1, 1, timer);
+                    ss2.DeduceDiffs(0, 3, timer);
                     ss2.DeduceImageJ();
                 }
             }
@@ -80,19 +80,15 @@ int main_deduce_migrate(int argc, char** argv, int index)
     std::string db_in = "S0_AdamsSS_t245.db";
     std::string table_in = "AdamsE2";
     std::string db_out = DB_DEFAULT;
-    std::string table_out = TABLE_DEFAULT;
+    std::string table_out = GetTablePrefix(db_out);
     int t_max_zero = 381;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Deduce trivial differentials for degree reason\n";
-        std::cout << "Usage:\n  ss deduce migrate <db_in> <table_in> <db_out> <table_out> [t_max_zero]\n\n";
+        std::cout << "Usage:\n  ss deduce migrate <db_in> <table_in> <db_out> <table_out> [t_max_zero]\n\n"; //TODO: delete tables
 
         std::cout << "Default values:\n";
 
-        std::cout << "  db_in = " << db_in << "\n";
-        std::cout << "  table_in = " << table_in << "\n";
-        std::cout << "  db_out = " << db_out << "\n";
-        std::cout << "  table_out = " << table_out << "\n";
         std::cout << "  t_max_zero = " << t_max_zero << "\n\n";
 
         std::cout << VERSION << std::endl;

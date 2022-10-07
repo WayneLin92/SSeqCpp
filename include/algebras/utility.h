@@ -19,7 +19,7 @@
  */
 namespace ut {
 
-inline size_t FUTURE_NUM_THREADS = 128;
+inline constexpr size_t FUTURE_NUM_THREADS = 128;
 
 /*
  * A "random access" iterator of [begin, end) generated on the fly.

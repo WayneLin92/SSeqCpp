@@ -24,7 +24,7 @@ int main(int argc, char** argv)
         std::cout << "  export: Extract info of Ext from the resolution data\n";
         std::cout << "  plot: Generate an html file (feature not supported yet)\n";
 
-        std::cout << "Version:\n  2.1 (2022-09-16)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
