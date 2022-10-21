@@ -35,7 +35,7 @@ void ResolveV2(const std::string& X, int t_trunc, int stem_trunc, std::string& d
 int main_res(int argc, char** argv, int index)
 {
     std::string X = "S0";
-    int t_max = 392, stem_max = 261;
+    int t_max = DEG_MAX, stem_max = 261;
     std::string db_filename = "S0_Adams_res.db";
     std::string tablename = "S0_Adams_res";
 
