@@ -18,7 +18,7 @@ uint32_t max_mask(uint32_t upper_bound, uint32_t mask)
 
 void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result)
 {
-    constexpr size_t N = XI_MAX_MULT;  // Support up to t=254
+    constexpr size_t N = XI_MAX_MULT;
 
     if (R[N - 1] & S[N - 1])
         return;

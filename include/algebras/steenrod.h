@@ -83,9 +83,9 @@ namespace detail {
         return result;
     }
     template <size_t d>
-    constexpr std::array<uint64_t, DEG_MAX / ((1 << d) - 1)> MMilnorXiD()
+    constexpr std::array<uint64_t, DEG_MAX / ((1 << d) - 1) + 1> MMilnorXiD()
     {
-        constexpr uint32_t N = DEG_MAX / ((1 << d) - 1);
+        constexpr uint32_t N = DEG_MAX / ((1 << d) - 1) + 1;
         std::array<uint64_t, N> result = {};
         for (uint32_t m = 0; m < N; ++m) {
             for (uint32_t n = m, i = 0; n; n >>= 1, ++i) {
@@ -101,7 +101,7 @@ namespace detail {
 }  // namespace detail
 inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_I = detail::MMilnorGenI();
 inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_J = detail::MMilnorGenJ();
-inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_JMIM1 = detail::MMilnorGenJmIm1();
+inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMILNOR_GEN_JMIM1 = detail::MMilnorGenJmIm1(); /* j - i - 1 */
 inline constexpr std::array<uint64_t, MMILNOR_E_BITS> MMILNOR_GEN_WEIGHT = detail::MMilnorGenWeight();
 inline constexpr std::array<int, MMILNOR_E_BITS> MMILNOR_GEN_DEG = detail::MMilnorGenDeg();
 inline constexpr uint64_t UINT64_LEFT_BIT = uint64_t(1) << 63;

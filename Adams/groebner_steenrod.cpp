@@ -1,6 +1,7 @@
 #include "groebner_steenrod.h"
 #include "algebras/benchmark.h"
 #include "algebras/database.h"
+#include "main.h"
 #include <atomic>
 #include <cstring>
 #include <mutex>
@@ -636,7 +637,7 @@ public:
     /* insert v_{0, 0} */
     void save_fil_0(const std::string& table_prefix) const
     {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
+        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
         stmt.bind_int(1, 0);
         stmt.bind_blob(2, Mod().data);
         stmt.bind_int(3, 0);
