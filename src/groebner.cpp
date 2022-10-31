@@ -2,7 +2,7 @@
 #include "myio.h"
 #include "utility.h"
 
-namespace alg {
+namespace alg2 {
 
 bool detail::HasGCD(const Mon& mon1, const Mon& mon2)
 {
@@ -47,27 +47,32 @@ int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
     return result;
 }
 
-void CriPair::SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int i, int j)
+void detail::MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2)
 {
     auto k = lead1.begin(), l = lead2.begin();
     while (k != lead1.end() && l != lead2.end()) {
         if (k->g_raw() > l->g_raw())
-            result.m2.push_back(*k++);
+            m2.push_back(*k++);
         else if (k->g_raw() < l->g_raw())
-            result.m1.push_back(*l++);
+            m1.push_back(*l++);
         else {
             if (k->e() < l->e())
-                result.m1.push_back(GE(l->data - k->e()));
+                m1.push_back(GE(l->data - k->e()));
             else if (k->e() > l->e())
-                result.m2.push_back(GE(k->data - l->e()));
+                m2.push_back(GE(k->data - l->e()));
             k++;
             l++;
         }
     }
     if (k != lead1.end())
-        result.m2.insert(k, lead1.end());
+        m2.insert(k, lead1.end());
     else
-        result.m1.insert(l, lead2.end());
+        m1.insert(l, lead2.end());
+}
+
+void CriPair::SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int i, int j)
+{
+    detail::MutualQuotient(result.m1, result.m2, lead1, lead2);
     result.i1 = i;
     result.i2 = j;
     result.trace_m2 = result.m2.Trace();
@@ -80,7 +85,6 @@ void CriPair::SijP(const Groebner& gb, Poly& result, Poly& tmp1, Poly& tmp2) con
     result.iaddP(tmp1, tmp2);
     mulP(gb[i2], m2, tmp1);
     result.iaddP(tmp1, tmp2);
-    return;
 }
 
 void CriPair::SijMod(const Groebner& gb, const GroebnerMod& gbm, Mod& result, Mod& tmp1, Mod& tmp2) const
@@ -252,7 +256,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
                     }
                     else if (divisible(new_pairs[j].second.m2, new_pairs[i].second.m2, new_pairs[j].second.trace_m2, new_pairs[i].second.trace_m2))
                         new_pairs[i].first = -1;
-                    else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1)) {
+                    else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1) && detail::HasGCD(leads[i], leads[j], traces[i], traces[j])) {
                         int dij = detail::DegLCM(leads[i], leads[j], gen_degs);
                         if (dij <= deg_trunc_)
                             buffer_redundent_pairs_[dij].insert(ut::Bind(i, j));
@@ -315,9 +319,10 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
                     else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1) && j >= leadsx_size) {
                         Mon leadsi = i < leadsx_size ? leadsx[i] : leads[i].m;
                         const size_t j1 = j - leadsx_size;
-                        int dij = detail::DegLCM(leadsi, leads[j1].m, gen_degs) + v_degs[leads[j1].v];
-                        if (dij <= deg_trunc_) {
-                            buffer_redundent_pairs_[dij].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
+                        if (detail::HasGCD(leadsi, leads[j1].m)) {
+                            int dij = detail::DegLCM(leadsi, leads[j1].m, gen_degs) + v_degs[leads[j1].v];
+                            if (dij <= deg_trunc_)
+                                buffer_redundent_pairs_[dij].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
                         }
                     }
                 }

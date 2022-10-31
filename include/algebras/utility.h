@@ -168,6 +168,15 @@ void copy(std::vector<T>& tmp, std::vector<T>& dest)
     }
 }
 
+/* The container cont maps an index to a collection of type T */
+template <typename T>
+void push_back(std::vector<std::vector<T>>& cont, size_t index, T value)
+{
+    if (cont.size() <= index)
+        cont.resize(index + 1);
+    cont[index].push_back(value);
+}
+
 namespace detail {
     /* A safe way to convert time_t to std::tm */
     inline std::tm localtime_xp(std::time_t timer)

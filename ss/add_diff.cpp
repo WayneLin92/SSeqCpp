@@ -1,7 +1,7 @@
 #include "algebras/linalg.h"
 #include "main.h"
 
-using namespace alg;
+using namespace alg2;
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr)
 {
@@ -23,12 +23,12 @@ int main_add_diff(int argc, char** argv, int index)
     std::string x_str, dx_str;
     size_t iDb = 0;
     std::string mode = "add";
-    std::string db_S0 = DB_DEFAULT;
+    std::string db_S0 = DB_S0;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t221.db",
-        "Ceta_AdamsSS_t200.db",
-        "Cnu_AdamsSS_t200.db",
-        "Csigma_AdamsSS_t200.db",
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
     };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -112,7 +112,7 @@ int main_add_diff(int argc, char** argv, int index)
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             db.begin_transaction();
-            db.update_basis_ss(GetTablePrefix(dbnames[k]), diagram.GetChanges(k));
+            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetChanges(k));
             db.end_transaction();
         }
     }

@@ -5,9 +5,9 @@
 
 namespace Catch {
 template <>
-struct StringMaker<alg::Poly>
+struct StringMaker<alg2::Poly>
 {
-    static std::string convert(alg::Poly const& p)
+    static std::string convert(alg2::Poly const& p)
     {
         std::stringstream ss;
         ss << p;
@@ -16,9 +16,9 @@ struct StringMaker<alg::Poly>
 };
 }  // namespace Catch
 
-TEST_CASE("Compute the Groebner basis of B7 wrt revlex ordering", "[alg::AddRels]")
+TEST_CASE("Compute the Groebner basis of B7 wrt revlex ordering", "[alg2::AddRels]")
 {
-    using namespace alg;
+    using namespace alg2;
     constexpr auto Gen = Poly::Gen;
 #ifndef NDEBUG
     int n_max = 7;
@@ -62,48 +62,48 @@ TEST_CASE("Compute the Groebner basis of B7 wrt revlex ordering", "[alg::AddRels
 }
 
 //
-//TEST_CASE("Compute annihilator with FnCmp=CmpLex", "[alg::AnnSeq]")
+//TEST_CASE("Compute annihilator with FnCmp=CmpLex", "[alg2::AnnSeq]")
 //{
-//    using FnCmp = alg::CmpLex;
-//    using Poly = alg::Polynomial<FnCmp>;
+//    using FnCmp = alg2::CmpLex;
+//    using Poly = alg2::Polynomial<FnCmp>;
 //    using Poly1d = std::vector<Poly>;
-//    using Gb = alg::Groebner<FnCmp>;
+//    using Gb = alg2::Groebner<FnCmp>;
 //    constexpr auto GenExp = Poly::GenExp;
 //
-//    alg::array gen_degs = {1, 1, 1};
+//    alg2::array gen_degs = {1, 1, 1};
 //    Poly p1 = GenExp(0, 2) + GenExp(1, 2); /* x_0^2 + x_1^2 */
 //    Poly p2 = GenExp(0, 1) * GenExp(2, 1) + GenExp(1, 1) * GenExp(2, 1);                /* x_0x_2 + x_1x_2 */
 //    Poly1d polys = {p1, p2};
-//    Gb gb(alg::DEG_MAX);
-//    alg::AddRels(gb, polys, alg::DEG_MAX, gen_degs);
+//    Gb gb(alg2::DEG_MAX);
+//    alg2::AddRels(gb, polys, alg2::DEG_MAX, gen_degs);
 //
 //    auto x = GenExp(0, 1) + GenExp(1, 1);
 //
-//    auto ann = alg::AnnSeq(gb, {x}, gen_degs, alg::DEG_MAX);
+//    auto ann = alg2::AnnSeq(gb, {x}, gen_degs, alg2::DEG_MAX);
 //    /*for (auto& v : ann)
 //        std::cout << v[0].data << '\n';*/
 //
 //    REQUIRE(ann.size() == 2);
 //}
 //
-//TEST_CASE("Compute annihilator with FnCmp=CmpLex V2", "[alg::AnnSeq]")
+//TEST_CASE("Compute annihilator with FnCmp=CmpLex V2", "[alg2::AnnSeq]")
 //{
-//    using FnCmp = alg::CmpLex;
-//    using Poly = alg::Polynomial<FnCmp>;
+//    using FnCmp = alg2::CmpLex;
+//    using Poly = alg2::Polynomial<FnCmp>;
 //    using Poly1d = std::vector<Poly>;
-//    using Gb = alg::Groebner<FnCmp>;
+//    using Gb = alg2::Groebner<FnCmp>;
 //    constexpr auto GenExp = Poly::GenExp;
 //
-//    alg::array gen_degs = {1, 1, 1, 1};
+//    alg2::array gen_degs = {1, 1, 1, 1};
 //    Poly p1 = GenExp(0, 1) * GenExp(3, 1) + GenExp(1, 2); /* x_0x_3 + x_1^2 */
 //    Poly p2 = GenExp(1, 2) + GenExp(2, 1) * GenExp(3, 1); /* x_1^2 + x_2x_3 */
 //    Poly1d polys = {p1, p2};
-//    Gb gb(alg::DEG_MAX);
-//    alg::AddRels(gb, polys, alg::DEG_MAX, gen_degs);
+//    Gb gb(alg2::DEG_MAX);
+//    alg2::AddRels(gb, polys, alg2::DEG_MAX, gen_degs);
 //
 //    auto x = GenExp(3, 1);
 //
-//    auto ann = alg::AnnSeq(gb, {x}, gen_degs, alg::DEG_MAX);
+//    auto ann = alg2::AnnSeq(gb, {x}, gen_degs, alg2::DEG_MAX);
 //    /*for (auto& v : ann)
 //        std::cout << v[0].data << '\n';*/
 //

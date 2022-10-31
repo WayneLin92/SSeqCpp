@@ -79,8 +79,8 @@ int main_deduce_migrate(int argc, char** argv, int index)
 {
     std::string db_in = "S0_AdamsSS_t245.db";
     std::string table_in = "AdamsE2";
-    std::string db_out = DB_DEFAULT;
-    std::string table_out = GetTablePrefix(db_out);
+    std::string db_out = DB_S0;
+    std::string table_out = GetE2TablePrefix(db_out);
     int t_max_zero = 381;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {

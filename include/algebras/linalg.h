@@ -40,8 +40,9 @@ inline int1d Residue(const int2d& spaceV, int1d v)
     return Residue(spaceV.begin(), spaceV.end(), std::move(v));
 }
 
-/* Setup a linear map */
+/* g[i] = f^{-1}image[i] */
 void GetInvMap(const int2d& fx, int2d& image, int2d& g);
+/* Setup a linear map */
 void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g);
 void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt fx_last, int2d& image, int2d& kernel, int2d& g);
 void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel, int2d& g);
@@ -54,7 +55,7 @@ inline int1d GetImage(const int2d& spaceV, const int2d& f, int1d v)
     return GetImage(spaceV.begin(), spaceV.end(), f.begin(), f.end(), std::move(v));
 }
 /* Return f^{-1}(v) where fi=vi */
-int1d GetInvImage(const int2d& spaceV, int1d w);
+int1d GetInvImage(const int2d& spaceV, int1d v);
 
 /* Compute the quotient of linear spaces V/W assuming that W is a subspace of V */
 int2d QuotientSpace(const int2d& spaceV, const int2d& spaceW);

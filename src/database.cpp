@@ -84,7 +84,7 @@ int Database::get_int(const std::string& sql, int default_) const
         if (stmt.column_type(0) == SQLITE_INTEGER)
             return stmt.column_int(0);
         else
-            MyException(0xa429d1aU, "Incorrect type using: " + sql);
+            throw MyException(0xa429d1aU, "Incorrect type using: " + sql);
     }
     return default_;
 }

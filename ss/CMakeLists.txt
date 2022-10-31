@@ -1,4 +1,4 @@
-add_executable(ss main.h table_prod.cpp table_ss.cpp add_diff.cpp deduce.cpp SS.cpp diagram.cpp main.cpp)
+add_executable(ss main.h table_prod.cpp table_ss.cpp add_diff.cpp deduce.cpp SS.cpp diagram.cpp main.cpp homotopy.cpp)
 target_compile_features(ss PRIVATE cxx_std_17)
 target_include_directories(ss PRIVATE ../include)
 target_link_libraries(ss PRIVATE algebras)

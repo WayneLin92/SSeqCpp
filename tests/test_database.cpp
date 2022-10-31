@@ -4,14 +4,14 @@
 
 TEST_CASE( "Save and load from database", "[DbAlg]" )
 {
-    using FnCmp = alg::CmpRevlex;
-    using Poly = alg::Polynomial<FnCmp>;
+    using FnCmp = alg2::CmpRevlex;
+    using Poly = alg2::Polynomial<FnCmp>;
     using Poly1d = std::vector<Poly>;
-    using Gb = alg::Groebner<FnCmp>;
+    using Gb = alg2::Groebner<FnCmp>;
     constexpr auto GenExp = Poly::GenExp;
 
     myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/TestMilnorProduct.db");
-    std::vector<alg::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}, {3, 4, 5}};
+    std::vector<alg2::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}, {3, 4, 5}};
     std::vector<std::string> gen_names = {"x_1", "x_2", "x_3"};
     Poly1d gen_reprs = {GenExp(1, 1), GenExp(2, 2), GenExp(0, 1)};
     Gb gb(100, Poly1d{GenExp(0, 2) + GenExp(1, 2), GenExp(1, 4) + GenExp(2, 1), GenExp(2, 1)});
@@ -43,7 +43,7 @@ TEST_CASE("Save and load blobs from database", "[DbAlg]")
 
     myio::DbAlg db("C:/Users/lwnpk/Documents/MyData/Math_AlgTop/databases/TestMilnorProduct.db");
     db.create_generators_and_delete("table_57fc659c");
-    std::vector<alg::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}};
+    std::vector<alg2::MayDeg> gen_degs = {{1, 1, 1}, {1, 2, 3}};
     
     T a = {1, 2, 3, 5, 9, 1, 3, 4, 1, 2};
     T b = {1, 2, 3, 5, 9, 1, 3, 4, 1, 2};

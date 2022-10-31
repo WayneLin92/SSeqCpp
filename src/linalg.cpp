@@ -60,7 +60,6 @@ inline void AddToSpace(int2d& spaceV, const int1d& v)
 
 void GetInvMap(const int2d& fx, int2d& image, int2d& g)
 {
-    /* f(g[i]) = image[i] */
     for (size_t i = 0; i < fx.size(); ++i) {
         int1d src = {int(i)};
         int1d tgt = fx[i];
@@ -199,17 +198,17 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int2d
     return result;
 }
 
-int1d GetInvImage(const int2d& spaceV, int1d w)
+int1d GetInvImage(const int2d& spaceV, int1d v)
 {
     int1d result;
     for (size_t j = 0; j < spaceV.size(); j++) {
-        if (std::binary_search(w.begin(), w.end(), spaceV[j][0])) {
-            w = AddVectors(w, spaceV[j]);
+        if (std::binary_search(v.begin(), v.end(), spaceV[j][0])) {
+            v = AddVectors(v, spaceV[j]);
             result.push_back((int)j);
         }
     }
 #ifndef NDEBUG
-    if (!w.empty())
+    if (!v.empty())
         throw MyException(0x1a4ef6d8U, "GetInvImage not well defined");
 #endif
     return result;

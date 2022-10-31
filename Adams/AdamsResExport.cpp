@@ -18,7 +18,7 @@ public:
 public:
     void create_generators_cell(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, from_S0 TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, to_S0 TEXT, s SMALLINT, t SMALLINT);");
     }
 
     void drop_and_create_generators_cell(const std::string& table_prefix) const
@@ -27,7 +27,7 @@ public:
         create_generators_cell(table_prefix);
     }
 
-    void save_generators_cell(const std::string& table_prefix, const alg::AdamsDeg1d& gen_degs, const alg::Poly1d& toS0) const
+    void save_generators_cell(const std::string& table_prefix, const alg2::AdamsDeg1d& gen_degs, const alg2::Poly1d& toS0) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, to_S0, s, t) VALUES (?1, ?2, ?3, ?4);");
 
@@ -42,27 +42,27 @@ public:
         std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
     }
 
-    void load_indecomposables(const std::string& table, alg::int1d& ids, alg::AdamsDeg1d& gen_degs, int t_trunc) const
+    void load_indecomposables(const std::string& table, alg2::int1d& ids, alg2::AdamsDeg1d& gen_degs, int t_trunc) const
     {
         Statement stmt(*this, "SELECT id, s, t FROM " + table + " WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             ids.push_back(id);
-            gen_degs.push_back(alg::AdamsDeg{s, t});
+            gen_degs.push_back(alg2::AdamsDeg{s, t});
         }
     }
 
-    void load_indecomposables_cell(const std::string& table, alg::int1d& ids, alg::int2d& toS0res, alg::AdamsDeg1d& gen_degs, int t_trunc) const
+    void load_indecomposables_cell(const std::string& table, alg2::int1d& ids, alg2::int2d& toS0res, alg2::AdamsDeg1d& gen_degs, int t_trunc) const
     {
         Statement stmt(*this, "SELECT id, coh_repr, s, t FROM " + table + " WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(2), t = stmt.column_int(3);
             if (id == 0)
-                toS0res.push_back(alg::int1d{});
+                toS0res.push_back(alg2::int1d{});
             else
-                toS0res.push_back(myio::Deserialize<alg::int1d>(stmt.column_str(1)));
+                toS0res.push_back(myio::Deserialize<alg2::int1d>(stmt.column_str(1)));
             ids.push_back(id);
-            gen_degs.push_back(alg::AdamsDeg{s, t});
+            gen_degs.push_back(alg2::AdamsDeg{s, t});
         }
     }
 
@@ -70,7 +70,7 @@ public:
      * loc2glo[s][i] = id
      * glo2loc[id] = (s, i)
      */
-    void load_id_converter(const std::string& table, alg::int2d& loc2glo, alg::pairii1d& glo2loc, int t_trunc) const
+    void load_id_converter(const std::string& table, alg2::int2d& loc2glo, alg2::pairii1d& glo2loc, int t_trunc) const
     {
         Statement stmt(*this, "SELECT id, s FROM " + table + " WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
@@ -84,14 +84,14 @@ public:
 
     /** id_ind * id = prod
      */
-    std::map<std::pair<int, int>, alg::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
+    std::map<std::pair<int, int>, alg2::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
     {
-        std::map<std::pair<int, int>, alg::int1d> result;
+        std::map<std::pair<int, int>, alg2::int1d> result;
         Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_products LEFT JOIN " + table_prefix + "_generators USING(id) WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int id_ind = stmt.column_int(1);
-            alg::int1d prod_h = stmt.column_blob_tpl<int>(2);
+            alg2::int1d prod_h = stmt.column_blob_tpl<int>(2);
             result[std::make_pair(id_ind, id)] = std::move(prod_h);
         }
         return result;
@@ -99,37 +99,37 @@ public:
 
     /** id_ind * id = prod
      */
-    std::map<std::pair<int, int>, alg::int1d> load_cell_products_h(const std::string& table_prefix, int t_trunc) const
+    std::map<std::pair<int, int>, alg2::int1d> load_cell_products_h(const std::string& table_prefix, int t_trunc) const
     {
-        std::map<std::pair<int, int>, alg::int1d> result;
+        std::map<std::pair<int, int>, alg2::int1d> result;
         Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_products LEFT JOIN " + table_prefix + "_E2 USING(id) WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int id_ind = stmt.column_int(1);
-            alg::int1d prod_h = myio::Deserialize<alg::int1d>(stmt.column_str(2));
+            alg2::int1d prod_h = myio::Deserialize<alg2::int1d>(stmt.column_str(2));
             result[std::make_pair(id_ind, id)] = std::move(prod_h);
         }
         return result;
     }
 
-    std::map<alg::AdamsDeg, alg::int2d> load_basis_repr(const std::string& table_prefix) const
+    std::map<alg2::AdamsDeg, alg2::int2d> load_basis_repr(const std::string& table_prefix) const
     {
-        std::map<alg::AdamsDeg, alg::int2d> result;
+        std::map<alg2::AdamsDeg, alg2::int2d> result;
         Statement stmt(*this, "SELECT s, t, repr FROM " + table_prefix + "_basis ORDER BY id");
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
             ++count;
-            alg::AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
-            result[deg].push_back(myio::Deserialize<alg::int1d>(stmt.column_str(2)));
+            alg2::AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
+            result[deg].push_back(myio::Deserialize<alg2::int1d>(stmt.column_str(2)));
         }
         std::cout << "repr loaded from " << table_prefix << "_basis, size=" << count << '\n';
         return result;
     }
 };
 
-alg::int1d mul(const std::map<std::pair<int, int>, alg::int1d>& map_h, int id_ind, const alg::int1d& repr)
+alg2::int1d mul(const std::map<std::pair<int, int>, alg2::int1d>& map_h, int id_ind, const alg2::int1d& repr)
 {
-    alg::int1d result;
+    alg2::int1d result;
     for (int id : repr) {
         auto it = map_h.find(std::make_pair(id_ind, id));
         if (it != map_h.end())
@@ -141,7 +141,7 @@ alg::int1d mul(const std::map<std::pair<int, int>, alg::int1d>& map_h, int id_in
 void ExportS0(const std::string& db_in, const std::string& table_in, const std::string& db_out, int t_trunc)
 {
     bench::Timer timer;
-    using namespace alg;
+    using namespace alg2;
     MyDB dbProd(db_in);
 
     AdamsDeg1d gen_degs;
@@ -275,7 +275,7 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
         throw MyException(0x7ffc598U, complex_name + " is not supported");
 
     bench::Timer timer;
-    using namespace alg;
+    using namespace alg2;
     const std::string db_in = complex_name + "_Adams_chain.db";
     const std::string table_in = complex_name + "_Adams";
     const std::string db_S0 = "S0_AdamsSS.db";

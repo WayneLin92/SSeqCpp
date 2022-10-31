@@ -14,8 +14,7 @@
 #include <climits>
 
 /**
- * The namespace `alg` provides the basis types for monomials and polynomials.
- * and vectors of them
+ * The namespace `alg` provides some basis types for differential alg namespaces.
  */
 namespace alg {
 
@@ -163,7 +162,7 @@ struct AdamsDeg
     {
         return '(' + std::to_string(s) + ',' + std::to_string(t) + ')';
     }
-    std::string StrCoor() const
+    std::string StrAdams() const
     {
         return '(' + std::to_string(stem()) + ',' + std::to_string(s) + ')';
     }
@@ -175,13 +174,6 @@ inline std::ostream& operator<<(std::ostream& sout, const AdamsDeg& deg)
 {
     return sout << deg.Str();
 }
-
-/** \defgroup Monomials Monomials
- * ------------------------------------------- @{
- */
-/********************************************************
- *                      Monomials
- ********************************************************/
 
 struct GE
 {
@@ -221,9 +213,26 @@ struct GE
 
 using GE1d = std::vector<GE>;
 
+/* For fast divisibility check */
 using MonTrace = uint64_t;
 using MonTrace1d = std::vector<MonTrace>;
-constexpr size_t MONSIZE = 19;
+
+}
+
+/**
+ * The namespace `alg2` provides the basis types for monomials and polynomials.
+ * and vectors of them
+ */
+namespace alg2 {
+using namespace alg;
+
+/** \defgroup Monomials Monomials
+ * ------------------------------------------- @{
+ */
+/********************************************************
+ *                      Monomials
+ ********************************************************/
+constexpr size_t MONSIZE = 16;
 
 class Mon
 {
@@ -291,6 +300,10 @@ public:
             throw MyException(0xfebc8802U, "Calling back() on empty");
 #endif
         return data_[size_t(size_ - 1)];
+    }
+    uint32_t backg() const
+    {
+        return back().g();
     }
 
     auto begin() const
@@ -407,12 +420,12 @@ struct Poly;
 void mulP(const Poly& poly, const Mon& mon, Poly& result);
 void mulP(const Poly& p1, const Poly& p2, Poly& result);
 
-struct Poly  // TODO: change to Poly
+struct Poly
 {
     Mon1d data;
 
     Poly() {}
-    Poly(Mon m) : data({std::move(m)}) {}
+    Poly(const Mon& m) : data({m}) {}
 
     static Poly Unit()
     {
@@ -438,7 +451,7 @@ struct Poly  // TODO: change to Poly
         if (data.empty())
             return -10000;
         else
-            return alg::GetDeg(data.front(), gen_degs);
+            return alg2::GetDeg(data.front(), gen_degs);
     }
 
     MayDeg GetMayDeg(const MayDeg1d& gen_degs) const
@@ -446,7 +459,7 @@ struct Poly  // TODO: change to Poly
         if (data.empty())
             return MayDeg{-10000, -10000, -10000};
         else
-            return alg::GetDeg(data.front(), gen_degs);
+            return alg2::GetDeg(data.front(), gen_degs);
     }
 
     AdamsDeg GetAdamsDeg(const AdamsDeg1d& gen_degs) const
@@ -454,7 +467,7 @@ struct Poly  // TODO: change to Poly
         if (data.empty())
             return AdamsDeg::Null();
         else
-            return alg::GetDeg(data.front(), gen_degs);
+            return alg2::GetDeg(data.front(), gen_degs);
     }
 
     int GetMayDegT(const MayDeg1d& gen_degs) const
@@ -462,7 +475,7 @@ struct Poly  // TODO: change to Poly
         if (data.empty())
             return -10000;
         else
-            return alg::GetDegT(data.front(), gen_degs);
+            return alg2::GetDegT(data.front(), gen_degs);
     }
 
     int GetAdamsDegT(const AdamsDeg1d& gen_degs) const
@@ -470,7 +483,7 @@ struct Poly  // TODO: change to Poly
         if (data.empty())
             return -10000;
         else
-            return alg::GetDegT(data.front(), gen_degs);
+            return alg2::GetDegT(data.front(), gen_degs);
     }
 
     void frobP(Poly& result) const
@@ -677,6 +690,11 @@ struct Mod
 };
 
 using Mod1d = std::vector<Mod>;
+
+inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
+{
+    return std::cout << x.Str();
+}
 
 inline Mod operator+(const Mod& x, const Mod& y)
 {

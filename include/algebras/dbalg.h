@@ -11,28 +11,28 @@
 #include <map>
 #include <sstream>
 
-namespace alg {
+namespace alg2 {
 
 constexpr int kLevelMax = 10000;
 
 struct BasisComplex
 {
-    alg::int2d boundaries;
-    alg::int2d cycles;
+    alg2::int2d boundaries;
+    alg2::int2d cycles;
 };
 
 struct Staircase
 {
-    alg::int2d basis_ind;
-    alg::int2d diffs_ind; /* ={-1} means null */
-    alg::int1d levels;
+    alg2::int2d basis_ind;
+    alg2::int2d diffs_ind; /* ={-1} means null */
+    alg2::int1d levels;
 };
 
 }  // namespace alg
 
 namespace myio {
 
-using namespace alg;
+using namespace alg2;
 
 template <>
 inline Mon Deserialize<Mon>(const std::string& str)
@@ -135,7 +135,7 @@ public:
     Groebner<FnCmp> load_gb(const std::string& table_prefix, int t_max) const
     {
         Poly1d<FnCmp> polys;
-        Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == alg::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+        Statement stmt(*this, "SELECT leading_term, basis FROM " + table_prefix + "_relations" + (t_max == alg2::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
         while (stmt.step() == MYSQLITE_ROW) {
             Poly<FnCmp> lead = {{Deserialize<Mon>(stmt.column_str(0))}};
             Poly<FnCmp> basis = Poly<FnCmp>::Sort(Deserialize<Mon1d>(stmt.column_str(1)));  ////
@@ -163,18 +163,18 @@ public:
     }
     std::map<MayDeg, Mon1d> load_basis(const std::string& table_prefix, int t_max) const
     {
-        return group_by_Maydeg<Mon>(table_prefix + "_basis", "mon", (t_max == alg::DEG_MAX ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;", Deserialize<Mon>);
+        return group_by_Maydeg<Mon>(table_prefix + "_basis", "mon", (t_max == alg2::DEG_MAX ? std::string() : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY mon_id;", Deserialize<Mon>);
     }
     std::map<MayDeg, int2d> load_mon_diffs_ind(const std::string& table_prefix, int t_max) const
     {
-        return group_by_Maydeg<int1d>(table_prefix + "_basis", "diff", (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<int1d>);
+        return group_by_Maydeg<int1d>(table_prefix + "_basis", "diff", (t_max == alg2::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;", Deserialize<int1d>);
     }
     std::map<MayDeg, int2d> load_mon_diffs_ind_with_null(const std::string& table_prefix, int t_max) const;
     template <typename FnCmp>
     std::map<MayDeg, Poly1d<FnCmp>> load_mon_diffs(const std::string& table_prefix, const std::map<MayDeg, Mon1d>& basis, int r, int t_max) const
     {
         std::map<MayDeg, Poly1d<FnCmp>> result;
-        std::string sql = "SELECT s, t, v, diff FROM " + table_prefix + "_basis" + (t_max == alg::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
+        std::string sql = "SELECT s, t, v, diff FROM " + table_prefix + "_basis" + (t_max == alg2::DEG_MAX ? " WHERE" : " WHERE t<=" + std::to_string(t_max) + " AND") + " diff IS NOT NULL ORDER BY mon_id;";
         Statement stmt(*this, sql);
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
@@ -186,8 +186,8 @@ public:
         std::clog << "diffs loaded from " << table_prefix + "_basis, size=" << count << '\n';
         return result;
     }
-    std::map<MayDeg, alg::BasisComplex> load_basis_ss(const std::string& table_prefix, int r, int t_max) const; /* load d_r-cycles and d_r-boundaries */
-    std::map<MayDeg, alg::Staircase> load_basis_ss(const std::string& table_prefix, int t_max) const;
+    std::map<MayDeg, alg2::BasisComplex> load_basis_ss(const std::string& table_prefix, int r, int t_max) const; /* load d_r-cycles and d_r-boundaries */
+    std::map<MayDeg, alg2::Staircase> load_basis_ss(const std::string& table_prefix, int t_max) const;
 
 public:
     void save_gen_maydegs(const std::string& table_prefix, const std::vector<MayDeg>& gen_degs) const
@@ -283,15 +283,15 @@ public:
     }
     void save_mon_reprs(const std::string& table_prefix, const std::map<MayDeg, int2d>& mon_reprs) const
     {
-        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const alg::int1d& a) { return Serialize(a); });
+        save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const alg2::int1d& a) { return Serialize(a); });
     }
     template <typename FnCmp>
     void save_mon_reprs(const std::string& table_prefix, const std::map<MayDeg, Poly1d<FnCmp>>& mon_reprs) const
     {
         save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const Poly<FnCmp>& a) { return Serialize(a); });
     }
-    void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;
-    void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg::Staircase>& basis_ss) const;
+    void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& basis_ss) const;
+    void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& basis_ss) const;
 };
 
 }  // namespace myio

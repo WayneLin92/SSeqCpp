@@ -3,14 +3,27 @@
 
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
-#include "algebras/groebner.h"
+#include "algebras/groebnerZ.h"
 #include <set>
 
-
-inline const char* DB_DEFAULT = "S0_AdamsSS_t254.db";
 inline const char* VERSION = "Version:\n  2.2 (2022-10-4)";
 
-using namespace alg;
+#define CONFIG_INPUT 1
+#if (CONFIG_INPUT == 0)
+inline const char* DB_S0 = "S0_AdamsSS_t254.db";
+inline const char* DB_C2 = "C2_AdamsSS_t221.db";
+inline const char* DB_Ceta = "Ceta_AdamsSS_t200.db";
+inline const char* DB_Cnu = "Cnu_AdamsSS_t200.db";
+inline const char* DB_Csigma = "Csigma_AdamsSS_t200.db";
+#elif (CONFIG_INPUT == 1)
+inline const char* DB_S0 = "benchmark/S0_AdamsSS_t100.db";
+inline const char* DB_C2 = "benchmark/C2_AdamsSS_t100.db";
+inline const char* DB_Ceta = "benchmark/Ceta_AdamsSS_t100.db";
+inline const char* DB_Cnu = "benchmark/Cnu_AdamsSS_t100.db";
+inline const char* DB_Csigma = "benchmark/Csigma_AdamsSS_t100.db";
+#endif
+
+using namespace alg2;
 
 constexpr int kLevelMax = 10000;
 constexpr int kLevelMin = 2;
@@ -78,17 +91,28 @@ struct SS
     std::map<AdamsDeg, Mon1d> basis;
     Staircases1d basis_ss;
     NullDiff2d nd;
+
+    algZ::Groebner pi_gb;
+    Poly1d pi_gen_Einf = {Poly::Gen(0)}; /* Projection onto the E_infty page */
+    std::map<AdamsDeg, algZ::Mon1d> pi_basis = {{AdamsDeg(0, 0), {algZ::Mon()}}};
+    std::map<AdamsDeg, int2d> pi_basis_Einf = {{AdamsDeg(0, 0), {{0}}}};
 };
 
 struct SSMod
 {
     int t_max = -1;
-    Poly1d f_top_cell;
     AdamsDeg deg_f_top_cell;
     GroebnerMod gb;
     std::map<AdamsDeg, MMod1d> basis;
+    Poly1d f_top_cell;
     Staircases1d basis_ss;
     NullDiff2d nd;
+
+    algZ::GroebnerMod pi_gb;
+    Mod1d pi_gen_Einf; /* Projection onto the E_infty page */
+    std::map<AdamsDeg, algZ::MMod1d> pi_basis;
+    std::map<AdamsDeg, int2d> pi_basis_Einf;
+    algZ::Poly1d pi_f_top_cell;
 };
 
 using SSMod1d = std::vector<SSMod>;
@@ -139,39 +163,25 @@ public:
         return all_t_max_;
     }
 
-    /* Return it is a possible target */
-    bool IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r) const;
+    /* Return if it is possibly a new dr target for r<=r_max */
+    bool IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max) const;
 
-    /* Return it is a possible source */
-    bool IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r) const;
+    /* Return if it is possibly a new dr source for r>=r_min */
+    bool IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min) const;
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
      * Return a level such that all levels above will not decrease further.
      */
     int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg) const;
 
-    /* Return the first index (>=`level`) such that all levels above are already fixed */
-    size_t GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level) const;
+    /* Return the first index (with level >=`level_min`) such that all levels above are already fixed */
+    size_t GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min) const;
 
     /* Count the number of all possible d_r targets. Return (count, index). */
     std::pair<int, int> CountPossDrTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg_tgt, int r) const;
 
     /* Count the number of all possible d_r sources. Return (count, index). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& basis_ss, const AdamsDeg& deg_src, int r) const;
-
-    /*
-     * Count the number of all possible d_r1 targets where r<=r1<=r_max.
-     * Return (count, index).
-     * count>=2 are all treated as the same.
-     */
-    std::tuple<AdamsDeg, int, int> CountPossTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg, int r, int r_max) const;
-
-    /*
-     * Count the number of all possible d_r1 sources where r1<=r.
-     * Return (count, index).
-     * count>=2 are all treated as the same.
-     */
-    std::tuple<AdamsDeg, int, int> CountPossSrc(const Staircases1d& basis_ss, AdamsDeg deg, int level) const;
 
     /*
      * Return the smallest r1>=r such that d_{r1} has a possible target
@@ -263,6 +273,39 @@ public:
     int DeduceZeroDiffs();
     int DeduceDiffs(int depth, int max_stage, Timer& timer);
     int DeduceImageJ();
+
+public:
+    /* Return if Einf at deg is possibly nontrivial */
+    bool PossEinf(const Staircases1d& basis_ss, AdamsDeg deg) const;
+
+    /*
+     * Return the smallest s1>=s such that extension has a possible target
+     *
+     * Range >= t_max is deem unknown and thus possiple.
+     * Return FIL_MAX if not found
+     */
+    int NextSExt(const Staircases1d& basis_ss, int t_max, int stem, int s_min) const;
+    int2d GetS0GbEinf(AdamsDeg deg) const;
+    std::map<AdamsDeg, int2d> GetS0GbEinf() const;
+    int2d GetCofGbEinf(int iCof, AdamsDeg deg) const;
+    std::map<AdamsDeg, int2d> GetCofGbEinf(int iCof) const;
+
+public: /* homotopy groups */
+    void SyncS0Homotopy(int& count_ss, int& count_homotopyy);
+    void SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy);
+    void SyncHomotopy(int& count_ss, int& count_homotopy)
+    {
+        SyncS0Homotopy(count_ss, count_homotopy);
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+            SyncCofHomotopy((int)iCof, count_ss, count_homotopy);
+    }
+    int DeduceZeroExtensions();
+    void SimplifyPiRels()
+    {
+        ssS0_.pi_gb.SimplifyRels();
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+            ssCofs_[iCof].pi_gb.SimplifyRels();
+    }
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -278,23 +321,37 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, base TEXT, diff TEXT, level SMALLINT, s SMALLINT, t SMALLINT);");
     }
 
+    void create_pi_generators_mod(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, Einf TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT);");
+    }
+
     void drop_and_create_basis_ss(const std::string& table_prefix) const
     {
         drop_table(table_prefix + "_ss");
         create_basis_ss(table_prefix);
     }
 
+    void drop_and_create_pi_generators_mod(const std::string& table_prefix) const
+    {
+        drop_table(table_prefix + "_pi_generators");
+        create_pi_generators_mod(table_prefix);
+    }
+
+    void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const;
     void save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const;
     /* load the minimum id in every degree */
-    std::map<AdamsDeg, int> load_indices(const std::string& table_prefix) const;
+    std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
-std::string GetTablePrefix(const std::string& db);
+std::string GetComplexName(const std::string& db);
+std::string GetE2TablePrefix(const std::string& db);
 int GetTopCellT(const std::string& db);
 
+/* Order by (t, -s) */
 template <typename T>
 AdamsDeg1d OrderDegsV2(const T& cont)
 {
@@ -320,6 +377,13 @@ inline int1d two_expansion(unsigned n)
     }
     return result;
 }
+
+inline bool BelowS0VanishingLine(AdamsDeg deg)
+{
+    return 3 * deg.s <= deg.t + 3;
+}
+
+size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);

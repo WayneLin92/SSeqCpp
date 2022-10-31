@@ -1,38 +1,51 @@
 #include "algebras/linalg.h"
 #include "main.h"
 
-std::string GetTablePrefix(const std::string& db)
+std::string GetComplexName(const std::string& db)
 {
-    if (db.size() < 2)
+    auto p = db.find_last_of("/\\");
+    std::string db1 = db;
+    if (p != std::string::npos)
+        db1 = db.substr(p + 1);
+    if (db1.size() < 2)
         throw MyException(0x68360e1dU, "The file name of the database is too short");
     std::string table;
-    if (db[1] == '0')
-        table = "S0_AdamsE2";
-    else if (db[1] == '2')
-        table = "C2_AdamsE2";
-    else if (db[1] == 'e')
-        table = "Ceta_AdamsE2";
-    else if (db[1] == 'n')
-        table = "Cnu_AdamsE2";
-    else if (db[1] == 's')
-        table = "Csigma_AdamsE2";
+    if (db1[1] == '0')
+        table = "S0";
+    else if (db1[1] == '2')
+        table = "C2";
+    else if (db1[1] == 'e')
+        table = "Ceta";
+    else if (db1[1] == 'n')
+        table = "Cnu";
+    else if (db1[1] == 's')
+        table = "Csigma";
     else
-        throw MyException(0x331d5e90U, db + " is not recognized as a db name");
+        throw MyException(0x331d5e90U, db1 + " is not recognized as a db name");
     return table;
+}
+
+std::string GetE2TablePrefix(const std::string& db)
+{
+    return GetComplexName(db) + "_AdamsE2";
 }
 
 int GetTopCellT(const std::string& db)
 {
+    auto p = db.find_last_of("/\\");
+    std::string db1 = db;
+    if (p != std::string::npos)
+        db1 = db.substr(p + 1);
     if (db.size() < 2)
         throw MyException(0xeedeca68U, "The file name of the database is too short");
     std::string table;
-    if (db[1] == '2')
+    if (db1[1] == '2')
         return 1;
-    else if (db[1] == 'e')
+    else if (db1[1] == 'e')
         return 2;
-    else if (db[1] == 'n')
+    else if (db1[1] == 'n')
         return 4;
-    else if (db[1] == 's')
+    else if (db1[1] == 's')
         return 8;
     else
         throw MyException(0x8cafd31fU, db + " is not recognized as a db name");
@@ -130,16 +143,17 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
 {
     {
         DBSS db(dbnames[0]);
+        std::string complexName = "S0";
         std::string table_S0 = "S0_AdamsE2";
-        if (dbnames[0] == "S0_AdamsSS_t245.db")
-            table_S0 = "AdamsE2";
 
         ssS0_.basis = db.load_basis(table_S0);
         ssS0_.t_max = ssS0_.basis.rbegin()->first.t;
         ssS0_.basis_ss = {db.load_basis_ss(table_S0), {}};
         ssS0_.nd = {{}, {}};
-        Poly1d polys = db.load_gb(table_S0, DEG_MAX);
-        ssS0_.gb = Groebner(ssS0_.t_max, {}, std::move(polys));
+        ssS0_.gb = Groebner(ssS0_.t_max, {}, db.load_gb(table_S0, DEG_MAX));
+        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
+        ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
+        ssS0_.pi_gb.set_gen_2tor_degs_for_S0();
 
         all_basis_ss_.push_back(&ssS0_.basis_ss);
         all_nd_.push_back(&ssS0_.nd);
@@ -148,7 +162,8 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
 
     for (size_t i = 1; i < dbnames.size(); ++i) {
         DBSS dbCof(dbnames[i]);
-        std::string table_CW = GetTablePrefix(dbnames[i]);
+        std::string table_CW = GetE2TablePrefix(dbnames[i]);
+        std::string complexName = GetComplexName(dbnames[i]);
         SSMod ssCof;
         ssCof.basis = dbCof.load_basis_mod(table_CW);
         ssCof.t_max = ssCof.basis.rbegin()->first.t;
@@ -156,9 +171,12 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssCof.nd = {{}, {}};
         Mod1d xs = dbCof.load_gb_mod(table_CW, DEG_MAX);
         ssCof.gb = GroebnerMod(&ssS0_.gb, ssCof.t_max, {}, std::move(xs));
+        ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Mod>);
+        ssCof.pi_gb = algZ::GroebnerMod(&ssS0_.pi_gb, ssCof.t_max, dbCof.load_pi_gen_adamsdegs(complexName), dbCof.load_pi_gb_mod(complexName, DEG_MAX), true);
 
         ssCof.f_top_cell = dbCof.get_column_from_str<Poly>(table_CW + "_generators", "to_S0", "", myio::Deserialize<Poly>);
         ssCof.deg_f_top_cell = AdamsDeg(0, GetTopCellT(dbnames[i]));
+        ssCof.pi_f_top_cell = dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "", myio::Deserialize<algZ::Poly>);
 
         ssCofs_.push_back(std::move(ssCof));
     }
@@ -282,9 +300,9 @@ void Diagram::CacheNullDiffs(int maxPoss, int maxStem, bool bFull)
     }
 }
 
-bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r) const
+bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max) const
 {
-    int r_max = std::min(r, deg.s - 1);
+    r_max = std::min(r_max, deg.s - 1);
     for (int r1 = kLevelMin; r1 <= r_max; ++r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
         if (basis_ss.front().find(d_src) != basis_ss.front().end())
@@ -294,15 +312,15 @@ bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r) const
     return false;
 }
 
-bool Diagram::IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r) const
+bool Diagram::IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min) const
 {
     int r_max = (deg.t - deg.s * 3 + 2) / 2;
-    for (int r1 = r; r1 <= r_max; ++r1) {
-        AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 - 1};
+    for (int r = r_min; r <= r_max; ++r) {
+        AdamsDeg d_tgt = deg + AdamsDeg{r, r - 1};
         if (d_tgt.t > t_max)
             return true;
         if (basis_ss.front().find(d_tgt) != basis_ss.front().end()) {
-            if (GetMaxLevelWithNull(GetRecentStaircase(basis_ss, d_tgt)) >= r1)
+            if (GetMaxLevelWithNull(GetRecentStaircase(basis_ss, d_tgt)) >= r)
                 return true;
         }
     }
@@ -325,12 +343,12 @@ int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg de
     return result;
 }
 
-size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level) const
+size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min) const
 {
     auto& sc = GetRecentStaircase(basis_ss, deg);
     size_t result = sc.levels.size();
     for (size_t i = sc.levels.size(); i-- > 0;) {
-        if (sc.diffs_ind[i] == int1d{-1} || sc.levels[i] < level)
+        if (sc.diffs_ind[i] == int1d{-1} || sc.levels[i] < level_min)
             break;
         if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
             int r = kLevelMax - sc.levels[i];
@@ -369,58 +387,6 @@ std::pair<int, int> Diagram::CountPossDrSrc(const Staircases1d& basis_ss, const 
     else
         result = {-1, 0};
     return result;
-}
-
-std::tuple<AdamsDeg, int, int> Diagram::CountPossTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg, int r, int r_max) const
-{
-    AdamsDeg deg_tgt;
-    int count = 0, index = -1;
-    const Staircase& sc = GetRecentStaircase(basis_ss, deg);
-    r_max = std::min(r_max, (deg.t - deg.s * 3 + 2) / 2);
-    for (int r1 = r; r1 <= r_max; ++r1) {
-        AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 - 1};
-        if (d_tgt.t > t_max) {
-            count = 10086;
-            break;
-        }
-        auto [first, c] = CountPossDrTgt(basis_ss, t_max, d_tgt, r1);
-        if (c > 0) {
-            if (count == 0) {
-                deg_tgt = d_tgt;
-                index = first;
-            }
-            count += c;
-            if (count >= 2)
-                break;
-        }
-    }
-    return std::make_tuple(deg_tgt, index, count);
-}
-
-std::tuple<AdamsDeg, int, int> Diagram::CountPossSrc(const Staircases1d& basis_ss, AdamsDeg deg, int level) const
-{
-    AdamsDeg deg_src;
-    int count = 0, index = -1;
-    int r_max = std::min(level, deg.s - 1);
-    const Staircase& sc = GetRecentStaircase(basis_ss, deg);
-    for (int r1 = kLevelMin; r1 <= r_max; ++r1) {
-        AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
-        if (basis_ss.front().find(d_src) != basis_ss.front().end()) {
-            const Staircase& sc_src = GetRecentStaircase(basis_ss, d_src);
-            int first_Nmr1 = (int)GetFirstIndexOnLevel(sc_src, kLevelMax - r1);
-            int c = (int)GetFirstIndexOfFixedLevels(basis_ss, d_src, kLevelMax - r1 + 1) - first_Nmr1;
-            if (c > 0) {
-                if (count == 0) {
-                    deg_src = d_src;
-                    index = first_Nmr1;
-                }
-                count += c;
-                if (count >= 2)
-                    break;
-            }
-        }
-    }
-    return std::make_tuple(deg_src, index, count);
 }
 
 int Diagram::NextRTgt(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r) const
@@ -550,7 +516,7 @@ void Diagram::SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, int1d dx, int1d 
 {
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
     if (deg_x.s < 0)
-        throw SSException(0x7dc5fa8cU, "7dc5fa8cU: No source for the image. deg_dx=" + deg_dx.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
+        throw SSException(0x7dc5fa8cU, "7dc5fa8cU: No source for the image. deg_dx=" + deg_dx.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
 
     /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
     const Staircase& sc = GetRecentStaircase(basis_ss, deg_dx);
@@ -570,7 +536,7 @@ void Diagram::SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, int1d dx, int1d 
         dx = lina::Residue(sc.basis_ind.begin() + first_r, sc.basis_ind.begin() + first_rp2, dx);
         if (!dx.empty()) {
             if (!IsPossTgt(basis_ss, deg_dx, r))
-                throw SSException(0x75989376U, "75989376U: No source for the image. deg_dx=" + deg_dx.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
+                throw SSException(0x75989376U, "75989376U: No source for the image. deg_dx=" + deg_dx.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
             UpdateStaircase(basis_ss, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
         }
     }
@@ -718,7 +684,7 @@ int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, i
             int1d xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_x + deg_y)) : int1d{};
 
             int1d dxy;
-            if (3 * deg_dxy.s <= deg_dxy.t + 3) {
+            if (BelowS0VanishingLine(deg_dxy)) {
                 if (deg_dxy.t > t_max)
                     dxy = int1d{-1};
                 else {
@@ -760,16 +726,6 @@ int Diagram::SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r, bool b
                 r = kRPC - 1;
             else
                 r = r_max - 1;
-        }
-        if (r == kRPC - 1 && deg_x.stem() % 2 == 1 && deg_x.t * 2 + 1 <= t_max) {
-            Poly poly_x = Indices2Poly(x, basis.at(deg_x));
-            Poly poly_h0x2 = ssS0_.gb.Reduce(poly_x * poly_x * Poly::Gen(0));
-            if (poly_h0x2) {
-                AdamsDeg deg_h0x2 = deg_x * 2 + AdamsDeg(1, 1);
-                int1d h0x2 = Poly2Indices(poly_h0x2, basis.at(deg_h0x2));
-                if (!IsZeroOnLevel(GetRecentStaircase(basis_ss, deg_h0x2), h0x2, kRPC))
-                    result += SetS0ImageLeibniz(deg_h0x2, h0x2, kRPC);
-            }
         }
         result += SetS0DiffLeibniz(deg_x, x, dx, r, r_min, bFastTry);
     }
@@ -840,7 +796,7 @@ int Diagram::SetS0ImageLeibniz(AdamsDeg deg_x, int1d x, int r)
 
     r = NextRSrc(ssS0_.basis_ss, deg_x, r);
     if (r == -1)
-        throw SSException(0x51274f1dU, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
+        throw SSException(0x51274f1dU, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
 
     Poly poly_x = Indices2Poly(x, ssS0_.basis.at(deg_x));
     for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
@@ -893,7 +849,7 @@ int Diagram::SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int r)
 
     r = NextRSrc(basis_ss, deg_x, r);
     if (r == -1)
-        throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrCoor() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
+        throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
 
     Mod poly_x = Indices2Mod(x, basis.at(deg_x));
 

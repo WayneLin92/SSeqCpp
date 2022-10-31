@@ -4,7 +4,7 @@
 
 void benchmark_B9_Revlex()
 {
-    using namespace alg;
+    using namespace alg2;
     std::cout << "benchmark_B9_Revlex: \n";
     bench::Timer timer;
     constexpr auto Gen = Poly::Gen;

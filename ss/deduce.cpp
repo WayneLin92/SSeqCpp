@@ -262,12 +262,12 @@ int Diagram::DeduceImageJ()
 
 int main_deduce_zero(int argc, char** argv, int index)
 {
-    std::string db_S0 = DB_DEFAULT;
+    std::string db_S0 = DB_S0;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t221.db",
-        "Ceta_AdamsSS_t200.db",
-        "Cnu_AdamsSS_t200.db",
-        "Csigma_AdamsSS_t200.db",
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
     };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -295,7 +295,7 @@ int main_deduce_zero(int argc, char** argv, int index)
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             db.begin_transaction();
-            db.update_basis_ss(GetTablePrefix(dbnames[k]), diagram.GetChanges(k));
+            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetChanges(k));
             db.end_transaction();
         }
     }
@@ -315,7 +315,7 @@ int main_deduce_zero(int argc, char** argv, int index)
 
 int main_deduce_j(int argc, char** argv, int index)
 {
-    std::string db_filename = DB_DEFAULT;
+    std::string db_filename = DB_S0;
     std::string table_prefix = "AdamsE2";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -361,12 +361,12 @@ int main_deduce_j(int argc, char** argv, int index)
 int main_deduce_diff(int argc, char** argv, int index)
 {
     double stop_time = 600;
-    std::string db_S0 = DB_DEFAULT;
+    std::string db_S0 = DB_S0;
     std::vector<std::string> dbnames = {
-        "C2_AdamsSS_t221.db",
-        "Ceta_AdamsSS_t200.db",
-        "Cnu_AdamsSS_t200.db",
-        "Csigma_AdamsSS_t200.db",
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
     };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -400,7 +400,7 @@ int main_deduce_diff(int argc, char** argv, int index)
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             db.begin_transaction();
-            db.update_basis_ss(GetTablePrefix(dbnames[k]), (*diagram.GetAllBasisSs()[k])[1]);
+            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), (*diagram.GetAllBasisSs()[k])[1]);
             db.end_transaction();
         }
     }
@@ -422,36 +422,113 @@ int main_deduce_diff(int argc, char** argv, int index)
 /* This is for debugging */
 int main_deduce_tmp(int argc, char** argv, int index)
 {
-    std::string db_filename = DB_DEFAULT;
-    std::string table_prefix = "AdamsE2";
+    std::string db_S0 = DB_S0;
+    std::vector<std::string> dbnames = {
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
+    };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce tmp [db_filename] [table_prefix]\n\n";
+        std::cout << "Usage:\n  ss deduce tmp [db_S0] [db_Cofibs ...]\n\n";
 
         std::cout << "Default values:\n";
 
-        std::cout << "  db_filename = " << db_filename << "\n";
-        std::cout << "  table_prefix = " << table_prefix << "\n\n";
+        std::cout << "  db_S0 = " << db_S0 << "\n\n";
 
-        std::cout << "Version:\n  1.0 (2022-7-19)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
+    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "table_prefix", table_prefix))
+    if (myio::load_args(argc, argv, ++index, "db_Cofib", dbnames))
         return index;
+    dbnames.insert(dbnames.begin(), db_S0);
 
-    // bench::Timer timer;
-    DBSS db(db_filename);
-    Diagram ss({db_filename});
+    DBSS db(db_S0);
+    Diagram diagram(dbnames);
 
-    // int count = 0;
+    int count = 0;
     try {
-        ss.CacheNullDiffs(10, DEG_MAX, 0);
-        for (size_t i = 0; i < ss.GetS0().nd.back().size(); ++i)
-            auto& nd = ss.GetS0().nd.back()[i];
-        std::cout << "i=" << ss.GetFirstIndexOfFixedLevels(ss.GetS0().basis_ss, AdamsDeg(13, 47 + 13), 9994) << std::endl;
+        int count_ss = 0, count_homotopy = 0;
+        diagram.SyncHomotopy(count_ss, count_homotopy);
+        count_homotopy += diagram.DeduceZeroExtensions();
+        diagram.SimplifyPiRels();
+
+        for (size_t k = 0; k < dbnames.size(); ++k) {
+            DBSS db(dbnames[k]);
+            auto pi_table = GetComplexName(dbnames[k]);
+            db.begin_transaction();
+            //db.update_basis_ss(table, (*diagram.GetAllBasisSs()[k])[1]);
+
+            db.drop_and_create_pi_relations(pi_table);
+            db.drop_and_create_pi_basis(pi_table);
+
+            if (k == 0) {
+                db.drop_and_create_pi_generators(pi_table);
+                db.save_pi_generators(pi_table, diagram.GetS0().pi_gb.gen_degs(), diagram.GetS0().pi_gen_Einf);
+                db.save_pi_gb(pi_table, diagram.GetS0().pi_gb.OutputForDatabase(), diagram.GetS0GbEinf());
+                db.save_pi_basis(pi_table, diagram.GetS0().pi_basis, diagram.GetS0().pi_basis_Einf);
+            }
+            else {
+                db.drop_and_create_pi_generators_mod(pi_table);
+                auto& Cof = diagram.GetCofs()[k - 1];
+                db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_f_top_cell);
+                db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), diagram.GetCofGbEinf(int(k - 1)));
+                db.save_pi_basis_mod(pi_table, Cof.pi_basis, Cof.pi_basis_Einf);
+            }
+
+            db.end_transaction();
+        }
+
+        auto& gen_degs = diagram.GetS0().pi_gb.gen_degs();
+        auto& gen_repr = diagram.GetS0().pi_gen_Einf;
+        auto& data = diagram.GetS0().pi_gb.data();
+
+        std::cout << "Generators\n";
+        for (size_t i = 0; i < gen_degs.size(); ++i) {
+            if (gen_degs[i].stem() <= 30)
+                std::cout << i << ' ' << gen_degs[i].StrAdams() << ' ' << gen_repr[i] << '\n';
+        }
+        std::cout << "\nRelations\n";
+        for (size_t i = 0; i < data.size(); ++i) {
+            if (algZ::GetDeg(data[i].GetLead(), gen_degs).stem() <= 30)
+                std::cout << data[i] << '\n';
+        }
+        std::cout << "\nBasis\n";
+        for (auto& [d, basis_d] : diagram.GetS0().pi_basis) {
+            if (d.stem() <= 30 && d.stem() > 0 && basis_d.size() > 0) {
+                std::cout << d.StrAdams() << ' ';
+                for (auto& m : basis_d)
+                    std::cout << m << ' ';
+                std::cout << '\n';
+            }
+        }
+        auto& v_degs = diagram.GetCofs()[0].pi_gb.v_degs();
+        auto& gen_repr1 = diagram.GetCofs()[0].pi_gen_Einf;
+        auto& data1 = diagram.GetCofs()[0].pi_gb.data();
+
+        std::cout << "Generators\n";
+        for (size_t i = 0; i < v_degs.size(); ++i) {
+            if (v_degs[i].stem() <= 30)
+                std::cout << i << ' ' << v_degs[i].StrAdams() << "  detected by " << gen_repr1[i] << "  f(this)=" << diagram.GetCofs()[0].pi_f_top_cell[i] << '\n';
+        }
+        std::cout << "\nRelations\n";
+        for (size_t i = 0; i < data1.size(); ++i) {
+            if (algZ::GetDeg(data1[i].GetLead(), gen_degs, v_degs).stem() <= 30)
+                std::cout << data1[i] << '\n';
+        }
+        std::cout << "\nBasis\n";
+        for (auto& [d, basis_d] : diagram.GetCofs()[0].pi_basis) {
+            if (d.stem() <= 30 && d.stem() > 0 && basis_d.size() > 0) {
+                std::cout << d.StrAdams() << ' ';
+                for (auto& m : basis_d)
+                    std::cout << m << ' ';
+                std::cout << '\n';
+            }
+        }
     }
     /*catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
@@ -463,8 +540,8 @@ int main_deduce_tmp(int argc, char** argv, int index)
         ;
     }
 
-    // std::cout << "Changed differentials: " << count << '\n';
-    // bench::Counter::print();
+    std::cout << "Changed differentials: " << count << '\n';
+    bench::Counter::print();
     return 0;
 }
 

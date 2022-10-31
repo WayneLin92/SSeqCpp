@@ -1,6 +1,22 @@
 #include "main.h"
 
-using namespace alg;
+using namespace alg2;
+
+void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const
+{
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators (id, Einf, to_S0, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
+
+    for (size_t i = 0; i < gen_degs.size(); ++i) {
+        stmt.bind_int(1, (int)i);
+        stmt.bind_str(2, myio::Serialize(gen_Einf[i]));
+        stmt.bind_str(3, myio::Serialize(to_S0[i]));
+        stmt.bind_int(4, gen_degs[i].s);
+        stmt.bind_int(5, gen_degs[i].t);
+        stmt.step_and_reset();
+    }
+
+    std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_pi_generators!\n";
+}
 
 void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const
 {
@@ -25,7 +41,7 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basi
     std::cout << count << " basis_ss are inserted into " + table_prefix + "_ss.\n";
 }
 
-std::map<AdamsDeg, int> DBSS::load_indices(const std::string& table_prefix) const
+std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix) const
 {
     std::map<AdamsDeg, int> result;
     Statement stmt(*this, "SELECT s, t, min(id) FROM " + table_prefix + "_basis GROUP BY t, s;");
@@ -41,7 +57,7 @@ std::map<AdamsDeg, int> DBSS::load_indices(const std::string& table_prefix) cons
 
 void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const
 {
-    std::map<AdamsDeg, int> indices = load_indices(table_prefix);
+    std::map<AdamsDeg, int> indices = load_basis_indices(table_prefix);
     Statement stmt(*this, "UPDATE " + table_prefix + "_ss SET base=?1, diff=?2, level=?3 WHERE id=?4;");
 
     int count = 0;
@@ -85,10 +101,10 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
 /* generate the table of the spectral sequence */
 void generate_ss(const std::string& db_filename, int r)
 {
-    using namespace alg;
+    using namespace alg2;
 
     DBSS db(db_filename);
-    std::string table_prefix = GetTablePrefix(db_filename);
+    std::string table_prefix = GetE2TablePrefix(db_filename);
     std::map<AdamsDeg, Mon1d> basis = db.load_basis(table_prefix);
 
     int s_diff = 2;

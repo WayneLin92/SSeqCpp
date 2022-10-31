@@ -27,6 +27,10 @@ std::string GE::Str() const
     return result;
 }
 
+}  // namespace alg
+
+namespace alg2 {
+
 MonTrace Mon::Trace() const
 {
     MonTrace result = 0;
@@ -374,4 +378,4 @@ Mod Indices2Mod(const int1d& indices, const MMod1d& basis)
     return result;
 }
 
-}  // namespace alg
+}  // namespace alg2

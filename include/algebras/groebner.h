@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 /* extension of namespace alg in algebras.h */
-namespace alg {
+namespace alg2 {
 
 namespace detail {
     /*
@@ -23,6 +23,8 @@ namespace detail {
     }
 
     int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs);
+
+    void MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2);
 }  // namespace detail
 
 class Groebner;
@@ -108,7 +110,6 @@ private:
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Poly1d data_;
-    int1d data_degs_;     /* Degrees of data_. */
     Mon1d leads_;         /* Leading monomials */
     MonTrace1d traces_;   /* Cache for fast divisibility test */
     TypeIndices indices_; /* Cache for fast divisibility test */
@@ -157,7 +158,6 @@ public: /* Getters and Setters */
         const Mon& m = g.GetLead();
         criticals_.AddToBuffers(leads_, traces_, m, gen_degs_);
 
-        data_degs_.push_back(GetDeg(m, gen_degs_));
         leads_.push_back(m);
         traces_.push_back(m.Trace());
         indices_[Key(m)].push_back((int)data_.size());
@@ -237,6 +237,7 @@ Poly subsMGbTpl(const Poly& poly, const Groebner& gb, const FnMap& map)
             powP(map(p->g()), p->e(), gb, tmp_prod, tmp);
             fm.imulP(tmp_prod, tmp);
         }
+        fm = gb.Reduce(std::move(fm));
         result.iaddP(fm, tmp);
     }
     return result;
@@ -260,7 +261,6 @@ private:
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Mod1d data_;
-    int1d data_degs_;     /* Degrees of data_. */
     MMod1d leads_;        /* Leading monomials */
     MonTrace1d traces_;   /* Cache for fast divisibility test */
     TypeIndices indices_; /* Cache for fast divisibility test */
@@ -316,7 +316,6 @@ public: /* Getters and Setters */
         const MMod& m = g.GetLead();
         criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, leads_, traces_, m, pGb_->gen_degs(), v_degs_);
 
-        data_degs_.push_back(GetDeg(m.m, pGb_->gen_degs()) + v_degs_[m.v]);
         leads_.push_back(m);
         traces_.push_back(m.m.Trace());
         indices_[Key(m)].push_back((int)data_.size());

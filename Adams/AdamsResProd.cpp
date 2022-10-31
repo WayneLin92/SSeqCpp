@@ -472,7 +472,7 @@ void compute_products_by_t(int t_trunc, const std::string& db_in, const std::str
         std::cout << "t=" << deg.t << " s=" << deg.s << " time=" << time << std::endl;
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
-        dbProd.end_transaction(1000);
+        dbProd.end_transaction();
         diffs.erase(deg);
     }
 }
@@ -482,8 +482,8 @@ int main_prod(int argc, char** argv, int index)
 {
     int t_max = 100;
 #ifdef MYDEPLOY
-    std::string db_in = "AdamsE2.db";
-    std::string table_in = "SteenrodMRes";
+    std::string db_in = "S0_Adams_res.db";
+    std::string table_in = "S0_Adams_res";
 #else
     std::string db_in = "S0_Adams_res.db";
     std::string table_in = "S0_Adams_res";
