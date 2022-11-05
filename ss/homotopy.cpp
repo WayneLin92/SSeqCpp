@@ -33,7 +33,7 @@ int Diagram::NextSExt(const Staircases1d& basis_ss, int t_max, int stem, int s_m
         if (stem + s > t_max || PossEinf(basis_ss, AdamsDeg(s, stem + s)))
             return s;
     }
-    return algZ::FIL_MAX;
+    return algZ::FIL_MAX + 1;
 }
 
 int2d Diagram::GetS0GbEinf(AdamsDeg deg) const
@@ -124,7 +124,7 @@ void Diagram::SyncS0Homotopy(int& count_ss, int& count_homotopy)
                 for (int1d& boundary : boundaries) {
                     const int count1 = SetS0DiffLeibnizV2(deg_src, {}, boundary, r);
                     if (count1 > 0)
-                        std::cout << "Homotopy to SS:  iSS=0  " << deg.StrAdams() << "  " << boundary << " is a boundary           \n ";
+                        std::cout << "Homotopy to SS:  iSS=0  " << deg.StrAdams() << "  " << boundary << " is a boundary           \n";
                     count_ss += count1;
                 }
 
@@ -184,7 +184,7 @@ void Diagram::SyncS0Homotopy(int& count_ss, int& count_homotopy)
                 if (deg.stem() % 2 == 1) {
                     algZ::Poly1d pi_trivial_rels;
                     for (size_t i = 0; i < new_generators.size(); ++i)
-                        pi_trivial_rels.push_back(algZ::Mon::Trivial(uint32_t(gen_size_old + i), deg.s));
+                        pi_trivial_rels.push_back(algZ::Mon::two_x_square(uint32_t(gen_size_old + i), deg.s));
                     pi_gb.AddRels(pi_trivial_rels, t_max);
                 }
 
@@ -226,7 +226,7 @@ void Diagram::SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy)
                 for (auto& boundary : boundaries) {
                     const int count1 = SetCofDiffLeibnizV2(iCof, deg_src, {}, boundary, r);
                     if (count1 > 0)
-                        std::cout << "Homotopy to SS:  iSS=" << iCof << "  " << deg.StrAdams() << "  " << boundary << " is a boundary           \n ";
+                        std::cout << "Homotopy to SS:  iSS=" << iCof + 1 << "  " << deg.StrAdams() << "  " << boundary << " is a boundary           \n";
                     count_ss += count1;
                 }
 
@@ -258,7 +258,7 @@ void Diagram::SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy)
                 algZ::Mod1d pi_rels;
                 for (auto& k : kernel) {
                     pi_rels.push_back(algZ::Indices2Mod(k, pi_basis_d) + algZ::MMod::O(deg.s + 1));
-                    std::cout << "SS to Homotopy:  iSS=" << iCof << "  " << pi_rels.back() << "=0          \n";
+                    std::cout << "SS to Homotopy:  iSS=" << iCof + 1 << "  " << pi_rels.back() << "=0          \n";
                 }
                 pi_gb.AddRels(pi_rels, t_max);
                 count_homotopy += (int)pi_rels.size();
@@ -279,7 +279,7 @@ void Diagram::SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy)
                     pi_gen_Einf.push_back(Indices2Mod(new_generators[i], basis_d));
                     pi_basis_d_v2.push_back(algZ::MMod({}, (uint32_t)(gen_size_old + i), deg.s));
                     pi_basis_d_Einf.push_back(new_generators[i]);
-                    std::cout << "SS to Homotopy:  iSS=" << iCof << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "          \n ";
+                    std::cout << "SS to Homotopy:  iSS=" << iCof + 1 << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "          \n";
 
                     Mod x = Indices2Mod(new_generators[i], basis.at(deg));
                     Poly fx = ssS0_.gb.Reduce(subsMod(x, ssCofs_[iCof].f_top_cell));
@@ -318,62 +318,110 @@ void Diagram::SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy)
 int Diagram::DeduceZeroExtensions()
 {
     int count_homotopy = 0;
+
+    /* homomorphisms */
+    algZ::Poly1d new_rels_S0_exact; /* By exactness fi * h = 0 */
+    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+        auto& pi_f = ssCofs_[iCof].pi_f_top_cell;
+        for (size_t i = 0; i < pi_f.size(); ++i) {
+            auto& fi = pi_f[i];
+            if (fi) {
+                auto& m = fi.data.back();
+                if (m.IsUnKnown()) {
+                    AdamsDeg deg = ssCofs_[iCof].pi_gb.v_degs()[i] - ssCofs_[iCof].deg_f_top_cell;
+                    int s = NextSExt(ssS0_.basis_ss, ssS0_.t_max, deg.stem(), m.fil());
+                    if (s > m.fil()) {
+                        std::cout << "For degree reason:  iSS=" << iCof + 1 << "  f" << std::to_string(i) << "=" << fi;
+                        if (s <= algZ::FIL_MAX)
+                            fi.data.back() = algZ::Mon::O(s);
+                        else
+                            fi.data.pop_back();
+                        std::cout << " --> " << fi << '\n';
+                        ++count_homotopy;
+
+                        algZ::Poly h = ssS0_.pi_gb.Gen((uint32_t)iCof);
+                        algZ::Poly relS0 = ssS0_.pi_gb.Reduce(fi * h);
+                        if (algZ::IsValidRel(relS0)) {
+                            std::cout << "    -> S0 rel: " << relS0 << '\n';
+                            new_rels_S0_exact.push_back(std::move(relS0));
+                            ++count_homotopy;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ssS0_.pi_gb.AddRels(new_rels_S0_exact, ssS0_.t_max);
+    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+        ssCofs_[iCof].pi_gb.AddRels({}, ssCofs_[iCof].t_max);
+
+    /* module structures */
     int old_count_homotopy = count_homotopy;
     while (true) {
         for (size_t iSS = 0; iSS < all_basis_ss_.size(); ++iSS) {
             auto& basis_ss = *all_basis_ss_[iSS];
             int t_max = all_t_max_[iSS];
-            if (iSS == 0) {
+
+            if (iSS == 0) { /* sphere */
                 algZ::Poly1d new_rels;
-                for (auto& f : ssS0_.pi_gb.data()) {
-                    auto& m = f.data.back();
+                for (auto& rel : ssS0_.pi_gb.data()) {
+                    auto& m = rel.data.back();
                     if (m.IsUnKnown()) {
-                        AdamsDeg deg = GetDeg(f.GetLead(), ssS0_.pi_gb.gen_degs());
+                        AdamsDeg deg = GetDeg(rel.GetLead(), ssS0_.pi_gb.gen_degs());
                         int s = NextSExt(basis_ss, t_max, deg.stem(), m.fil());
                         if (s > m.fil()) {
-                            algZ::Poly f1 = f;
-                            if (s < algZ::FIL_MAX)
-                                f1.data.back() = algZ::Mon::O(s);
+                            algZ::Poly rel1 = rel;
+                            if (s <= algZ::FIL_MAX)
+                                rel1.data.back() = algZ::Mon::O(s);
                             else
-                                f1.data.pop_back();
-                            f1 = ssS0_.pi_gb.Reduce(std::move(f1));
-                            if (f1 && !f1.GetLead().IsUnKnown()) {
-                                std::cout << "For degree reason: iSS=" << iSS << ' ' << f << " --> " << f1 << '\n';
-                                new_rels.push_back(std::move(f1));
+                                rel1.data.pop_back();
+                            rel1 = ssS0_.pi_gb.Reduce(std::move(rel1));
+                            if (algZ::IsValidRel(rel1)) {
+                                std::cout << "For degree reason:  iSS=" << iSS << "  " << rel << " --> " << rel1 << '\n';
+                                new_rels.push_back(std::move(rel1));
                                 ++count_homotopy;
                             }
                         }
                     }
                 }
-                if (!new_rels.empty())
-                    ssS0_.pi_gb.AddRels(new_rels, t_max);
+                ssS0_.pi_gb.AddRels(new_rels, t_max);
+                for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+                    ssCofs_[iCof].pi_gb.AddRels({}, ssCofs_[iCof].t_max);
             }
-            else {
+            else { /* module */
                 int iCof = int(iSS - 1);
 
                 algZ::Mod1d new_rels;
-                for (auto& f : ssCofs_[iCof].pi_gb.data()) {
-                    auto& m = f.data.back();
+                algZ::Poly1d new_rels_S0;
+                for (auto& rel : ssCofs_[iCof].pi_gb.data()) {
+                    auto& m = rel.data.back();
                     if (m.IsUnKnown()) {
-                        AdamsDeg deg = GetDeg(f.GetLead(), ssS0_.pi_gb.gen_degs(), ssCofs_[iCof].pi_gb.v_degs());
+                        AdamsDeg deg = GetDeg(rel.GetLead(), ssS0_.pi_gb.gen_degs(), ssCofs_[iCof].pi_gb.v_degs());
                         int s = NextSExt(basis_ss, t_max, deg.stem(), m.fil());
                         if (s > m.fil()) {
-                            algZ::Mod f1 = f;
-                            if (s < algZ::FIL_MAX)
-                                f1.data.back() = algZ::MMod::O(s);
+                            algZ::Mod rel1 = rel;
+                            if (s <= algZ::FIL_MAX)
+                                rel1.data.back() = algZ::MMod::O(s);
                             else
-                                f1.data.pop_back();
-                            f1 = ssCofs_[iCof].pi_gb.Reduce(std::move(f1));
-                            if (f1 && !f1.GetLead().IsUnKnown()) {
-                                std::cout << "For degree reason: iSS=" << iSS << ' ' << f << " --> " << f1 << '\n';
-                                new_rels.push_back(std::move(f1));
+                                rel1.data.pop_back();
+                            rel1 = ssCofs_[iCof].pi_gb.Reduce(std::move(rel1));
+                            algZ::Poly relS0 = algZ::subsMod(rel1, ssCofs_[iCof].pi_f_top_cell, ssCofs_[iCof].pi_gb.v_degs());
+                            relS0 = ssS0_.pi_gb.Reduce(std::move(relS0));
+                            if (algZ::IsValidRel(rel1)) {
+                                std::cout << "For degree reason:  iSS=" << iSS << "  " << rel << " --> " << rel1 << '\n';
+                                if (algZ::IsValidRel(relS0)) {
+                                    std::cout << "    -> S0 rel: " << relS0 << '\n';
+                                    new_rels_S0.push_back(std::move(relS0));
+                                    ++count_homotopy;
+                                }
+                                new_rels.push_back(std::move(rel1));
                                 ++count_homotopy;
                             }
                         }
                     }
                 }
-                if (!new_rels.empty())
-                    ssCofs_[iCof].pi_gb.AddRels(new_rels, t_max);
+                ssS0_.pi_gb.AddRels(new_rels_S0, ssS0_.t_max);
+                ssCofs_[iCof].pi_gb.AddRels(new_rels, t_max);
             }
         }
         if (old_count_homotopy != count_homotopy)
@@ -381,5 +429,18 @@ int Diagram::DeduceZeroExtensions()
         else
             break;
     }
+
     return count_homotopy;
+}
+
+int Diagram::DeduceExtensionsByExactness()
+{
+    int count_homotopy = 0;
+
+    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+        auto& pi_f = ssCofs_[iCof].pi_f_top_cell;
+        
+         
+    }
+    return 0;
 }

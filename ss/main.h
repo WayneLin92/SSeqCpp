@@ -6,11 +6,11 @@
 #include "algebras/groebnerZ.h"
 #include <set>
 
-inline const char* VERSION = "Version:\n  2.2 (2022-10-4)";
+inline const char* VERSION = "Version:\n  3.0 (2022-11-5)";
 
 #define CONFIG_INPUT 1
 #if (CONFIG_INPUT == 0)
-inline const char* DB_S0 = "S0_AdamsSS_t254.db";
+inline const char* DB_S0 = "S0_AdamsSS_t257.db";
 inline const char* DB_C2 = "C2_AdamsSS_t221.db";
 inline const char* DB_Ceta = "Ceta_AdamsSS_t200.db";
 inline const char* DB_Cnu = "Cnu_AdamsSS_t200.db";
@@ -291,6 +291,12 @@ public:
     std::map<AdamsDeg, int2d> GetCofGbEinf(int iCof) const;
 
 public: /* homotopy groups */
+    void SimplifyPiRels()
+    {
+        ssS0_.pi_gb.SimplifyRels();
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+            ssCofs_[iCof].pi_gb.SimplifyRels();
+    }
     void SyncS0Homotopy(int& count_ss, int& count_homotopyy);
     void SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy);
     void SyncHomotopy(int& count_ss, int& count_homotopy)
@@ -300,12 +306,7 @@ public: /* homotopy groups */
             SyncCofHomotopy((int)iCof, count_ss, count_homotopy);
     }
     int DeduceZeroExtensions();
-    void SimplifyPiRels()
-    {
-        ssS0_.pi_gb.SimplifyRels();
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            ssCofs_[iCof].pi_gb.SimplifyRels();
-    }
+    int DeduceExtensionsByExactness();
 };
 
 class DBSS : public myio::DbAdamsSS

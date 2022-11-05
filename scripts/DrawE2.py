@@ -83,7 +83,7 @@ if __name__ == "__main__":
     with open(path_tpl, encoding="utf-8") as fp:
         content_tpl = fp.read()
     tpl_title = "Adams Spectral Sequence"
-        
+    
     # Load `basis`, `bullets'
     basis = []
     bullets = defaultdict(list)

@@ -48,7 +48,7 @@ public:
     }
 
     /* Dummy 2x^2 for groebner basis */
-    static Mon Trivial(uint32_t index, int fil)
+    static Mon two_x_square(uint32_t index, int fil)
     {
 #ifndef NDEBUG
         if (index == 0)
@@ -68,7 +68,8 @@ public:
         return Mon(exp, {}, {}, exp);
     }
 
-    void SetFil(const int1d& gen_fils);
+    void SetFil(const AdamsDeg1d& gen_degs);
+    void SetFil(int fil);
 
     bool operator<(const Mon& rhs) const
     {
@@ -136,15 +137,20 @@ public:
         return c_ < 0;
     }
 
+    bool IsTrivial(const int1d& gen_2tor_degs) const
+    {
+        return c_ >= gen_2tor_degs[frontg()];
+    }
+
     /* return the first generator > 0 */
     uint32_t frontg() const
     {
-        uint32_t result = 0;
+        uint32_t result = uint32_t(-1);
         if (m0_)
             result = m0_.begin()->g();
         if (m1_ && result > m1_.begin()->g())
             result = m1_.begin()->g();
-        return result;
+        return result == uint32_t(-1) ? 0 : result;
     }
 
     /* return the largest generator */
@@ -190,6 +196,15 @@ template <typename T>
 auto GetDeg(const Mon& mon, const std::vector<T>& gen_degs)
 {
     return GetDegTpl(mon, [&gen_degs](int i) { return gen_degs[i]; });
+}
+
+/**
+ * Obtain the degree of a monomial given the degrees of generators.
+ */
+template <typename T>
+auto GetDegS(const Mon& mon, const std::vector<T>& gen_degs)
+{
+    return GetDegTpl(mon, [&gen_degs](int i) { return gen_degs[i].s; });
 }
 
 /**
@@ -302,7 +317,7 @@ struct Poly
         if (*this && data.back().IsUnKnown())
             return data.back().fil() - data.front().fil();
         else
-            return FIL_MAX;
+            return FIL_MAX + 1;
     }
 
     /* Return the filtration of the big O term.
@@ -313,7 +328,7 @@ struct Poly
         if (*this && data.back().IsUnKnown())
             return data.back().fil();
         else
-            return FIL_MAX;
+            return FIL_MAX + 1;
     }
 
     bool operator==(const Poly& rhs) const
@@ -351,12 +366,6 @@ struct Poly
     /* this -= mon * poly */
     void isubmulP(const Mon& mon, const Poly& poly, Poly& tmp, const int1d& gen_2tor_degs);
 
-    Poly operator*(const Mon& rhs) const
-    {
-        Poly result;
-        mulP(*this, rhs, result);
-        return result;
-    }
     Poly operator*(const Poly& rhs) const
     {
         Poly result;
@@ -541,7 +550,7 @@ struct Mod
         if (*this && data.back().IsUnKnown())
             return data.back().fil() - data.front().fil();
         else
-            return FIL_MAX;
+            return FIL_MAX + 1;
     }
 
     int UnknownFil() const
@@ -549,7 +558,7 @@ struct Mod
         if (*this && data.back().IsUnKnown())
             return data.back().fil();
         else
-            return FIL_MAX;
+            return FIL_MAX + 1;
     }
 
     Mod& iaddP(const Mod& rhs, Mod& tmp);
@@ -614,23 +623,11 @@ inline Mod operator*(const Poly& p, const Mod& x)
 }
 
 /**
- * Replace the generators in `poly` with elements given in `map`.
+ * Replace the module generators in `x` with elements given in `map`.
  * @param poly The polynomial to be substituted.
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
-template <typename FnMap>
-Poly subsModTpl(const Mod& x, const FnMap& map)
-{
-    Poly result, tmp_prod, tmp;
-    for (const MMod& m : x.data)
-        result.iaddP(map(m.v) * m.m, tmp);
-    return result;
-}
-
-inline Poly subsMod(const Mod& x, const std::vector<Poly>& map)
-{
-    return subsModTpl(x, [&map](size_t i) { return map[i]; });
-}
+Poly subsMod(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs);
 
 int1d Mod2Indices(const Mod& x, const MMod1d& basis);
 Mod Indices2Mod(const int1d& indices, const MMod1d& basis);

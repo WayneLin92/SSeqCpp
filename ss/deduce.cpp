@@ -424,10 +424,10 @@ int main_deduce_tmp(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_S0;
     std::vector<std::string> dbnames = {
-        DB_C2,
+        /*DB_C2,
         DB_Ceta,
         DB_Cnu,
-        DB_Csigma,
+        DB_Csigma,*/
     };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -447,7 +447,19 @@ int main_deduce_tmp(int argc, char** argv, int index)
         return index;
     dbnames.insert(dbnames.begin(), db_S0);
 
-    DBSS db(db_S0);
+    /*for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        auto pi_table = GetComplexName(dbnames[k]);
+        db.begin_transaction();
+        db.drop_and_create_pi_relations(pi_table);
+        db.drop_and_create_pi_basis(pi_table);
+        if (k == 0)
+            db.drop_and_create_pi_generators(pi_table);
+        else
+            db.drop_and_create_pi_generators_mod(pi_table);
+        db.end_transaction();
+    }*/
+
     Diagram diagram(dbnames);
 
     int count = 0;
@@ -487,7 +499,7 @@ int main_deduce_tmp(int argc, char** argv, int index)
         auto& gen_repr = diagram.GetS0().pi_gen_Einf;
         auto& data = diagram.GetS0().pi_gb.data();
 
-        std::cout << "Generators\n";
+        /*std::cout << "Generators\n";
         for (size_t i = 0; i < gen_degs.size(); ++i) {
             if (gen_degs[i].stem() <= 30)
                 std::cout << i << ' ' << gen_degs[i].StrAdams() << ' ' << gen_repr[i] << '\n';
@@ -528,7 +540,7 @@ int main_deduce_tmp(int argc, char** argv, int index)
                     std::cout << m << ' ';
                 std::cout << '\n';
             }
-        }
+        }*/
     }
     /*catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';

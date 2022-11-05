@@ -121,6 +121,8 @@ void GbCriPairs::Minimize(const Mon1d& leads, int d)
         ut::UnBind(ij, i, j);
         while (j != NULL_J) {
             Mon gcd = GCD(leads[i], leads[j]);
+            if (!gcd)
+                break;
             Mon m2 = leads[i] / gcd;
             if (j < (int)b_min_pairs_d.size()) {
                 auto p = std::find_if(b_min_pairs_d[j].begin(), b_min_pairs_d[j].end(), [&m2](const CriPair& c) { return c.m2 == m2; });
@@ -286,21 +288,20 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
     /* Populate `new_pairs` */
     for (size_t i = 0; i < leadsx_size; ++i) {
         new_pairs[i].first = -1;
-        if (detail::HasGCD(leadsx[i], mon.m, tracesx[i], t)) {
-            int d_pair = detail::DegLCM(leadsx[i], mon.m, gen_degs) + v_degs[mon.v];
-            if (d_pair <= deg_trunc_) {
-                new_pairs[i].first = d_pair;
-                CriPair::SetFromLM(new_pairs[i].second, leadsx[i], mon.m, uint32_t(i | FLAG_INDEX_X), (uint32_t)leads_size);
-            }
+        int d_pair = detail::DegLCM(leadsx[i], mon.m, gen_degs) + v_degs[mon.v];
+        if (d_pair <= deg_trunc_) {
+            new_pairs[i].first = d_pair;
+            CriPair::SetFromLM(new_pairs[i].second, leadsx[i], mon.m, uint32_t(i | FLAG_INDEX_X), (uint32_t)leads_size);
         }
     }
     for (size_t i = 0; i < leads_size; ++i) {
-        new_pairs[leadsx_size + i].first = -1;
-        if (leads[i].v == mon.v && detail::HasGCD(leads[i].m, mon.m, traces[i], t)) {
+        auto& new_pairs_i = new_pairs[leadsx_size + i];
+        new_pairs_i.first = -1;
+        if (leads[i].v == mon.v) {
             int d_pair = detail::DegLCM(leads[i].m, mon.m, gen_degs) + v_degs[mon.v];
             if (d_pair <= deg_trunc_) {
-                new_pairs[i].first = d_pair;
-                CriPair::SetFromLM(new_pairs[leadsx_size + i].second, leads[i].m, mon.m, (uint32_t)i, (uint32_t)leads_size);
+                new_pairs_i.first = d_pair;
+                CriPair::SetFromLM(new_pairs_i.second, leads[i].m, mon.m, (uint32_t)i, (uint32_t)leads_size);
             }
         }
     }
@@ -317,13 +318,11 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
                     else if (divisible(new_pairs[j].second.m2, new_pairs[i].second.m2, new_pairs[j].second.trace_m2, new_pairs[i].second.trace_m2))
                         new_pairs[i].first = -1;
                     else if (!detail::HasGCD(new_pairs[i].second.m1, new_pairs[j].second.m1) && j >= leadsx_size) {
-                        Mon leadsi = i < leadsx_size ? leadsx[i] : leads[i].m;
+                        Mon leadsi = i < leadsx_size ? leadsx[i] : leads[i - leadsx_size].m;
                         const size_t j1 = j - leadsx_size;
-                        if (detail::HasGCD(leadsi, leads[j1].m)) {
-                            int dij = detail::DegLCM(leadsi, leads[j1].m, gen_degs) + v_degs[leads[j1].v];
-                            if (dij <= deg_trunc_)
-                                buffer_redundent_pairs_[dij].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
-                        }
+                        int dij = detail::DegLCM(leadsi, leads[j1].m, gen_degs) + v_degs[leads[j1].v];
+                        if (dij <= deg_trunc_)
+                            buffer_redundent_pairs_[dij].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
                     }
                 }
             }
@@ -338,7 +337,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
     }
 }
 
-template<typename T>
+template <typename T>
 void RemoveSmallKey(T& map, int t_min_buffer)
 {
     for (auto it = map.begin(); it != map.end();) {
@@ -623,7 +622,7 @@ void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max, int1d& index_ind)
 
     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
     for (int d = 1; d <= deg_max && (d <= deg_max_rels || !criticals_.empty()); ++d) {
-        //std::cout << "d=" << d << '\n';
+        // std::cout << "d=" << d << '\n';
         CriPair1d pairs_d = Criticals(d);
         auto& rels_d = rels_graded[d];
         Mod1d rels_tmp(pairs_d.size() + rels_d.size());
@@ -650,4 +649,4 @@ void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max, int1d& index_ind)
     }
 }
 
-} /* namespace alg */
+}  // namespace alg2

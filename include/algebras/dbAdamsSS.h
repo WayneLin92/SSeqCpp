@@ -32,8 +32,12 @@ std::string Serialize(const algZ::Mon& mon);
 
 inline std::string Serialize(const algZ::MMod& mon)
 {
-    if (mon.m)
-        return Serialize(mon.m) + "," + std::to_string(mon.v);
+    if (mon.m) {
+        if (mon.IsUnKnown())
+            return Serialize(mon.m) + ",-1";
+        else
+            return Serialize(mon.m) + "," + std::to_string(mon.v);
+    }
     else
         return std::to_string(mon.v);
 }
@@ -112,7 +116,7 @@ public:
     }
     void create_pi_relations(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_relations (rel TEXT, Einf TEXT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_relations (rel TEXT, name TEXT, Einf TEXT, s SMALLINT, t SMALLINT);");
     }
     void create_basis(const std::string& table_prefix) const
     {
@@ -120,7 +124,7 @@ public:
     }
     void create_pi_basis(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis (id INTEGER PRIMARY KEY, mon TEXT, Einf TEXT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis (id INTEGER PRIMARY KEY, mon TEXT, name TEXT, Einf TEXT, s SMALLINT, t SMALLINT);");
     }
     void drop_and_create_generators(const std::string& table_prefix) const
     {

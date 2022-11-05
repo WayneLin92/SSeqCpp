@@ -43,9 +43,14 @@ void Merge(std::vector<T>& data, std::vector<T>& tmp)
     ut::copy(tmp, data);
 }
 
-void Mon::SetFil(const int1d& gen_fils)
+void Mon::SetFil(const AdamsDeg1d& gen_degs)
 {
-    fil_ = GetDeg(*this, gen_fils);
+    fil_ = GetDegS(*this, gen_degs);
+}
+
+void Mon::SetFil(int fil)
+{
+    fil_ = fil;
 }
 
 std::string Mon::Str() const
@@ -146,8 +151,9 @@ void mulP(const Poly& p1, const Poly& p2, Poly& result)
 
 void append_neg(Mon1d& data, const Mon& mon, int c_null)
 {
+    data.push_back(mon);
     if (mon.IsUnKnown() || mon.Is2Torsion())
-        return data.push_back(mon);
+        return;
     int c_max = std::min(c_null - 1, mon.c() + (FIL_MAX - mon.fil()));
     for (int c = mon.c() + 1; c <= c_max; ++c)
         data.emplace_back(c, mon.m0(), mon.m1(), mon.fil() + c - mon.c());
@@ -274,8 +280,9 @@ Mod operator*(const Mon& m, const MMod& x)
 
 void append_neg(MMod1d& data, const MMod& mon, int c_null)
 {
+    data.push_back(mon);
     if (mon.IsUnKnown() || mon.Is2Torsion())
-        return data.push_back(mon);
+        return;
     int c_max = std::min(c_null - 1, mon.m.c() + (FIL_MAX - mon.fil()));
     for (int c = mon.m.c() + 1; c <= c_max; ++c)
         data.emplace_back(c, mon.m.m0(), mon.m.m1(), mon.fil() + c - mon.m.c(), mon.v);
@@ -371,6 +378,21 @@ void Mod::ReduceSizeByChangingSignP(Mod& tmp1, Mod& tmp2)
 std::string Mod::Str() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const MMod& m) { return m.Str(); });
+}
+
+Poly subsMod(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs)
+{
+    Poly result, tmp;
+    for (const MMod& m : x.data) {
+        if (m.IsUnKnown())
+            result += Mon::O(m.fil());
+        else {
+            Mon m1 = m.m;
+            m1.SetFil(m1.fil() - v_degs[m.v].s);
+            result.iaddP(Poly(m1) * map[m.v], tmp);
+        }
+    }
+    return result;
 }
 
 int1d Mod2Indices(const Mod& x, const MMod1d& basis)

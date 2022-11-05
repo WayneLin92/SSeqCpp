@@ -83,7 +83,7 @@ template <>
 MMod Deserialize<MMod>(const std::string& str)
 {
     Mon m;
-    int v;
+    int v = -1;
     if (str.empty())
         throw MyException(0x2fb9914bU, "Cannot initialize MMod with an empty string.");
     std::stringstream ss(str);
@@ -397,15 +397,16 @@ void DbAdamsSS::save_pi_generators(const std::string& table_prefix, const AdamsD
 
 void DbAdamsSS::save_pi_gb(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Poly1d>& gb, const std::map<AdamsDeg, int2d>& gb_Einf) const
 {
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_relations (rel, Einf, s, t) VALUES (?1, ?2, ?3, ?4);");
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_relations (rel, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
     int count = 0;
     for (auto& [deg, polys] : gb) {
         auto& Einfs = gb_Einf.at(deg);
         for (size_t i = 0; i < polys.size(); ++i) {
             stmt.bind_str(1, Serialize(polys[i]));
-            stmt.bind_str(2, Serialize(Einfs[i]));
-            stmt.bind_int(3, deg.s);
-            stmt.bind_int(4, deg.t);
+            stmt.bind_str(2, polys[i].Str());
+            stmt.bind_str(3, Serialize(Einfs[i]));
+            stmt.bind_int(4, deg.s);
+            stmt.bind_int(5, deg.t);
             stmt.step_and_reset();
             ++count;
         }
@@ -416,15 +417,16 @@ void DbAdamsSS::save_pi_gb(const std::string& table_prefix, const std::map<Adams
 
 void DbAdamsSS::save_pi_gb_mod(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Mod1d>& gbm, const std::map<AdamsDeg, int2d>& gb_Einf) const
 {
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_relations (rel, Einf, s, t) VALUES (?1, ?2, ?3, ?4);");
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_relations (rel, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
     int count = 0;
     for (auto& [deg, polys] : gbm) {
         auto& Einfs = gb_Einf.at(deg);
         for (size_t i = 0; i < polys.size(); ++i) {
             stmt.bind_str(1, Serialize(polys[i]));
-            stmt.bind_str(2, Serialize(Einfs[i]));
-            stmt.bind_int(3, deg.s);
-            stmt.bind_int(4, deg.t);
+            stmt.bind_str(2, polys[i].Str());
+            stmt.bind_str(3, Serialize(Einfs[i]));
+            stmt.bind_int(4, deg.s);
+            stmt.bind_int(5, deg.t);
             stmt.step_and_reset();
             ++count;
         }
@@ -435,7 +437,7 @@ void DbAdamsSS::save_pi_gb_mod(const std::string& table_prefix, const std::map<A
 
 void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Mon1d>& basis, const std::map<AdamsDeg, int2d>& basis_Einf) const
 {
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
 
     int count = 0;
     auto degs = OrderDegsV2(basis);
@@ -444,9 +446,10 @@ void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<Ad
         for (size_t i = 0; i < basis_d.size(); ++i) {
             stmt.bind_int(1, count);
             stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, Serialize(basis_Einf.at(deg)[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
+            stmt.bind_str(3, basis_d[i].Str());
+            stmt.bind_str(4, Serialize(basis_Einf.at(deg)[i]));
+            stmt.bind_int(5, deg.s);
+            stmt.bind_int(6, deg.t);
             stmt.step_and_reset();
             ++count;
         }
@@ -457,7 +460,7 @@ void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<Ad
 
 void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::map<AdamsDeg, algZ::MMod1d>& basis, const std::map<AdamsDeg, int2d>& basis_Einf) const
 {
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
 
     int count = 0;
     auto degs = OrderDegsV2(basis);
@@ -466,9 +469,10 @@ void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::ma
         for (size_t i = 0; i < basis_d.size(); ++i) {
             stmt.bind_int(1, count);
             stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, Serialize(basis_Einf.at(deg)[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
+            stmt.bind_str(3, basis_d[i].Str());
+            stmt.bind_str(4, Serialize(basis_Einf.at(deg)[i]));
+            stmt.bind_int(5, deg.s);
+            stmt.bind_int(6, deg.t);
             stmt.step_and_reset();
             ++count;
         }

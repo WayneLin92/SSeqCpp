@@ -151,9 +151,8 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssS0_.basis_ss = {db.load_basis_ss(table_S0), {}};
         ssS0_.nd = {{}, {}};
         ssS0_.gb = Groebner(ssS0_.t_max, {}, db.load_gb(table_S0, DEG_MAX));
-        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
-        ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
-        ssS0_.pi_gb.set_gen_2tor_degs_for_S0();
+        //ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
+        //ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
 
         all_basis_ss_.push_back(&ssS0_.basis_ss);
         all_nd_.push_back(&ssS0_.nd);
@@ -849,7 +848,7 @@ int Diagram::SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int r)
 
     r = NextRSrc(basis_ss, deg_x, r);
     if (r == -1)
-        throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
+        throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " dx=" + myio::Serialize(x));
 
     Mod poly_x = Indices2Mod(x, basis.at(deg_x));
 
