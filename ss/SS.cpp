@@ -151,8 +151,8 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssS0_.basis_ss = {db.load_basis_ss(table_S0), {}};
         ssS0_.nd = {{}, {}};
         ssS0_.gb = Groebner(ssS0_.t_max, {}, db.load_gb(table_S0, DEG_MAX));
-        //ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
-        //ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
+        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
+        ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
 
         all_basis_ss_.push_back(&ssS0_.basis_ss);
         all_nd_.push_back(&ssS0_.nd);
@@ -175,7 +175,7 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
 
         ssCof.f_top_cell = dbCof.get_column_from_str<Poly>(table_CW + "_generators", "to_S0", "", myio::Deserialize<Poly>);
         ssCof.deg_f_top_cell = AdamsDeg(0, GetTopCellT(dbnames[i]));
-        ssCof.pi_f_top_cell = dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "", myio::Deserialize<algZ::Poly>);
+        ssCof.pi_f_top_cell = {dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "", myio::Deserialize<algZ::Poly>)};
 
         ssCofs_.push_back(std::move(ssCof));
     }
@@ -186,15 +186,54 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
     }
 }
 
-const Staircase& Diagram::GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg) const
+const Staircase& Diagram::GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg)
 {
     for (auto p = basis_ss.rbegin(); p != basis_ss.rend(); ++p)
         if (p->find(deg) != p->end())
             return p->at(deg);
     throw MyException(0x553989e0U, "RecentStaircase not found. deg=" + deg.Str());
 }
+    /* Add a node */
+void Diagram::AddNode()
+{
+    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
+        all_basis_ss_[k]->push_back({});
+        all_nd_[k]->push_back({});
+    }
 
-void Diagram::ApplyChanges(size_t index)
+    ssS0_.pi_nodes_gen.push_back(ssS0_.pi_gb.gen_degs().size());
+    ssS0_.pi_nodes_rel.push_back(ssS0_.pi_gb.data().size());
+    ssS0_.pi_nodes_gen_2tor_degs.push_back(ssS0_.pi_gb.gen_2tor_degs());
+    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+        ssCofs_[iCof].pi_nodes_gen.push_back(ssCofs_[iCof].pi_gb.v_degs().size());
+        ssCofs_[iCof].pi_nodes_rel.push_back(ssCofs_[iCof].pi_gb.data().size());
+        ssCofs_[iCof].pi_f_top_cell.push_back(ssCofs_[iCof].pi_f_top_cell.back());
+    }
+}
+
+/* Pop the lastest node */
+void Diagram::PopNode()
+{
+    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
+        all_basis_ss_[k]->pop_back();
+        all_nd_[k]->pop_back();
+    }
+    ssS0_.pi_gb.Pop(ssS0_.pi_nodes_gen.back(), ssS0_.pi_nodes_rel.back());
+    ssS0_.pi_gb.set_gen_2tor_degs(std::move(ssS0_.pi_nodes_gen_2tor_degs.back()));
+    ssS0_.pi_gen_Einf.resize(ssS0_.pi_nodes_gen.back());
+    ssS0_.pi_nodes_gen.pop_back();
+    ssS0_.pi_nodes_rel.pop_back();
+    ssS0_.pi_nodes_gen_2tor_degs.pop_back();
+    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+        ssCofs_[iCof].pi_gb.Pop(ssCofs_[iCof].pi_nodes_gen.back(), ssCofs_[iCof].pi_nodes_rel.back());
+        ssCofs_[iCof].pi_gen_Einf.resize(ssCofs_[iCof].pi_nodes_gen.back());
+        ssCofs_[iCof].pi_f_top_cell.pop_back();
+        ssCofs_[iCof].pi_nodes_gen.pop_back();
+        ssCofs_[iCof].pi_nodes_rel.pop_back();
+    }
+}
+
+void Diagram::ApplyChanges(size_t index) // TODO: remove this function
 {
     if (index == 0)
         throw MyException(0xc1b36735U, "The original basis_ss should not be changed");
@@ -210,7 +249,7 @@ void Diagram::ApplyChanges(size_t index)
     }
 }
 
-void Diagram::ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs)
+void Diagram::ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs)  // TODO: remove this function
 {
     for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
         auto& basis_ss = *all_basis_ss_[k];
@@ -299,7 +338,7 @@ void Diagram::CacheNullDiffs(int maxPoss, int maxStem, bool bFull)
     }
 }
 
-bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max) const
+bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max)
 {
     r_max = std::min(r_max, deg.s - 1);
     for (int r1 = kLevelMin; r1 <= r_max; ++r1) {
@@ -311,7 +350,7 @@ bool Diagram::IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max) c
     return false;
 }
 
-bool Diagram::IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min) const
+bool Diagram::IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min)
 {
     int r_max = (deg.t - deg.s * 3 + 2) / 2;
     for (int r = r_min; r <= r_max; ++r) {
@@ -326,7 +365,7 @@ bool Diagram::IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, i
     return false;
 }
 
-int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg) const
+int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg)
 {
     auto& sc = GetRecentStaircase(basis_ss, deg);
     int result = kLevelMax - kLevelMin;
@@ -342,7 +381,7 @@ int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg de
     return result;
 }
 
-size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min) const
+size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min)
 {
     auto& sc = GetRecentStaircase(basis_ss, deg);
     size_t result = sc.levels.size();

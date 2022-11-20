@@ -6,7 +6,7 @@
 #include "algebras/groebnerZ.h"
 #include <set>
 
-inline const char* VERSION = "Version:\n  3.0 (2022-11-5)";
+inline const char* VERSION = "Version:\n  3.0 (2022-11-14)";
 
 #define CONFIG_INPUT 1
 #if (CONFIG_INPUT == 0)
@@ -46,6 +46,14 @@ class SSException : public MyException
 public:
     SSException(unsigned int error_id, const char* message) : MyException(error_id, message) {}
     SSException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
+};
+
+/* A custom Exception class */
+class SSPiException : public SSException
+{
+public:
+    SSPiException(unsigned int error_id, const char* message) : SSException(error_id, message) {}
+    SSPiException(unsigned int error_id, const std::string& message) : SSException(error_id, message) {}
 };
 
 /* Never to be thrown. A placeholder for some exception to catch */
@@ -96,6 +104,9 @@ struct SS
     Poly1d pi_gen_Einf = {Poly::Gen(0)}; /* Projection onto the E_infty page */
     std::map<AdamsDeg, algZ::Mon1d> pi_basis = {{AdamsDeg(0, 0), {algZ::Mon()}}};
     std::map<AdamsDeg, int2d> pi_basis_Einf = {{AdamsDeg(0, 0), {{0}}}};
+    std::vector<size_t> pi_nodes_gen;
+    std::vector<size_t> pi_nodes_rel;
+    int2d pi_nodes_gen_2tor_degs;
 };
 
 struct SSMod
@@ -112,7 +123,9 @@ struct SSMod
     Mod1d pi_gen_Einf; /* Projection onto the E_infty page */
     std::map<AdamsDeg, algZ::MMod1d> pi_basis;
     std::map<AdamsDeg, int2d> pi_basis_Einf;
-    algZ::Poly1d pi_f_top_cell;
+    algZ::Poly2d pi_f_top_cell;
+    std::vector<size_t> pi_nodes_gen;
+    std::vector<size_t> pi_nodes_rel;
 };
 
 using SSMod1d = std::vector<SSMod>;
@@ -132,7 +145,7 @@ public:
 
 public:
     /* Return the newest version of the staircase in history */
-    const Staircase& GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg) const;
+    static const Staircase& GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg);
     Staircase& GetRecentStaircase(Staircases1d& basis_ss, AdamsDeg deg)
     {
         return const_cast<Staircase&>(const_cast<const Diagram*>(this)->GetRecentStaircase(basis_ss, deg));
@@ -164,21 +177,21 @@ public:
     }
 
     /* Return if it is possibly a new dr target for r<=r_max */
-    bool IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max) const;
+    static bool IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max);
 
     /* Return if it is possibly a new dr source for r>=r_min */
-    bool IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min) const;
+    static bool IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min);
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
      * Return a level such that all levels above will not decrease further.
      */
-    int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg) const;
+    static int GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg);
 
     /* Return the first index (with level >=`level_min`) such that all levels above are already fixed */
-    size_t GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min) const;
+    static size_t GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min);
 
     /* Count the number of all possible d_r targets. Return (count, index). */
-    std::pair<int, int> CountPossDrTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg_tgt, int r) const;
+    auto CountPossDrTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
 
     /* Count the number of all possible d_r sources. Return (count, index). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& basis_ss, const AdamsDeg& deg_src, int r) const;
@@ -221,23 +234,12 @@ public:
     void ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs);
 
     /* Add a node */
-    void AddNode()
-    {
-        for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
-            all_basis_ss_[k]->push_back({});
-            all_nd_[k]->push_back({});
-        }
-    }
+    void AddNode();
 
     /* Pop the lastest node */
-    void PopNode()
-    {
-        for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
-            all_basis_ss_[k]->pop_back();
-            all_nd_[k]->pop_back();
-        }
-    }
-    /* Apply the change of the staircase to the current history based on the most recent history */
+    void PopNode();
+
+    /* Apply the change of the staircase to the current history */
     void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, int1d x, int1d dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
@@ -272,11 +274,14 @@ public:
 public:
     int DeduceZeroDiffs();
     int DeduceDiffs(int depth, int max_stage, Timer& timer);
-    int DeduceImageJ();
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
-    bool PossEinf(const Staircases1d& basis_ss, AdamsDeg deg) const;
+    static int PossEinf(const Staircases1d& basis_ss, AdamsDeg deg);
+    /* Return if Einf at deg could have more nontrivial elements */
+    static int PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg);
+    int1d PossMoreEinfFirstS_S0() const;
+    int1d PossMoreEinfFirstS_Cof(size_t iCof) const;
 
     /*
      * Return the smallest s1>=s such that extension has a possible target
@@ -284,29 +289,38 @@ public:
      * Range >= t_max is deem unknown and thus possiple.
      * Return FIL_MAX if not found
      */
-    int NextSExt(const Staircases1d& basis_ss, int t_max, int stem, int s_min) const;
+    int ExtendRelS0(int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const;
+    int ExtendRelCof(size_t iCof, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const;
+    void ExtendRelS0(int stem, algZ::Poly& rel) const;
+    void ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const;
+    void ExtendRelS0V2(int stem, algZ::Poly& rel, std::unordered_map<int, int>& num_leads) const;
+    void ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, std::unordered_map<int, int>& num_leads) const;
     int2d GetS0GbEinf(AdamsDeg deg) const;
     std::map<AdamsDeg, int2d> GetS0GbEinf() const;
     int2d GetCofGbEinf(int iCof, AdamsDeg deg) const;
     std::map<AdamsDeg, int2d> GetCofGbEinf(int iCof) const;
 
 public: /* homotopy groups */
+    void AddPiRelsS0(algZ::Poly1d rels);
+    void AddPiRelsCof(size_t iCof, algZ::Mod1d rels);
+    void AddPiRelsCof2S0(size_t iCof);
     void SimplifyPiRels()
     {
         ssS0_.pi_gb.SimplifyRels();
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
             ssCofs_[iCof].pi_gb.SimplifyRels();
     }
-    void SyncS0Homotopy(int& count_ss, int& count_homotopyy);
-    void SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy);
-    void SyncHomotopy(int& count_ss, int& count_homotopy)
+    void SyncS0Homotopy(int& count_ss, int& count_homotopyy, int depth);
+    void SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy, int depth);
+    void SyncHomotopy(int& count_ss, int& count_homotopy, int depth)
     {
-        SyncS0Homotopy(count_ss, count_homotopy);
+        SyncS0Homotopy(count_ss, count_homotopy, depth);
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            SyncCofHomotopy((int)iCof, count_ss, count_homotopy);
+            SyncCofHomotopy((int)iCof, count_ss, count_homotopy, depth);
     }
-    int DeduceZeroExtensions();
-    int DeduceExtensionsByExactness();
+    int DeduceZeroExtensions(int depth);
+    int DeduceExtensionsByExactness(int depth);
+    void DeduceExtensions(int& count_ss, int& count_homotopy, int depth=0);
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -388,6 +402,7 @@ size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);
+int main_plotpi(int argc, char** argv, int index);
 int main_generate_ss(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
 
@@ -395,5 +410,8 @@ int main_deduce(int argc, char** argv, int index);
 int main_deduce_migrate(int argc, char** argv, int index);
 
 int main_mod(int argc, char** argv, int index);
+
+int main_resetpi(int argc, char** argv, int index);
+int main_truncate(int argc, char** argv, int index);
 
 #endif

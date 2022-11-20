@@ -7,7 +7,7 @@ std::string Serialize(const algZ::Mon& mon)
     static const uint32_t GEN_FIL = 0xffff;
     std::string result;
     if (mon.IsUnKnown())
-        result = "1," + std::to_string(mon.fil());
+        result = "-1," + std::to_string(mon.fil());
     else {
         if (mon.c() > 0) {
             result = "0," + std::to_string(mon.c());
@@ -139,7 +139,7 @@ Mod Deserialize<Mod>(const std::string& str)
 algZ::Mon MonToMonZ(const Mon& m)
 {
     algZ::Mon result;
-    if (m.size() == 1)
+    if (m.size() == 1 && m.begin()->g() == uint16_t(-1))
         result = algZ::Mon::O(m.begin()->e());
     else {
         int c = 0, fil = -1;
@@ -154,8 +154,10 @@ algZ::Mon MonToMonZ(const Mon& m)
             else
                 m1.push_back(GE(p.g() / 2, p.e()));
         }
-        if (fil == -1)
+        if (fil == -1) {
+            std::cout << m << '\n';
             throw MyException(0x3944e4aeU, "Incorrect input for algZ::Mon");
+        }
         result = algZ::Mon(c, m0, m1, fil);
     }
     return result;
@@ -484,7 +486,7 @@ void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::ma
 algZ::Poly1d DbAdamsSS::load_pi_gb(const std::string& table_prefix, int t_max) const
 {
     algZ::Poly1d result;
-    Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_pi_relations" + (t_max == alg2::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+    Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_pi_relations" + (t_max == DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     while (stmt.step() == MYSQLITE_ROW) {
         algZ::Poly g = Deserialize<algZ::Poly>(stmt.column_str(0));
         result.push_back(std::move(g));
@@ -496,7 +498,7 @@ algZ::Poly1d DbAdamsSS::load_pi_gb(const std::string& table_prefix, int t_max) c
 algZ::Mod1d DbAdamsSS::load_pi_gb_mod(const std::string& table_prefix, int t_max) const
 {
     algZ::Mod1d result;
-    Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_pi_relations" + (t_max == alg2::DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
+    Statement stmt(*this, "SELECT rel FROM " + table_prefix + "_pi_relations" + (t_max == DEG_MAX ? "" : " WHERE t<=" + std::to_string(t_max)) + " ORDER BY t;");
     while (stmt.step() == MYSQLITE_ROW) {
         algZ::Mod g = Deserialize<algZ::Mod>(stmt.column_str(0));
         result.push_back(std::move(g));

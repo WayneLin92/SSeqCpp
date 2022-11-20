@@ -46,7 +46,7 @@ public:
 
     void create_pi_basis_maps_Cof(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis_maps (id INTEGER PRIMARY KEY, to_S0 TEXT, O SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis_maps (id INTEGER PRIMARY KEY, to_S0 TEXT, O_S0 SMALLINT);");
     }
 
     void drop_and_create_pi_basis_maps_Cof(const std::string& table_prefix) const
@@ -471,6 +471,40 @@ int main_plot(int argc, char** argv, int index)
     return 0;
 }
 
+void ToIndices(const algZ::Poly& x, const std::map<AdamsDeg, algZ::Mon1d>& basis, const std::map<AdamsDeg, int>& pi_deg2id, int stem, int t_max, int1d& result, int& O)
+{
+    for (auto& m : x.data) {
+        AdamsDeg d = AdamsDeg(m.fil(), stem + m.fil());
+        if (m.IsUnKnown() || d.t > t_max) {
+            O = m.fil();
+            break;
+        }
+        else {
+            auto& basis_d = basis.at(d);
+            auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
+            int index = (int)(p - basis_d.begin());
+            result.push_back(pi_deg2id.at(d) + index);
+        }
+    }
+}
+
+void ToIndices(const algZ::Mod& x, const std::map<AdamsDeg, algZ::MMod1d>& basis, const std::map<AdamsDeg, int>& pi_deg2id, int stem, int t_max, int1d& result, int& O)
+{
+    for (auto& m : x.data) {
+        AdamsDeg d = AdamsDeg(m.fil(), stem + m.fil());
+        if (m.IsUnKnown() || d.t > t_max) {
+            O = m.fil();
+            break;
+        }
+        else {
+            auto& basis_d = basis.at(d);
+            auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
+            int index = (int)(p - basis_d.begin());
+            result.push_back(pi_deg2id.at(d) + index);
+        }
+    }
+}
+
 int main_plotpi(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_S0;
@@ -504,9 +538,9 @@ int main_plotpi(int argc, char** argv, int index)
     auto& all_nd = diagram.GetAllNd();
 
     std::vector<MyDB> dbPlots;
-    dbPlots.reserve(dbnames.size());
+    dbPlots.reserve(dbnames.size()); /* To avoid reallocation is critical */
     std::vector<std::string> tablesE2, complexNames;
-    std::vector<std::map<AdamsDeg, int>> deg2ids, pi_deg2ids;
+    std::vector<std::map<AdamsDeg, int>> deg2ids, pi_deg2ids(dbnames.size());
     for (size_t i = 0; i < dbnames.size(); ++i) {
         std::string dbname = dbnames[i];
         dbname.insert(dbname.size() - 3, "_plot");
@@ -515,7 +549,6 @@ int main_plotpi(int argc, char** argv, int index)
         complexNames.push_back(GetComplexName(dbname));
         MyDB db(dbnames[i]);
         deg2ids.push_back(db.load_basis_indices(tablesE2.back()));
-        pi_deg2ids.push_back(db.load_basis_indices(complexNames.back() + "_pi"));
     }
 
     for (auto& db : dbPlots)
@@ -523,31 +556,38 @@ int main_plotpi(int argc, char** argv, int index)
 
     /* pi_basis_products */
     int count1 = 0, count2 = 0;
-    diagram.SyncHomotopy(count1, count2);
+    diagram.SyncHomotopy(count1, count2, 0);
+
     {
         algZ::Mon1d S0_pi_basis;
-        AdamsDeg1d S0_deg_pi_basis;
+        AdamsDeg1d S0_pi_basis_deg;
 
+        int pi_index = 0;
         AdamsDeg1d S0_degs = OrderDegsV2(diagram.GetS0().pi_basis);
         for (AdamsDeg d : S0_degs) {
             auto& basis_d = diagram.GetS0().pi_basis.at(d);
+            pi_deg2ids[0][d] = pi_index;
+            pi_index += (int)basis_d.size();
             for (auto& b : basis_d) {
                 S0_pi_basis.push_back(b);
-                S0_deg_pi_basis.push_back(d);
+                S0_pi_basis_deg.push_back(d);
             }
         }
 
         algZ::MMod2d Cofs_pi_basis(diagram.GetCofs().size());
-        AdamsDeg2d Cofs_deg_pi_basis(diagram.GetCofs().size());
+        AdamsDeg2d Cofs_pi_basis_deg(diagram.GetCofs().size());
 
-        for (size_t i = 0; i < diagram.GetCofs().size(); ++i) {
-            auto& Cof = diagram.GetCofs()[i];
+        for (size_t iCof = 0; iCof < diagram.GetCofs().size(); ++iCof) {
+            auto& Cof = diagram.GetCofs()[iCof];
+            int pi_index = 0;
             AdamsDeg1d Cof_degs = OrderDegsV2(Cof.pi_basis);
             for (AdamsDeg d : Cof_degs) {
                 auto& basis_d = Cof.pi_basis.at(d);
+                pi_deg2ids[iCof + 1][d] = pi_index;
+                pi_index += (int)basis_d.size();
                 for (auto& b : basis_d) {
-                    Cofs_pi_basis[i].push_back(b);
-                    Cofs_deg_pi_basis[i].push_back(d);
+                    Cofs_pi_basis[iCof].push_back(b);
+                    Cofs_pi_basis_deg[iCof].push_back(d);
                 }
             }
         }
@@ -557,34 +597,19 @@ int main_plotpi(int argc, char** argv, int index)
             auto& pi_gb = diagram.GetS0().pi_gb;
             int t_max = diagram.GetS0().t_max;
             dbPlots[0].drop_and_create_pi_basis_products(complexNames[0]);
-            dbPlots[0].drop_and_create_pi_basis_maps_S0();
             myio::Statement stmt(dbPlots[0], "INSERT INTO " + complexNames[0] + "_pi_basis_products (id1, id2, prod, O) VALUES (?1, ?2, ?3, ?4);");
             for (int i : arr_factors) {
                 for (size_t j = 0; j < S0_pi_basis.size(); ++j) {
-                    const AdamsDeg deg_prod = S0_deg_pi_basis[i] + S0_deg_pi_basis[j];
+                    const AdamsDeg deg_prod = S0_pi_basis_deg[i] + S0_pi_basis_deg[j];
                     if (deg_prod.t <= t_max) {
                         algZ::Poly poly_prod = pi_gb.ReduceV2(S0_pi_basis[i] * S0_pi_basis[j]);
-                        int O = -1;
                         int1d prod;
-                        for (auto& m : poly_prod.data) {
-                            AdamsDeg d(m.fil(), deg_prod.stem() + m.fil());
-                            if (m.IsUnKnown() || d.t > t_max) {
-                                O = m.fil();
-                                break;
-                            }
-                            else {
-                                auto& basis_d = diagram.GetS0().pi_basis.at(d);
-                                auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
-                                int index = (int)(p - basis_d.begin());
-                                prod.push_back(index);
-                            }
-                        }
+                        int O = -1;
+                        ToIndices(poly_prod, diagram.GetS0().pi_basis, pi_deg2ids[0], deg_prod.stem(), t_max, prod, O);
 
                         if (O != -1 || !prod.empty()) {
                             stmt.bind_int(1, (int)i);
                             stmt.bind_int(2, (int)j);
-                            for (size_t k = 0; k < prod.size(); ++k)
-                                prod[k] += pi_deg2ids[0][deg_prod];
                             stmt.bind_str(3, myio::Serialize(prod));
                             stmt.bind_int(4, O);
                             stmt.step_and_reset();
@@ -594,55 +619,101 @@ int main_plotpi(int argc, char** argv, int index)
             }
         }
 
+        dbPlots[0].drop_and_create_pi_basis_maps_S0();
         for (size_t k = 1; k < dbPlots.size(); ++k) {
             size_t iCof = k - 1;
             auto& pi_gb = ssCof[iCof].pi_gb;
             int t_max = ssCof[iCof].t_max;
-            dbPlots[k].drop_and_create_pi_basis_products(complexNames[k]);
-            myio::Statement stmt(dbPlots[k], "INSERT INTO " + complexNames[k] + "_pi_basis_products (id1, id2, prod, O) VALUES (?1, ?2, ?3, ?4);");
-            for (int i : arr_factors) {
-                for (size_t j = 0; j < Cofs_pi_basis[iCof].size(); ++j) {
-                    const AdamsDeg deg_prod = S0_deg_pi_basis[i] + Cofs_deg_pi_basis[iCof][j];
-                    if (deg_prod.t <= t_max) {
-                        algZ::Mod x_prod = pi_gb.ReduceV2(S0_pi_basis[i] * Cofs_pi_basis[iCof][j]);
-                        int O = -1;
-                        int1d prod;
-                        for (auto& m : x_prod.data) {
-                            AdamsDeg d = AdamsDeg(m.fil(), deg_prod.stem() + m.fil());
-                            if (m.IsUnKnown() || d.t > t_max) {
-                                O = m.fil();
-                                break;
-                            }
-                            else {
-                                auto& basis_d = diagram.GetCofs()[k - 1].pi_basis.at(d);
-                                auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
-                                int index = (int)(p - basis_d.begin());
-                                prod.push_back(index);
+
+            /* module structure */
+            {
+                dbPlots[k].drop_and_create_pi_basis_products(complexNames[k]);
+                myio::Statement stmt(dbPlots[k], "INSERT INTO " + complexNames[k] + "_pi_basis_products (id1, id2, prod, O) VALUES (?1, ?2, ?3, ?4);");
+                for (int i : arr_factors) {
+                    for (size_t j = 0; j < Cofs_pi_basis[iCof].size(); ++j) {
+                        const AdamsDeg deg_prod = S0_pi_basis_deg[i] + Cofs_pi_basis_deg[iCof][j];
+                        if (deg_prod.t <= t_max) {
+                            algZ::Mod x_prod = pi_gb.ReduceV2(S0_pi_basis[i] * Cofs_pi_basis[iCof][j]);
+                            int1d prod;
+                            int O = -1;
+                            ToIndices(x_prod, diagram.GetCofs()[iCof].pi_basis, pi_deg2ids[k], deg_prod.stem(), t_max, prod, O);
+
+                            if (O != -1 || !prod.empty()) {
+                                stmt.bind_int(1, (int)i);
+                                stmt.bind_int(2, (int)j);
+                                stmt.bind_str(3, myio::Serialize(prod));
+                                stmt.bind_int(4, O);
+                                stmt.step_and_reset();
                             }
                         }
+                    }
+                }
+            }
 
-                        if (O != -1 || !prod.empty()) {
+            /* S0->Cof */
+            {
+                myio::Statement stmt(dbPlots[0], "INSERT INTO S0_pi_basis_maps (id, to_" + complexNames[k] + ", O_" + complexNames[k] + ") VALUES (?1, ?2, ?3) ON CONFLICT DO UPDATE SET to_" + complexNames[k] + "=excluded.to_" + complexNames[k]
+                                                     + ", O_" + complexNames[k] + "=excluded.O_" + complexNames[k]);
+                for (size_t i = 0; i < S0_pi_basis.size(); ++i) {
+                    const AdamsDeg deg = S0_pi_basis_deg[i];
+                    if (deg.t <= t_max) {
+                        algZ::Mod x = pi_gb.ReduceV2(algZ::Mod(S0_pi_basis[i], 0, 0));
+                        int1d image;
+                        int O = -1;
+                        ToIndices(x, diagram.GetCofs()[iCof].pi_basis, pi_deg2ids[k], deg.stem(), t_max, image, O);
+
+                        if (O != -1 || !image.empty()) {
                             stmt.bind_int(1, (int)i);
-                            stmt.bind_int(2, (int)j);
-                            for (size_t l = 0; l < prod.size(); ++l)
-                                prod[l] += pi_deg2ids[k][deg_prod];
-                            stmt.bind_str(3, myio::Serialize(prod));
-                            stmt.bind_int(4, O);
+                            stmt.bind_str(2, myio::Serialize(image));
+                            stmt.bind_int(3, O);
                             stmt.step_and_reset();
                         }
                     }
                 }
             }
 
-            myio::Statement stmt_maps(dbPlots[0], "INSERT INTO S0_pi_basis_maps (id, to_" + complexNames[k] + ", O_" + complexNames[k] + ") VALUES (?1, ?2, ?3);");
-            for (size_t i = 0; i < S0_pi_basis.size(); ++i) {
+            /* Cof->S0 */
+            {
+                dbPlots[k].drop_and_create_pi_basis_maps_Cof(complexNames[k]);
+                myio::Statement stmt(dbPlots[k], "INSERT INTO " + complexNames[k] + "_pi_basis_maps (id, to_S0, O_S0) VALUES (?1, ?2, ?3)");
+                for (size_t i = 0; i < Cofs_pi_basis[iCof].size(); ++i) {
+                    const AdamsDeg deg = Cofs_pi_basis_deg[iCof][i] - ssCof[iCof].deg_f_top_cell;
+                    if (deg.t <= ssS0.t_max) {
+                        algZ::Poly a = ssS0.pi_gb.ReduceV2(algZ::subsMod(Cofs_pi_basis[iCof][i], ssCof[iCof].pi_f_top_cell.back(), ssCof[iCof].pi_gb.v_degs()));
+                        diagram.ExtendRelS0(deg.stem(), a);
+                        int1d image;
+                        int O = -1;
+                        ToIndices(a, diagram.GetS0().pi_basis, pi_deg2ids[0], deg.stem(), t_max, image, O);
+
+                        if (O != -1 || !image.empty()) {
+                            stmt.bind_int(1, (int)i);
+                            stmt.bind_str(2, myio::Serialize(image));
+                            stmt.bind_int(3, O);
+                            stmt.step_and_reset();
+                        }
+                    }
+                }
             }
         }
     }
 
     for (auto& db : dbPlots)
         db.end_transaction();
-    std::cout << "Done" << std::endl;
+
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        auto pi_table = GetComplexName(dbnames[k]);
+        db.begin_transaction();
+        db.drop_and_create_pi_basis(pi_table);
+        if (k == 0)
+            db.save_pi_basis(pi_table, diagram.GetS0().pi_basis, diagram.GetS0().pi_basis_Einf);
+        else {
+            auto& Cof = diagram.GetCofs()[k - 1];
+            db.save_pi_basis_mod(pi_table, Cof.pi_basis, Cof.pi_basis_Einf);
+        }
+
+        db.end_transaction();
+    }
     return 0;
 }
 
@@ -657,7 +728,7 @@ int main_mod(int argc, char** argv, int index)
 
         std::cout << "  basis_prod: Generate the basis_prod table for a complex\n\n";
 
-        std::cout << "Version:\n  2.1 (2022-9-15)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))

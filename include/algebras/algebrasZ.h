@@ -250,6 +250,11 @@ inline bool divisible(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2
     return t2 >= t1 && !(t1 & (t2 - t1)) && divisible(mon1, mon2);
 }
 
+inline bool MultipleOf(const algZ::Mon& m1, const algZ::Mon& m2)
+{
+    return m1.m0() == m2.m0() && m1.m1() == m2.m1() && m1.c() >= m2.c();
+}
+
 /* Warning: fil might need to be modified later */
 inline Mon GCD(const Mon& mon1, const Mon& mon2)
 {
@@ -284,6 +289,12 @@ struct Poly
         return Mon();
     }
 
+    /* An unknown term in filtration fil */
+    static Mon O(int fil)
+    {
+        return Mon::O(fil);
+    }
+
     static Poly Gen(uint32_t index, uint32_t exp, int fil, bool bEven)
     {
         return Mon::Gen(index, exp, fil, bEven);
@@ -301,6 +312,18 @@ struct Poly
             throw MyException(0x612c2027U, "Trying to get leading monomial from zero poly.");
 #endif
         return data.front();
+    }
+
+    Poly LF() const
+    {
+        Poly result;
+        if (!data.empty()) {
+            result.data.push_back(data[0]);
+            for (size_t i = 1; i < data.size(); ++i)
+                if (data[i].fil() == data[0].fil())
+                    result.data.push_back(data[i]);
+        }
+        return result;
     }
 
     int GetDeg(const int1d& gen_degs) const
@@ -382,6 +405,7 @@ struct Poly
 };
 
 using Poly1d = std::vector<Poly>;
+using Poly2d = std::vector<Poly1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
 {
@@ -454,6 +478,7 @@ struct MMod
     uint32_t v;
     Mon m; /* m.fil_ should include the filtration of v */
 
+    MMod() : v(-1), m() {}
     MMod(const Mon& m_, uint32_t v_, int fil_v) : m(m_.c(), m_.m0(), m_.m1(), m_.fil() + fil_v), v(v_) {}
     MMod(int c, const alg2::Mon& m0, const alg2::Mon& m1, int fil, int v_) : m(c, m0, m1, fil), v(v_) {}
 
@@ -488,6 +513,11 @@ struct MMod
         m.imul2();
     }
 
+    int c() const
+    {
+        return m.c();
+    }
+
     int fil() const
     {
         return m.fil();
@@ -518,6 +548,11 @@ auto GetDeg(const MMod& mon, const std::vector<T>& gen_degs, const std::vector<T
     return GetDeg(mon.m, gen_degs) + v_degs[mon.v];
 }
 
+inline bool MultipleOf(const algZ::MMod& m1, const algZ::MMod& m2)
+{
+    return m1.v == m2.v && MultipleOf(m1.m, m2.m);
+}
+
 struct Mod;
 Mod operator-(const MMod& mon);
 Mod operator*(const Mon& m, const MMod& x);
@@ -535,6 +570,12 @@ struct Mod
         ut::RemoveIf(data, [](const MMod& mv) { return mv.m.fil() > FIL_MAX; });
     }
 
+    /* An unknown term in filtration fil */
+    static MMod O(int fil)
+    {
+        return MMod::O(fil);
+    }
+
     const MMod& GetLead() const
     {
 #ifndef NDEBUG
@@ -542,6 +583,18 @@ struct Mod
             throw MyException(0x24b0f95cU, "Trying to GetLead() for empty Mod.");
 #endif
         return data[0];
+    }
+
+    Mod LF() const
+    {
+        Mod result;
+        if (!data.empty()) {
+            result.data.push_back(data[0]);
+            for (size_t i = 1; i < data.size(); ++i)
+                if (data[i].fil() == data[0].fil())
+                    result.data.push_back(data[i]);
+        }
+        return result;
     }
 
     /* Return the filtration differences between the leading term and the big O term */
@@ -560,13 +613,13 @@ struct Mod
         else
             return FIL_MAX + 1;
     }
-
+    Mod negP(Mod& tmp, const int1d& gen_2tor_degs) const;
     Mod& iaddP(const Mod& rhs, Mod& tmp);
 
     Mod operator-() const;
-    Mod& isubP(const Mod& rhs, Mod& tmp)
+    Mod& isubP(const Mod& rhs, Mod& tmp, const int1d& gen_2tor_degs)
     {
-        return iaddP(-rhs, tmp);
+        return iaddP(rhs.negP(tmp, gen_2tor_degs), tmp);
     }
 
     void iaddmulP(const Mon& m, const Mod& x, Mod& tmp, const int1d& gen_2tor_degs);
@@ -593,6 +646,7 @@ struct Mod
 };
 
 using Mod1d = std::vector<Mod>;
+using Mod2d = std::vector<Mod1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {

@@ -366,6 +366,15 @@ void Mod::isubmulP(const Mon& m, const Mod& x, Mod& tmp, const int1d& gen_2tor_d
     Merge(data, tmp.data);
 }
 
+Mod Mod::negP(Mod& tmp, const int1d& gen_2tor_degs) const
+{
+    Mod result;
+    for (const MMod& m : data)
+        append_neg(result.data, m, gen_2tor_degs[m.m.frontg()]);
+    Merge(result.data, tmp.data);
+    return result;
+}
+
 void Mod::ReduceSizeByChangingSignP(Mod& tmp1, Mod& tmp2)
 {
     tmp1.data.clear();

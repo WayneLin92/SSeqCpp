@@ -5,6 +5,7 @@
         "Ceta",
         "coeff",
         "Csigma",
+        "dasharray",
         "decomposables",
         "degs",
         "gen",
@@ -28,7 +29,8 @@
         "reprs",
         "sout",
         "steenrod",
-        "submo"
+        "submo",
+        "xyrp"
     ],
     "files.associations": {
         "__bit_reference": "cpp",

@@ -149,3 +149,96 @@ int main_generate_ss(int argc, char** argv, int index)
     std::cout << "Done" << std::endl;
     return 0;
 }
+
+int main_resetpi(int argc, char** argv, int index)
+{
+    std::string db_S0 = DB_S0;
+    std::vector<std::string> dbnames = {
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
+    };
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Debugging\n";
+        std::cout << "Usage:\n  ss deduce tmp [db_S0] [db_Cofibs ...]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  db_S0 = " << db_S0 << "\n\n";
+
+        std::cout << VERSION << std::endl;
+        return 0;
+    }
+    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
+        return index;
+    if (myio::load_args(argc, argv, ++index, "db_Cofib", dbnames))
+        return index;
+    dbnames.insert(dbnames.begin(), db_S0);
+
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        auto pi_table = GetComplexName(dbnames[k]);
+        db.begin_transaction();
+        db.drop_and_create_pi_relations(pi_table);
+        db.drop_and_create_pi_basis(pi_table);
+        if (k == 0)
+            db.drop_and_create_pi_generators(pi_table);
+        else
+            db.drop_and_create_pi_generators_mod(pi_table);
+        db.end_transaction();
+    }
+
+    return 0;
+}
+
+int main_truncate(int argc, char** argv, int index)
+{
+    std::string db_S0 = DB_S0;
+    std::vector<std::string> dbnames = {
+        DB_C2,
+        DB_Ceta,
+        DB_Cnu,
+        DB_Csigma,
+    };
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Debugging\n";
+        std::cout << "Usage:\n  ss truncate [db_S0] [db_Cofibs ...]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  db_S0 = " << db_S0 << "\n\n";
+
+        std::cout << VERSION << std::endl;
+        return 0;
+    }
+    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
+        return index;
+    if (myio::load_args(argc, argv, ++index, "db_Cofib", dbnames))
+        return index;
+    dbnames.insert(dbnames.begin(), db_S0);
+
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        auto table = GetE2TablePrefix(dbnames[k]);
+        auto basis_ss = db.load_basis_ss(table);
+        int t_max = basis_ss.rbegin()->first.t;
+
+        for (auto& [d, sc] : basis_ss) {
+            for (size_t i = 0; i < sc.levels.size(); ++i) {
+                if (sc.levels[i] > kLevelPC) {
+                    int r = kLevelMax - sc.levels[i]; 
+                    if (d.t + r - 1 > t_max && sc.diffs_ind[i] != int1d{-1})
+                        sc.diffs_ind[i] = int1d{-1};
+                }
+            }
+        }
+
+        db.begin_transaction();
+        db.update_basis_ss(table, basis_ss);
+        db.end_transaction();
+    }
+
+    return 0;
+}
+

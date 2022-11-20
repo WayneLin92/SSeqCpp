@@ -46,7 +46,6 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
 
     Timer timer(3600);
     ss2.DeduceDiffs(0, 3, timer);
-    ss2.DeduceImageJ();
 
     AdamsDeg1d degs;
     for (auto& [d, _] : basis_ss1.front())
@@ -68,7 +67,6 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
 
                     Timer timer(3600);
                     ss2.DeduceDiffs(0, 3, timer);
-                    ss2.DeduceImageJ();
                 }
             }
         }

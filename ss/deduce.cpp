@@ -68,6 +68,7 @@ int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache
     DeduceZeroDiffs();
     CacheNullDiffs(maxPoss, maxStem, stage == 2);
 
+    std::string color, color_end = "\033[0m";  ////
     int old_count = 0, count = 0;
     while (iSS < all_basis_ss_.size()) {
         auto& basis_ss = *all_basis_ss_[iSS];
@@ -104,7 +105,11 @@ int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache
                     try {
                         SetDiffLeibnizV2(iSS, deg, x, dx1, r, depth == 1);
                         if (depth == 0 && stage == 3) {
-                            DeduceDiffs(depth + 1, 0, timer);
+                            // DeduceDiffs(depth + 1, 0, timer);
+                            int count_ss1 = 0, count_homotopy1 = 0;
+                            SyncHomotopy(count_ss1, count_homotopy1, depth + 1);
+                            DeduceZeroExtensions(depth + 1);
+                            DeduceExtensionsByExactness(depth + 1);
                         }
                     }
                     catch (SSException&) {
@@ -148,7 +153,11 @@ int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache
                     try {
                         SetDiffLeibnizV2(iSS, deg, x1, dx, r, depth == 1);
                         if (depth == 0 && stage == 3) {
-                            DeduceDiffs(depth + 1, 0, timer);
+                            // DeduceDiffs(depth + 1, 0, timer);
+                            int count_ss1 = 0, count_homotopy1 = 0;
+                            SyncHomotopy(count_ss1, count_homotopy1, depth + 1);
+                            DeduceZeroExtensions(depth + 1);
+                            DeduceExtensionsByExactness(depth + 1);
                         }
                     }
                     catch (SSException&) {
@@ -176,22 +185,16 @@ int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache
             if (bNewDiff) {
                 SetDiffLeibnizV2(iSS, deg, x, dx, r);
                 if (depth == 0) {
-                    std::string color, color_end;
-                    if (x.empty() || dx.empty()) {
-                        if (nd.deg.stem() <= 127) {
-                            color = "\033[38;2;156;64;64m";
-                            color_end = "\033[0m";
-                        }
-                        else {
-                            color = "\033[38;2;128;128;128m";
-                            color_end = "\033[0m";
-                        }
+                    if (nd.deg.stem() <= 127) {
+                        if (x.empty() || dx.empty())
+                            color = "\033[38;2;200;64;64m";
+                        else
+                            color = "\033[38;2;255;128;128m";
                     }
-                    else if (nd.deg.stem() <= 127) {
-                        color = "\033[38;2;255;128;128m";
-                        color_end = "\033[0m";
-                    }
-                    std::cout << color + "iSS=" << iSS << " (" << nd.deg.stem() << ',' << nd.deg.s << ") d_{" << r << '}' << x << '=' << dx << "                  " + color_end + '\n';
+                    if (nd.r > 0)
+                        std::cout << color + "iSS=" << iSS << "  " << nd.deg.StrAdams() << "  d_{" << r << '}' << x << '=' << dx << "                  " + color_end + '\n';
+                    else
+                        std::cout << color + "iSS=" << iSS << "  " << nd.deg.StrAdams() << "  " << dx << "=d_{" << r << '}' << x << "                  " + color_end + '\n';
                 }
                 DeduceZeroDiffs();
                 CacheNullDiffs(maxPoss, maxStem, stage == 2);
@@ -227,37 +230,6 @@ int Diagram::DeduceDiffs(int depth, int max_stage, Timer& timer)  // TODO: cache
         }
     }
     return count;
-}
-
-/* Deduce zero differentials using the image of J
- * t_test is for DeduceDiffs() */
-int Diagram::DeduceImageJ()
-{
-    int count_new_diffs = 0;
-    int prev_t = -1;
-    AdamsDeg1d arr_degs_image_of_J = {AdamsDeg(1, 2), AdamsDeg(2, 4), AdamsDeg(3, 6), AdamsDeg(1, 4), AdamsDeg(2, 5), AdamsDeg(2, 9), AdamsDeg(3, 10), AdamsDeg(4, 11), AdamsDeg(3, 11), AdamsDeg(4, 13)};
-    std::set<AdamsDeg> degs_image_of_J;
-    for (int i = 0; i < 30; ++i)
-        for (size_t j = 0; j < arr_degs_image_of_J.size(); ++j)
-            degs_image_of_J.insert(arr_degs_image_of_J[j] + AdamsDeg(4, 12) * i);
-    for (auto& [d, basis_ss_d] : ssS0_.basis_ss.front()) {
-        if (d.t != prev_t) {
-            std::cout << d.t << " " << count_new_diffs << "     \r";
-            prev_t = d.t;
-        }
-        const Staircase& sc = GetRecentStaircase(ssS0_.basis_ss, d);
-        for (size_t i = 0; i < sc.levels.size(); ++i) {
-            if (sc.diffs_ind[i] == int1d{-1} && sc.levels[i] > kLevelPC) {
-                int r = kLevelMax - sc.levels[i];
-                AdamsDeg deg_tgt = d + AdamsDeg(r, r - 1);
-                if (degs_image_of_J.find(deg_tgt) != degs_image_of_J.end()) {
-                    SetS0DiffLeibnizV2(d, sc.basis_ind[i], {}, kLevelPC - 1);
-                    ++count_new_diffs;
-                }
-            }
-        }
-    }
-    return count_new_diffs;
 }
 
 int main_deduce_zero(int argc, char** argv, int index)
@@ -313,51 +285,6 @@ int main_deduce_zero(int argc, char** argv, int index)
     return 0;
 }
 
-int main_deduce_j(int argc, char** argv, int index)
-{
-    std::string db_filename = DB_S0;
-    std::string table_prefix = "AdamsE2";
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Deduce trivial differentials because of image of J\n";
-        std::cout << "Usage:\n  ss deduce j [db_filename] [table_prefix]\n\n";
-
-        std::cout << "Default values:\n";
-
-        std::cout << "  db_filename = " << db_filename << "\n";
-        std::cout << "  table_prefix = " << table_prefix << "\n\n";
-
-        std::cout << "Version:\n  1.0 (2022-7-12)" << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "table_prefix", table_prefix))
-        return index;
-
-    bench::Timer timer;
-    DBSS db(db_filename);
-    Diagram ss({db_filename});
-
-    int count = 0;
-    try {
-        count = ss.DeduceImageJ();
-
-        db.begin_transaction();
-        db.update_basis_ss(table_prefix, ss.GetChanges(0));
-        db.end_transaction();
-    }
-    catch (SSException& e) {
-        std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
-    }
-    catch (MyException& e) {
-        std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
-    }
-
-    std::cout << "Changed differentials: " << count << '\n';
-    return 0;
-}
-
 int main_deduce_diff(int argc, char** argv, int index)
 {
     double stop_time = 600;
@@ -404,12 +331,14 @@ int main_deduce_diff(int argc, char** argv, int index)
             db.end_transaction();
         }
     }
-    /*catch (SSException& e) {
+#ifdef MYDEPLOY
+    catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
     }
     catch (MyException& e) {
         std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
-    }*/
+    }
+#endif
     catch (NoException&) {
         ;
     }
@@ -424,10 +353,10 @@ int main_deduce_tmp(int argc, char** argv, int index)
 {
     std::string db_S0 = DB_S0;
     std::vector<std::string> dbnames = {
-        /*DB_C2,
+        DB_C2,
         DB_Ceta,
         DB_Cnu,
-        DB_Csigma,*/
+        DB_Csigma,
     };
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
@@ -435,7 +364,6 @@ int main_deduce_tmp(int argc, char** argv, int index)
         std::cout << "Usage:\n  ss deduce tmp [db_S0] [db_Cofibs ...]\n\n";
 
         std::cout << "Default values:\n";
-
         std::cout << "  db_S0 = " << db_S0 << "\n\n";
 
         std::cout << VERSION << std::endl;
@@ -447,33 +375,22 @@ int main_deduce_tmp(int argc, char** argv, int index)
         return index;
     dbnames.insert(dbnames.begin(), db_S0);
 
-    /*for (size_t k = 0; k < dbnames.size(); ++k) {
-        DBSS db(dbnames[k]);
-        auto pi_table = GetComplexName(dbnames[k]);
-        db.begin_transaction();
-        db.drop_and_create_pi_relations(pi_table);
-        db.drop_and_create_pi_basis(pi_table);
-        if (k == 0)
-            db.drop_and_create_pi_generators(pi_table);
-        else
-            db.drop_and_create_pi_generators_mod(pi_table);
-        db.end_transaction();
-    }*/
-
     Diagram diagram(dbnames);
 
     int count = 0;
     try {
         int count_ss = 0, count_homotopy = 0;
-        diagram.SyncHomotopy(count_ss, count_homotopy);
+        /*diagram.SyncHomotopy(count_ss, count_homotopy);
         count_homotopy += diagram.DeduceZeroExtensions();
+        count_homotopy += diagram.DeduceExtensionsByExactness();*/
+        diagram.DeduceExtensions(count_ss, count_homotopy, 0);
         diagram.SimplifyPiRels();
 
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             auto pi_table = GetComplexName(dbnames[k]);
             db.begin_transaction();
-            //db.update_basis_ss(table, (*diagram.GetAllBasisSs()[k])[1]);
+            db.update_basis_ss(pi_table + "_AdamsE2", (*diagram.GetAllBasisSs()[k])[1]);
 
             db.drop_and_create_pi_relations(pi_table);
             db.drop_and_create_pi_basis(pi_table);
@@ -487,73 +404,30 @@ int main_deduce_tmp(int argc, char** argv, int index)
             else {
                 db.drop_and_create_pi_generators_mod(pi_table);
                 auto& Cof = diagram.GetCofs()[k - 1];
-                db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_f_top_cell);
+                if (Cof.pi_f_top_cell.size() != 1)
+                    throw MyException(0x925afecU, "Not on the initial node");
+                db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_f_top_cell.front());
                 db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), diagram.GetCofGbEinf(int(k - 1)));
                 db.save_pi_basis_mod(pi_table, Cof.pi_basis, Cof.pi_basis_Einf);
             }
 
             db.end_transaction();
         }
-
-        auto& gen_degs = diagram.GetS0().pi_gb.gen_degs();
-        auto& gen_repr = diagram.GetS0().pi_gen_Einf;
-        auto& data = diagram.GetS0().pi_gb.data();
-
-        /*std::cout << "Generators\n";
-        for (size_t i = 0; i < gen_degs.size(); ++i) {
-            if (gen_degs[i].stem() <= 30)
-                std::cout << i << ' ' << gen_degs[i].StrAdams() << ' ' << gen_repr[i] << '\n';
-        }
-        std::cout << "\nRelations\n";
-        for (size_t i = 0; i < data.size(); ++i) {
-            if (algZ::GetDeg(data[i].GetLead(), gen_degs).stem() <= 30)
-                std::cout << data[i] << '\n';
-        }
-        std::cout << "\nBasis\n";
-        for (auto& [d, basis_d] : diagram.GetS0().pi_basis) {
-            if (d.stem() <= 30 && d.stem() > 0 && basis_d.size() > 0) {
-                std::cout << d.StrAdams() << ' ';
-                for (auto& m : basis_d)
-                    std::cout << m << ' ';
-                std::cout << '\n';
-            }
-        }
-        auto& v_degs = diagram.GetCofs()[0].pi_gb.v_degs();
-        auto& gen_repr1 = diagram.GetCofs()[0].pi_gen_Einf;
-        auto& data1 = diagram.GetCofs()[0].pi_gb.data();
-
-        std::cout << "Generators\n";
-        for (size_t i = 0; i < v_degs.size(); ++i) {
-            if (v_degs[i].stem() <= 30)
-                std::cout << i << ' ' << v_degs[i].StrAdams() << "  detected by " << gen_repr1[i] << "  f(this)=" << diagram.GetCofs()[0].pi_f_top_cell[i] << '\n';
-        }
-        std::cout << "\nRelations\n";
-        for (size_t i = 0; i < data1.size(); ++i) {
-            if (algZ::GetDeg(data1[i].GetLead(), gen_degs, v_degs).stem() <= 30)
-                std::cout << data1[i] << '\n';
-        }
-        std::cout << "\nBasis\n";
-        for (auto& [d, basis_d] : diagram.GetCofs()[0].pi_basis) {
-            if (d.stem() <= 30 && d.stem() > 0 && basis_d.size() > 0) {
-                std::cout << d.StrAdams() << ' ';
-                for (auto& m : basis_d)
-                    std::cout << m << ' ';
-                std::cout << '\n';
-            }
-        }*/
     }
-    /*catch (SSException& e) {
+#ifdef MYDEPLOY
+    catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
     }
     catch (MyException& e) {
         std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
-    }*/
+    }
+#endif
     catch (NoException&) {
         ;
     }
 
     std::cout << "Changed differentials: " << count << '\n';
-    bench::Counter::print();
+    // bench::Counter::print();
     return 0;
 }
 
@@ -580,8 +454,6 @@ int main_deduce(int argc, char** argv, int index)
 
     if (cmd == "zero")
         return main_deduce_zero(argc, argv, index);
-    else if (cmd == "j")
-        return main_deduce_j(argc, argv, index);
     else if (cmd == "diff")
         return main_deduce_diff(argc, argv, index);
     else if (cmd == "migrate")

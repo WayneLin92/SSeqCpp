@@ -545,6 +545,7 @@ struct Poly
 };
 
 using Poly1d = std::vector<Poly>;
+using Poly2d = std::vector<Poly1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
 {

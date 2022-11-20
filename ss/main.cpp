@@ -30,10 +30,16 @@ int main(int argc, char** argv)
 
     if (cmd == "init")
         return main_generate_ss(argc, argv, index);
+    else if (cmd == "resetpi")
+        return main_resetpi(argc, argv, index);
+    else if (cmd == "truncate")
+        return main_truncate(argc, argv, index);
     else if (cmd == "basis_prod")
         return main_basis_prod(argc, argv, index);
     else if (cmd == "plot")
         return main_plot(argc, argv, index);
+    else if (cmd == "plotpi")
+        return main_plotpi(argc, argv, index);
     else if (cmd == "add_diff")
         return main_add_diff(argc, argv, index);
     else if (cmd == "deduce")

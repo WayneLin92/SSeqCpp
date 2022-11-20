@@ -1,0 +1,5 @@
+{
+  "current": { "S0": "S0_AdamsSS_t259.db", "C2": "C2_AdamsSS_t246.db", "Ceta": "Ceta_AdamsSS_t200.db", "Cnu": "Cnu_AdamsSS_t200.db", "Csigma": "Csigma_AdamsSS_t200.db" },
+  "from": { "S0": "", "C2": "", "Ceta": "", "Cnu": "", "Csigma": "" },
+  "to": { "S0": "", "C2": "", "Ceta": "", "Cnu": "", "Csigma": "" }
+}

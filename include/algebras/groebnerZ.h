@@ -7,8 +7,7 @@
 
 #include "algebrasZ.h"
 #include "groebner.h"
-#include <map>
-#include <unordered_set>
+#include <unordered_map>
 
 /* extension of namespace alg in algebras.h */
 namespace algZ {
@@ -60,11 +59,12 @@ using CriPair2d = std::vector<CriPair1d>;
 /* Groebner basis of critical pairs */
 class GbCriPairs
 {
-private:
+public:////
     int deg_trunc_;                                                      /* Truncation degree */
     CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, CriPair2d> buffer_min_pairs_;                          /* To generate `buffer_min_pairs_` and for computing Sij */
+    std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_;        /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
+    std::vector<std::pair<int, CriPair>> new_pairs__;                    /* tmp variable to be used in functions */
 
 public:
     GbCriPairs(int d_trunc) : deg_trunc_(d_trunc) {}
@@ -77,8 +77,8 @@ public:
         CriPair1d result;
         if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first == d) {
             auto& b_min_pairs_d = buffer_min_pairs_.begin()->second;
-            for (size_t j = 0; j < b_min_pairs_d.size(); ++j)
-                for (auto& pair : b_min_pairs_d[j])
+            for (auto& [_, pairs] : b_min_pairs_d)
+                for (auto& pair : pairs)
                     if (pair.i2 != NULL_INDEX32)
                         result.push_back(std::move(pair));
             buffer_min_pairs_.erase(buffer_min_pairs_.begin());
@@ -101,6 +101,34 @@ public:
         gb_.clear();
         buffer_min_pairs_.clear();
         buffer_redundent_pairs_.clear();
+    }
+
+    void ClearBuffer()
+    {
+        buffer_min_pairs_.clear();
+        buffer_redundent_pairs_.clear();
+    }
+
+    void Pop(size_t rel_size)
+    {
+        gb_.resize(rel_size);
+        if (!buffer_min_pairs_.empty())
+            throw MyException(0, "BUG");
+        if (!buffer_redundent_pairs_.empty())
+            throw MyException(0, "BUG");
+    }
+
+    void Pop(size_t xrels_size, size_t rel_size)
+    {
+        gb_.resize(rel_size);
+        uint32_t i1_end = uint32_t(xrels_size) | FLAG_INDEX_X;
+        for (size_t j = 0; j < gb_.size(); ++j)
+            ut::RemoveIf(gb_[j], [i1_end](const CriPair& cp) { return cp.i1 >= i1_end; });
+
+        if (!buffer_min_pairs_.empty())
+            throw MyException(0, "BUG");
+        if (!buffer_redundent_pairs_.empty())
+            throw MyException(0, "BUG");
     }
 
     /* Minimize `buffer_min_pairs_[d]` and maintain `pairs_` */
@@ -199,15 +227,10 @@ public: /* Getters and Setters */
         data_.push_back(std::move(g));
     }
 
-    void push_back_data(Poly g)
+    void push_back_data(Poly g, AdamsDeg deg)
     {
-        auto& m = g.GetLead();
-        AdamsDeg deg = GetDeg(m, gen_degs_);
-
-        if (deg.t <= criticals_.deg_trunc()) {
-            criticals_.AddToBuffers(leads_, traces_, leads_O_, m, g.UnknownFil(), gen_degs_);
-            push_back_data_init(std::move(g), deg);
-        }
+        criticals_.AddToBuffers(leads_, traces_, leads_O_, g.GetLead(), g.UnknownFil(), gen_degs_);
+        push_back_data_init(std::move(g), deg);
     }
 
     void ResetRels()
@@ -224,6 +247,15 @@ public: /* Getters and Setters */
         for (size_t i = 1; i < gen_degs_.size(); ++i)
             gen_2tor_degs_[i] = (gen_degs_[i].stem() + 5) / 2;  //// TODO: modify
     }
+
+    void set_gen_2tor_degs(int1d gen_2tor_degs__)
+    {
+        gen_2tor_degs_ = std::move(gen_2tor_degs__);
+    }
+
+    /* Restore the algebra to a previous status */
+    void Pop(size_t gen_size, size_t rel_size);
+    void debug_print() const;
 
     bool operator==(const Groebner& rhs) const
     {
@@ -255,7 +287,7 @@ public: /* Getters and Setters */
         return leads_group_by_deg_;
     }
 
-    const std::map<AdamsDeg, Poly1d> OutputForDatabase() const
+    auto OutputForDatabase() const -> const std::map<AdamsDeg, Poly1d>
     {
         std::map<AdamsDeg, Poly1d> result;
         for (auto& [deg, indices] : leads_group_by_deg_) {
@@ -300,13 +332,13 @@ public:
         if (deg == AdamsDeg(1, 1))
             gen_2tor_degs_.push_back(FIL_MAX + 1);
         else
-            gen_2tor_degs_.push_back((deg.stem() + 5) / 2); //// TODO: modify
+            gen_2tor_degs_.push_back((deg.stem() + 5) / 2);  //// TODO: modify
     }
 
     /**
      * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`
      */
-    void AddRels(const Poly1d& rels, int deg);
+    void AddRels(Poly1d rels, int deg);
 
     void SimplifyRels();
 };
@@ -364,7 +396,7 @@ private:
 
 private:
     Groebner* pGb_;
-    size_t old_pGb_size;
+    size_t old_pGb_size_;
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Mod1d data_;
@@ -378,8 +410,8 @@ private:
     AdamsDeg1d v_degs_; /* degree of generators of modules */
 
 public:
-    GroebnerMod() : pGb_(nullptr), criticals_(DEG_MAX), old_pGb_size(0) {}
-    GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size(pGb->leads_.size()) {}
+    GroebnerMod() : pGb_(nullptr), criticals_(DEG_MAX), old_pGb_size_(0) {}
+    GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size()) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
     GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic = false);
@@ -396,7 +428,7 @@ public:
      *
      * `rels` should be ordered by degree.
      */
-    void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
+    //void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
 
 public: /* Getters and Setters */
     const auto& gb_pairs() const
@@ -435,19 +467,15 @@ public: /* Getters and Setters */
         data_.push_back(std::move(g));
     }
     /* This is used for initialization */
-    void push_back_data(Mod g)
+    void push_back_data(Mod g, AdamsDeg deg)
     {
-        auto& m = g.GetLead();
-        AdamsDeg deg = GetDeg(m, pGb_->gen_degs(), v_degs_);
-        if (deg.t <= criticals_.deg_trunc()) {
-            criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, m, g.UnknownFil(), pGb_->gen_degs(), v_degs_);
-            push_back_data_init(std::move(g), deg);
-        }
+        criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, g.GetLead(), g.UnknownFil(), pGb_->gen_degs(), v_degs_);
+        push_back_data_init(std::move(g), deg);
     }
 
     void ResetRels()
     {
-        old_pGb_size = pGb_->leads_.size();
+        old_pGb_size_ = pGb_->leads_.size();
         criticals_.Reset();
         leads_.clear();
         traces_.clear();
@@ -457,6 +485,9 @@ public: /* Getters and Setters */
         leads_group_by_v_.clear();
         data_.clear();
     }
+
+    void Pop(size_t gen_size, size_t rel_size);
+    void debug_print() const;////
 
     bool operator==(const GroebnerMod& rhs) const
     {
@@ -476,6 +507,11 @@ public: /* Getters and Setters */
     auto& v_degs() const
     {
         return v_degs_;
+    }
+
+    const auto& gen_2tor_degs() const
+    {
+        return pGb_->gen_2tor_degs_;
     }
 
     const auto& leads_group_by_deg() const
@@ -499,6 +535,11 @@ public: /* Getters and Setters */
         return traces_[i];
     }
 
+    MMod Gen(uint32_t v_id) const
+    {
+        return MMod(Mon(), v_id, v_degs_[v_id].s);
+    }
+
 public:
     /* Compute the basis in `deg` based on the basis of pGb_ */
     MMod1d GenBasis(AdamsDeg deg, const std::map<AdamsDeg, Mon1d>& basis) const;
@@ -508,6 +549,9 @@ public:
 
     /* Return -1 if not found */
     int IndexOfDivisibleLeading(const MMod& mon, int eff_min) const;
+    /* Return -1 if not found
+     * Return the index of gb with the biggest effective number
+     */
     int IndexOfDivisibleLeadingV2(const MMod& mon) const;
 
     /* This function does not decrease the certainty of poly */
@@ -523,11 +567,10 @@ public:
     /**
      * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`
      */
-    void AddRels(const Mod1d& rels, int deg);
+    void AddRels(Mod1d rels, int deg);
 
     void SimplifyRels();
 };
-
 
 inline bool IsValidRel(const Poly& poly)
 {

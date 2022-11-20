@@ -32,14 +32,10 @@ std::string Serialize(const algZ::Mon& mon);
 
 inline std::string Serialize(const algZ::MMod& mon)
 {
-    if (mon.m) {
-        if (mon.IsUnKnown())
-            return Serialize(mon.m) + ",-1";
-        else
-            return Serialize(mon.m) + "," + std::to_string(mon.v);
-    }
+    if (mon.IsUnKnown())
+        return Serialize(mon.m) + ",-1";
     else
-        return std::to_string(mon.v);
+        return Serialize(mon.m) + "," + std::to_string(mon.v);
 }
 
 inline std::string Serialize(const Poly& poly)
