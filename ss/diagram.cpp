@@ -44,8 +44,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
 {
     const auto& basis_ss1 = ss1.GetS0().basis_ss;
 
-    Timer timer(3600);
-    ss2.DeduceDiffs(0, 3, timer);
+    ss2.DeduceDiffs(0, 1, 0, DeduceFlag::no_op);
 
     AdamsDeg1d degs;
     for (auto& [d, _] : basis_ss1.front())
@@ -66,7 +65,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
                     primitives[deg].levels.push_back(sc.levels[i]);
 
                     Timer timer(3600);
-                    ss2.DeduceDiffs(0, 3, timer);
+                    ss2.DeduceDiffs(0, 1, 0, DeduceFlag::no_op);
                 }
             }
         }
@@ -75,9 +74,9 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
 
 int main_deduce_migrate(int argc, char** argv, int index)
 {
-    std::string db_in = "S0_AdamsSS_t245.db";
+    std::string db_in = "";
     std::string table_in = "AdamsE2";
-    std::string db_out = DB_S0;
+    std::string db_out = "";
     std::string table_out = GetE2TablePrefix(db_out);
     int t_max_zero = 381;
 
@@ -114,7 +113,7 @@ int main_deduce_migrate(int argc, char** argv, int index)
         migrate(diagram1, diagram2, primitives, t_max_zero);
 
         db2.begin_transaction();
-        db2.update_basis_ss(table_out, diagram2.GetChanges(0));
+        db2.update_basis_ss(table_out, diagram2.GetBasisSSChanges(0));
         db2.drop_and_create_ss_primitives(table_out);
         db2.save_ss_primitives(table_out, primitives);
         db2.end_transaction();

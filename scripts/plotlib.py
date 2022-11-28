@@ -86,9 +86,11 @@ def load_pi_gen_names(c, table, letter):
 def load_pi_multiplications(c, table):
     sql = f"SELECT id1, id2, prod, O FROM {table}"
     result = []
+    result_factors = set()
     for id1, id2, prod, O in c.execute(sql):
+        result_factors.add(id1)
         result.append((id1, id2, str2array(prod), O))
-    return result
+    return result, result_factors
 
 def load_pi_basis_map(c, table, target):
     sql = f"SELECT id, to_{target}, O_{target} FROM {table} WHERE to_{target} IS NOT NULL"
@@ -110,7 +112,7 @@ def load_ring(path_ring):
     is_ring = True
     result = load_pi_basis(c_ring, complex_ring + "_pi_basis", is_ring)
     result["gen_names"] = load_pi_gen_names(c_ring, complex_ring + "_pi_generators", "\\mu")
-    result["products"] = load_pi_multiplications(c_plot, complex_ring + "_pi_basis_products")
+    result["products"], result["products_factors"] = load_pi_multiplications(c_plot, complex_ring + "_pi_basis_products")
 
     c_ring.close()
     conn_ring.close()
@@ -139,14 +141,14 @@ def load_mod(path_ring, path_mod):
     
     is_ring = True
     result_ring = load_pi_basis(c_ring, complex_ring + "_pi_basis", is_ring)
-    result_ring["gen_names"] = load_pi_gen_names(c_ring, complex_ring + "_pi_generators", "\\mu")
-    result_ring["products"] = load_pi_multiplications(c_plot_ring, complex_ring + "_pi_basis_products")
+    result_ring["gen_names"] = load_pi_gen_names(c_ring, complex_ring + "_pi_generators", "\\rho")
+    result_ring["products"], result_ring["products_factors"] = load_pi_multiplications(c_plot_ring, complex_ring + "_pi_basis_products")
     result_ring["basis_map"] = load_pi_basis_map(c_plot_ring, complex_ring + "_pi_basis_maps", complex_mod)
 
     is_ring = False
     result_mod = load_pi_basis(c_mod, complex_mod + "_pi_basis", is_ring)
     result_mod["gen_names"] = load_pi_gen_names(c_mod, complex_mod + "_pi_generators", "\\iota")
-    result_mod["products"] = load_pi_multiplications(c_plot_mod, complex_mod + "_pi_basis_products")
+    result_mod["products"], result_mod["products_factors"] = load_pi_multiplications(c_plot_mod, complex_mod + "_pi_basis_products")
     result_mod["basis_map"] = load_pi_basis_map(c_plot_mod, complex_mod + "_pi_basis_maps", complex_ring)
     result_mod["t"] = get_complex_t(path_mod)
 
@@ -303,7 +305,7 @@ def export_h_lines(index2xyrp, lines, dashed_lines, class_: str = None):
             x1, y1, r1, p1 = index2xyrp[i1]
             x2, y2, r2, p2 = index2xyrp[i2]
             if(round(x2) < round(x1)): #########
-                print(x1, y1, x2, y2, i1, i2, class_)
+                print(x1, y1, x2, y2, i, i1, i2, class_)
                 raise ValueError("incorrect line")
             color = None if round(y2) - round(y1) == 1 else extend_colors[i]
             tpl_lines[i] += element_line(x1, y1, x2, y2, w=min(r1, r2) / 4, p=min(p1, p2), class_=f"strt_l{class_}", dashed=False, color=color)
@@ -361,13 +363,14 @@ def export_basis_to_js(data1d):
     return content_js
 
 def export_basis_prod_to_js(data1d):
-    content_js = "const basis_prod = {\n"
+    content_js = f"const arr_factors = {sorted(data1d[0]['products_factors'])};\n"
+    content_js += "const basis_prod = {\n"
     offset = 0
     for data in data1d:
-        for id1, id2, prod, _ in data["products"]:
-            if len(prod) > 0:
+        for id1, id2, prod, O in data["products"]:
+            if len(prod) > 0 or O >= 0:
                 prod = [i + offset for i in prod]
-                content_js += f' "{id1},{id2 + offset}": {prod},\n'
+                content_js += f' "{id1},{id2 + offset}": [{prod}, {O if O > 0 else 300}],\n'
         content_js += '\n'
         offset += len(data["basis"])
     content_js += "};\n\n"
@@ -409,7 +412,7 @@ def export_pi_mod(data_ring, data_mod):
     # js
     content_js = 'const MODE="DualSS";\n'
     content_js += f'const sep_max_width={data_mod["t"] + 1};\n'
-    content_js += 'var sep_right=10;\n'
+    content_js += 'var sep_right=1;\n'
     content_js += 'var sep_width=1;\n'
     content_js += export_gen_names_to_js([data_ring, data_mod])
     content_js += export_basis_to_js([data_ring, data_mod])

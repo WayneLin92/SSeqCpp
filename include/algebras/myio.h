@@ -1,10 +1,11 @@
 #ifndef MYIO_H
 #define MYIO_H
 
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <cstring>
 
 namespace myio {
 
@@ -136,7 +137,7 @@ int load_arg(int argc, char** argv, int index, const char* name, T& x)
         return load_op_arg(argc, argv, index, name, x);
     }
     else {
-        std::cerr << "Mising argument <" << name << ">\n";
+        std::cout << "Mising argument <" << name << ">\n";
         return 2;
     }
     return 0;
@@ -154,6 +155,62 @@ int load_args(int argc, char** argv, int index, const char* name, std::vector<T>
     }
     return 0;
 }
+
+/**
+ * The class `Counter` records counts in a static variable.
+ */
+class Logger
+{
+private:
+    static std::ofstream out_;
+    static bool bInitialized;
+
+    /* 0: smart mode
+     * 1: file out mode
+     * 1: std out mode
+     * 3: double out mode
+     */
+    int mode_;
+    static std::ostream& smart_stream();
+
+public:
+    Logger(int mode) : mode_(mode) {}
+
+    static void Init(const char* filename);
+
+    static Logger out()
+    {
+        return Logger(0);
+    }
+
+    static Logger fout()
+    {
+        return Logger(1);
+    }
+
+    /* Output to both log file and std::cout */
+    static Logger dout()
+    {
+        return Logger(3);
+    }
+
+    template <typename T>
+    Logger operator<<(const T& x)
+    {
+        if (mode_ == 0) {
+            smart_stream() << x;
+        }
+        else {
+            if ((mode_ & 1) && bInitialized)
+                out_ << x;
+            if (mode_ & 2)
+                std::cout << x;
+        }
+        return *this;
+    }
+};
+
+bool UserConfirm();
 
 }  // namespace myio
 

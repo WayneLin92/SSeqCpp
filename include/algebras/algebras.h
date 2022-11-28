@@ -10,8 +10,8 @@
 #include "utility.h"
 #include <algorithm>
 #include <array>
-#include <iostream>
 #include <climits>
+#include <iostream>
 
 /**
  * The namespace `alg` provides some basis types for differential alg namespaces.
@@ -217,7 +217,7 @@ using GE1d = std::vector<GE>;
 using MonTrace = uint64_t;
 using MonTrace1d = std::vector<MonTrace>;
 
-}
+}  // namespace alg
 
 /**
  * The namespace `alg2` provides the basis types for monomials and polynomials.
@@ -267,7 +267,7 @@ public:
     {
         if (size_ != rhs.size_)
             return false;
-        for (size_t i = 0; i < (size_t)size_; ++i)
+        for (size_t i = 0; i < size_; ++i)
             if (data_[i] != rhs.data_[i])
                 return false;
         return true;
@@ -410,7 +410,6 @@ int log(const Mon& mon1, const Mon& mon2);
 
 Mon GCD(const Mon& mon1, const Mon& mon2);
 Mon LCM(const Mon& mon1, const Mon& mon2);
-
 
 /********************************************************
  *                      Polynomials
@@ -744,6 +743,6 @@ inline Poly subsMod(const Mod& x, const std::vector<Poly>& map)
 int1d Mod2Indices(const Mod& x, const MMod1d& basis);
 Mod Indices2Mod(const int1d& indices, const MMod1d& basis);
 
-}  // namespace alg
+}  // namespace alg2
 
 #endif /* ALGEBRAS_H */

@@ -303,16 +303,16 @@ public: /* Getters and Setters */
         return traces_[i];
     }
 
-    Mon Gen(uint32_t gen_id) const
+    Mon Gen(uint32_t gen_id, uint32_t exp = 1) const
     {
-        return Mon::Gen(gen_id, 1, gen_degs_[gen_id].s, gen_degs_[gen_id].stem() % 2 == 0);
+        return Mon::Gen(gen_id, exp, gen_degs_[gen_id].s * exp, gen_degs_[gen_id].stem() % 2 == 0);
     }
 
 public:
     /* Compute the basis in `deg` assuming all basis have been calculated in lower total degrees
      * The relations in `deg` are ignored
      */
-    Mon1d GenBasis(AdamsDeg deg, const std::map<AdamsDeg, Mon1d>& basis) const;
+    bool IsNewBaseByLastGen(const Mon& mon, uint32_t last_gen) const;
 
     /* Return relations with leadings with the given deg */
     Poly1d RelsLF(AdamsDeg deg) const;
@@ -542,7 +542,7 @@ public: /* Getters and Setters */
 
 public:
     /* Compute the basis in `deg` based on the basis of pGb_ */
-    MMod1d GenBasis(AdamsDeg deg, const std::map<AdamsDeg, Mon1d>& basis) const;
+    bool IsNewBaseByV(const Mon& mon, uint32_t v) const;
 
     /* Return relations with leadings with the given deg */
     Mod1d RelsLF(AdamsDeg deg) const;

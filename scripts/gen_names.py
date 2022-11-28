@@ -240,7 +240,7 @@ if __name__ == "__main__":
         sql = f"select id, to_S0 from {args.cname}_AdamsE2_generators"
         for id, toS0 in c_C.execute(sql):
             if id == 0:
-                gen_names_C[id] = R"\iota_0"
+                gen_names_C[id] = R"i_0"
             else:
                 gen_names_C[id] = get_poly_name(toS0)
 

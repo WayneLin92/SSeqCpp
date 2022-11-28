@@ -23,17 +23,11 @@ int main_add_diff(int argc, char** argv, int index)
     std::string x_str, dx_str;
     size_t iDb = 0;
     std::string mode = "add";
-    std::string db_S0 = DB_S0;
-    std::vector<std::string> dbnames = {
-        DB_C2,
-        DB_Ceta,
-        DB_Cnu,
-        DB_Csigma,
-    };
+    std::string selector = "default";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Manually input a differential into the ss table\n";
-        std::cout << "Usage:\n  ss add_diff <stem> <s> <r> <x> <dx> [iDb] [mode:add/deduce/try] [db_S0] [db_Cofibs ...]\n\n";
+        std::cout << "Usage:\n  ss add_diff <stem> <s> <r> <x> <dx> [iDb] [mode:add/deduce/try] [selector]\n\n";
 
         std::cout << "mode:\n";
         std::cout << "add: add differential and save\n";
@@ -43,7 +37,7 @@ int main_add_diff(int argc, char** argv, int index)
         std::cout << "Default values:\n";
         std::cout << "  iDb = " << iDb << "\n";
         std::cout << "  mode = " << mode << "\n";
-        std::cout << "  db_S0 = " << db_S0 << "\n\n";
+        std::cout << "  selector = " << selector << "\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
@@ -62,11 +56,9 @@ int main_add_diff(int argc, char** argv, int index)
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "mode", mode))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
+    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
         return index;
-    if (myio::load_args(argc, argv, ++index, "db_Cofibs", dbnames))
-        return index;
-    dbnames.insert(dbnames.begin(), db_S0);
+    auto dbnames = GetDbNames(selector);
 
     AdamsDeg deg_x(s, stem + s);
     AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
@@ -104,15 +96,14 @@ int main_add_diff(int argc, char** argv, int index)
     int count = diagram.SetDiffLeibnizV2(iDb, deg_x, x, dx, r);
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Timer timer(300);
-        diagram.DeduceDiffs(0, 1, timer);
+        diagram.DeduceDiffs(0, 500, 0, DeduceFlag::no_op);////
     }
 
     if (mode == "add" || mode == "deduce") {
-        diagram.ApplyChanges(1);
-        for (size_t k = 0; k < dbnames.size(); ++k) {
-            DBSS db(dbnames[k]);
+        for (size_t iSS = 0; iSS < dbnames.size(); ++iSS) {
+            DBSS db(dbnames[iSS]);
             db.begin_transaction();
-            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetChanges(k));
+            db.update_basis_ss(GetE2TablePrefix(dbnames[iSS]), diagram.GetBasisSSChanges(iSS));
             db.end_transaction();
         }
     }

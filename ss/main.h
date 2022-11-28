@@ -7,28 +7,32 @@
 #include <set>
 
 inline const char* VERSION = "Version:\n  3.0 (2022-11-14)";
-
-#define CONFIG_INPUT 1
-#if (CONFIG_INPUT == 0)
-inline const char* DB_S0 = "S0_AdamsSS_t257.db";
-inline const char* DB_C2 = "C2_AdamsSS_t221.db";
-inline const char* DB_Ceta = "Ceta_AdamsSS_t200.db";
-inline const char* DB_Cnu = "Cnu_AdamsSS_t200.db";
-inline const char* DB_Csigma = "Csigma_AdamsSS_t200.db";
-#elif (CONFIG_INPUT == 1)
-inline const char* DB_S0 = "benchmark/S0_AdamsSS_t100.db";
-inline const char* DB_C2 = "benchmark/C2_AdamsSS_t100.db";
-inline const char* DB_Ceta = "benchmark/Ceta_AdamsSS_t100.db";
-inline const char* DB_Cnu = "benchmark/Cnu_AdamsSS_t100.db";
-inline const char* DB_Csigma = "benchmark/Csigma_AdamsSS_t100.db";
-#endif
-
 using namespace alg2;
 
 constexpr int kLevelMax = 10000;
 constexpr int kLevelMin = 2;
 constexpr int kRPC = 200;
 constexpr int kLevelPC = kLevelMax - kRPC; /* Level of Permanant cycles */
+
+enum class DeduceFlag : uint32_t
+{
+    no_op = 0,
+    set_diff = 1,
+    homotopy = 2,
+    fast_try_diff = 4,   /* SetDiffLeibniz will update only partially in the try node */
+    check_exactness = 8, /* Check exactness of htpy in the try node */
+    all_x = 16,          /* Deduce dx for all x including linear combinations */
+};
+
+inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
+{
+    return DeduceFlag(uint32_t(lhs) | uint32_t(rhs));
+}
+
+inline bool operator&(DeduceFlag lhs, DeduceFlag rhs)
+{
+    return uint32_t(lhs) & uint32_t(rhs);
+}
 
 struct Staircase
 {
@@ -39,6 +43,24 @@ struct Staircase
 
 using Staircases = std::map<AdamsDeg, Staircase>;
 using Staircases1d = std::vector<Staircases>;
+
+struct PiBase
+{
+    algZ::Mon1d pi_basis;
+    int2d Einf;
+};
+
+using PiBasis = std::map<AdamsDeg, PiBase>;
+using PiBasis1d = std::vector<PiBasis>;
+
+struct PiBaseMod
+{
+    algZ::MMod1d pi_basis;
+    int2d Einf;
+};
+
+using PiBasisMod = std::map<AdamsDeg, PiBaseMod>;
+using PiBasisMod1d = std::vector<PiBasisMod>;
 
 /* A custom Exception class */
 class SSException : public MyException
@@ -83,27 +105,25 @@ public:
 
 struct NullDiff
 {
-    AdamsDeg deg;
     int1d x;
     int r;
     int first, count;
 };
 
 using NullDiff1d = std::vector<NullDiff>;
-using NullDiff2d = std::vector<NullDiff1d>;
 
 struct SS
 {
+    std::string name; /* Constant after initialization */
     int t_max = -1;
     Groebner gb;
     std::map<AdamsDeg, Mon1d> basis;
+    AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
     Staircases1d basis_ss;
-    NullDiff2d nd;
 
     algZ::Groebner pi_gb;
     Poly1d pi_gen_Einf = {Poly::Gen(0)}; /* Projection onto the E_infty page */
-    std::map<AdamsDeg, algZ::Mon1d> pi_basis = {{AdamsDeg(0, 0), {algZ::Mon()}}};
-    std::map<AdamsDeg, int2d> pi_basis_Einf = {{AdamsDeg(0, 0), {{0}}}};
+    PiBasis1d pi_basis = {{{AdamsDeg(0, 0), {{algZ::Mon()}, {{0}}}}}};
     std::vector<size_t> pi_nodes_gen;
     std::vector<size_t> pi_nodes_rel;
     int2d pi_nodes_gen_2tor_degs;
@@ -111,33 +131,39 @@ struct SS
 
 struct SSMod
 {
+    std::string name; /* Constant after initialization */
     int t_max = -1;
-    AdamsDeg deg_f_top_cell;
+    AdamsDeg deg_qt;
     GroebnerMod gb;
     std::map<AdamsDeg, MMod1d> basis;
-    Poly1d f_top_cell;
+    AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
+    Poly1d qt;
     Staircases1d basis_ss;
-    NullDiff2d nd;
 
     algZ::GroebnerMod pi_gb;
     Mod1d pi_gen_Einf; /* Projection onto the E_infty page */
-    std::map<AdamsDeg, algZ::MMod1d> pi_basis;
-    std::map<AdamsDeg, int2d> pi_basis_Einf;
-    algZ::Poly2d pi_f_top_cell;
+    PiBasisMod1d pi_basis = {{}};
+    algZ::Poly2d pi_qt;
     std::vector<size_t> pi_nodes_gen;
     std::vector<size_t> pi_nodes_rel;
 };
 
 using SSMod1d = std::vector<SSMod>;
 
+constexpr size_t MAX_NUM_NODES = 5;
+
 class Diagram
 {
+
+public: /* Settings */
+    int stem_max_exactness_ = 100;
+
 protected:
     SS ssS0_;
     SSMod1d ssCofs_;
 
+    std::vector<std::string> all_names_;
     std::vector<Staircases1d*> all_basis_ss_;
-    std::vector<NullDiff2d*> all_nd_;
     int1d all_t_max_;
 
 public:
@@ -145,11 +171,13 @@ public:
 
 public:
     /* Return the newest version of the staircase in history */
-    static const Staircase& GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg);
-    Staircase& GetRecentStaircase(Staircases1d& basis_ss, AdamsDeg deg)
+    static auto GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg) -> const Staircase&;
+    static auto GetRecentStaircase(Staircases1d& basis_ss, AdamsDeg deg) -> Staircase&
     {
-        return const_cast<Staircase&>(const_cast<const Diagram*>(this)->GetRecentStaircase(basis_ss, deg));
+        return const_cast<Staircase&>(GetRecentStaircase((const Staircases1d&)(basis_ss), deg));
     }
+    static auto GetRecentPiBasis(const PiBasis1d& pi_basis, AdamsDeg deg) -> const PiBase*;
+    static auto GetRecentPiBasis(const PiBasisMod1d& pi_basis, AdamsDeg deg) -> const PiBaseMod*;
 
     auto& GetS0() const
     {
@@ -164,11 +192,6 @@ public:
     auto& GetAllBasisSs() const
     {
         return all_basis_ss_;
-    }
-
-    auto& GetAllNd() const
-    {
-        return all_nd_;
     }
 
     auto& GetAllTMax() const
@@ -211,28 +234,24 @@ public:
      */
     int NextRSrc(const Staircases1d& basis_ss, AdamsDeg deg, int r) const;
 
-    int1d GetDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, int1d x, int r) const;
-    bool IsNewDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, int1d x, int1d dx, int r) const;
+    int1d GetDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, int r) const;
+    bool IsNewDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
 
-    auto& GetChanges(size_t iBasisSS) const
+    auto& GetBasisSSChanges(size_t iBasisSS) const
     {
+        if ((*all_basis_ss_[iBasisSS]).size() != 2)
+            throw MyException(0xc2fa755cU, "Not on the change node");
         return (*all_basis_ss_[iBasisSS])[1];
     }
 
 protected:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiff(Staircases1d& basis_ss, AdamsDeg deg_x, int1d x, int1d dx, int r);
+    void SetDiff(Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
 
     /* Add an image. dx must be nonempty. */
-    void SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, int1d dx, int1d x, int r);
+    void SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
 
 public:
-    /* Combine the changes to basis_ss_[index] */
-    void ApplyChanges(size_t index);
-
-    /* Combine the last two records in basis_ss */
-    void ApplyRecentChanges(std::vector<std::set<AdamsDeg>>& degs);
-
     /* Add a node */
     void AddNode();
 
@@ -240,10 +259,10 @@ public:
     void PopNode();
 
     /* Apply the change of the staircase to the current history */
-    void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, int1d x, int1d dx, int level, int1d& image, int& level_image);
+    void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
-    void CacheNullDiffs(int maxPoss, int maxStem, bool bFull);
+    void CacheNullDiffs(size_t iSS, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
 
     /**
      * Add d_r(x)=dx;
@@ -252,8 +271,8 @@ public:
      *
      * dx should not be null.
      */
-    int SetS0DiffLeibniz(AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry = false);
-    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, int r_min, bool bFastTry = false);
+    int SetS0DiffLeibniz(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
+    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
 
     /**
      * Check first if it is a new differential before adding it.
@@ -261,19 +280,22 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetS0DiffLeibnizV2(AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
-    int SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
-    int SetDiffLeibnizV2(size_t index, AdamsDeg deg_x, int1d x, int1d dx, int r, bool bFastTry = false);
+    int SetS0DiffLeibnizV2(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetDiffLeibnizV2(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_ry=0 (y in level < kLevelMax - r);
      */
-    int SetS0ImageLeibniz(AdamsDeg deg_x, int1d x, int r);
-    int SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, int1d x, int r);
+    int SetS0ImageLeibniz(AdamsDeg deg_x, const int1d& x, int r);
+    int SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int r);
 
 public:
-    int DeduceZeroDiffs();
-    int DeduceDiffs(int depth, int max_stage, Timer& timer);
+    int DeduceTrivialDiffs();
+    /* Return 0 if there is no exception */
+    int TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
+    int DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag);
+    int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
@@ -310,17 +332,23 @@ public: /* homotopy groups */
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
             ssCofs_[iCof].pi_gb.SimplifyRels();
     }
-    void SyncS0Homotopy(int& count_ss, int& count_homotopyy, int depth);
-    void SyncCofHomotopy(int iCof, int& count_ss, int& count_homotopy, int depth);
-    void SyncHomotopy(int& count_ss, int& count_homotopy, int depth)
+    static algZ::Mon1d GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& pi_basis);
+    static algZ::MMod1d GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& basis);
+    void SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopyy, int depth);
+    void SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth);
+    void SyncHomotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
     {
-        SyncS0Homotopy(count_ss, count_homotopy, depth);
+        SyncS0Homotopy(deg_min, count_ss, count_homotopy, depth);
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            SyncCofHomotopy((int)iCof, count_ss, count_homotopy, depth);
+            SyncCofHomotopy((int)iCof, deg_min, count_ss, count_homotopy, depth);
     }
-    int DeduceZeroExtensions(int depth);
-    int DeduceExtensionsByExactness(int depth);
-    void DeduceExtensions(int& count_ss, int& count_homotopy, int depth=0);
+    int DeduceTrivialExtensions(int depth);
+    int DeduceExtensionsByExactness(int stem_min, int stem_max, int depth);
+
+    unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
+    unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
+    unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag);
+    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag flag);
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -355,6 +383,8 @@ public:
 
     void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const;
     void save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const;
+    void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
+    void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
@@ -375,6 +405,18 @@ AdamsDeg1d OrderDegsV2(const T& cont)
         result.push_back(d);
     }
     std::sort(result.begin(), result.end(), [](const AdamsDeg& d1, const AdamsDeg& d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+    return result;
+}
+
+/* Order by (t, -s) */
+template <typename T>
+AdamsDeg1d OrderDegsByStem(const T& cont)
+{
+    AdamsDeg1d result;
+    for (auto& [d, _] : cont) {
+        result.push_back(d);
+    }
+    std::sort(result.begin(), result.end(), [](const AdamsDeg& d1, const AdamsDeg& d2) { return d1.stem() < d2.stem() || (d1.stem() == d2.stem() && d1.s < d2.s); });
     return result;
 }
 
@@ -400,13 +442,17 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
+std::vector<std::string> GetDbNames(const std::string& selector);
+
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);
 int main_plotpi(int argc, char** argv, int index);
-int main_generate_ss(int argc, char** argv, int index);
+int main_reset(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
+int main_add_ext(int argc, char** argv, int index);
 
 int main_deduce(int argc, char** argv, int index);
+int main_deduce_ext(int argc, char** argv, int index);
 int main_deduce_migrate(int argc, char** argv, int index);
 
 int main_mod(int argc, char** argv, int index);

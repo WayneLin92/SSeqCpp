@@ -143,7 +143,7 @@ public:
             Poly<FnCmp> g = basis + lead;
             polys.push_back(std::move(g));
         }
-        std::clog << "gb loaded from " << table_prefix + "_relations, size=" << polys.size() << '\n';
+        myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << polys.size() << '\n';
         return Groebner<FnCmp>(t_max, polys);
     }
     std::map<MayDeg, int> load_indices(const std::string& table_prefix, int t_max) const;
@@ -158,7 +158,7 @@ public:
             MayDeg deg = {stmt.column_int(0), stmt.column_int(1), stmt.column_int(2)};
             result[deg].push_back(map(stmt.column_str(3)));
         }
-        std::clog << column_name << "'s loaded from" << table_name << ", size = " << count << '\n';
+        myio::Logger::out() << column_name << "'s loaded from" << table_name << ", size = " << count << '\n';
         return result;
     }
     std::map<MayDeg, Mon1d> load_basis(const std::string& table_prefix, int t_max) const
@@ -183,7 +183,7 @@ public:
             int1d diff_index = Deserialize<int1d>(stmt.column_str(3));
             result[deg].push_back(diff_index.empty() ? Poly<FnCmp>{} : Poly<FnCmp>{alg::Indices2Poly(std::move(diff_index), basis.at(deg + MayDeg{1, 0, -r}))});
         }
-        std::clog << "diffs loaded from " << table_prefix + "_basis, size=" << count << '\n';
+        myio::Logger::out() << "diffs loaded from " << table_prefix + "_basis, size=" << count << '\n';
         return result;
     }
     std::map<MayDeg, alg2::BasisComplex> load_basis_ss(const std::string& table_prefix, int r, int t_max) const; /* load d_r-cycles and d_r-boundaries */

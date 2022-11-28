@@ -453,7 +453,7 @@ void Groebner::debug_print() const
 {
     std::cout << "gen_degs_.size()=" << gen_degs_.size() << '\n';
     std::cout << "data_.size()=" << data_.size() << '\n';
-    int sum = 0;
+    size_t sum = 0;
     for (auto& [_, indices] : leads_group_by_key_)
         sum += indices.size();
     std::cout << "leads_group_by_key_=" << sum << '\n';
@@ -584,11 +584,14 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, Poly1d> rels_graded;
+    int debug_i = 0;
     for (auto& rel : rels) {
+        debug_i++;
         if (rel) {
             int d = GetDegT(rel.GetLead(), gen_degs_);
-            if (d <= deg_max)
+            if (d <= deg_max) {
                 rels_graded[d].push_back(std::move(rel));
+            }
         }
     }
 
@@ -606,8 +609,9 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
         Poly1d rels_tmp(pairs_d_size + rels_d.size());
         for (size_t i = 0; i < pairs_d_size; ++i)
             pairs_d[i].SijP(*this, rels_tmp[i], tmp);
-        for (size_t i = 0; i < rels_d.size(); ++i)
+        for (size_t i = 0; i < rels_d.size(); ++i) {
             rels_tmp[pairs_d_size + i] = std::move(rels_d[i]);
+        }
         std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Poly& p1, const Poly& p2) { return p1.EffNum() > p2.EffNum(); });
 
         for (auto& p : rels_tmp) {
@@ -617,8 +621,9 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
                 if (deg.t <= d_trunc) {
                     if (deg_max == d_trunc && deg.t > d)
                         rels_graded[deg.t].push_back(std::move(p));
-                    else
+                    else {
                         push_back_data(std::move(p), deg);
+                    }
                 }
             }
         }
@@ -651,24 +656,11 @@ void powP(const Poly& poly, int n, const Groebner& gb, Poly& result, Poly& tmp)
     }
 }
 
-Mon1d Groebner::GenBasis(AdamsDeg deg, const std::map<AdamsDeg, Mon1d>& basis) const
+bool Groebner::IsNewBaseByLastGen(const Mon& mon, uint32_t last_gen) const
 {
-    Mon1d result;
-    for (size_t gen_id = 0; gen_id < gen_degs_.size(); ++gen_id) {
-        AdamsDeg d1 = deg - gen_degs_[gen_id];
-        auto p = basis.find(d1);
-        if (p != basis.end()) {
-            for (auto& m : p->second) {
-                if (!m || (int)gen_id >= m.backg()) {
-                    Mon mon = mul_unsigned(m, Gen((uint32_t)gen_id));
-                    if (gen_id >= leads_group_by_last_gen_.size() || std::none_of(leads_group_by_last_gen_[gen_id].begin(), leads_group_by_last_gen_[gen_id].end(), [this, &mon](int i) { return divisible(this->leads()[i], mon); }))
-                        result.push_back(std::move(mon));
-                }
-            }
-        }
-    }
-    std::sort(result.begin(), result.end());
-    return result;
+    if (last_gen >= leads_group_by_last_gen_.size() || std::none_of(leads_group_by_last_gen_[last_gen].begin(), leads_group_by_last_gen_[last_gen].end(), [this, &mon](int i) { return divisible(this->leads()[i], mon); }))
+        return true;
+    return false;
 }
 
 Poly1d Groebner::RelsLF(AdamsDeg deg) const
@@ -693,21 +685,11 @@ GroebnerMod::GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d 
         criticals_.init(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, pGb_->gen_degs(), v_degs_, deg_trunc + 1);
 }
 
-MMod1d GroebnerMod::GenBasis(AdamsDeg deg, const std::map<AdamsDeg, Mon1d>& basis) const
+bool GroebnerMod::IsNewBaseByV(const Mon& mon, uint32_t v) const
 {
-    MMod1d result;
-    for (size_t v = 0; v < v_degs_.size(); ++v) {
-        AdamsDeg d1 = deg - v_degs_[v];
-        auto p = basis.find(d1);
-        if (p != basis.end()) {
-            for (auto& m : p->second) {
-                if (v >= leads_group_by_v_.size() || std::none_of(leads_group_by_v_[v].begin(), leads_group_by_v_[v].end(), [this, &m](int i) { return divisible(this->leads()[i].m, m); }))
-                    result.emplace_back(m, (int)v, v_degs_[v].s);
-            }
-        }
-    }
-    std::sort(result.begin(), result.end());
-    return result;
+    if (v >= leads_group_by_v_.size() || std::none_of(leads_group_by_v_[v].begin(), leads_group_by_v_[v].end(), [this, &mon](int i) { return divisible(this->leads()[i].m, mon); }))
+        return true;
+    return false;
 }
 
 Mod1d GroebnerMod::RelsLF(AdamsDeg deg) const
@@ -742,7 +724,7 @@ void GroebnerMod::debug_print() const
 {
     std::cout << "v_degs_.size()=" << v_degs_.size() << '\n';
     std::cout << "data_.size()=" << data_.size() << '\n';
-    int sum = 0;
+    size_t sum = 0;
     for (auto& [_, indices] : leads_group_by_key_)
         sum += indices.size();
     std::cout << "leads_group_by_key_=" << sum << '\n';

@@ -153,6 +153,7 @@ public:
     int get_int(const std::string& sql, int default_) const;
     std::string get_str(const std::string& sql) const;
     std::vector<int> get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
+
     /*
      * This converts a column of strings to vector of type `T`.
      */
@@ -163,9 +164,10 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_str(0)));
-        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
+
     /* `map` takes two arguments (void*, int)->T */
     template <typename T, typename FnMap>
     std::vector<T> get_column_from_blob(const std::string& table_name, const std::string& column_name, const std::string& conditions, const FnMap& map) const
@@ -174,9 +176,10 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_blob(0), stmt.column_blob_size(0)));
-        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
+
     template <typename T, typename FnMap>
     std::vector<T> get_column_from_str_with_null(const std::string& table_name, const std::string& column_name, const T& null_value, const std::string& conditions, const FnMap& map) const
     {
@@ -187,9 +190,10 @@ public:
                 result.push_back(map(stmt.column_str(0)));
             else
                 result.push_back(null_value);
-        std::clog << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
+
     std::vector<std::string> get_column_str(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
     {
         return get_column_from_str<std::string>(table_name, column_name, conditions, [](std::string c) { return c; });
@@ -206,6 +210,7 @@ public:
             stmt.step_and_reset();
         }
     }
+
     /* `map` should return a pair of type (void*, int) */
     template <typename T, typename FnMap>
     void update_blob_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const

@@ -2,6 +2,7 @@
 #define BENCHMARK_INCLUDED
 
 #include "utility.h"
+#include "myio.h"
 #include <iostream>
 
 namespace bench {
@@ -23,8 +24,10 @@ public:
     {
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed = end - start_;
-        if (!bPrinted_)
+        if (!bPrinted_) {
+            myio::Logger::fout() << elapsed.count() << "s (" << ut::get_time() << ")\n";
             std::cout << "\033[0;32m" << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
+        }
     }
     void print(const char* msg = "")
     {

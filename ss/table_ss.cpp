@@ -15,7 +15,7 @@ void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDe
         stmt.step_and_reset();
     }
 
-    std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_pi_generators!\n";
+    myio::Logger::out() << "Generators inserted into " + table_prefix + "_pi_generators, size=" << gen_degs.size() << '\n';
 }
 
 void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const
@@ -38,7 +38,53 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basi
             stmt.step_and_reset();
         }
     }
-    std::cout << count << " basis_ss are inserted into " + table_prefix + "_ss.\n";
+    myio::Logger::out() << "basis_ss are inserted into " << table_prefix << "_ss, size=" << count << '\n';
+}
+
+void DBSS::save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const
+{
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
+
+    int count = 0;
+    auto degs = OrderDegsV2(basis);
+    for (AdamsDeg deg : degs) {
+        auto& basis_d = basis.at(deg);
+        for (size_t i = 0; i < basis_d.pi_basis.size(); ++i) {
+            stmt.bind_int(1, count);
+            stmt.bind_str(2, myio::Serialize(basis_d.pi_basis[i]));
+            stmt.bind_str(3, basis_d.pi_basis[i].Str());
+            stmt.bind_str(4, myio::Serialize(basis_d.Einf[i]));
+            stmt.bind_int(5, deg.s);
+            stmt.bind_int(6, deg.t);
+            stmt.step_and_reset();
+            ++count;
+        }
+    }
+
+    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
+}
+
+void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const
+{
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_basis (id, mon, name, Einf, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
+
+    int count = 0;
+    auto degs = OrderDegsV2(basis);
+    for (AdamsDeg deg : degs) {
+        auto& basis_d = basis.at(deg);
+        for (size_t i = 0; i < basis_d.pi_basis.size(); ++i) {
+            stmt.bind_int(1, count);
+            stmt.bind_str(2, myio::Serialize(basis_d.pi_basis[i]));
+            stmt.bind_str(3, basis_d.pi_basis[i].Str());
+            stmt.bind_str(4, myio::Serialize(basis_d.Einf[i]));
+            stmt.bind_int(5, deg.s);
+            stmt.bind_int(6, deg.t);
+            stmt.step_and_reset();
+            ++count;
+        }
+    }
+
+    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
 std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix) const
@@ -51,7 +97,7 @@ std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix
         AdamsDeg d = {stmt.column_int(0), stmt.column_int(1)};
         result[d] = stmt.column_int(2);
     }
-    std::cout << count << " indices loaded from " << table_prefix << "_ss.\n";
+    myio::Logger::out() << "Indices loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return result;
 }
 
@@ -74,7 +120,7 @@ void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<Adams
             ++count;
         }
     }
-    std::cout << table_prefix + "_ss is updated, num_of_change=" << count << '\n';
+    myio::Logger::out() << table_prefix + "_ss is updated, num_of_change=" << count << '\n';
 }
 
 Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
@@ -94,7 +140,7 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
         int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
         basis_ss[deg].diffs_ind.push_back(std::move(diff));
     }
-    std::cout << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
+    myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return basis_ss;
 }
 
@@ -106,9 +152,6 @@ void generate_ss(const std::string& db_filename, int r)
     DBSS db(db_filename);
     std::string table_prefix = GetE2TablePrefix(db_filename);
     std::map<AdamsDeg, Mon1d> basis = db.load_basis(table_prefix);
-
-    int s_diff = 2;
-    int t_diff = 0;
     std::map<AdamsDeg, Staircase> basis_ss;
 
     /* fill basis_ss */
@@ -128,53 +171,70 @@ void generate_ss(const std::string& db_filename, int r)
     db.begin_transaction();
     db.drop_and_create_basis_ss(table_prefix);
     db.save_basis_ss(table_prefix, basis_ss);
+
+    auto pi_table = GetComplexName(db_filename);
+    db.begin_transaction();
+    db.drop_and_create_pi_relations(pi_table);
+    db.drop_and_create_pi_basis(pi_table);
+    if (pi_table == "S0")
+        db.drop_and_create_pi_generators(pi_table);
+    else
+        db.drop_and_create_pi_generators_mod(pi_table);
     db.end_transaction();
 }
 
-int main_generate_ss(int argc, char** argv, int index)
+int main_reset(int argc, char** argv, int index)
 {
-    std::string db_filename = "";
+    std::string selector = "default";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Initialize the ss table\n";
-        std::cout << "Usage:\n  ss init <db_filename>\n\n";
+        std::cout << "Usage:\n  ss reset [selector]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  selector = " << selector << "\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_arg(argc, argv, ++index, "db_filename", db_filename))
+    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
         return index;
+    auto dbnames = GetDbNames(selector);
 
-    generate_ss(db_filename, 2);
-    std::cout << "Done" << std::endl;
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        generate_ss(dbnames[k], 2);
+    }
+
+    Diagram diagram(dbnames);
+
+    int count = diagram.DeduceTrivialDiffs();
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        db.begin_transaction();
+        db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetBasisSSChanges(k));
+        db.end_transaction();
+    }
+
     return 0;
 }
 
 int main_resetpi(int argc, char** argv, int index)
 {
-    std::string db_S0 = DB_S0;
-    std::vector<std::string> dbnames = {
-        DB_C2,
-        DB_Ceta,
-        DB_Cnu,
-        DB_Csigma,
-    };
+    std::string selector = "default";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce tmp [db_S0] [db_Cofibs ...]\n\n";
+        std::cout << "Initialize the homotopy data\n";
+        std::cout << "Usage:\n  ss resetpi [selector]\n\n";
 
         std::cout << "Default values:\n";
-        std::cout << "  db_S0 = " << db_S0 << "\n\n";
+        std::cout << "  selector = " << selector << "\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
+    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
         return index;
-    if (myio::load_args(argc, argv, ++index, "db_Cofib", dbnames))
-        return index;
-    dbnames.insert(dbnames.begin(), db_S0);
+    auto dbnames = GetDbNames(selector);
 
     for (size_t k = 0; k < dbnames.size(); ++k) {
         DBSS db(dbnames[k]);
@@ -194,29 +254,21 @@ int main_resetpi(int argc, char** argv, int index)
 
 int main_truncate(int argc, char** argv, int index)
 {
-    std::string db_S0 = DB_S0;
-    std::vector<std::string> dbnames = {
-        DB_C2,
-        DB_Ceta,
-        DB_Cnu,
-        DB_Csigma,
-    };
+    std::string selector = "default";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss truncate [db_S0] [db_Cofibs ...]\n\n";
+        std::cout << "Usage:\n  ss truncate [selector]\n\n";
 
         std::cout << "Default values:\n";
-        std::cout << "  db_S0 = " << db_S0 << "\n\n";
+        std::cout << "  selector = " << selector << "\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (myio::load_op_arg(argc, argv, ++index, "db_S0", db_S0))
+    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
         return index;
-    if (myio::load_args(argc, argv, ++index, "db_Cofib", dbnames))
-        return index;
-    dbnames.insert(dbnames.begin(), db_S0);
+    auto dbnames = GetDbNames(selector);
 
     for (size_t k = 0; k < dbnames.size(); ++k) {
         DBSS db(dbnames[k]);
@@ -227,7 +279,7 @@ int main_truncate(int argc, char** argv, int index)
         for (auto& [d, sc] : basis_ss) {
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.levels[i] > kLevelPC) {
-                    int r = kLevelMax - sc.levels[i]; 
+                    int r = kLevelMax - sc.levels[i];
                     if (d.t + r - 1 > t_max && sc.diffs_ind[i] != int1d{-1})
                         sc.diffs_ind[i] = int1d{-1};
                 }
@@ -241,4 +293,3 @@ int main_truncate(int argc, char** argv, int index)
 
     return 0;
 }
-

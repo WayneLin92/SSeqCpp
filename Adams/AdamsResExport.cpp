@@ -122,7 +122,7 @@ public:
             alg2::AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
             result[deg].push_back(myio::Deserialize<alg2::int1d>(stmt.column_str(2)));
         }
-        std::cout << "repr loaded from " << table_prefix << "_basis, size=" << count << '\n';
+        myio::Logger::out() << "repr loaded from " << table_prefix << "_basis, size=" << count << '\n';
         return result;
     }
 };

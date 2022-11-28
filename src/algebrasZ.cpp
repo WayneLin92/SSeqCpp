@@ -63,8 +63,10 @@ std::string Mon::Str() const
     std::string str_c;
     if (c_ == 0)
         str_c = "";
-    else
+    else if (c_ < 10)
         str_c = std::to_string(1 << c_);
+    else
+        str_c = "2^{" + std::to_string(c_) + '}';
     std::string str_m0 = myio::TplStrCont("", "", "", "", m0_.begin(), m0_.end(), [](GE p) { return p.Str(); });
     std::string str_m1 = myio::TplStrCont("", "", "", "", m1_.begin(), m1_.end(), [](GE p) { return p.Str(); });
     result = str_c + str_m1 + str_m0;

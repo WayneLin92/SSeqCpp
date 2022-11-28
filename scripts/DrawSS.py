@@ -299,17 +299,17 @@ if __name__ == "__main__":
                 tpl_diff_lines[i] += f'<line class=dashed_l x1={index2xyrp[i1][0]:.6g} y1={index2xyrp[i1][1]:.6g} x2={index2xyrp[i2][0]:.6g} y2={index2xyrp[i2][1]:.6g} stroke-width={min(index2xyrp[i1][2], index2xyrp[i2][2]) / 4:.6g} stroke-dasharray="0.2,0.2" data-r={round(index2xyrp[i2][1]) - round(index2xyrp[i1][1])} />\n'
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
-    content = content.replace("bullets:b8999a4e", tpl_bullets)
+    content = content.replace("<!-- bullets:b8999a4e -->", tpl_bullets)
 
-    content = content.replace("h0_lines:839e707e", tpl_lines[0])
-    content = content.replace("h1_lines:2b707f82", tpl_lines[1])
-    content = content.replace("h2_lines:e766a4f6", tpl_lines[2])
+    content = content.replace("<!-- h0_lines:839e707e -->", tpl_lines[0])
+    content = content.replace("<!-- h1_lines:2b707f82 -->", tpl_lines[1])
+    content = content.replace("<!-- h2_lines:e766a4f6 -->", tpl_lines[2])
 
-    content = content.replace("d2_lines:d9dec788", tpl_diff_lines[0])
-    content = content.replace("d3_lines:1a07bf89", tpl_diff_lines[1])
-    content = content.replace("d4_lines:7d935e97", tpl_diff_lines[2])
-    content = content.replace("d5_lines:f6d7f992", tpl_diff_lines[3])
-    content = content.replace("d6_lines:05c49c4a", tpl_diff_lines[4])
+    content = content.replace("<!-- d2_lines:d9dec788 -->", tpl_diff_lines[0])
+    content = content.replace("<!-- d3_lines:1a07bf89 -->", tpl_diff_lines[1])
+    content = content.replace("<!-- d4_lines:7d935e97 -->", tpl_diff_lines[2])
+    content = content.replace("<!-- d5_lines:f6d7f992 -->", tpl_diff_lines[3])
+    content = content.replace("<!-- d6_lines:05c49c4a -->", tpl_diff_lines[4])
     with open(path_html, "w", encoding="utf-8") as file:
         file.write(content)
 
