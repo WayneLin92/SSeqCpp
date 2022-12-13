@@ -215,13 +215,10 @@ int2d DbAdamsResLoader::load_basis_degrees(const std::string& table_prefix, int 
 
 void assign_vid_num(int2d& vid_num, AdamsDegV2 deg, int id_max)
 {
-    if ((int)vid_num.size() <= deg.s)
+    if (vid_num.size() <= (size_t)deg.s)
         vid_num.resize(size_t(deg.s + 1));
-    size_t old_size = vid_num[deg.s].size();
-    int filler = old_size ? vid_num[deg.s].back() : 0;
-    vid_num[deg.s].resize(size_t(deg.stem() + 1));
-    for (size_t i = old_size; i < deg.stem(); ++i)
-        vid_num[deg.s][i] = filler;
+    int filler = vid_num[deg.s].empty() ? 0 : vid_num[deg.s].back();
+    vid_num[deg.s].resize(size_t(deg.stem() + 1), filler);
     vid_num[deg.s][deg.stem()] = id_max;
 }
 
@@ -281,7 +278,7 @@ public:
     void create_products(const std::string& table_prefix)
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, indecomposable TINYINT, s SMALLINT, t SMALLINT);");
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h BLOB, PRIMARY KEY (id, id_ind));");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h BLOB, prod_h_glo TEXT, PRIMARY KEY (id, id_ind));");
     }
 
     void create_time(const std::string& table_prefix) const
@@ -394,9 +391,9 @@ void compute_products_by_t(int t_trunc, const std::string& db_in, const std::str
             for (auto& [id_ind, _] : f_sm1)
                 id_inds.push_back(id_ind);
 
-            int vid_num_sm1 = vid_num[size_t(deg.s - 1)][deg.stem()];
+            size_t vid_num_sm1 = (size_t)vid_num[size_t(deg.s - 1)][deg.stem()];
             for (auto& [id_ind, f_sm1_id_ind] : f_sm1) {
-                f_sm1_id_ind.resize(size_t(vid_num_sm1));
+                f_sm1_id_ind.resize(vid_num_sm1);
                 fd[id_ind].resize(diffs_d_size);
             }
 
@@ -477,6 +474,107 @@ void compute_products_by_t(int t_trunc, const std::string& db_in, const std::str
     }
 }
 
+int1d HomToKCell(const Mod& x, int t_cell);
+
+void compute_products_with_hi(int t_trunc, const std::string& db_res_S0, const std::string& db_res_mod, const std::string& table_res_mod, const std::string& db_out)
+{
+    int1d ids_h;
+    {
+        DbAdamsResLoader dbResS0(db_res_S0);
+        ids_h = dbResS0.get_column_int("S0_Adams_res_generators", "id", "WHERE s=1 ORDER BY id");
+    }
+
+    std::map<int, AdamsDegV2> id_deg;
+    int2d loc2glo;
+    std::map<AdamsDegV2, Mod1d> diffs;
+    {
+        DbAdamsResLoader dbResMod(db_res_mod);
+        int2d vid_num;
+        dbResMod.load_generators(table_res_mod, id_deg, vid_num, diffs, t_trunc);
+        std::vector<std::pair<int, int>> glo2loc;
+        dbResMod.load_id_converter(table_res_mod, loc2glo, glo2loc);
+    }
+
+    DbAdamsResProd dbProd(db_out);
+    dbProd.create_products(table_res_mod);
+    int id_start = dbProd.get_int("SELECT COALESCE(MAX(id), -1) FROM " + table_res_mod + "_products") + 1;
+
+    myio::Statement stmt_prod(dbProd, "INSERT INTO " + table_res_mod + "_products (id, id_ind, prod_h, prod_h_glo) VALUES (?1, ?2, ?3, ?4);");
+
+    for (const auto& [id, deg] : id_deg) {
+        if (id < id_start) {
+            diffs.erase(deg);
+            continue;
+        }
+
+        auto& diffs_d = diffs.at(deg);
+
+        dbProd.begin_transaction();
+
+        /* Save the hj products */
+        for (size_t i = 0; i < diffs_d.size(); ++i) {
+            for (size_t j = 0; j < ids_h.size(); ++j) {
+                int1d prod_hi = HomToKCell(diffs_d[i], 1 << j);
+                if (!prod_hi.empty()) {
+                    int1d prod_hi_glo;
+                    for (int k : prod_hi)
+                        prod_hi_glo.push_back(loc2glo[size_t(deg.s - 1)][k]);
+
+                    stmt_prod.bind_int(1, id + (int)i);
+                    stmt_prod.bind_int(2, ids_h[j]);
+                    stmt_prod.bind_blob(3, prod_hi);
+                    stmt_prod.bind_str(4, myio::Serialize(prod_hi_glo));
+                    stmt_prod.step_and_reset();
+                }
+            }
+        }
+
+        dbProd.end_transaction();
+        diffs.erase(deg);
+    }
+}
+
+/* Compute the product with hi */
+int main_prod_hi(int argc, char** argv, int index)
+{
+    std::string complex = "S0";
+    int t_max = 100;
+    std::string db_S0 = "S0_Adams_res.db";
+    std::string db_mod = "<complex>_Adams_res.db";
+    std::string db_out = "<complex>_Adams_res_prod.db";
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Usage:\n  Adams prod_hi <complex> [t_max] [db_S0] [db_mod] [db_out]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  t_max = " << t_max << "\n";
+        std::cout << "  db_S0 = " << db_S0 << "\n";
+        std::cout << "  db_mod = " << db_mod << "\n";
+        std::cout << "  db_out = " << db_out << "\n";
+
+        std::cout << VERSION << std::endl;
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "complex", complex))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "db_mod", db_mod))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
+        return index;
+
+    if (db_mod == "<complex>_Adams_res.db")
+        db_mod = complex + "_Adams_res.db";
+    std::string table_mod = complex + "_Adams_res";
+    if (db_out == "<complex>_Adams_res_prod.db")
+        db_out = complex + "_Adams_res_prod.db";
+
+    compute_products_with_hi(t_max, db_S0, db_mod, table_mod, db_out);
+
+    return 0;
+}
+
 // std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0};
 int main_prod(int argc, char** argv, int index)
 {
@@ -499,7 +597,7 @@ int main_prod(int argc, char** argv, int index)
         std::cout << "  table_in = " << table_in << "\n";
         std::cout << "  db_out = " << db_out << "\n";
 
-        std::cout << "Version:\n  2.0 (2022-08-07)" << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
     if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
@@ -510,7 +608,6 @@ int main_prod(int argc, char** argv, int index)
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
         return index;
-    bench::Timer timer;
 
     compute_products_by_t(t_max, db_in, table_in, db_out);
 

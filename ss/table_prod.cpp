@@ -289,6 +289,7 @@ int main_plot(int argc, char** argv, int index)
     auto dbnames = GetDbNames(selector);
 
     Diagram diagram(dbnames);
+    diagram.DeduceTrivialDiffs();
     auto& ssS0 = diagram.GetS0();
     auto& ssCof = diagram.GetCofs();
     auto& all_basis_ss = diagram.GetAllBasisSs();
@@ -433,11 +434,11 @@ int main_plot(int argc, char** argv, int index)
                     throw MyException(0xef63215fU, "nd could be wrong");
                 int src = deg2ids[iSS][deg] + (int)index;
                 if (basis_ss_d.levels[index] > 9800) {
-                    int r = kLevelMax - basis_ss_d.levels[index];
-                    AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
                     int1d tgt;
                     for (int j = nd.first; j < nd.first + nd.count; ++j)
                         tgt.push_back(j);
+                    int r = kLevelMax - basis_ss_d.levels[index];
+                    AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
                     for (size_t j = 0; j < tgt.size(); ++j)
                         tgt[j] += deg2ids[iSS][deg_tgt];
 

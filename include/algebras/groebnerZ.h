@@ -59,10 +59,10 @@ using CriPair2d = std::vector<CriPair1d>;
 /* Groebner basis of critical pairs */
 class GbCriPairs
 {
-public:////
+public:
     int deg_trunc_;                                                      /* Truncation degree */
     CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_;        /* To generate `buffer_min_pairs_` and for computing Sij */
+    std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_; /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
     std::vector<std::pair<int, CriPair>> new_pairs__;                    /* tmp variable to be used in functions */
 
@@ -428,7 +428,7 @@ public:
      *
      * `rels` should be ordered by degree.
      */
-    //void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
+    // void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
 
 public: /* Getters and Setters */
     const auto& gb_pairs() const
@@ -487,7 +487,7 @@ public: /* Getters and Setters */
     }
 
     void Pop(size_t gen_size, size_t rel_size);
-    void debug_print() const;////
+    void debug_print() const;  ////
 
     bool operator==(const GroebnerMod& rhs) const
     {

@@ -297,11 +297,6 @@ Mod1d GroebnerX2m::AddRels(size_t s, int t)
 AdamsRes::AdamsRes(int t_trunc, int stem_trunc, DataMRes2d data, int2d basis_degrees, Mod2d data_x2m, int2d basis_degrees_x2m, std::map<int, int>& latest_st)
     : t_trunc_(t_trunc), stem_trunc_(stem_trunc), gb_(std::move(data)), basis_degrees_(std::move(basis_degrees)), gb_x2m_(t_trunc, stem_trunc, std::move(data_x2m), std::move(basis_degrees_x2m), latest_st)
 {
-    if (basis_degrees_.empty())
-        basis_degrees_.push_back({0});
-    if (basis_degrees_[0].empty())
-        basis_degrees_[0].push_back(0);
-
     leads_.resize(gb_.size());
     indices_.resize(gb_.size());
 
@@ -575,7 +570,7 @@ public:
 public:
     void create_generators(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, diff BLOB, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (rowid INTEGER PRIMARY KEY, id integer generated always as (rowid-1) virtual, diff BLOB, s SMALLINT, t SMALLINT);");
     }
     void create_generators_x2m(const std::string& table_prefix) const
     {
@@ -591,7 +586,7 @@ public:
     }
     void create_time(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, time REAL, UNIQUE(s, t));");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (s SMALLINT, t SMALLINT, time REAL, UNIQUE(s, t));");
     }
 
     void drop_and_create_generators(const std::string& table_prefix) const
@@ -634,15 +629,21 @@ public:
         }
     }
 
-    /* insert v_{0, 0} */
-    void save_fil_0(const std::string& table_prefix) const
+    /* insert v_{0, i} */
+    void save_fil_0(const std::string& table_prefix, int t, int t_min, const int1d& v_degs) const
     {
-        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
-        stmt.bind_int(1, 0);
-        stmt.bind_blob(2, Mod().data);
-        stmt.bind_int(3, 0);
-        stmt.bind_int(4, 0);
-        stmt.step_and_reset();
+        if (t >= t_min) {
+            for (int v : v_degs) {
+                if (v == t) {
+                    Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (diff, s, t) VALUES (?1, ?2, ?3);");
+                    stmt.bind_blob(1, Mod().data);
+                    stmt.bind_int(2, 0);
+                    stmt.bind_int(3, t);
+                    stmt.step_and_reset();
+                }
+            }
+
+        }
     }
 
     void save_relations(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
@@ -781,7 +782,7 @@ public:
     }
 };
 
-void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std::string& db_filename, const std::string& tablename)
+void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, int stem_max, const std::string& db_filename, const std::string& tablename)
 {
     int t_trunc = gb.t_trunc();
     if (t_max > t_trunc)
@@ -789,20 +790,13 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std
     Mod tmp_Mod;
 
     DbSteenrod db(db_filename);
-#ifdef MYDEPLOY
     db.create_generators(tablename);
     db.create_relations(tablename);
     db.create_generators_x2m(tablename);
     db.create_relations_x2m(tablename);
     db.create_time(tablename);
-#else
-    db.drop_and_create_generators(tablename);
-    db.drop_and_create_relations(tablename);
-    db.drop_and_create_generators_x2m(tablename);
-    db.drop_and_create_relations_x2m(tablename);
-    db.drop_and_create_time(tablename);
-#endif
-    db.save_fil_0(tablename);
+    int old_t_max = db.get_int("SELECT COALESCE(MAX(t), -1) FROM " + tablename + "_generators WHERE s=0;");
+    gb.set_v_degrees(v_degs);
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -812,12 +806,13 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std
     for (size_t i = 0; i < rels.size(); ++i) {
         if (rels[i]) {
             const auto& lead = rels[i].GetLead();
-            int t = lead.deg_m();
+            int t = lead.deg_m() + v_degs[lead.v()];
             if (t <= t_max && t <= stem_max)
                 rels_graded[t].push_back((int)i);
         }
     }
 
+    db.save_fil_0(tablename, 0, old_t_max + 1, v_degs);
     for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
         size_t s_min = (size_t)std::max(0, t - stem_max - 2);
@@ -913,6 +908,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, int t_max, int stem_max, const std
         for (size_t s = 0; s < tt; ++s)
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
         db.save(tablename, data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
+        db.save_fil_0(tablename, t, old_t_max + 1, v_degs);
         std::cout << "    time=" << time << std::endl;
         timer.Reset();
 

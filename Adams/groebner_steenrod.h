@@ -248,6 +248,14 @@ public:
         return basis_degrees_[s];
     }
 
+    void set_v_degrees(int1d v_degs)
+    {
+        if (basis_degrees_.empty())
+            basis_degrees_.push_back(std::move(v_degs));
+        else
+            basis_degrees_[0] = std::move(v_degs);
+    }
+
     int dim_Ext() const
     {
         size_t dim = 0;
@@ -341,7 +349,7 @@ public:
  *
  * return the dimension of the calculated range for debugging.
  */
-void Resolve(AdamsRes& gb, const Mod1d& rels, int deg, int stem, const std::string& db_filename, const std::string& tablename);
+void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, int stem_max, const std::string& db_filename, const std::string& tablename);
 
 void ResetDb(const std::string& filename, const std::string& tablename);
 

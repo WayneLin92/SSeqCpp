@@ -58,16 +58,18 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
             DeduceDiffs(depth + 1, 0);*/
         if (flag & DeduceFlag::homotopy) {
             int count_ss1 = 0, count_homotopy1 = 0;
-            AdamsDeg deg_min = deg_x;
+            AdamsDeg deg_min = deg_x - AdamsDeg(0, 1);
             if (iSS > 0)
                 deg_min = deg_min - ssCofs_[iSS - 1].deg_qt;
             SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
             DeduceTrivialExtensions(depth + 1);
             if (flag & DeduceFlag::check_exactness)
-                DeduceExtensionsByExactness(deg_min.stem() - 7, stem_max_exactness_, depth + 1);
+                DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
     }
     catch (SSException&) {
+        //std::cout << iSS << ' ' << deg_x.StrAdams() << ' ' << x << ' ' << r << ' ' << dx << '\n';
+        //std::cout << std::hex << e.id() << '\n';
         bException = true;
     }
     PopNode();
@@ -86,7 +88,6 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
     int count = 0;
     std::string color, color_end = "\033[0m";
     NullDiff1d nds;
-    DeduceTrivialDiffs();
     CacheNullDiffs(iSS, deg, flag, nds);
 
     size_t index_nd = 0;
@@ -121,18 +122,14 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
             }
             if (count_pass == 0) {
                 dx.clear();
-                ++count;
                 bNewDiff = true;
             }
             else if (count_pass > 1)
                 ++index_nd;
             else {
                 dx1.clear();
-
-                if (TryDiff(iSS, deg_src, x, dx1, r, depth, flag)) {
-                    ++count;
+                if (TryDiff(iSS, deg_src, x, dx1, r, depth, flag))
                     bNewDiff = true;
-                }
                 else
                     ++index_nd;
             }
@@ -161,24 +158,21 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
             }
             if (count_pass == 0) {
                 x.clear();
-                ++count;
                 bNewDiff = true;
             }
             else if (count_pass > 1)
                 ++index_nd;
             else {
                 x1.clear();
-
-                if (TryDiff(iSS, deg_src, x1, dx, r, depth, flag)) {
-                    ++count;
+                if (TryDiff(iSS, deg_src, x1, dx, r, depth, flag))
                     bNewDiff = true;
-                }
                 else
                     ++index_nd;
             }
         }
 
         if (bNewDiff) {
+            ++count;
             SetDiffLeibnizV2(iSS, deg_src, x, dx, r);
             if (depth == 0) {
                 if (deg.stem() <= 127) {
@@ -194,14 +188,20 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                 else
                     std::cout << color << name << "  " << deg.StrAdams() << "  " << dx << "=d_{" << r << '}' << x << "                  " + color_end + '\n';
             }
-            DeduceTrivialDiffs();
+            int count_trivial = DeduceTrivialDiffs();
+            count += count_trivial;
             CacheNullDiffs(iSS, deg, flag, nds);
             if (flag & DeduceFlag::homotopy) {
                 int count_homotopy1 = 0;
-                SyncHomotopy(deg_src, count, count_homotopy1, depth + 1);
-                DeduceTrivialExtensions(depth + 1);
+                AdamsDeg deg_min = deg_src - AdamsDeg(0, 1);
+                if (iSS > 0)
+                    deg_min = deg_min - ssCofs_[iSS - 1].deg_qt;
+                if (count_trivial)
+                    deg_min.s = 0;
+                SyncHomotopy(deg_min, count, count_homotopy1, depth);
+                DeduceTrivialExtensions(depth);
                 if (flag & DeduceFlag::check_exactness)
-                    DeduceExtensionsByExactness(deg_src.stem() - 7, stem_max_exactness_, depth + 1);
+                    DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
             }
         }
     }
@@ -211,6 +211,16 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
 int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 {
     int count = 0;
+
+    DeduceTrivialDiffs();
+    if (flag & DeduceFlag::homotopy) {
+        int count_homotopy1 = 0;
+        SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
+        DeduceTrivialExtensions(depth + 1);
+        if (flag & DeduceFlag::check_exactness)
+            DeduceExtensionsByExactness(0, stem_max_exactness_, depth + 1);
+    }
+
     for (size_t iSS = 0; iSS < all_basis_ss_.size(); ++iSS) {
         // auto& basis_ss = *all_basis_ss_[iSS];
         auto& name = all_names_[iSS];

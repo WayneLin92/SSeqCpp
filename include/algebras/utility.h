@@ -129,6 +129,26 @@ inline std::vector<size_t> size_t_range(size_t n)
     return result;
 }
 
+/* T should be a basic trivial type */
+template <typename T, T d>
+struct default_vec
+{
+    std::vector<T> data;
+    T operator[](size_t index) const
+    {
+        if (index < data.size())
+            return data[index];
+        else
+            return d;
+    }
+    T& operator[](size_t index)
+    {
+        if (index >= data.size())
+            data.resize(index + 1, d);
+        return data[index];
+    }
+};
+
 /**
  * Remove elements of `cont` for which the Predicate is true
  */

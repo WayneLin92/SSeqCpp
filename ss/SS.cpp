@@ -153,7 +153,7 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssS0_.basis_ss = {db.load_basis_ss(table_S0), {}};
         ssS0_.basis_ss.reserve(MAX_NUM_NODES + 1);
         ssS0_.gb = Groebner(ssS0_.t_max, {}, db.load_gb(table_S0, DEG_MAX));
-        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Poly>);
+        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
         ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
         ssS0_.pi_basis.reserve(MAX_NUM_NODES);
 
@@ -175,13 +175,13 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssCof.basis_ss.reserve(MAX_NUM_NODES + 1);
         Mod1d xs = dbCof.load_gb_mod(table_CW, DEG_MAX);
         ssCof.gb = GroebnerMod(&ssS0_.gb, ssCof.t_max, {}, std::move(xs));
-        ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "", myio::Deserialize<Mod>);
+        ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
         ssCof.pi_gb = algZ::GroebnerMod(&ssS0_.pi_gb, ssCof.t_max, dbCof.load_pi_gen_adamsdegs(complexName), dbCof.load_pi_gb_mod(complexName, DEG_MAX), true);
         ssS0_.pi_basis.reserve(MAX_NUM_NODES);
 
         ssCof.qt = dbCof.get_column_from_str<Poly>(table_CW + "_generators", "to_S0", "", myio::Deserialize<Poly>);
         ssCof.deg_qt = AdamsDeg(0, GetTopCellT(dbnames[i]));
-        ssCof.pi_qt = {dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "", myio::Deserialize<algZ::Poly>)};
+        ssCof.pi_qt = {dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "ORDER BY id", myio::Deserialize<algZ::Poly>)};
         ssCof.pi_qt.reserve(MAX_NUM_NODES);
 
         ssCofs_.push_back(std::move(ssCof));
@@ -546,8 +546,11 @@ void Diagram::SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, const int1d& dx_
         size_t first_rp2 = GetFirstIndexOnLevel(sc, r + 1);
         dx = lina::Residue(sc.basis_ind.begin() + first_r, sc.basis_ind.begin() + first_rp2, dx);
         if (!dx.empty()) {
-            if (!IsPossTgt(basis_ss, deg_dx, r))
+            if (!IsPossTgt(basis_ss, deg_dx, r)) {
+                /*if (deg_dx == AdamsDeg(17, 90) && basis_ss.size() == 2)
+                    throw TerminationException(1, "end");*/
                 throw SSException(0x75989376U, "75989376U: No source for the image. deg_dx=" + deg_dx.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
+            }
             UpdateStaircase(basis_ss, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
         }
     }
@@ -859,8 +862,11 @@ int Diagram::SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int
     int t_max = ssCofs_[iCof].t_max;
 
     r = NextRSrc(basis_ss, deg_x, r);
-    if (r == -1)
+    if (r == -1) {
+        if (basis_ss.size() == 2)
+            std::cout << ssCofs_[iCof].name << " " << deg_x.StrAdams() << " x=" << x << '\n';
         throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " dx=" + myio::Serialize(x));
+    }
 
     Mod poly_x = Indices2Mod(x, basis.at(deg_x));
 

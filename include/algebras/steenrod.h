@@ -158,6 +158,12 @@ public:
         return MMilnor(w_raw | e);
     }
 
+    static MMilnor Sq(uint32_t n)
+    {
+        uint32_t xi[XI_MAX] = {n};
+        return Xi(xi);
+    }
+
     static MMilnor FromE(uint64_t e)
     {
         return MMilnor(e + WRaw(e));

@@ -208,6 +208,19 @@ public:
         }
         return *this;
     }
+
+    void endl()
+    {
+        if (mode_ == 0) {
+            smart_stream() << std::endl;
+        }
+        else {
+            if ((mode_ & 1) && bInitialized)
+                out_ << std::endl;
+            if (mode_ & 2)
+                std::cout << std::endl;
+        }
+    }
 };
 
 bool UserConfirm();

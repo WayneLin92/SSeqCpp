@@ -78,12 +78,19 @@ public:
     SSPiException(unsigned int error_id, const std::string& message) : SSException(error_id, message) {}
 };
 
-/* Never to be thrown. A placeholder for some exception to catch */
+/* Never to be thrown. A dummy Exception to be filled in the catch statement */
 class NoException : public MyException
 {
 public:
     NoException(unsigned int error_id, const char* message) : MyException(error_id, message) {}
     NoException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
+};
+
+class TerminationException : public MyException
+{
+public:
+    TerminationException(unsigned int error_id, const char* message) : MyException(error_id, message) {}
+    TerminationException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
 };
 
 class Timer : private bench::Timer
@@ -315,8 +322,8 @@ public:
     int ExtendRelCof(size_t iCof, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const;
     void ExtendRelS0(int stem, algZ::Poly& rel) const;
     void ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const;
-    void ExtendRelS0V2(int stem, algZ::Poly& rel, std::unordered_map<int, int>& num_leads) const;
-    void ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, std::unordered_map<int, int>& num_leads) const;
+    void ExtendRelS0V2(int stem, algZ::Poly& rel, ut::default_vec<int, 0>& num_leads) const;
+    void ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::default_vec<int, 0>& num_leads) const;
     int2d GetS0GbEinf(AdamsDeg deg) const;
     std::map<AdamsDeg, int2d> GetS0GbEinf() const;
     int2d GetCofGbEinf(int iCof, AdamsDeg deg) const;

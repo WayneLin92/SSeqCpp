@@ -267,7 +267,7 @@ if __name__ == "__main__":
     for src, r, tgt in c_plot.execute(sql):
         index = min(r - 2, 4)
         for id_tgt in map(int, tgt.split(",")):
-            diff_lines[index].append((src, id_tgt, ))
+            diff_lines[index].append((src, id_tgt))
 
     null_diff_lines = [[], [], [], [], []] # d2,d3,d4,d5,d6
     sql = f"SELECT src, r, tgt FROM {table}_ss_nd"

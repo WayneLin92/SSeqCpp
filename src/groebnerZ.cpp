@@ -33,8 +33,8 @@ void CriPair::SijMod(const Groebner& gb, const GroebnerMod& gbm, Mod& result, Mo
 {
     result.data.clear();
     auto& gen_2tor_degs = gb.gen_2tor_degs();
-    if (i2 >= gbm.size())
-        throw MyException(0, "BUG");
+    /*if (i2 >= gbm.size())
+        throw MyException(1, "BUG");*/
     if (i1 & FLAG_INDEX_X) {
         int v = gbm[i2].GetLead().v;
         result.iaddmulP(m1, Mod(gb[i1 ^ FLAG_INDEX_X], v, gbm.v_degs()[v].s), tmp, gen_2tor_degs);
@@ -619,8 +619,9 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
             if (p && !p.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
                 if (deg.t <= d_trunc) {
-                    if (deg_max == d_trunc && deg.t > d)
+                    if (deg_max == d_trunc && deg.t > d) {
                         rels_graded[deg.t].push_back(std::move(p));
+                    }
                     else {
                         push_back_data(std::move(p), deg);
                     }

@@ -25,7 +25,7 @@ public:
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed = end - start_;
         if (!bPrinted_) {
-            myio::Logger::fout() << elapsed.count() << "s (" << ut::get_time() << ")\n";
+            myio::Logger::fout() << "time: " << elapsed.count() << "s (" << ut::get_time() << ")\n";
             std::cout << "\033[0;32m" << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
         }
     }

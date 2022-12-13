@@ -6,9 +6,10 @@
 int main(int argc, char** argv)
 {
     myio::Logger::Init("ss.log");
+    myio::Logger::fout() << "cmd: ";
     for (int i = 0; i < argc; ++i)
-        myio::Logger::fout() << "cmd: " << argv[i] << ' ';
-    myio::Logger::fout() << '\n';
+        myio::Logger::fout() << argv[i] << ' ';
+    myio::Logger::fout().endl();
 
     bench::Timer timer;
 

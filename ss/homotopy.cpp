@@ -41,7 +41,7 @@ int NextSExt(const Staircases1d& basis_ss, int t_max, int stem, int s_min)
 }
 
 /* This is for use in GetKernel */
-int NextSExtV2(const Staircases1d& basis_ss, int t_max, int stem, int s_min, std::unordered_map<int, int>& num_leads)
+int NextSExtV2(const Staircases1d& basis_ss, int t_max, int stem, int s_min, ut::default_vec<int, 0>& num_leads)
 {
     int s_max = (stem + 3) / 2;
     for (int s = s_min; s <= s_max; ++s) {
@@ -70,7 +70,7 @@ int ExtendRel(const Staircases1d& basis_ss, int stem, int t_max, const T& rel, T
 }
 
 template <typename T>
-int ExtendRelV2(const Staircases1d& basis_ss, int stem, int t_max, const T& rel, T& rel_extended, std::unordered_map<int, int>& num_leads)
+int ExtendRelV2(const Staircases1d& basis_ss, int stem, int t_max, const T& rel, T& rel_extended, ut::default_vec<int, 0>& num_leads)
 {
     auto& m = rel.data.back();
     if (m.IsUnKnown()) {
@@ -87,15 +87,20 @@ int ExtendRelV2(const Staircases1d& basis_ss, int stem, int t_max, const T& rel,
     return 0;
 }
 
+/* fx should all be certain */
 template <typename T1, typename T2, typename GB1, typename GB2>
 void GetKernel(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& gb1, const GB2& gb2, std::vector<T1>& kernel)
 {
+    /* Sort by certainty */
+    auto indices = ut::size_t_range(x.size());
+    std::stable_sort(indices.begin(), indices.end(), [&x](size_t i, size_t j) { return x[i].UnknownFil() > x[j].UnknownFil(); });
+
     std::vector<T2> image;
     std::vector<T1> g;
     T1 tmp1{};
     T2 tmp2{};
     /* f(g[i]) = image[i] */
-    for (size_t i = 0; i < fx.size(); ++i) {
+    for (size_t i : indices) {
         T1 src = x[i];
         T2 tgt = fx[i];
         {
@@ -122,7 +127,7 @@ void GetKernel(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& g
         }
         else {
             size_t index = 0;
-            while (index < src.data.size()) {
+            while (index < src.data.size() && !src.data[index].IsUnKnown()) {
                 size_t d_index = 1;
                 for (size_t j = 0; j < kernel.size(); j++) {
                     if (MultipleOf(src.data[index], kernel[j].GetLead())) {
@@ -135,7 +140,7 @@ void GetKernel(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& g
                 }
                 index += d_index;
             }
-            if (src)
+            if (src && !src.GetLead().IsUnKnown())
                 kernel.push_back(std::move(src));
         }
     }
@@ -198,10 +203,8 @@ void GetImage(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& gb
 
 /* Group the leads by s and return the numbers of leads for each s */
 template <typename T1, typename T2, typename GB1, typename GB2>
-auto GetImageLeads(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& gb1, const GB2& gb2) -> std::unordered_map<int, int>
+void GetImageLeads(const std::vector<T1>& x, const std::vector<T2>& fx, const GB1& gb1, const GB2& gb2, ut::default_vec<int, 0>& num_leads, ut::default_vec<int, algZ::FIL_MAX + 1>& src_Os)
 {
-    std::unordered_map<int, int> result;
-
     /* Sort by certainty */
     auto indices = ut::size_t_range(fx.size());
     std::stable_sort(indices.begin(), indices.end(), [&fx](size_t i, size_t j) { return fx[i].UnknownFil() > fx[j].UnknownFil(); });
@@ -233,13 +236,13 @@ auto GetImageLeads(const std::vector<T1>& x, const std::vector<T2>& fx, const GB
         }
         if (tgt) {
             if (!tgt.GetLead().IsUnKnown()) {
-                ++result[tgt.GetLead().fil()];
+                ++num_leads[tgt.GetLead().fil()];
+                src_Os[tgt.GetLead().fil()] = std::min(src_Os[tgt.GetLead().fil()], src.GetLead().fil());
                 image.push_back(std::move(tgt));
                 g.push_back(std::move(src));
             }
         }
     }
-    return result;
 }
 
 template <typename T, typename GB>
@@ -358,7 +361,7 @@ void Diagram::ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const
     }
 }
 
-void Diagram::ExtendRelS0V2(int stem, algZ::Poly& rel, std::unordered_map<int, int>& num_leads) const
+void Diagram::ExtendRelS0V2(int stem, algZ::Poly& rel, ut::default_vec<int, 0>& num_leads) const
 {
     if (rel) {
         algZ::Poly rel1;
@@ -367,7 +370,7 @@ void Diagram::ExtendRelS0V2(int stem, algZ::Poly& rel, std::unordered_map<int, i
     }
 }
 
-void Diagram::ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, std::unordered_map<int, int>& num_leads) const
+void Diagram::ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::default_vec<int, 0>& num_leads) const
 {
     if (rel) {
         algZ::Mod rel1;
@@ -531,7 +534,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                     if (!boundaries.empty()) {
                         const int count1 = SetS0DiffLeibnizV2(deg_src, {}, boundary, r);
                         if (count1 > 0 && depth == 0)
-                            std::cout << "\033[38;2;128;128;255mHomotopy to SS:  iSS=0  " << deg.StrAdams() << "  " << boundary << " is a boundary\033[0m           \n";
+                            std::cout << "\033[38;2;128;128;255mHomotopy to SS:  S0  " << deg.StrAdams() << "  " << boundary << " is a boundary\n\033[0m";
                         count_ss += count1;
                     }
                 }
@@ -565,7 +568,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 for (auto& k : kernel) {
                     pi_rels.push_back(algZ::Indices2Poly(k, pi_basis_d) + algZ::Mon::O(deg.s + 1));
                     if (depth == 0)
-                        std::cout << "SS to Homotopy:  iSS=0  " << pi_rels.back() << "=0          \n";
+                        std::cout << "\033[38;2;220;255;220mSS to Homotopy:  S0  " << pi_rels.back() << "=0\n\033[0m";
                 }
                 pi_gb.AddRels(pi_rels, t_max);
                 count_homotopy += (int)pi_rels.size();
@@ -587,7 +590,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                     pi_basis_d_v2.push_back(algZ::Mon::Gen(uint32_t(gen_size_old + i), 1, deg.s, deg.stem() % 2 == 0));
                     pi_basis_d_Einf.push_back(new_generators[i]);
                     if (depth == 0)
-                        std::cout << "SS to Homotopy:  iSS=0  x_{" << std::to_string(pi_gb.gen_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "          \n";
+                        std::cout << "\033[38;2;128;255;128mSS to Homotopy:  S0  x_{" << std::to_string(pi_gb.gen_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n\033[0m";
                 }
                 count_homotopy += (int)new_generators.size();
 
@@ -643,10 +646,12 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 const int r = deg.s + 1;
                 const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                 for (auto& boundary : boundaries) {
-                    const int count1 = SetCofDiffLeibnizV2(iCof, deg_src, {}, boundary, r);
-                    if (count1 > 0 && depth == 0)
-                        std::cout << "Homotopy to SS:  " << ssCof.name << "  " << deg.StrAdams() << "  " << boundary << " is a boundary           \n";
-                    count_ss += count1;
+                    if (!boundaries.empty()) {
+                        const int count1 = SetCofDiffLeibnizV2(iCof, deg_src, {}, boundary, r);
+                        if (count1 > 0 && depth == 0)
+                            std::cout << "\033[38;2;128;128;255mHomotopy to SS:  " << ssCof.name << "  " << deg.StrAdams() << "  " << boundary << " is a boundary\n\033[0m";
+                        count_ss += count1;
+                    }
                 }
 
                 /* Construct the projection map */
@@ -678,7 +683,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 for (auto& k : kernel) {
                     pi_rels.push_back(algZ::Indices2Mod(k, pi_basis_d) + algZ::MMod::O(deg.s + 1));
                     if (depth == 0)
-                        std::cout << "SS to Homotopy:  " << ssCof.name << "  " << pi_rels.back() << "=0          \n";
+                        std::cout << "\033[38;2;220;255;220mSS to Homotopy:  " << ssCof.name << "  " << pi_rels.back() << "=0\n\033[0m";
                 }
                 pi_gb.AddRels(pi_rels, t_max);
                 count_homotopy += (int)pi_rels.size();
@@ -700,7 +705,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                     pi_basis_d_v2.push_back(algZ::MMod({}, (uint32_t)(gen_size_old + i), deg.s));
                     pi_basis_d_Einf.push_back(new_generators[i]);
                     if (depth == 0)
-                        std::cout << "SS to Homotopy:  " << ssCof.name << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "          \n";
+                        std::cout << "\033[38;2;128;255;128mSS to Homotopy:  " << ssCof.name << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n\033[0m";
 
                     Mod x = Indices2Mod(new_generators[i], basis.at(deg));
                     Poly fx = ssS0_.gb.Reduce(subsMod(x, ssCof.qt));
@@ -846,15 +851,14 @@ int Diagram::DeduceTrivialExtensions(int depth)
             for (auto& [deg, _] : pi_basis.front()) {
                 for (auto& m : GetRecentPiBasis(pi_basis, deg)->pi_basis) {
                     for (uint32_t gen_id = 0; gen_id < 4; ++gen_id) { /* Warning: in general gen_id might be incorrect */
-                        int t_prod = deg.t + pi_gb.gen_degs()[gen_id].t;
-                        if (t_prod < t_max) {
-                            int stem_prod = deg.stem() + pi_gb.gen_degs()[gen_id].stem();
+                        AdamsDeg deg_prod = deg + ssS0_.pi_gb.gen_degs()[gen_id];
+                        if (deg_prod.t <= t_max) {
                             algZ::Poly prod;
                             auto h = pi_gb.Gen(gen_id);
                             prod.iaddmulP(h, m, tmp, pi_gb.gen_2tor_degs());
                             auto prod_reduced = pi_gb.ReduceV2(prod);
                             algZ::Poly prod_extended;
-                            if (prod_reduced && ExtendRelS0(stem_prod, prod_reduced, prod_extended)) {
+                            if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelS0(deg_prod.stem(), prod_reduced, prod_extended)) {
                                 if (depth == 0)
                                     std::cout << "By degree *h" << gen_id << ":  S0  " << h << '*' << m << '=' << prod_reduced << " --> " << prod_extended << '\n';
                                 prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
@@ -864,11 +868,11 @@ int Diagram::DeduceTrivialExtensions(int depth)
                         }
                     }
                     for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
-                        if (deg.t < ssCofs_[iCof].t_max) {
+                        if (deg.t <= ssCofs_[iCof].t_max) {
                             algZ::Mod x(m, 0, 0);
                             auto x_reduced = ssCofs_[iCof].pi_gb.ReduceV2(x);
                             algZ::Mod x_extended;
-                            if (x_reduced && ExtendRelCof(iCof, deg.stem(), x_reduced, x_extended)) {
+                            if (x_reduced && deg.t + x_reduced.GetLead().fil() - deg.s <= t_max && ExtendRelCof(iCof, deg.stem(), x_reduced, x_extended)) {
                                 if (depth == 0)
                                     std::cout << "By degree *v0:  " << ssCofs_[iCof].name << "  " << x << '=' << x_reduced << " --> " << x_extended << '\n';
                                 x_extended.isubP(x, tmpm, pi_gb.gen_2tor_degs());
@@ -893,14 +897,13 @@ int Diagram::DeduceTrivialExtensions(int depth)
             for (auto& [deg, _] : pi_basis.front()) {
                 for (auto& m : GetRecentPiBasis(pi_basis, deg)->pi_basis) {
                     for (uint32_t gen_id = 0; gen_id < 4; ++gen_id) {
-                        int t_prod = deg.t + ssS0_.pi_gb.gen_degs()[gen_id].t;
-                        if (t_prod < t_max) {
-                            int stem_prod = deg.stem() + ssS0_.pi_gb.gen_degs()[gen_id].stem();
+                        AdamsDeg deg_prod = deg + ssS0_.pi_gb.gen_degs()[gen_id];
+                        if (deg_prod.t <= t_max) {
                             auto h = ssS0_.pi_gb.Gen(gen_id);
                             auto prod = h * m;
                             auto prod_reduced = pi_gb.ReduceV2(prod);
                             algZ::Mod prod_extended;
-                            if (prod_reduced && ExtendRelCof(iCof, stem_prod, prod_reduced, prod_extended)) {
+                            if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelCof(iCof, deg_prod.stem(), prod_reduced, prod_extended)) {
                                 if (depth == 0)
                                     std::cout << "By degree *h" << gen_id << ":  " << ssCof.name << "  " << h << '*' << m << "=" << prod_reduced << " --> " << prod_extended << '\n';
                                 prod_extended.isubP(prod, tmp, ssS0_.pi_gb.gen_2tor_degs());
@@ -974,7 +977,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
         int1d sPossMoreEinfCof = PossMoreEinfFirstS_Cof(iCof);
 
         /* exactness at h * q */
-        int stem_min = std::max(0, stem_min_para);
+        int stem_min = std::max(0, stem_min_para - d_f);
         int stem_max = std::min({ssS0_.t_max, ssCof.t_max - d_f, stem_max_para});
         for (int stem = stem_min; stem <= stem_max; ++stem) {
             /* kernel of h */
@@ -984,15 +987,33 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 x_h.push_back(basis_stem[i]);
                 hx.push_back(ssS0_.pi_gb.ReduceV2(h * basis_stem[i]));
             }
-            auto num_leads = GetImageLeads(x_h, hx, ssS0_.pi_gb, ssS0_.pi_gb);
+            ut::default_vec<int, 0> num_leads;
+            ut::default_vec<int, algZ::FIL_MAX + 1> src_Os;
+            GetImageLeads(x_h, hx, ssS0_.pi_gb, ssS0_.pi_gb, num_leads, src_Os);
             for (size_t i = 0; i < basis_stem.size(); ++i) {
-                auto hxi = ssS0_.pi_gb.ReduceV2(h * basis_stem[i]);
+                algZ::Poly hxi = hx[i];
                 bool use_hxi = false;
                 if (hxi.UnknownFil() < algZ::FIL_MAX) {
                     ExtendRelS0V2(stem + d_f - 1, hxi, num_leads);
                     if (hxi.UnknownFil() > algZ::FIL_MAX) {
-                        hx[i] = std::move(hxi);
-                        use_hxi = true;
+                        int src_O = -1;
+                        for (size_t j = hx[i].UnknownFil(); j < num_leads.data.size(); ++j) {
+                            if (num_leads[j] > 0) {
+                                src_O = src_Os.data[j];
+                                break;
+                            }
+                        }
+                        if (src_O != -1) {
+                            if (src_O > basis_stem[i].fil()) {
+                                x_h[i] += algZ::Poly::O(src_O);
+                                hx[i] = std::move(hxi);
+                                use_hxi = true;
+                            }
+                        }
+                        else {
+                            hx[i] = std::move(hxi);
+                            use_hxi = true;
+                        }
                     }
                 }
                 if (!use_hxi)
@@ -1004,8 +1025,8 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
             /* image of q */
             algZ::Mod1d x_f;
             algZ::Poly1d fx;
-            int stem1 = stem + d_f;
-            auto& basis_cof_stem1 = basis_Cofs[iCof][stem1];
+            int stem_src = stem + d_f;
+            auto& basis_cof_stem1 = basis_Cofs[iCof][stem_src];
             for (size_t i = 0; i < basis_cof_stem1.size(); ++i) {
                 x_f.push_back(basis_cof_stem1[i]);
                 auto fxi = algZ::subsMod(basis_cof_stem1[i], ssCofs_[iCof].pi_qt.back(), ssCofs_[iCof].pi_gb.v_degs());
@@ -1013,27 +1034,27 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 fx.push_back(std::move(fxi));
             }
             algZ::Poly1d image1_f;
-            int O1 = sPossMoreEinfCof[stem1];
+            int O1 = sPossMoreEinfCof[stem_src];
             int O2 = O1;
             algZ::Mod gO = algZ::Mod::O(0);
             GetImage(x_f, fx, ssCof.pi_gb, ssS0_.pi_gb, image1_f, O1, O2, gO);
 
             /* Check exactness */
             for (size_t i = 0; i < kernel_h.size(); ++i) {
-                auto k = Residue(image1_f, std::move(kernel_h[i]), ssS0_.pi_gb);
+                auto k = Residue(image1_f, kernel_h[i], ssS0_.pi_gb);
                 if (k && !k.GetLead().IsUnKnown()) {
                     int s = k.GetLead().fil();
                     AdamsDeg deg(s, stem + s);
                     if (!IsPossTgt(ssS0_.basis_ss, deg, kRPC)) {
                         if (s < O1) {
-                            throw SSPiException(0x91866326U, "Top cell map can not hit the kernel of h");
+                            throw SSPiException(0xdb0fa447U, "Top cell map can not hit the kernel of h");
                         }
                         if (s < O2) {
                             if (gO.data.size() == 1 && !gO.GetLead().IsUnKnown() && !gO.GetLead().m) {
                                 size_t v = (size_t)gO.GetLead().v;
                                 auto& f = ssCof.pi_qt.back()[v];
                                 if (depth == 0)
-                                    std::cout << "\033[38;2;255;128;128mBy exactness h * q:  " << ssCof.name << "  stem=" << stem << "  q" << std::to_string(v) << "=" << f << " --> ";
+                                    std::cout << "\033[38;2;255;128;128mBy exactness h * q:  for " << ssCof.name << "  stem=" << stem << "  q" << std::to_string(v) << "=" << f << " --> ";
                                 f.data.pop_back();
                                 f.iaddP(k.LF(), tmp);
                                 f.data.push_back(algZ::Mon::O(s + 1));
@@ -1048,7 +1069,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     else if (s < O1) {
                         new_rels_S0.push_back(k);
                         if (depth == 0)
-                            std::cout << "\033[38;2;255;128;128mBy exactness h * q:  S0  stem=" << stem << "  " <<  k << "=0\n\033[0m";
+                            std::cout << "By exactness h * q:  S0  stem=" << stem << "  " << k << "=0\n";
                         ++count_homotopy;
                     }
 
@@ -1069,15 +1090,34 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 x_i.push_back(basis_stem[i]);
                 ix.push_back(ssCof.pi_gb.ReduceV2(algZ::Mod(basis_stem[i], 0, 0)));
             }
-            auto num_leads = GetImageLeads(x_i, ix, ssS0_.pi_gb, ssCof.pi_gb);
+            ut::default_vec<int, 0> num_leads;
+            ut::default_vec<int, algZ::FIL_MAX + 1> src_Os;
+            GetImageLeads(x_i, ix, ssS0_.pi_gb, ssCof.pi_gb, num_leads, src_Os);
             for (size_t i = 0; i < basis_stem.size(); ++i) {
                 auto ixi = ssCof.pi_gb.ReduceV2(algZ::Mod(basis_stem[i], 0, 0));
                 bool use_ixi = false;
                 if (ixi.UnknownFil() < algZ::FIL_MAX) {
+                    int old_fil = ixi.UnknownFil();
                     ExtendRelCofV2(iCof, stem, ixi, num_leads);
                     if (ixi.UnknownFil() > algZ::FIL_MAX) {
-                        ix[i] = std::move(ixi);
-                        use_ixi = true;
+                        int src_O = -1;
+                        for (size_t j = old_fil; j < num_leads.data.size(); ++j) {
+                            if (num_leads[j] > 0) {
+                                src_O = src_Os.data[j];
+                                break;
+                            }
+                        }
+                        if (src_O != -1) {
+                            if (src_O > basis_stem[i].fil()) {
+                                x_i[i] += algZ::Poly::O(src_O);
+                                ix[i] = std::move(ixi);
+                                use_ixi = true;
+                            }
+                        }
+                        else {
+                            ix[i] = std::move(ixi);
+                            use_ixi = true;
+                        }
                     }
                 }
                 if (!use_ixi)
@@ -1089,15 +1129,15 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
             /* image of h */
             algZ::Poly1d x_h;
             algZ::Poly1d image_h;
-            int stem1 = stem - d_f + 1;
-            auto& basis_S0_stem1 = basis_S0[stem1];
+            int stem_src = stem - d_f + 1;
+            auto& basis_S0_stem1 = basis_S0[stem_src];
             for (size_t i = 0; i < basis_S0_stem1.size(); ++i) {
                 x_h.push_back(basis_S0_stem1[i]);
                 auto fxi = ssS0_.pi_gb.ReduceV2(h * basis_S0_stem1[i]);
                 image_h.push_back(std::move(fxi));
             }
             algZ::Poly1d image1_h;
-            int O1 = sPossMoreEinfS0[stem] + 1;
+            int O1 = sPossMoreEinfS0[stem_src] + 1;
             int O2 = O1;
             algZ::Poly gO = algZ::Mon::O(0);
             GetImage(x_h, image_h, ssS0_.pi_gb, ssS0_.pi_gb, image1_h, O1, O2, gO);
@@ -1109,13 +1149,14 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     int s = k.GetLead().fil();
                     AdamsDeg deg(s, stem + s);
                     if (!IsPossTgt(ssS0_.basis_ss, deg, kRPC)) {
-                        if (s < O1)
-                            throw SSPiException(0x91866326U, "h multiples can not hit the kernel of i");
+                        if (s < O1) {
+                            throw SSPiException(0xc927323U, "h multiples can not hit the kernel of i");
+                        }
                         if (s < O2) {
                             if (gO && !gO.GetLead().IsUnKnown()) {
                                 auto& rel = algZ::Poly(h) * gO + k.LF() + algZ::Poly::O(s + 1);
                                 if (depth == 0)
-                                    std::cout << "\033[38;2;255;128;128mBy exactness i * h:  " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n\033[0m";
+                                    std::cout << "\033[38;2;255;128;128mBy exactness i * h:  for " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n\033[0m";
                                 new_rels_S0.push_back(std::move(rel));
                                 ++count_homotopy;
                             }
@@ -1124,7 +1165,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     else if (s < O1) {
                         new_rels_S0.push_back(k);
                         if (depth == 0)
-                            std::cout << "\033[38;2;255;128;128mBy exactness i * h:  S0  stem=" << stem << "  " << k << "=0\n\033[0m";
+                            std::cout << "By exactness i * h:  S0  stem=" << stem << "  " << k << "=0\n";
                         ++count_homotopy;
                     }
 
@@ -1147,7 +1188,9 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 fxi = ssS0_.pi_gb.ReduceV2(std::move(fxi));
                 fx.push_back(fxi);
             }
-            auto num_leads = GetImageLeads(x_f, fx, ssCof.pi_gb, ssS0_.pi_gb);
+            ut::default_vec<int, 0> num_leads;
+            ut::default_vec<int, algZ::FIL_MAX + 1> src_Os;
+            GetImageLeads(x_f, fx, ssCof.pi_gb, ssS0_.pi_gb, num_leads, src_Os);
             x_f.clear();
             fx.clear();
             for (size_t i = 0; i < basis_stem.size(); ++i) {
@@ -1155,11 +1198,29 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 auto fxi_v2 = ssS0_.pi_gb.ReduceV2(fxi);
                 bool use_fxi_v2 = false;
                 if (fxi_v2.UnknownFil() < algZ::FIL_MAX) {
+                    int old_fil = fxi_v2.UnknownFil();
                     ExtendRelS0V2(stem - d_f, fxi_v2, num_leads);
                     if (fxi_v2.UnknownFil() > algZ::FIL_MAX) {
-                        x_f.push_back(basis_stem[i]);
-                        fx.push_back(std::move(fxi_v2));
-                        use_fxi_v2 = true;
+                        int src_O = -1;
+                        for (size_t j = old_fil; j < num_leads.data.size(); ++j) {
+                            if (num_leads[j] > 0) {
+                                src_O = src_Os.data[j];
+                                break;
+                            }
+                        }
+                        if (src_O != -1) {
+                            if (src_O > basis_stem[i].fil()) {
+                                x_f.push_back(basis_stem[i]);
+                                x_f.back().iaddP(algZ::Mod::O(src_O), tmpm);
+                                fx.push_back(std::move(fxi_v2));
+                                use_fxi_v2 = true;
+                            }
+                        }
+                        else {
+                            x_f.push_back(basis_stem[i]);
+                            fx.push_back(std::move(fxi_v2));
+                            use_fxi_v2 = true;
+                        }
                     }
                 }
                 if (!use_fxi_v2) {
@@ -1179,8 +1240,8 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
             /* image of i */
             algZ::Poly1d x_i;
             algZ::Mod1d image_i;
-            int stem1 = stem;
-            auto& basis_S0_stem1 = basis_S0[stem1];
+            int stem_src = stem;
+            auto& basis_S0_stem1 = basis_S0[stem_src];
             for (size_t i = 0; i < basis_S0_stem1.size(); ++i) {
                 x_i.push_back(basis_S0_stem1[i]);
                 auto fxi = ssCof.pi_gb.ReduceV2(algZ::Mod(basis_S0_stem1[i], 0, 0));
@@ -1196,7 +1257,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
             }
 
             algZ::Mod1d image1_i;
-            int O1 = sPossMoreEinfS0[stem];
+            int O1 = sPossMoreEinfS0[stem_src];
             int O2 = O1;
             algZ::Poly gO = algZ::Mon::O(0);
             GetImage(x_i_sorted, image_i_sorted, ssS0_.pi_gb, ssCof.pi_gb, image1_i, O1, O2, gO);
@@ -1209,7 +1270,8 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     AdamsDeg deg(s, stem + s);
                     if (!IsPossTgt(ssCof.basis_ss, deg, kRPC)) {
                         if (s < O1) {
-                            throw SSPiException(0x91866326U, "i can not hit the kernel of q");
+                            // std::cout << "For " << ssCof.name << " stem=" << stem << " O1=" << O1 << " k=" << k << '\n';
+                            throw SSPiException(0xb977ae09U, "i can not hit the kernel of q");
                         }
                         if (s < O2) {
                             if (gO && !gO.GetLead().IsUnKnown()) {
@@ -1224,7 +1286,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     else if (s < O1) {
                         new_rels_Cofs[iCof].push_back(k);
                         if (depth == 0)
-                            std::cout << "\033[38;2;255;128;128mBy exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << k << "=0\n\033[0m";
+                            std::cout << "By exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << k << "=0\n";
                         ++count_homotopy;
                     }
                 }
@@ -1237,8 +1299,12 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
         if (f_changed[iCof])
             AddPiRelsCof2S0(iCof);
     }
+    if (count_homotopy) {
+        int count_ss = 0;
+        SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, depth);
+    }
 
-    return 0;
+    return count_homotopy;
 }
 
 unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag)
@@ -1251,7 +1317,7 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, Deduc
         SyncHomotopy(deg_change, count_ss1, count_homotopy1, depth + 1);
         if (flag & DeduceFlag::check_exactness) {
             DeduceTrivialExtensions(depth + 1);
-            DeduceExtensionsByExactness(deg_change.stem() - 7, stem_max_exactness_, depth + 1);
+            DeduceExtensionsByExactness(deg_change.stem(), stem_max_exactness_, depth + 1);
         }
     }
     catch (SSException& e) {
@@ -1273,7 +1339,7 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
         if (flag & DeduceFlag::check_exactness) {
             DeduceTrivialExtensions(depth + 1);
-            DeduceExtensionsByExactness(deg_min.stem() - 7, stem_max_exactness_, depth + 1);
+            DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
     }
     catch (SSException& e) {
@@ -1296,10 +1362,11 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
         if (flag & DeduceFlag::check_exactness) {
             DeduceTrivialExtensions(depth + 1);
-            DeduceExtensionsByExactness(deg_min.stem() - 7, stem_max_exactness_, depth + 1);
+            DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
     }
     catch (SSException& e) {
+        // std::cout << deg_change.StrAdams() << ' ' << std::hex << e.id() << '\n';
         error = e.id();
     }
     PopNode();
@@ -1311,7 +1378,8 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
 {
     SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, depth);
     count_homotopy += DeduceTrivialExtensions(depth);
-    count_homotopy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
+    if (flag & DeduceFlag::check_exactness)
+        count_homotopy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
     std::string color, color_end = "\033[0m";
 
     algZ::Poly tmp;
@@ -1333,7 +1401,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                 if (stem < stem_min || stem > stem_max)
                     continue;
                 AdamsDeg deg(s, stem + s);
-                if (PossMoreEinf(ssS0_.basis_ss, deg) > 0)
+                if (deg.t > ssS0_.t_max || PossMoreEinf(ssS0_.basis_ss, deg) > 0)
                     continue;
 
                 algZ::Poly O1 = algZ::Poly::O(s + 1);
@@ -1394,7 +1462,8 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                     auto deg_min = deg + ssCofs_[iCof].deg_qt + AdamsDeg(1, 0);
                     SyncHomotopy(deg_min, count_ss, count_homotopy, depth);
                     count_homotopy += DeduceTrivialExtensions(depth);
-                    count_homotopy += DeduceExtensionsByExactness(deg_min.stem() - 7, stem_max_exactness_, depth);
+                    if (flag & DeduceFlag::check_exactness)
+                        count_homotopy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
 
                     algZ::Poly h = ssS0_.pi_gb.Gen((uint32_t)iCof);
                     algZ::Poly relS0 = ssS0_.pi_gb.Reduce(h * q1);
@@ -1407,8 +1476,10 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
             }
         }
         AddPiRelsS0(std::move(new_rels_S0));
+
+        if (depth == 0)
+            SimplifyPiRels();
     }
-    SimplifyPiRels();
 
     /* multiplicative structures */
     int old_count_homotopy = count_homotopy;
@@ -1480,7 +1551,8 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                     AddPiRelsS0({std::move(rel_pass)});
                     SyncHomotopy(deg, count_ss, count_homotopy, depth);
                     count_homotopy += DeduceTrivialExtensions(depth);
-                    count_homotopy += DeduceExtensionsByExactness(deg.stem() - 7, stem_max_exactness_, depth);
+                    if (flag & DeduceFlag::check_exactness)
+                        count_homotopy += DeduceExtensionsByExactness(deg.stem(), stem_max_exactness_, depth);
                 }
             }
             indices_start[iSS] = indices_end;
@@ -1558,7 +1630,8 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                     auto deg_min = deg - ssCof.deg_qt;
                     SyncHomotopy(deg_min, count_ss, count_homotopy, depth);
                     count_homotopy += DeduceTrivialExtensions(depth);
-                    count_homotopy += DeduceExtensionsByExactness(deg_min.stem() - 7, stem_max_exactness_, depth);
+                    if (flag & DeduceFlag::check_exactness)
+                        count_homotopy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
                 }
             }
             indices_start[iSS] = indices_end;
@@ -1571,7 +1644,6 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     }
 }
 
-/* This is for debugging */
 int main_deduce_ext(int argc, char** argv, int index)
 {
     std::string selector = "default";
@@ -1609,7 +1681,11 @@ int main_deduce_ext(int argc, char** argv, int index)
 
     try {
         int count_ss = 0, count_homotopy = 0;
-        diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
+        try {
+            diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
+        }
+        catch (TerminationException&) {
+        }
         diagram.SimplifyPiRels();
 
         for (size_t k = 0; k < dbnames.size(); ++k) {

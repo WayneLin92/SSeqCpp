@@ -30,10 +30,14 @@ int main(int argc, char** argv)
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
         return index;
 
+    bench::Timer timer;
+
     if (cmd == "res")
         return main_res(argc, argv, index);
     else if (cmd == "2cell")
         return main_2cell(argc, argv, index);
+    else if (cmd == "prod_hi")
+        return main_prod_hi(argc, argv, index);
     else if (cmd == "prod")
         return main_prod(argc, argv, index);
     else if (cmd == "export")

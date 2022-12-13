@@ -274,8 +274,8 @@ inline Mon LCM(const Mon& mon1, const Mon& mon2)
 struct Poly;
 Poly operator-(const Mon& mon);
 Poly operator*(const Mon& mon1, const Mon& mon2);
-void mulP(const Mon& mon, const Poly& poly, Poly& result);  ////
-void mulP(const Poly& p1, const Poly& p2, Poly& result);    ////
+void mulP(const Mon& mon, const Poly& poly, Poly& result);
+void mulP(const Poly& p1, const Poly& p2, Poly& result);
 
 struct Poly
 {
