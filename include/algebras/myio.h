@@ -162,7 +162,8 @@ int load_args(int argc, char** argv, int index, const char* name, std::vector<T>
 class Logger
 {
 private:
-    static std::ofstream out_;
+    static std::ofstream fout1_;
+    static std::ofstream fout2_;
     static bool bInitialized;
 
     /* 0: smart mode
@@ -176,8 +177,9 @@ private:
 public:
     Logger(int mode) : mode_(mode) {}
 
-    static void Init(const char* filename);
+    static void Init(const char* filename, const char* filename1);
 
+    /* either std::cout or fout1_ */
     static Logger out()
     {
         return Logger(0);
@@ -185,13 +187,34 @@ public:
 
     static Logger fout()
     {
-        return Logger(1);
+        return Logger(2);
+    }
+
+    static Logger fout2()
+    {
+        return Logger(4);
     }
 
     /* Output to both log file and std::cout */
-    static Logger dout()
+    static Logger cout_fout()
     {
-        return Logger(3);
+        return Logger(1 + 2);
+    }
+
+    /* Output to both log file and std::cout */
+    static Logger cout_fout2()
+    {
+        return Logger(1 + 4);
+    }
+
+    static Logger allfout()
+    {
+        return Logger(2 + 4);
+    }
+
+    static Logger allout()
+    {
+        return Logger(1 + 2 + 4);
     }
 
     template <typename T>
@@ -201,10 +224,12 @@ public:
             smart_stream() << x;
         }
         else {
-            if ((mode_ & 1) && bInitialized)
-                out_ << x;
-            if (mode_ & 2)
+            if (mode_ & 1)
                 std::cout << x;
+            if ((mode_ & 2) && bInitialized)
+                fout1_ << x;
+            if ((mode_ & 4) && bInitialized)
+                fout2_ << x;
         }
         return *this;
     }
@@ -215,10 +240,12 @@ public:
             smart_stream() << std::endl;
         }
         else {
-            if ((mode_ & 1) && bInitialized)
-                out_ << std::endl;
-            if (mode_ & 2)
+            if (mode_ & 1)
                 std::cout << std::endl;
+            if ((mode_ & 2) && bInitialized)
+                fout1_ << std::endl;
+            if ((mode_ & 4) && bInitialized)
+                fout2_ << std::endl;
         }
     }
 };

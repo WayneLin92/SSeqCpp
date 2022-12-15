@@ -583,7 +583,7 @@ int main_plotpi(int argc, char** argv, int index)
             }
         }
 
-        int1d arr_factors = {1, 3, 7, 15, 23, 29, 33, 39, 40, 42, 47};
+        const int1d arr_factors = {1, 3, 7, 15, 23, 29, 33, 39, 40, 42, 47};
         {
             auto& pi_gb = diagram.GetS0().pi_gb;
             int t_max = diagram.GetS0().t_max;
@@ -628,6 +628,12 @@ int main_plotpi(int argc, char** argv, int index)
                             int1d prod;
                             int O = -1;
                             ToIndices(x_prod, diagram.GetCofs()[iCof].pi_basis.front(), pi_deg2ids[iSS], deg_prod.stem(), t_max, prod, O);
+
+                            if (ssCofs[iCof].name == "Csigma" && i == arr_factors[0] && Cofs_pi_basis[iCof][j].Str() == "v_{59}") {
+                                std::cout << S0_pi_basis[i] * Cofs_pi_basis[iCof][j] << '\n';
+                                std::cout << pi_gb.ReduceV2(S0_pi_basis[i] * Cofs_pi_basis[iCof][j]) << '\n';
+                                std::cout << "debug\n";
+                            }
 
                             if (O != -1 || !prod.empty()) {
                                 stmt.bind_int(1, (int)i);

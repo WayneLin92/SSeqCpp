@@ -328,7 +328,7 @@ int main_deduce_diff(int argc, char** argv, int index)
 
             db.end_transaction();
         }
-        myio::Logger::dout() << "Changed differentials: " << count << '\n';
+        myio::Logger::cout_fout() << "Changed differentials: " << count << '\n';
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {
@@ -441,6 +441,8 @@ int main_deduce(int argc, char** argv, int index)
         return main_deduce_diff(argc, argv, index);
     else if (cmd == "ext")
         return main_deduce_ext(argc, argv, index);
+    else if (cmd == "extdef")
+        return main_deduce_extdef(argc, argv, index);
     else if (cmd == "tmp")
         return main_deduce_tmp(argc, argv, index);
     else

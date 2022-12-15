@@ -5,11 +5,11 @@
 
 int main(int argc, char** argv)
 {
-    myio::Logger::Init("ss.log");
-    myio::Logger::fout() << "cmd: ";
+    myio::Logger::Init("ss.log", "ss_deduce.log");
+    myio::Logger::allfout() << "cmd: ";
     for (int i = 0; i < argc; ++i)
-        myio::Logger::fout() << argv[i] << ' ';
-    myio::Logger::fout().endl();
+        myio::Logger::allfout() << argv[i] << ' ';
+    myio::Logger::allfout().endl();
 
     bench::Timer timer;
 
@@ -39,6 +39,8 @@ int main(int argc, char** argv)
         return main_reset(argc, argv, index);
     else if (cmd == "resetpi")
         return main_resetpi(argc, argv, index);
+    else if (cmd == "resetfrom")
+        return main_resetfrom(argc, argv, index);
     else if (cmd == "truncate")
         return main_truncate(argc, argv, index);
     else if (cmd == "basis_prod")

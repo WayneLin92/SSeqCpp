@@ -156,6 +156,7 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
         ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
         ssS0_.pi_basis.reserve(MAX_NUM_NODES);
+        db.load_pi_def(complexName, ssS0_.pi_gen_defs, ssS0_.pi_gen_def_mons);
 
         all_names_.push_back(ssS0_.name);
         all_basis_ss_.push_back(&ssS0_.basis_ss);
@@ -177,7 +178,8 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssCof.gb = GroebnerMod(&ssS0_.gb, ssCof.t_max, {}, std::move(xs));
         ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
         ssCof.pi_gb = algZ::GroebnerMod(&ssS0_.pi_gb, ssCof.t_max, dbCof.load_pi_gen_adamsdegs(complexName), dbCof.load_pi_gb_mod(complexName, DEG_MAX), true);
-        ssS0_.pi_basis.reserve(MAX_NUM_NODES);
+        ssCof.pi_basis.reserve(MAX_NUM_NODES);
+        dbCof.load_pi_def_mod(complexName, ssCof.pi_gen_defs, ssCof.pi_gen_def_mons);
 
         ssCof.qt = dbCof.get_column_from_str<Poly>(table_CW + "_generators", "to_S0", "", myio::Deserialize<Poly>);
         ssCof.deg_qt = AdamsDeg(0, GetTopCellT(dbnames[i]));

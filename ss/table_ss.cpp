@@ -87,6 +87,38 @@ void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& 
     myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
+void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const
+{
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, mons) VALUES (?1, ?2, ?3);");
+
+    for (size_t i = 0; i < pi_gen_defs.size(); ++i) {
+        stmt.bind_int(1, (int)i);
+        stmt.bind_int(2, (int)pi_gen_defs[i]);
+        algZ::Poly mons;
+        mons.data.insert(mons.data.end(), pi_gen_def_mons[i].begin(), pi_gen_def_mons[i].end());
+        stmt.bind_str(3, myio::Serialize(mons));
+        stmt.step_and_reset();
+    }
+
+    myio::Logger::out() << pi_gen_defs.size() << " definitions are inserted into " + table_prefix + "_pi_generators_def!\n";
+}
+
+void DBSS::save_pi_def_mod(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const
+{
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, mons) VALUES (?1, ?2, ?3);");
+
+    for (size_t i = 0; i < pi_gen_defs.size(); ++i) {
+        stmt.bind_int(1, (int)i);
+        stmt.bind_int(2, (int)pi_gen_defs[i]);
+        algZ::Mod mons;
+        mons.data.insert(mons.data.end(), pi_gen_def_mons[i].begin(), pi_gen_def_mons[i].end());
+        stmt.bind_str(3, myio::Serialize(mons));
+        stmt.step_and_reset();
+    }
+
+    myio::Logger::out() << pi_gen_defs.size() << " definitions are inserted into " + table_prefix + "_pi_generators_def!\n";
+}
+
 std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix) const
 {
     std::map<AdamsDeg, int> result;
@@ -142,6 +174,34 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
     }
     myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return basis_ss;
+}
+
+void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const
+{
+    Statement stmt(*this, "SELECT def, mons FROM " + table_prefix + "_pi_generators_def order by id;");
+    while (stmt.step() == MYSQLITE_ROW) {
+        pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+        pi_gen_def_mons.push_back({});
+        if (pi_gen_defs.back() == DefFlag::mon) {
+            algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(1));
+            pi_gen_def_mons.back().insert(mons.data.begin(), mons.data.end());
+        }
+    }
+    myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
+}
+
+void DBSS::load_pi_def_mod(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const
+{
+    Statement stmt(*this, "SELECT def, mons FROM " + table_prefix + "_pi_generators_def order by id;");
+    while (stmt.step() == MYSQLITE_ROW) {
+        pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+        pi_gen_def_mons.push_back({});
+        if (pi_gen_defs.back() == DefFlag::mon) {
+            algZ::Mod mons = myio::Deserialize<algZ::Mod>(stmt.column_str(1));
+            pi_gen_def_mons.back().insert(mons.data.begin(), mons.data.end());
+        }
+    }
+    myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
 }
 
 /* generate the table of the spectral sequence */
@@ -242,11 +302,42 @@ int main_resetpi(int argc, char** argv, int index)
         db.begin_transaction();
         db.drop_and_create_pi_relations(pi_table);
         db.drop_and_create_pi_basis(pi_table);
+        db.drop_and_create_pi_definitions(pi_table);
         if (k == 0)
             db.drop_and_create_pi_generators(pi_table);
         else
             db.drop_and_create_pi_generators_mod(pi_table);
         db.end_transaction();
+    }
+
+    return 0;
+}
+
+int main_resetfrom(int argc, char** argv, int index)
+{
+    std::string selector = "debug";
+    std::string selector_from = "debug-reset";
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Initialize the homotopy data\n";
+        std::cout << "Usage:\n  ss resetfrom [selector] [selector_from]\n\n";
+
+        std::cout << "Default values:\n";
+        std::cout << "  selector = " << selector << "\n\n";
+        std::cout << "  selector_from = " << selector_from << "\n\n";
+
+        std::cout << VERSION << std::endl;
+        return 0;
+    }
+    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
+        return index;
+    auto dbnames = GetDbNames(selector);
+    auto dbnames_from = GetDbNames(selector_from);
+
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        std::ifstream src(dbnames_from[k], std::ios::binary);
+        std::ofstream dst(dbnames[k], std::ios::binary);
+        dst << src.rdbuf();
     }
 
     return 0;

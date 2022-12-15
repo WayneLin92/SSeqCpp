@@ -560,7 +560,9 @@ def export_basis_ss_prod(data):
     return lines
 
 
-def export_pi_basis_prod(data, index2xyrp, offset_basis=0, scale=1):
+def export_pi_basis_prod(
+    data, index2xyrp, offset_basis=0, scale=1
+):  # TODO: add para dx
     lines = [[], [], [], []]
     dashed_lines = [[], [], [], []]
     b2g = {1: 0, 3: 1, 7: 2, 15: 3}  # basis_id to gen_id
@@ -590,7 +592,7 @@ def export_pi_basis_map(data1, data2, index2xyrp, offset1_basis, offset2_basis, 
         for id2 in target:
             lines.append((offset1_basis + id1, offset2_basis + id2))
         if O != -1:
-            x1 = index2xyrp[offset1_basis + id1][0] - (1 if offset1_basis > 0 else 0)
+            x1 = index2xyrp[offset1_basis + id1][0]
             x2, y2 = round(x1) + dx, O
             if (x2, y2) in data2["bullets"]:
                 id2 = data2["bullets"][(x2, y2)][0]
@@ -1013,7 +1015,7 @@ def export_pi_mod(data_ring, data_mod, path_html=None, path_js=None):
         data_ring, data_mod, index2xyrp, 0, len(data_ring["basis"]), 0
     )
     lines_tc, dashed_lines_tc = export_pi_basis_map(
-        data_mod, data_ring, index2xyrp, len(data_ring["basis"]), 0, -data_mod["t"]
+        data_mod, data_ring, index2xyrp, len(data_ring["basis"]), 0, -data_mod["t"] - 1
     )
     tpl_lines = export_pi_h_lines(index2xyrp, lines, dashed_lines, "l0")
     tpl_lines1 = export_pi_h_lines(index2xyrp, lines1, dashed_lines1, "l1")
@@ -1098,17 +1100,17 @@ def export_pi_exact(data_ring, data_mod, path_html=None, path_js=None):
         data_ring1,
         data_mod0,
         index2xyrp,
-        0,
-        len(data_ring1["basis"]) + len(data_ring2["basis"]),
-        -1,
+        offset1_basis=0,
+        offset2_basis=len(data_ring1["basis"]) + len(data_ring2["basis"]),
+        dx=-1,
     )
     lines_tc, dashed_lines_tc = export_pi_basis_map(
         data_mod0,
         data_ring2,
         index2xyrp,
-        len(data_ring1["basis"]) + len(data_ring2["basis"]),
-        len(data_ring1["basis"]),
-        -1,
+        offset1_basis=len(data_ring1["basis"]) + len(data_ring2["basis"]),
+        offset2_basis=len(data_ring1["basis"]),
+        dx=-1,
     )
     tpl_lines = export_pi_h_lines(index2xyrp, lines, dashed_lines)
     tpl_lines_bc = export_pi_lines(index2xyrp, lines_bc, dashed_lines_bc, "lbc")

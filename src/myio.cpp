@@ -5,7 +5,8 @@
 
 namespace myio {
 
-std::ofstream Logger::out_;
+std::ofstream Logger::fout1_;
+std::ofstream Logger::fout2_;
 bool Logger::bInitialized = false;
 
 
@@ -22,16 +23,18 @@ void consume(std::istream& sin, const char* pattern)
         sin.setstate(std::ios_base::badbit);
 }
 
-void Logger::Init(const char* filename)
+void Logger::Init(const char* filename, const char* filename1)
 {
     bInitialized = true;
-    out_.open(filename, std::ofstream::app);
-    out_ << "\nLogging start at " << ut::get_time() << std::endl;
+    fout1_.open(filename, std::ofstream::app);
+    fout2_.open(filename1, std::ofstream::app);
+    fout1_ << "\nLogging start at " << ut::get_time() << std::endl;
+    fout2_ << "\nLogging start at " << ut::get_time() << std::endl;
 }
 
 std::ostream& Logger::smart_stream()
 {
-    return bInitialized ? out_ : std::cout;
+    return bInitialized ? fout1_ : std::cout;
 }
 
 bool UserConfirm()

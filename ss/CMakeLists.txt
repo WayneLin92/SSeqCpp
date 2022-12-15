@@ -1,4 +1,4 @@
-add_executable(ss main.h table_prod.cpp table_ss.cpp add_diff.cpp add_ext.cpp deduce.cpp SS.cpp diagram.cpp main.cpp homotopy.cpp config.cpp)
+add_executable(ss main.h table_prod.cpp table_ss.cpp add_diff.cpp add_ext.cpp deduce.cpp SS.cpp diagram.cpp main.cpp homotopy.cpp htpy_def.cpp config.cpp)
 target_compile_features(ss PRIVATE cxx_std_17)
 target_include_directories(ss PRIVATE ../include ../thirdparty/nlohmann_json)
 target_link_libraries(ss PRIVATE algebras)

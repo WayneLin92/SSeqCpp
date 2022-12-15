@@ -518,6 +518,8 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     auto& pi_basis = ssS0_.pi_basis;
     auto& pi_gen_Einf = ssS0_.pi_gen_Einf;
 
+    auto deduce_out = myio::Logger::fout2();
+
     Poly tmp;
     for (int t = 1; t <= t_max; ++t) {
         for (int s = 0; s <= t; ++s) {
@@ -533,8 +535,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 for (int1d& boundary : boundaries) {
                     if (!boundaries.empty()) {
                         const int count1 = SetS0DiffLeibnizV2(deg_src, {}, boundary, r);
-                        if (count1 > 0 && depth == 0)
+                        if (count1 > 0 && depth == 0) {
                             std::cout << "\033[38;2;128;128;255mHomotopy to SS:  S0  " << deg.StrAdams() << "  " << boundary << " is a boundary\n\033[0m";
+                            deduce_out << "Nontrivial: Homotopy to SS:  S0  " << deg.StrAdams() << "  " << boundary << " is a boundary\n";
+                        }
                         count_ss += count1;
                     }
                 }
@@ -567,8 +571,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 algZ::Poly1d pi_rels;
                 for (auto& k : kernel) {
                     pi_rels.push_back(algZ::Indices2Poly(k, pi_basis_d) + algZ::Mon::O(deg.s + 1));
-                    if (depth == 0)
+                    if (depth == 0) {
                         std::cout << "\033[38;2;220;255;220mSS to Homotopy:  S0  " << pi_rels.back() << "=0\n\033[0m";
+                        deduce_out << "Nontrivial: SS to Homotopy:  S0  " << pi_rels.back() << "=0\n";
+                    }
                 }
                 pi_gb.AddRels(pi_rels, t_max);
                 count_homotopy += (int)pi_rels.size();
@@ -589,8 +595,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                     pi_gen_Einf.push_back(Indices2Poly(new_generators[i], basis_d));
                     pi_basis_d_v2.push_back(algZ::Mon::Gen(uint32_t(gen_size_old + i), 1, deg.s, deg.stem() % 2 == 0));
                     pi_basis_d_Einf.push_back(new_generators[i]);
-                    if (depth == 0)
+                    if (depth == 0) {
                         std::cout << "\033[38;2;128;255;128mSS to Homotopy:  S0  x_{" << std::to_string(pi_gb.gen_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n\033[0m";
+                        deduce_out << "Nontrivial: SS to Homotopy:  S0  x_{" << std::to_string(pi_gb.gen_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n";
+                    }
                 }
                 count_homotopy += (int)new_generators.size();
 
@@ -633,6 +641,8 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     auto& pi_gen_Einf = ssCof.pi_gen_Einf;
     auto& pi_qt = ssCof.pi_qt;
 
+    auto deduce_out = myio::Logger::fout2();
+
     Mod tmp;
     for (int t = 0; t <= t_max; ++t) {
         for (int s = 0; s <= t; ++s) {
@@ -648,8 +658,10 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 for (auto& boundary : boundaries) {
                     if (!boundaries.empty()) {
                         const int count1 = SetCofDiffLeibnizV2(iCof, deg_src, {}, boundary, r);
-                        if (count1 > 0 && depth == 0)
+                        if (count1 > 0 && depth == 0) {
                             std::cout << "\033[38;2;128;128;255mHomotopy to SS:  " << ssCof.name << "  " << deg.StrAdams() << "  " << boundary << " is a boundary\n\033[0m";
+                            deduce_out << "Nontrivial: Homotopy to SS:  " << ssCof.name << "  " << deg.StrAdams() << "  " << boundary << " is a boundary\n";
+                        }
                         count_ss += count1;
                     }
                 }
@@ -682,8 +694,10 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 algZ::Mod1d pi_rels;
                 for (auto& k : kernel) {
                     pi_rels.push_back(algZ::Indices2Mod(k, pi_basis_d) + algZ::MMod::O(deg.s + 1));
-                    if (depth == 0)
+                    if (depth == 0) {
                         std::cout << "\033[38;2;220;255;220mSS to Homotopy:  " << ssCof.name << "  " << pi_rels.back() << "=0\n\033[0m";
+                        deduce_out << "Nontrivial: SS to Homotopy:  " << ssCof.name << "  " << pi_rels.back() << "=0\n";
+                    }
                 }
                 pi_gb.AddRels(pi_rels, t_max);
                 count_homotopy += (int)pi_rels.size();
@@ -704,8 +718,10 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                     pi_gen_Einf.push_back(Indices2Mod(new_generators[i], basis_d));
                     pi_basis_d_v2.push_back(algZ::MMod({}, (uint32_t)(gen_size_old + i), deg.s));
                     pi_basis_d_Einf.push_back(new_generators[i]);
-                    if (depth == 0)
+                    if (depth == 0) {
                         std::cout << "\033[38;2;128;255;128mSS to Homotopy:  " << ssCof.name << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n\033[0m";
+                        deduce_out << "Nontrivial: SS to Homotopy:  " << ssCof.name << "  v_{" << std::to_string(pi_gb.v_degs().size() - 1) << "} detected by " << pi_gen_Einf.back() << "\n";
+                    }
 
                     Mod x = Indices2Mod(new_generators[i], basis.at(deg));
                     Poly fx = ssS0_.gb.Reduce(subsMod(x, ssCof.qt));
@@ -752,27 +768,29 @@ int Diagram::DeduceTrivialExtensions(int depth)
 {
     int count_homotopy = 0;
 
+    auto double_out = myio::Logger::cout_fout2();
+
     /* top cell maps */
     {
-        algZ::Poly1d new_rels_S0; /* By exactness fi * h = 0 */
+        algZ::Poly1d new_rels_S0; /* By exactness qi * h = 0 */
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
             auto& ssCof = ssCofs_[iCof];
-            auto& pi_f = ssCof.pi_qt.back();
-            for (size_t i = 0; i < pi_f.size(); ++i) {
-                auto& fi = pi_f[i];
+            auto& q = ssCof.pi_qt.back();
+            for (size_t i = 0; i < q.size(); ++i) {
+                auto& qi = q[i];
                 AdamsDeg deg = ssCof.pi_gb.v_degs()[i] - ssCof.deg_qt;
                 algZ::Poly fi_extended;
-                if (fi && ExtendRelS0(deg.stem(), fi, fi_extended)) {
+                if (qi && ExtendRelS0(deg.stem(), qi, fi_extended)) {
                     if (depth == 0)
-                        std::cout << "By degree:  " << ssCof.name << "  q" << std::to_string(i) << "=" << fi << " --> " << fi_extended << '\n';
-                    fi = std::move(fi_extended);
+                        double_out << "By degree:  " << ssCof.name << "  q" << std::to_string(i) << "=" << qi << " --> " << fi_extended << '\n';
+                    qi = std::move(fi_extended);
                     ++count_homotopy;
 
                     algZ::Poly h = ssS0_.pi_gb.Gen((uint32_t)iCof);
-                    algZ::Poly relS0 = ssS0_.pi_gb.Reduce(fi * h);
+                    algZ::Poly relS0 = ssS0_.pi_gb.ReduceForGbRel(qi * h);
                     if (algZ::IsValidRel(relS0)) {
                         if (depth == 0)
-                            std::cout << "    -> S0 rel: " << relS0 << '\n';
+                            double_out << "    -> S0 rel: " << relS0 << '\n';
                         new_rels_S0.push_back(std::move(relS0));
                         ++count_homotopy;
                     }
@@ -797,10 +815,10 @@ int Diagram::DeduceTrivialExtensions(int depth)
                 AdamsDeg deg = GetDeg(rel.GetLead(), pi_gb.gen_degs());
                 algZ::Poly rel_extended;
                 if (ExtendRelS0(deg.stem(), rel, rel_extended)) {
-                    rel_extended = pi_gb.Reduce(std::move(rel_extended));
+                    rel_extended = pi_gb.ReduceForGbRel(std::move(rel_extended));
                     if (algZ::IsValidRel(rel_extended)) {
                         if (depth == 0)
-                            std::cout << "By degree:  S0  " << rel << " --> " << rel_extended << '\n';
+                            double_out << "By degree:  S0  " << rel << " --> " << rel_extended << '\n';
                         new_rels.push_back(std::move(rel_extended));
                         ++count_homotopy;
                     }
@@ -822,10 +840,10 @@ int Diagram::DeduceTrivialExtensions(int depth)
                 AdamsDeg deg = GetDeg(rel.GetLead(), ssS0_.pi_gb.gen_degs(), pi_gb.v_degs());
                 algZ::Mod rel_extended;
                 if (ExtendRelCof(iCof, deg.stem(), rel, rel_extended)) {
-                    rel_extended = pi_gb.Reduce(std::move(rel_extended));
+                    rel_extended = pi_gb.ReduceForGbRel(std::move(rel_extended));
                     if (algZ::IsValidRel(rel_extended)) {
                         if (depth == 0)
-                            std::cout << "By degree:  " << ssCof.name << "  " << rel << " --> " << rel_extended << '\n';
+                            double_out << "By degree:  " << ssCof.name << "  " << rel << " --> " << rel_extended << '\n';
                         new_rels.push_back(std::move(rel_extended));
                         ++count_homotopy;
                     }
@@ -860,7 +878,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
                             algZ::Poly prod_extended;
                             if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelS0(deg_prod.stem(), prod_reduced, prod_extended)) {
                                 if (depth == 0)
-                                    std::cout << "By degree *h" << gen_id << ":  S0  " << h << '*' << m << '=' << prod_reduced << " --> " << prod_extended << '\n';
+                                    double_out << "By degree *h" << gen_id << ":  S0  " << h << '*' << m << '=' << prod_reduced << " --> " << prod_extended << '\n';
                                 prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
                                 new_rels_S0.push_back(std::move(prod_extended));
                                 ++count_homotopy;
@@ -874,7 +892,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
                             algZ::Mod x_extended;
                             if (x_reduced && deg.t + x_reduced.GetLead().fil() - deg.s <= t_max && ExtendRelCof(iCof, deg.stem(), x_reduced, x_extended)) {
                                 if (depth == 0)
-                                    std::cout << "By degree *v0:  " << ssCofs_[iCof].name << "  " << x << '=' << x_reduced << " --> " << x_extended << '\n';
+                                    double_out << "By degree *v0:  " << ssCofs_[iCof].name << "  " << x << '=' << x_reduced << " --> " << x_extended << '\n';
                                 x_extended.isubP(x, tmpm, pi_gb.gen_2tor_degs());
                                 new_rels_Cofs[iCof].push_back(std::move(x_extended));
                                 ++count_homotopy;
@@ -905,7 +923,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
                             algZ::Mod prod_extended;
                             if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelCof(iCof, deg_prod.stem(), prod_reduced, prod_extended)) {
                                 if (depth == 0)
-                                    std::cout << "By degree *h" << gen_id << ":  " << ssCof.name << "  " << h << '*' << m << "=" << prod_reduced << " --> " << prod_extended << '\n';
+                                    double_out << "By degree *h" << gen_id << ":  " << ssCof.name << "  " << h << '*' << m << "=" << prod_reduced << " --> " << prod_extended << '\n';
                                 prod_extended.isubP(prod, tmp, ssS0_.pi_gb.gen_2tor_degs());
                                 new_rels_cof.push_back(std::move(prod_extended));
                                 ++count_homotopy;
@@ -927,6 +945,9 @@ int Diagram::DeduceTrivialExtensions(int depth)
 
 int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, int depth)
 {
+    auto deduce_out = myio::Logger::fout2();
+    auto double_out = myio::Logger::cout_fout2();
+
     int count_homotopy = 0;
     algZ::Mon2d basis_S0(size_t(ssS0_.t_max + 1));
     std::vector<algZ::MMod2d> basis_Cofs(ssCofs_.size());
@@ -1053,14 +1074,18 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                             if (gO.data.size() == 1 && !gO.GetLead().IsUnKnown() && !gO.GetLead().m) {
                                 size_t v = (size_t)gO.GetLead().v;
                                 auto& f = ssCof.pi_qt.back()[v];
-                                if (depth == 0)
+                                if (depth == 0) {
                                     std::cout << "\033[38;2;255;128;128mBy exactness h * q:  for " << ssCof.name << "  stem=" << stem << "  q" << std::to_string(v) << "=" << f << " --> ";
+                                    deduce_out << "Nontrivial: By exactness h * q:  for " << ssCof.name << "  stem=" << stem << "  q" << std::to_string(v) << "=" << f << " --> ";
+                                }
                                 f.data.pop_back();
                                 f.iaddP(k.LF(), tmp);
                                 f.data.push_back(algZ::Mon::O(s + 1));
                                 ExtendRelS0(stem, f);
-                                if (depth == 0)
+                                if (depth == 0) {
                                     std::cout << f << "\n\033[0m";
+                                    deduce_out << f << "\n";
+                                }
                                 ++count_homotopy;
                                 f_changed[iCof] = 1;
                             }
@@ -1068,8 +1093,9 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     }
                     else if (s < O1) {
                         new_rels_S0.push_back(k);
-                        if (depth == 0)
-                            std::cout << "By exactness h * q:  S0  stem=" << stem << "  " << k << "=0\n";
+                        if (depth == 0) {
+                            double_out << "By exactness h * q:  S0  stem=" << stem << "  " << k << "=0\n";
+                        }
                         ++count_homotopy;
                     }
 
@@ -1155,8 +1181,10 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                         if (s < O2) {
                             if (gO && !gO.GetLead().IsUnKnown()) {
                                 auto& rel = algZ::Poly(h) * gO + k.LF() + algZ::Poly::O(s + 1);
-                                if (depth == 0)
+                                if (depth == 0) {
                                     std::cout << "\033[38;2;255;128;128mBy exactness i * h:  for " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n\033[0m";
+                                    deduce_out << "Nontrivial: By exactness i * h:  for " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n";
+                                }
                                 new_rels_S0.push_back(std::move(rel));
                                 ++count_homotopy;
                             }
@@ -1165,7 +1193,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     else if (s < O1) {
                         new_rels_S0.push_back(k);
                         if (depth == 0)
-                            std::cout << "By exactness i * h:  S0  stem=" << stem << "  " << k << "=0\n";
+                            double_out << "By exactness i * h:  S0  stem=" << stem << "  " << k << "=0\n";
                         ++count_homotopy;
                     }
 
@@ -1270,14 +1298,16 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     AdamsDeg deg(s, stem + s);
                     if (!IsPossTgt(ssCof.basis_ss, deg, kRPC)) {
                         if (s < O1) {
-                            // std::cout << "For " << ssCof.name << " stem=" << stem << " O1=" << O1 << " k=" << k << '\n';
+                            // std::cout << "Error: For " << ssCof.name << " stem=" << stem << " O1=" << O1 << " k=" << k << '\n';////
                             throw SSPiException(0xb977ae09U, "i can not hit the kernel of q");
                         }
                         if (s < O2) {
                             if (gO && !gO.GetLead().IsUnKnown()) {
                                 auto& rel = algZ::Mod(gO, 0, 0) + k.LF() + algZ::Mod::O(s + 1);
-                                if (depth == 0)
+                                if (depth == 0) {
                                     std::cout << "\033[38;2;255;128;128mBy exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n\033[0m";
+                                    deduce_out << "Nontrivial: By exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << rel << "=0\n";
+                                }
                                 new_rels_Cofs[iCof].push_back(std::move(rel));
                                 ++count_homotopy;
                             }
@@ -1286,7 +1316,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     else if (s < O1) {
                         new_rels_Cofs[iCof].push_back(k);
                         if (depth == 0)
-                            std::cout << "By exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << k << "=0\n";
+                            double_out << "By exactness q * i:  " << ssCof.name << "  stem=" << stem << "  " << k << "=0\n";
                         ++count_homotopy;
                     }
                 }
@@ -1358,7 +1388,7 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
         ssCofs_[iCof].pi_qt.back()[gen_id] = std::move(q);
         AddPiRelsCof2S0(iCof);
         int count_ss1 = 0, count_homotopy1 = 0;
-        auto deg_min = deg_change + ssCofs_[iCof].deg_qt + AdamsDeg(1, 0);
+        auto deg_min = deg_change;
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
         if (flag & DeduceFlag::check_exactness) {
             DeduceTrivialExtensions(depth + 1);
@@ -1366,7 +1396,7 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
         }
     }
     catch (SSException& e) {
-        // std::cout << deg_change.StrAdams() << ' ' << std::hex << e.id() << '\n';
+        // std::cout << deg_change.StrAdams() << ' ' << std::hex << e.id() << '\n';////
         error = e.id();
     }
     PopNode();
@@ -1382,11 +1412,14 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
         count_homotopy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
     std::string color, color_end = "\033[0m";
 
+    auto deduce_out = myio::Logger::fout2();
+    auto double_out = myio::Logger::cout_fout2();
+
     algZ::Poly tmp;
     algZ::Mod tmpm;
     /* top cell maps */
     {
-        algZ::Poly1d new_rels_S0; /* By exactness h * fi = 0 */
+        algZ::Poly1d new_rels_S0; /* By exactness h * qi = 0 */
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
             auto& ssCof = ssCofs_[iCof];
             auto& name = ssCof.name;
@@ -1455,20 +1488,21 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                         else
                             color = "";
                         std::cout << color << "By deduction:  " << name << "  stem=" << stem << "  q" << std::to_string(i) << "=" << ssCofs_[iCof].pi_qt.back()[i] << " --> " << q_pass << '\n' << color_end;
+                        deduce_out << "Nontrivial: By deduction:  " << name << "  stem=" << stem << "  q" << std::to_string(i) << "=" << ssCofs_[iCof].pi_qt.back()[i] << " --> " << q_pass << '\n';
                     }
                     q1 = std::move(q_pass);
 
                     AddPiRelsCof2S0(iCof);
-                    auto deg_min = deg + ssCofs_[iCof].deg_qt + AdamsDeg(1, 0);
+                    AdamsDeg deg_min = deg;
                     SyncHomotopy(deg_min, count_ss, count_homotopy, depth);
                     count_homotopy += DeduceTrivialExtensions(depth);
                     if (flag & DeduceFlag::check_exactness)
                         count_homotopy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
 
                     algZ::Poly h = ssS0_.pi_gb.Gen((uint32_t)iCof);
-                    algZ::Poly relS0 = ssS0_.pi_gb.Reduce(h * q1);
+                    algZ::Poly relS0 = ssS0_.pi_gb.ReduceForGbRel(h * q1);
                     if (algZ::IsValidRel(relS0)) {
-                        std::cout << "    -> S0 rel: " << relS0 << '\n';
+                        double_out << "    -> S0 rel: " << relS0 << '\n';
                         new_rels_S0.push_back(std::move(relS0));
                         ++count_homotopy;
                     }
@@ -1547,6 +1581,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                         else
                             color = "";
                         std::cout << color << "By deduction:  S0  stem=" << stem << "  " << i << '/' << pi_gb.data().size() << "  " << rel << " --> " << rel_pass << '\n' << color_end;
+                        deduce_out << "Nontrivial: By deduction:  S0  stem=" << stem << "  " << i << '/' << pi_gb.data().size() << "  " << rel << " --> " << rel_pass << '\n';
                     }
                     AddPiRelsS0({std::move(rel_pass)});
                     SyncHomotopy(deg, count_ss, count_homotopy, depth);
@@ -1624,6 +1659,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                         else
                             color = "";
                         std::cout << color << "By deduction:  " << name << "  stem=" << stem << "  " << i << '/' << pi_gb.data().size() << "  " << rel << " --> " << rel_pass << '\n' << color_end;
+                        deduce_out << "Nontrivial: By deduction:  " << name << "  stem=" << stem << "  " << i << '/' << pi_gb.data().size() << "  " << rel << " --> " << rel_pass << '\n';
                     }
 
                     AddPiRelsCof(iCof, {std::move(rel_pass)});

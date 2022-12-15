@@ -177,7 +177,7 @@ using Mon2d = std::vector<Mon1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Mon& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 /**
@@ -409,7 +409,7 @@ using Poly2d = std::vector<Poly1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 inline Poly operator+(const Poly& p1, const Poly& p2)
@@ -650,7 +650,7 @@ using Mod2d = std::vector<Mod1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 inline Mod operator+(const Mod& x, const Mod& y)

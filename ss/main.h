@@ -24,6 +24,13 @@ enum class DeduceFlag : uint32_t
     all_x = 16,          /* Deduce dx for all x including linear combinations */
 };
 
+enum class DefFlag : int
+{
+    no_def = 0,
+    dec = 1, /* Decomposable */
+    mon = 2, /* Up to some monomial */
+};
+
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
 {
     return DeduceFlag(uint32_t(lhs) | uint32_t(rhs));
@@ -134,6 +141,9 @@ struct SS
     std::vector<size_t> pi_nodes_gen;
     std::vector<size_t> pi_nodes_rel;
     int2d pi_nodes_gen_2tor_degs;
+
+    std::vector<DefFlag> pi_gen_defs;
+    std::vector<std::set<algZ::Mon>> pi_gen_def_mons;
 };
 
 struct SSMod
@@ -153,6 +163,9 @@ struct SSMod
     algZ::Poly2d pi_qt;
     std::vector<size_t> pi_nodes_gen;
     std::vector<size_t> pi_nodes_rel;
+
+    std::vector<DefFlag> pi_gen_defs;
+    std::vector<std::set<algZ::MMod>> pi_gen_def_mons;
 };
 
 using SSMod1d = std::vector<SSMod>;
@@ -355,7 +368,8 @@ public: /* homotopy groups */
     unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
     unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
     unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag);
-    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag flag);
+    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag fla);
+    int DefineDependenceInExtensions(int depth);
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -376,6 +390,11 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, Einf TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT);");
     }
 
+    void create_pi_def(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators_def (id INTEGER PRIMARY KEY, def TINYINT, mons TEXT);");
+    }
+
     void drop_and_create_basis_ss(const std::string& table_prefix) const
     {
         drop_table(table_prefix + "_ss");
@@ -388,14 +407,24 @@ public:
         create_pi_generators_mod(table_prefix);
     }
 
+    void drop_and_create_pi_definitions(const std::string& table_prefix) const
+    {
+        drop_table(table_prefix + "_pi_generators_def");
+        create_pi_def(table_prefix);
+    }
+
     void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const;
     void save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
+    void save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const;
+    void save_pi_def_mod(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const;
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
+    void load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const;
+    void load_pi_def_mod(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
@@ -454,17 +483,19 @@ std::vector<std::string> GetDbNames(const std::string& selector);
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);
 int main_plotpi(int argc, char** argv, int index);
-int main_reset(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
 int main_add_ext(int argc, char** argv, int index);
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_ext(int argc, char** argv, int index);
+int main_deduce_extdef(int argc, char** argv, int index);
 int main_deduce_migrate(int argc, char** argv, int index);
 
 int main_mod(int argc, char** argv, int index);
 
+int main_reset(int argc, char** argv, int index);
 int main_resetpi(int argc, char** argv, int index);
+int main_resetfrom(int argc, char** argv, int index);
 int main_truncate(int argc, char** argv, int index);
 
 #endif

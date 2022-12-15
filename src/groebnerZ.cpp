@@ -536,6 +536,33 @@ Poly Groebner::Reduce(Poly poly) const
             else
                 poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
         }
+        else
+            ++index;
+    }
+    return poly;
+}
+
+Poly Groebner::ReduceForGbRel(Poly poly) const
+{
+    Poly tmp_prod, tmp;
+    size_t index = 0;
+    while (index < poly.data.size() && !poly.data[index].IsUnKnown()) {
+        if (poly.data[index].IsTrivial(gen_2tor_degs_)) {
+            poly.data.erase(poly.data.begin() + index);
+            continue;
+        }
+        int eff_min = poly.UnknownFil() > FIL_MAX ? FIL_MAX + 1 : poly.UnknownFil() - poly.data[index].fil();
+        int gb_index = IndexOfDivisibleLeading(poly.data[index], eff_min);
+        if (gb_index != -1) {
+            Mon q = div_unsigned(poly.data[index], data_[gb_index].GetLead());
+            int sign = get_sign(q, data_[gb_index].GetLead(), poly.data[index]);
+            if (sign == 0)
+                poly.data.erase(poly.data.begin() + index); /* Remove the monomial 2x^2 which is zero*/
+            else if (sign == 1)
+                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+            else
+                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+        }
         else {
             if (index > 0 && MultipleOf(poly.data[index], poly.data[0])) {
                 int c = poly.data[index].c() - poly.data[0].c();
@@ -615,14 +642,18 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
         std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Poly& p1, const Poly& p2) { return p1.EffNum() > p2.EffNum(); });
 
         for (auto& p : rels_tmp) {
-            p = Reduce(std::move(p));
+            p = ReduceForGbRel(std::move(p));
             if (p && !p.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
                 if (deg.t <= d_trunc) {
                     if (deg_max == d_trunc && deg.t > d) {
+                        /*if (p.Str() == "4x_{13}")
+                            std::cout << "debug\n";*/
                         rels_graded[deg.t].push_back(std::move(p));
                     }
                     else {
+                        /*if (p.Str() == "4x_{13}")
+                            std::cout << "debug\n";*/
                         push_back_data(std::move(p), deg);
                     }
                 }
@@ -830,6 +861,48 @@ Mod GroebnerMod::Reduce(Mod x) const
                 else
                     throw MyException(0x3e2f96c0U, "Something is wrong.");
             }
+            else
+                ++index;
+        }
+    }
+    return x;
+}
+
+Mod GroebnerMod::ReduceForGbRel(Mod x) const
+{
+    Mod tmp_prodm, tmpm1, tmpm2;
+    Poly tmp_prod, tmp1, tmp2;
+    size_t index = 0;
+    while (index < x.data.size() && !x.data[index].IsUnKnown()) {
+        if (x.data[index].m.IsTrivial(pGb_->gen_2tor_degs())) {
+            x.data.erase(x.data.begin() + index);
+            continue;
+        }
+        int eff_min = x.UnknownFil() > FIL_MAX ? FIL_MAX + 1 : x.UnknownFil() - x.data[index].fil();
+        int gbmod_index = IndexOfDivisibleLeading(x.data[index], eff_min);
+        if (gbmod_index != -1) {
+            Mon q = div_unsigned(x.data[index].m, data_[gbmod_index].GetLead().m);
+            int sign = get_sign(q, data_[gbmod_index].GetLead().m, x.data[index].m);
+            if (sign == 1)
+                x.isubmulP(q, data_[gbmod_index], tmpm1, pGb_->gen_2tor_degs());
+            else if (sign == -1)
+                x.iaddmulP(q, data_[gbmod_index], tmpm1, pGb_->gen_2tor_degs());
+            else
+                throw MyException(0x8dd4cebcU, "Something is wrong.");
+        }
+        else {
+            int gb_index = pGb_->IndexOfDivisibleLeading(x.data[index].m, eff_min);
+            if (gb_index != -1) {
+                Mon q = div_unsigned(x.data[index].m, pGb_->data()[gb_index].GetLead()); /* q has extra filtration from v */
+                int sign = get_sign(q, pGb_->data()[gb_index].GetLead(), x.data[index].m);
+                int v = x.data[index].v;
+                if (sign == 1)
+                    x.isubmulP(q, Mod(pGb_->data()[gb_index], v, 0), tmpm1, pGb_->gen_2tor_degs());
+                else if (sign == -1)
+                    x.iaddmulP(q, Mod(pGb_->data()[gb_index], v, 0), tmpm1, pGb_->gen_2tor_degs());
+                else
+                    throw MyException(0x3e2f96c0U, "Something is wrong.");
+            }
             else {
                 if (index > 0 && MultipleOf(x.data[index], x.data[0])) {
                     int c = x.data[index].c() - x.data[0].c();
@@ -923,14 +996,20 @@ void GroebnerMod::AddRels(Mod1d rels, int deg_max)
         std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Mod& p1, const Mod& p2) { return p1.EffNum() > p2.EffNum(); });
 
         for (auto& p : rels_tmp) {
-            p = Reduce(std::move(p));
+            p = ReduceForGbRel(std::move(p));
             if (p && !p.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(p.GetLead(), pGb_->gen_degs(), v_degs_);
                 if (deg.t <= d_trunc) {
-                    if (deg_max == d_trunc && deg.t > d)
+                    if (deg_max == d_trunc && deg.t > d) {
+                        /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
+                            std::cout << "debug\n";*/
                         rels_graded[deg.t].push_back(std::move(p));
-                    else
+                    }
+                    else {
+                        /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
+                            std::cout << "debug\n";*/
                         push_back_data(std::move(p), deg);
+                    }
                 }
             }
         }

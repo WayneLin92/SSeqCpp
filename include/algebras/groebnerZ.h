@@ -323,6 +323,7 @@ public:
 
     /* This function does not decrease the certainty of poly */
     Poly Reduce(Poly poly) const;
+    Poly ReduceForGbRel(Poly poly) const;
     /* This reduce poly by gb with all certainties until the lead is in the basis */
     Poly ReduceV2(Poly poly) const;
 
@@ -556,6 +557,7 @@ public:
 
     /* This function does not decrease the certainty of poly */
     Mod Reduce(Mod poly) const;
+    Mod ReduceForGbRel(Mod poly) const;
     /* This reduce poly by gb with all certainties until the lead is in the basis */
     Mod ReduceV2(Mod poly) const;
 
