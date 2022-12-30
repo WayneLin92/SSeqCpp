@@ -56,9 +56,9 @@ class GbCriPairs
 {
 private:
     int deg_trunc_;                                                      /* Truncation degree */
-    CriPair2d gb_;                                                        /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, CriPair2d> buffer_min_pairs_;                           /* To generate `buffer_min_pairs_` and for computing Sij */
-    std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_;  /* Used to minimize `buffer_min_pairs_` */
+    CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
+    std::map<int, CriPair2d> buffer_min_pairs_;                          /* To generate `buffer_min_pairs_` and for computing Sij */
+    std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
 
 public:
     GbCriPairs(int d_trunc) : deg_trunc_(d_trunc) {}
@@ -361,6 +361,6 @@ public:
     void AddRels(const Mod1d& rels, int deg);
 };
 
-} /* namespace alg */
+}  // namespace alg2
 
 #endif /* GROEBNER_H */

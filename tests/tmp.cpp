@@ -52,7 +52,7 @@ void test1()
     Poly p3 = y7 * y7 * y6 * y6 + Mon::O(20);
 
     auto gb = Groebner(100, {{1, 1}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {1, 2}, {1, 2}});
-    gb.AddRels({Poly(Mon::Trivial(6, 1)), Poly(Mon::Trivial(7, 1))}, 100);
+    gb.AddRels({Poly(Mon::two_x_square(6, 1)), Poly(Mon::two_x_square(7, 1))}, 100);
     gb.AddRels({p1, p2, p3}, 100);
 
     for (auto& rel : gb.data())
@@ -100,9 +100,33 @@ void test4()
     std::cout << b << '\n';
 }
 
+void test5()
+{
+    using namespace algZ;
+    auto x1 = Poly::Gen(1, 1, 3, true);
+    auto x2 = Poly::Gen(2, 1, 3, true);
+    auto x3 = Poly::Gen(3, 1, 3, true);
+    auto x4 = Poly::Gen(4, 1, 3, true);
+    auto x5 = Poly::Gen(5, 1, 3, true);
+    auto y6 = Poly::Gen(6, 1, 1, false);
+    auto y7 = Poly::Gen(7, 1, 1, false);
+    auto y8 = Poly::Gen(8, 1, 1, false);
+    auto x9 = Poly::Gen(9, 1, 3, true);
+    auto x10 = Poly::Gen(10, 1, 3, true);
+    auto two = Poly::twoTo(1);
+
+    Poly p1 = y7 * y8 * y7 + Mon::O(20);
+    Poly p2 = x1 * y6 * y8 * x9 + Mon::O(20);
+
+    std::cout << p1 << '\n';
+
+    std::cout << p1 * p2 << '\n';
+    std::cout << p2 * p1 << '\n';
+}
+
 int main()
 {
-    test3();
+    test5();
 
     return 0;
 }

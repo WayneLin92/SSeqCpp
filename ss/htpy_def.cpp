@@ -5,9 +5,9 @@ bool EndWithIndAndO(const algZ::Poly& p, uint32_t& gen_id)
 {
     if (p.data.size() >= 2 && p.data.back().IsUnKnown()) {
         auto& m = p.data[p.data.size() - 2];
-        if (m.c() == 0 && m.m0().size() + m.m1().size() == 1) {
-            if ((m.m0().size() == 1 && m.m0().begin()->e() == 1) || m.m1().begin()->e() == 1) {
-                gen_id = m.m0().size() ? m.m0().begin()->g() : m.m1().begin()->g();
+        if (m.c() == 0 && m.m().size() == 1) {
+            if (m.m().begin()->e() == 1) {
+                gen_id = m.m().begin()->g();
                 return true;
             }
         }
@@ -31,10 +31,10 @@ algZ::Poly DefRel(algZ::Poly p, const algZ::Groebner& gb)
 {
     algZ::Poly tmp;
     p.data.pop_back();
-    /*algZ::Poly gen = p.data.back();
+    algZ::Poly gen = p.data.back();
     p.data.pop_back();
     p.isubP(gen, tmp, gb.gen_2tor_degs());
-    p = gb.Reduce(std::move(p));*/
+    p = gb.Reduce(std::move(p));
     return p;
 }
 
@@ -42,10 +42,10 @@ algZ::Mod DefRel(algZ::Mod p, const algZ::GroebnerMod& gb)
 {
     algZ::Mod tmp;
     p.data.pop_back();
-    /*algZ::Mod gen = p.data.back();
+    algZ::Mod gen = p.data.back();
     p.data.pop_back();
     p.isubP(gen, tmp, gb.gen_2tor_degs());
-    p = gb.Reduce(std::move(p));*/
+    p = gb.Reduce(std::move(p));
     return p;
 }
 

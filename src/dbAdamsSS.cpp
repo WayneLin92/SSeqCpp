@@ -12,21 +12,13 @@ std::string Serialize(const algZ::Mon& mon)
         if (mon.c() > 0) {
             result = "0," + std::to_string(mon.c());
         }
-        if (mon.m0()) {
+        if (mon.m()) {
             if (!result.empty())
                 result += ',';
             Mon m0;
-            for (auto& p : mon.m0())
-                m0.push_back(GE(p.g() * 2, p.e()));
+            for (auto& p : mon.m())
+                m0.push_back(GE(p.g() * 2 + (p.e() & algZ::FLAG_ODD_EXP ? 1 : 0), p.e_masked()));
             result += Serialize(m0);
-        }
-        if (mon.m1()) {
-            if (!result.empty())
-                result += ',';
-            Mon m1;
-            for (auto& p : mon.m1())
-                m1.push_back(GE(p.g() * 2 + 1, p.e()));
-            result += Serialize(m1);
         }
         if (!result.empty())
             result += ',';
@@ -143,22 +135,22 @@ algZ::Mon MonToMonZ(const Mon& m)
         result = algZ::Mon::O(m.begin()->e());
     else {
         int c = 0, fil = -1;
-        Mon m0, m1;
+        Mon mm;
         for (GE p : m) {
             if (p.g() == 0)
                 c = p.e();
             else if (p.g() == 1)
                 fil = p.e();
             else if (p.g() % 2 == 0)
-                m0.push_back(GE(p.g() / 2, p.e()));
+                mm = mm * GE(p.g() / 2, p.e());
             else
-                m1.push_back(GE(p.g() / 2, p.e()));
+                mm = mm * GE(p.g() / 2, p.e() | algZ::FLAG_ODD_EXP);
         }
         if (fil == -1) {
             std::cout << "Incorrect input for algZ::Mon: " << m << '\n';
             throw MyException(0x3944e4aeU, "Incorrect input for algZ::Mon");
         }
-        result = algZ::Mon(c, m0, m1, fil);
+        result = algZ::Mon(c, mm, fil);
     }
     return result;
 }

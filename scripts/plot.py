@@ -615,6 +615,8 @@ def element_line(
     dashed=False,
     straight=False,
 ):
+    if dashed and (x1 >= 127 or x2 >= 127):
+        return ""
     attr_more = ""
     if color:
         attr_more += f' stroke="{color}"'

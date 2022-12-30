@@ -24,26 +24,26 @@ int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw()) {
-            result += gen_degs[k->g()] * k->e();
+            result += gen_degs[k->g()] * k->e_masked();
             ++k;
         }
         else if (k->g_raw() < l->g_raw()) {
-            result += gen_degs[l->g()] * l->e();
+            result += gen_degs[l->g()] * l->e_masked();
             ++l;
         }
         else {
             if (k->e() < l->e())
-                result += gen_degs[l->g()] * l->e();
+                result += gen_degs[l->g()] * l->e_masked();
             else
-                result += gen_degs[k->g()] * k->e();
+                result += gen_degs[k->g()] * k->e_masked();
             ++k;
             ++l;
         }
     }
     for (; k != mon1.end(); ++k)
-        result += gen_degs[k->g()] * k->e();
+        result += gen_degs[k->g()] * k->e_masked();
     for (; l != mon2.end(); ++l)
-        result += gen_degs[l->g()] * l->e();
+        result += gen_degs[l->g()] * l->e_masked();
     return result;
 }
 
@@ -57,9 +57,9 @@ void detail::MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2
             m1.push_back(*l++);
         else {
             if (k->e() < l->e())
-                m1.push_back(GE(l->data - k->e()));
+                m1.push_back(GE(l->data - k->e_masked()));
             else if (k->e() > l->e())
-                m2.push_back(GE(k->data - l->e()));
+                m2.push_back(GE(k->data - l->e_masked()));
             k++;
             l++;
         }

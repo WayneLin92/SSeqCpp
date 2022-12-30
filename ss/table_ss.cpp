@@ -267,12 +267,15 @@ int main_reset(int argc, char** argv, int index)
 
     Diagram diagram(dbnames);
 
-    int count = diagram.DeduceTrivialDiffs();
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        DBSS db(dbnames[k]);
-        db.begin_transaction();
-        db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetBasisSSChanges(k));
-        db.end_transaction();
+    std::cout << "Confirm to reset\n";
+    if (myio::UserConfirm()) {
+        int count = diagram.DeduceTrivialDiffs();
+        for (size_t k = 0; k < dbnames.size(); ++k) {
+            DBSS db(dbnames[k]);
+            db.begin_transaction();
+            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), diagram.GetBasisSSChanges(k));
+            db.end_transaction();
+        }
     }
 
     return 0;
@@ -296,18 +299,21 @@ int main_resetpi(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        DBSS db(dbnames[k]);
-        auto pi_table = GetComplexName(dbnames[k]);
-        db.begin_transaction();
-        db.drop_and_create_pi_relations(pi_table);
-        db.drop_and_create_pi_basis(pi_table);
-        db.drop_and_create_pi_definitions(pi_table);
-        if (k == 0)
-            db.drop_and_create_pi_generators(pi_table);
-        else
-            db.drop_and_create_pi_generators_mod(pi_table);
-        db.end_transaction();
+    std::cout << "Confirm to resetpi\n";
+    if (myio::UserConfirm()) {
+        for (size_t k = 0; k < dbnames.size(); ++k) {
+            DBSS db(dbnames[k]);
+            auto pi_table = GetComplexName(dbnames[k]);
+            db.begin_transaction();
+            db.drop_and_create_pi_relations(pi_table);
+            db.drop_and_create_pi_basis(pi_table);
+            db.drop_and_create_pi_definitions(pi_table);
+            if (k == 0)
+                db.drop_and_create_pi_generators(pi_table);
+            else
+                db.drop_and_create_pi_generators_mod(pi_table);
+            db.end_transaction();
+        }
     }
 
     return 0;

@@ -5,8 +5,7 @@ Poly Proj(const algZ::Mon& mon, const Poly1d& map)
 {
     Poly tmp;
     Poly result = pow(map[0], mon.c());
-    result.imulP(subs(mon.m0(), map), tmp);
-    result.imulP(subs(mon.m1(), map), tmp);
+    result.imulP(subs(mon.m(), map), tmp);
     return result;
 }
 
@@ -305,32 +304,55 @@ int Diagram::PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg)
     return 0;
 }
 
-int1d Diagram::PossMoreEinfFirstS_S0() const
+void Diagram::PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) const
 {
-    int1d result;
-    for (int i = 0; i <= ssS0_.t_max; ++i)
-        result.push_back(ssS0_.t_max - i);
+    for (int i = 0; i <= ssS0_.t_max; ++i) {
+        O1s.push_back(ssS0_.t_max - i);
+        O2s.push_back(ssS0_.t_max - i);
+        isSingle.push_back(0);
+    }
     for (auto& [deg, _] : ssS0_.basis_ss.front()) {
-        if (PossMoreEinf(ssS0_.basis_ss, deg)) {
-            if (deg.s < result[deg.stem()])
-                result[deg.stem()] = deg.s;
+        if (int num = PossMoreEinf(ssS0_.basis_ss, deg)) {
+            if (deg.s < O1s[deg.stem()]) {
+                O2s[deg.stem()] = O1s[deg.stem()];
+                O1s[deg.stem()] = deg.s;
+                if (num == 1)
+                    isSingle[deg.stem()] = 1;
+            }
+            else if (deg.s == O1s[deg.stem()]) {
+                O2s[deg.stem()] = O1s[deg.stem()];
+                isSingle[deg.stem()] = 0;
+            }
+            else if (deg.s < O2s[deg.stem()])
+                O2s[deg.stem()] = deg.s;
         }
     }
-    return result;
 }
 
-int1d Diagram::PossMoreEinfFirstS_Cof(size_t iCof) const
+void Diagram::PossMoreEinfFirstS_Cof(size_t iCof, int1d& O1s, int1d& O2s, int1d& isSingle) const
 {
-    int1d result;
-    for (int i = 0; i <= ssCofs_[iCof].t_max; ++i)
-        result.push_back(ssCofs_[iCof].t_max - i);
-    for (auto& [deg, _] : ssCofs_[iCof].basis_ss.front()) {
-        if (PossMoreEinf(ssCofs_[iCof].basis_ss, deg)) {
-            if (deg.s < result[deg.stem()])
-                result[deg.stem()] = deg.s;
+    auto& ssCof = ssCofs_[iCof];
+    for (int i = 0; i <= ssCof.t_max; ++i) {
+        O1s.push_back(ssCof.t_max - i);
+        O2s.push_back(ssCof.t_max - i);
+        isSingle.push_back(0);
+    }
+    for (auto& [deg, _] : ssCof.basis_ss.front()) {
+        if (int num = PossMoreEinf(ssCof.basis_ss, deg)) {
+            if (deg.s < O1s[deg.stem()]) {
+                O2s[deg.stem()] = O1s[deg.stem()];
+                O1s[deg.stem()] = deg.s;
+                if (num == 1)
+                    isSingle[deg.stem()] = 1;
+            }
+            else if (deg.s == O1s[deg.stem()]) {
+                O2s[deg.stem()] = O1s[deg.stem()];
+                isSingle[deg.stem()] = 0;
+            }
+            else if (deg.s < O2s[deg.stem()])
+                O2s[deg.stem()] = deg.s;
         }
     }
-    return result;
 }
 
 int Diagram::ExtendRelS0(int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const
@@ -982,7 +1004,8 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     basis_Cofs[iCof][deg.stem()].push_back(m);
         }
     }
-    int1d sPossMoreEinfS0 = PossMoreEinfFirstS_S0();
+    int1d O1s_S0, O2s_S0, isSingle_S0;
+    PossMoreEinfFirstS_S0(O1s_S0, O2s_S0, isSingle_S0);
     algZ::Poly tmp;
     algZ::Mod tmpm;
 
@@ -995,7 +1018,8 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
         int d_f = ssCof.deg_qt.t;
         auto& h = ssS0_.pi_gb.Gen((uint32_t)iCof);
 
-        int1d sPossMoreEinfCof = PossMoreEinfFirstS_Cof(iCof);
+        int1d O1s_Cof, O2s_Cof, isSingle_Cof;
+        PossMoreEinfFirstS_Cof(iCof, O1s_Cof, O2s_Cof, isSingle_Cof);
 
         /* exactness at h * q */
         int stem_min = std::max(0, stem_min_para - d_f);
@@ -1055,9 +1079,9 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 fx.push_back(std::move(fxi));
             }
             algZ::Poly1d image1_f;
-            int O1 = sPossMoreEinfCof[stem_src];
-            int O2 = O1;
-            algZ::Mod gO = algZ::Mod::O(0);
+            int O1 = O1s_Cof[stem_src];
+            int O2 = O2s_Cof[stem_src];
+            algZ::Mod gO = algZ::Mod::O(isSingle_Cof[stem_src]);
             GetImage(x_f, fx, ssCof.pi_gb, ssS0_.pi_gb, image1_f, O1, O2, gO);
 
             /* Check exactness */
@@ -1068,7 +1092,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                     AdamsDeg deg(s, stem + s);
                     if (!IsPossTgt(ssS0_.basis_ss, deg, kRPC)) {
                         if (s < O1) {
-                            throw SSPiException(0xdb0fa447U, "Top cell map can not hit the kernel of h");
+                            throw SSPiException(0xdb0fa447U, "Top cell map can not hit the kernel of h. " /*+ ssCof.name + " stem=" + std::to_string(stem) + " kernel=" + k.Str()*/);
                         }
                         if (s < O2) {
                             if (gO.data.size() == 1 && !gO.GetLead().IsUnKnown() && !gO.GetLead().m) {
@@ -1088,6 +1112,11 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                                 }
                                 ++count_homotopy;
                                 f_changed[iCof] = 1;
+                            }
+                            else if (gO && gO.GetLead().IsUnKnown() && gO.GetLead().fil() == 1) {
+                                AdamsDeg deg_perm(O1, stem_src + O1);
+                                if (depth == 0)
+                                    std::cout << "\033[38;2;255;128;128mBy exactness h * q:  " << ssCof.name << "  " << deg_perm.StrAdams() << "  new permanant cycle\n\033[0m";
                             }
                         }
                     }
@@ -1163,9 +1192,11 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 image_h.push_back(std::move(fxi));
             }
             algZ::Poly1d image1_h;
-            int O1 = sPossMoreEinfS0[stem_src] + 1;
-            int O2 = O1;
-            algZ::Poly gO = algZ::Mon::O(0);
+
+            int O1 = O1s_S0[stem_src] + 1;
+            int O2 = O2s_S0[stem_src] + 1;
+            algZ::Poly gO = algZ::Poly::O(isSingle_S0[stem_src]);
+
             GetImage(x_h, image_h, ssS0_.pi_gb, ssS0_.pi_gb, image1_h, O1, O2, gO);
 
             /* Check exactness */
@@ -1187,6 +1218,11 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                                 }
                                 new_rels_S0.push_back(std::move(rel));
                                 ++count_homotopy;
+                            }
+                            else if (gO && gO.GetLead().IsUnKnown() && gO.GetLead().fil() == 1) {
+                                AdamsDeg deg_perm(O1 - 1, stem_src + O1 - 1);
+                                if (depth == 0)
+                                    std::cout << "\033[38;2;255;128;128mBy exactness i * h:  for " << ssCof.name << ", S0  " << deg_perm.StrAdams() << "  new permanant cycle\n\033[0m";
                             }
                         }
                     }
@@ -1285,9 +1321,9 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
             }
 
             algZ::Mod1d image1_i;
-            int O1 = sPossMoreEinfS0[stem_src];
-            int O2 = O1;
-            algZ::Poly gO = algZ::Mon::O(0);
+            int O1 = O1s_S0[stem_src];
+            int O2 = O2s_S0[stem_src];
+            algZ::Poly gO = algZ::Poly::O(isSingle_S0[stem_src]);
             GetImage(x_i_sorted, image_i_sorted, ssS0_.pi_gb, ssCof.pi_gb, image1_i, O1, O2, gO);
 
             /* Check exactness */
@@ -1310,6 +1346,11 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                                 }
                                 new_rels_Cofs[iCof].push_back(std::move(rel));
                                 ++count_homotopy;
+                            }
+                            else if (gO && gO.GetLead().IsUnKnown() && gO.GetLead().fil() == 1) {
+                                AdamsDeg deg_perm(O1, stem_src + O1);
+                                if (depth == 0)
+                                    std::cout << "\033[38;2;255;128;128mBy exactness i * h:  for " << ssCof.name << ", S0  " << deg_perm.StrAdams() << "  new permanant cycle\n\033[0m";
                             }
                         }
                     }

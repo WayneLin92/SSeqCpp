@@ -59,7 +59,7 @@ Mon operator*(const Mon& mon1, const Mon& mon2)
         else if (k->g_raw() < l->g_raw())
             result.push_back(*l++);
         else {
-            result.push_back(GE(k->data + l->e()));
+            result.push_back(GE(k->data + l->e_masked()));
             ++k;
             ++l;
         }
@@ -83,7 +83,7 @@ Mon operator/(const Mon& mon1, const Mon& mon2)
             throw MyException(0x1227de8e, "mon1/mon2 not divisible!\n");
 #endif
         else if (k->e() > l->e()) {
-            result.push_back(GE(k->data - l->e()));
+            result.push_back(GE(k->data - l->e_masked()));
             ++k;
             ++l;
         }

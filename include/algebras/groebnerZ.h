@@ -18,7 +18,7 @@ namespace detail {
      */
     inline bool HasGCD(const Mon& mon1, const Mon& mon2)
     {
-        return std::min(mon1.c(), mon2.c()) > 0 || alg2::detail::HasGCD(mon1.m0(), mon2.m0()) || alg2::detail::HasGCD(mon1.m1(), mon2.m1());
+        return std::min(mon1.c(), mon2.c()) > 0 || alg2::detail::HasGCD(mon1.m(), mon2.m());
     }
     inline bool HasGCD(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2)
     {
@@ -27,7 +27,7 @@ namespace detail {
 
     inline int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
     {
-        return alg2::detail::DegLCM(mon1.m0(), mon2.m0(), gen_degs) + alg2::detail::DegLCM(mon1.m1(), mon2.m1(), gen_degs) + gen_degs[0] * std::max(mon1.c(), mon2.c());
+        return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
     }
 }  // namespace detail
 
@@ -176,7 +176,7 @@ public:
 private:
     static TypeIndexKey Key(const Mon& lead)
     {
-        return TypeIndexKey{(lead.m0() ? lead.m0().backg() + 1 : 0) + (lead.m1() ? ((lead.m1().backg() + 1) << 16) : 0)};
+        return TypeIndexKey{lead.backg() + (lead.backg2p1() << 16)};
     }
 
 public: /* Getters and Setters */
@@ -214,11 +214,11 @@ public: /* Getters and Setters */
         int index = (int)data_.size();
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
-        int backg = m.backg();
+        uint32_t backg = m.backg();
         ut::push_back(leads_group_by_last_gen_, (size_t)backg, index);
 
         if (g.data.size() == 1) {
-            if (m.frontg() == backg && backg > 0 && ((m.m0() && m.m0().begin()->e() == 1) || m.m1().begin()->e() == 1)) {
+            if (m.frontg() == backg && backg > 0 && m.m().begin()->e() == 1) {
                 size_t index = (size_t)m.frontg();
                 gen_2tor_degs_[index] = std::min(m.c(), gen_2tor_degs_[index]);
             }
@@ -342,6 +342,7 @@ public:
     void AddRels(Poly1d rels, int deg);
 
     void SimplifyRels();
+    void SimplifyRelsReorder();
 };
 
 /**
@@ -369,11 +370,7 @@ Poly subsMGbTpl(const Poly& poly, const Groebner& gb, const FnMap& map)
     Poly result, tmp_prod, tmp;
     for (const Mon& m : poly.data) {
         Poly fm = Poly::twoTo(m.c());
-        for (auto p = m.m0().begin(); p != m.m0().end(); ++p) {
-            powP(map(p->g()), p->e(), gb, tmp_prod, tmp);
-            fm.imulP(tmp_prod, tmp);
-        }
-        for (auto p = m.m1().begin(); p != m.m1().end(); ++p) {
+        for (auto p = m.m().begin(); p != m.m().end(); ++p) {
             powP(map(p->g()), p->e(), gb, tmp_prod, tmp);
             fm.imulP(tmp_prod, tmp);
         }
@@ -572,6 +569,7 @@ public:
     void AddRels(Mod1d rels, int deg);
 
     void SimplifyRels();
+    void SimplifyRelsReorder();
 };
 
 inline bool IsValidRel(const Poly& poly)

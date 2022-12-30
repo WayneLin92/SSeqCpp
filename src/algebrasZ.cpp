@@ -67,9 +67,8 @@ std::string Mon::Str() const
         str_c = std::to_string(1 << c_);
     else
         str_c = "2^{" + std::to_string(c_) + '}';
-    std::string str_m0 = myio::TplStrCont("", "", "", "", m0_.begin(), m0_.end(), [](GE p) { return p.Str(); });
-    std::string str_m1 = myio::TplStrCont("", "", "", "", m1_.begin(), m1_.end(), [](GE p) { return p.Str(); });
-    result = str_c + str_m1 + str_m0;
+    std::string str_m = myio::TplStrCont("", "", "", "", m_.begin(), m_.end(), [](GE p) { return GE(p.g_raw() | p.e_masked()).Str(); });
+    result = str_c + str_m;
     if (result == "" || result == "-")
         result += "1";
     return result;
@@ -91,21 +90,41 @@ int get_sign(const Mon& mon1, const Mon& mon2, const Mon& prod)
     }
     else {
         unsigned pairity = 0;
-        auto& m1 = mon1.m1();
-        auto& m2 = mon2.m1();
+        auto& m1 = mon1.m();
+        auto& m2 = mon2.m();
         unsigned s1 = m1.size(), s2 = m2.size();
+        unsigned num_odd_m1 = 0;
+        for (unsigned i = 0; i < s1; ++i)
+            if (m1[i].e() & FLAG_ODD_EXP)
+                ++num_odd_m1;
+
         unsigned i1 = 0, i2 = 0;
         while (i1 < s1 && i2 < s2) {
             if (m1[i1].g() < m2[i2].g()) {
+                if (m1[i1].e() & FLAG_ODD_EXP)
+                    --num_odd_m1;
                 ++i1;
             }
             else {
-                pairity ^= (s1 - i1) & 1;
+                if (m2[i2].e() & FLAG_ODD_EXP)
+                    pairity ^= num_odd_m1 & 1;
                 ++i2;
             }
         }
         return pairity ? -1 : 1;
     }
+}
+
+Mon pow(const Mon& mon, int e)
+{
+    alg2::Mon power;
+    if (e == 1)
+        power = mon.m();
+    else {
+        for (auto p = mon.m().begin(); p != mon.m().end(); ++p)
+            power.push_back(GE(p->g_raw() | (p->e() & FLAG_ODD_EXP) | (p->e_masked() * e)));
+    }
+    return Mon(mon.c() * e, power, mon.fil() * e);
 }
 
 Poly operator-(const Mon& mon)
@@ -115,7 +134,7 @@ Poly operator-(const Mon& mon)
         return result;
     int c_max = mon.c() + (FIL_MAX - mon.fil());
     for (int c = mon.c() + 1; c <= c_max; ++c)
-        result.data.emplace_back(c, mon.m0(), mon.m1(), mon.fil() + c - mon.c());
+        result.data.emplace_back(c, mon.m(), mon.fil() + c - mon.c());
     return result;
 }
 
@@ -158,7 +177,7 @@ void append_neg(Mon1d& data, const Mon& mon, int c_null)
         return;
     int c_max = std::min(c_null - 1, mon.c() + (FIL_MAX - mon.fil()));
     for (int c = mon.c() + 1; c <= c_max; ++c)
-        data.emplace_back(c, mon.m0(), mon.m1(), mon.fil() + c - mon.c());
+        data.emplace_back(c, mon.m(), mon.fil() + c - mon.c());
 }
 
 void AppendMul(Poly& result, const Mon& mon1, const Mon& mon2, const int1d& gen_2tor_degs)
@@ -287,7 +306,7 @@ void append_neg(MMod1d& data, const MMod& mon, int c_null)
         return;
     int c_max = std::min(c_null - 1, mon.m.c() + (FIL_MAX - mon.fil()));
     for (int c = mon.m.c() + 1; c <= c_max; ++c)
-        data.emplace_back(c, mon.m.m0(), mon.m.m1(), mon.fil() + c - mon.m.c(), mon.v);
+        data.emplace_back(c, mon.m.m(), mon.fil() + c - mon.m.c(), mon.v);
 }
 
 void AppendMul(Mod& result, const Mon& m, const MMod& x, const int1d& gen_2tor_degs)

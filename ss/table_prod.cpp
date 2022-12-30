@@ -629,12 +629,6 @@ int main_plotpi(int argc, char** argv, int index)
                             int O = -1;
                             ToIndices(x_prod, diagram.GetCofs()[iCof].pi_basis.front(), pi_deg2ids[iSS], deg_prod.stem(), t_max, prod, O);
 
-                            if (ssCofs[iCof].name == "Csigma" && i == arr_factors[0] && Cofs_pi_basis[iCof][j].Str() == "v_{59}") {
-                                std::cout << S0_pi_basis[i] * Cofs_pi_basis[iCof][j] << '\n';
-                                std::cout << pi_gb.ReduceV2(S0_pi_basis[i] * Cofs_pi_basis[iCof][j]) << '\n';
-                                std::cout << "debug\n";
-                            }
-
                             if (O != -1 || !prod.empty()) {
                                 stmt.bind_int(1, (int)i);
                                 stmt.bind_int(2, (int)j);

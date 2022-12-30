@@ -68,8 +68,8 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
         }
     }
     catch (SSException&) {
-        //std::cout << iSS << ' ' << deg_x.StrAdams() << ' ' << x << ' ' << r << ' ' << dx << '\n';
-        //std::cout << std::hex << e.id() << '\n';
+        /*std::cout << iSS << ' ' << deg_x.StrAdams() << ' ' << x << ' ' << r << ' ' << dx << '\n';
+        std::cout << std::hex << e.id() << ": " << e.what() << '\n';*/
         bException = true;
     }
     PopNode();
@@ -144,6 +144,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
             int1d x1;
             int count_pass = 0;
             unsigned i_max = 1 << nd.count;
+
             for (unsigned i = 1; i < i_max; ++i) {
                 x1.clear();
                 for (int j : two_expansion(i))
@@ -196,8 +197,10 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                 AdamsDeg deg_min = deg_src - AdamsDeg(0, 1);
                 if (iSS > 0)
                     deg_min = deg_min - ssCofs_[iSS - 1].deg_qt;
-                if (count_trivial)
+                if (count_trivial) {
+                    deg_min.t = deg_min.stem();
                     deg_min.s = 0;
+                }
                 SyncHomotopy(deg_min, count, count_homotopy1, depth);
                 DeduceTrivialExtensions(depth);
                 if (flag & DeduceFlag::check_exactness)
@@ -299,6 +302,9 @@ int main_deduce_diff(int argc, char** argv, int index)
                 diagram.DeduceExtensionsByExactness(0, diagram.stem_max_exactness_, 0);
         }
         count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
+        if (flag & DeduceFlag::homotopy) {
+            diagram.SimplifyPiRels();
+        }
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             db.begin_transaction();

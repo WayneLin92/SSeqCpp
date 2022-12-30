@@ -193,6 +193,8 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         all_basis_ss_.push_back(&ssCofs_[iCof].basis_ss);
         all_t_max_.push_back(ssCofs_[iCof].t_max);
     }
+
+    //VersionConvertReorderRels();
 }
 
 const Staircase& Diagram::GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg)

@@ -188,6 +188,12 @@ protected:
 
 public:
     Diagram(const std::vector<std::string>& dbnames);
+    void VersionConvertReorderRels()
+    {
+        ssS0_.pi_gb.SimplifyRelsReorder();
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+            ssCofs_[iCof].pi_gb.SimplifyRelsReorder();
+    }
 
 public:
     /* Return the newest version of the staircase in history */
@@ -322,8 +328,8 @@ public:
     static int PossEinf(const Staircases1d& basis_ss, AdamsDeg deg);
     /* Return if Einf at deg could have more nontrivial elements */
     static int PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg);
-    int1d PossMoreEinfFirstS_S0() const;
-    int1d PossMoreEinfFirstS_Cof(size_t iCof) const;
+    void PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) const;
+    void PossMoreEinfFirstS_Cof(size_t iCof, int1d& O1s, int1d& O2s, int1d& isSingle) const;
 
     /*
      * Return the smallest s1>=s such that extension has a possible target

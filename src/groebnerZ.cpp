@@ -7,13 +7,12 @@ namespace algZ {
 
 void CriPair::SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int O1, int O2, int i, int j, const AdamsDeg1d& gen_degs)
 {
-    alg2::Mon m1m0, m1m1, m2m0, m2m1;
-    alg2::detail::MutualQuotient(m1m0, m2m0, lead1.m0(), lead2.m0());
-    alg2::detail::MutualQuotient(m1m1, m2m1, lead1.m1(), lead2.m1());
+    alg2::Mon m1, m2;
+    alg2::detail::MutualQuotient(m1, m2, lead1.m(), lead2.m());
     int c_min = std::min(lead1.c(), lead2.c());
-    result.m1 = Mon(lead2.c() - c_min, m1m0, m1m1, -1024);
+    result.m1 = Mon(lead2.c() - c_min, m1, -1024);
     result.m1.SetFil(gen_degs);
-    result.m2 = Mon(lead1.c() - c_min, m2m0, m2m1, -1024);
+    result.m2 = Mon(lead1.c() - c_min, m2, -1024);
     result.m2.SetFil(gen_degs);
     result.i1 = i;
     result.i2 = j;
@@ -477,9 +476,15 @@ void Groebner::debug_print() const
 int Groebner::IndexOfDivisibleLeading(const Mon& mon, int eff_min) const
 {
     auto t = mon.Trace();
-    for (int i = -1; i < (int)mon.m0().size(); ++i) {
-        for (int j = -1; j < (int)mon.m1().size(); ++j) {
-            auto key = TypeIndexKey{(i == -1 ? 0 : mon.m0()[i].g() + 1) + (j == -1 ? 0 : ((mon.m1()[j].g() + 1) << 16))};
+    for (int i = mon.c() > 0 ? -1 : 0; i < (int)mon.m().size(); ++i) {
+        for (int j = mon.c() > 0 ? -2 : -1; j < i; ++j) {
+            uint32_t g1 = i == -1 ? 0 : mon.m()[i].g();
+            uint32_t g2 = 0;
+            if (j == -1 && mon.c() > 0)
+                g2 = 1;
+            else if (j >= 0)
+                g2 = mon.m()[j].g() + 1;
+            auto key = TypeIndexKey{g1 + (g2 << 16)};
             auto p = leads_group_by_key_.find(key);
             if (p != leads_group_by_key_.end()) {
                 for (int k : p->second) {
@@ -496,9 +501,15 @@ int Groebner::IndexOfDivisibleLeadingV2(const Mon& mon) const
 {
     auto t = mon.Trace();
     int result = -1, eff = 0;
-    for (int i = -1; i < (int)mon.m0().size(); ++i) {
-        for (int j = -1; j < (int)mon.m1().size(); ++j) {
-            auto key = TypeIndexKey{(i == -1 ? 0 : mon.m0()[i].g() + 1) + (j == -1 ? 0 : ((mon.m1()[j].g() + 1) << 16))};
+    for (int i = mon.c() > 0 ? -1 : 0; i < (int)mon.m().size(); ++i) {
+        for (int j = mon.c() > 0 ? -2 : -1; j < i; ++j) {
+            uint32_t g1 = i == -1 ? 0 : mon.m()[i].g();
+            uint32_t g2 = 0;
+            if (j == -1 && mon.c() > 0)
+                g2 = 1;
+            else if (j >= 0)
+                g2 = mon.m()[j].g() + 1;
+            auto key = TypeIndexKey{g1 + (g2 << 16)};
             auto p = leads_group_by_key_.find(key);
             if (p != leads_group_by_key_.end()) {
                 for (int k : p->second) {
@@ -634,10 +645,20 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
         size_t pairs_d_size = pairs_d.size();
         auto& rels_d = rels_graded[d];
         Poly1d rels_tmp(pairs_d_size + rels_d.size());
-        for (size_t i = 0; i < pairs_d_size; ++i)
+        for (size_t i = 0; i < pairs_d_size; ++i) {
             pairs_d[i].SijP(*this, rels_tmp[i], tmp);
+            /*if (rels_tmp[i].Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                std::cout << pairs_d[i].i1 << ' ' << pairs_d[i].i2 << '\n';
+                std::cout << data_[pairs_d[i].i1] << ' ' << data_[pairs_d[i].i2] << '\n';
+                std::cout << "debug\n";
+            }*/
+        }
         for (size_t i = 0; i < rels_d.size(); ++i) {
             rels_tmp[pairs_d_size + i] = std::move(rels_d[i]);
+            /*if (rels_tmp[pairs_d_size + i].Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                std::cout << "\nd=" << d << " i=" << i << '\n';
+                std::cout << "debug\n";
+            }*/
         }
         std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Poly& p1, const Poly& p2) { return p1.EffNum() > p2.EffNum(); });
 
@@ -647,13 +668,17 @@ void Groebner::AddRels(Poly1d rels, int deg_max)
                 AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
                 if (deg.t <= d_trunc) {
                     if (deg_max == d_trunc && deg.t > d) {
-                        /*if (p.Str() == "4x_{13}")
-                            std::cout << "debug\n";*/
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
                         rels_graded[deg.t].push_back(std::move(p));
                     }
                     else {
-                        /*if (p.Str() == "4x_{13}")
-                            std::cout << "debug\n";*/
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
                         push_back_data(std::move(p), deg);
                     }
                 }
@@ -667,6 +692,51 @@ void Groebner::SimplifyRels()
 {
     Poly1d data1 = std::move(data_);
     ResetRels();
+    AddRels(std::move(data1), criticals_.deg_trunc());
+}
+
+
+
+/**
+ * Sort the sequence and combine the coefficients of monomials
+ */
+template <typename T>
+void Merge1(std::vector<T>& data, std::vector<T>& tmp)
+{
+    auto cmp = [](const T& m1, const T& m2) { return m2 < m1; };
+    tmp.clear();
+    std::make_heap(data.begin(), data.end(), cmp);
+    while (!data.empty()) {
+        if (data.front().IsUnKnown()) {
+            tmp.push_back(data.front());
+            break;
+        }
+        std::pop_heap(data.begin(), data.end(), cmp);
+        if (data.size() > 1 && data.back() == data.front()) {
+            data.pop_back();
+            std::pop_heap(data.begin(), data.end(), cmp);
+            if (data.back().Is2Torsion() || data.back().fil() >= FIL_MAX)
+                data.pop_back();
+            else {
+                data.back().imul2();
+                std::push_heap(data.begin(), data.end(), cmp);
+            }
+        }
+        else {
+            tmp.push_back(data.back());
+            data.pop_back();
+        }
+    }
+    ut::copy(tmp, data);
+}
+
+void Groebner::SimplifyRelsReorder()
+{
+    Poly1d data1 = std::move(data_);
+    ResetRels();
+    Mon1d tmp;
+    for (auto& p : data1)
+        Merge1(p.data, tmp);
     AddRels(std::move(data1), criticals_.deg_trunc());
 }
 
@@ -779,14 +849,14 @@ void GroebnerMod::debug_print() const
 
 int GroebnerMod::IndexOfDivisibleLeading(const MMod& mon, int eff_min) const
 {
-    auto t = mon.m.Trace();
-    int i_max = int(mon.m.m0().size() + mon.m.m1().size());
-    for (int i = -2; i < i_max; ++i) {
+    const auto t = mon.m.Trace();
+    const int i_max = int(mon.m.m().size());
+    for (int i = mon.m.c() > 0 ? -2 : -1; i < i_max; ++i) {
         uint32_t backg = 0;
-        if (i == -1)
+        if (i == -1 && mon.m.c() > 0)
             backg = 1;
         else if (i >= 0)
-            backg = i < (int)mon.m.m0().size() ? mon.m.m0()[i].g() + 1 : mon.m.m1()[(size_t)i - mon.m.m0().size()].g() + 1;
+            backg = mon.m.m()[i].g() + 1;
         auto key = TypeIndexKey{mon.v + (backg << 16)};
         auto p = leads_group_by_key_.find(key);
         if (p != leads_group_by_key_.end()) {
@@ -803,13 +873,13 @@ int GroebnerMod::IndexOfDivisibleLeadingV2(const MMod& mon) const
 {
     int result = -1, eff = 0;
     auto t = mon.m.Trace();
-    int i_max = int(mon.m.m0().size() + mon.m.m1().size());
-    for (int i = -2; i < i_max; ++i) {
+    const int i_max = int(mon.m.m().size());
+    for (int i = mon.m.c() > 0 ? -2 : -1; i < i_max; ++i) {
         uint32_t backg = 0;
-        if (i == -1)
+        if (i == -1 && mon.m.c() > 0)
             backg = 1;
         else if (i >= 0)
-            backg = i < (int)mon.m.m0().size() ? mon.m.m0()[i].g() + 1 : mon.m.m1()[(size_t)i - mon.m.m0().size()].g() + 1;
+            backg = mon.m.m()[i].g() + 1;
         auto key = TypeIndexKey{mon.v + (backg << 16)};
         auto p = leads_group_by_key_.find(key);
         if (p != leads_group_by_key_.end()) {
@@ -1006,8 +1076,10 @@ void GroebnerMod::AddRels(Mod1d rels, int deg_max)
                         rels_graded[deg.t].push_back(std::move(p));
                     }
                     else {
-                        /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
-                            std::cout << "debug\n";*/
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
                         push_back_data(std::move(p), deg);
                     }
                 }
@@ -1021,6 +1093,16 @@ void GroebnerMod::SimplifyRels()
 {
     Mod1d data1 = std::move(data_);
     ResetRels();
+    AddRels(std::move(data1), criticals_.deg_trunc());
+}
+
+void GroebnerMod::SimplifyRelsReorder()
+{
+    Mod1d data1 = std::move(data_);
+    ResetRels();
+    MMod1d tmp;
+    for (auto& p : data1)
+        Merge1(p.data, tmp);
     AddRels(std::move(data1), criticals_.deg_trunc());
 }
 

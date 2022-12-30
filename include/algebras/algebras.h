@@ -178,7 +178,7 @@ inline std::ostream& operator<<(std::ostream& sout, const AdamsDeg& deg)
 struct GE
 {
     uint32_t data;
-    constexpr GE() : data(0xffff << 16) {}
+    constexpr GE() : data(0xffff << 16) {} /* default value x_0^0 */
     constexpr explicit GE(uint32_t data_) : data(data_) {}
     constexpr GE(uint32_t g, uint32_t e) : data((~g << 16) | e) {}
 
@@ -193,6 +193,10 @@ struct GE
     uint32_t e() const
     {
         return data & 0xffff;
+    }
+    uint32_t e_masked() const
+    {
+        return data & 0x7fff;
     }
 
     bool operator==(GE rhs) const
@@ -355,7 +359,7 @@ using Mon2d = std::vector<Mon1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Mon& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 /**
@@ -367,7 +371,7 @@ inline auto GetDegTpl(const Mon& mon, const FnGenDeg& _gen_deg)
     using TypeReturn = decltype(_gen_deg(0));
     auto result = TypeReturn();
     for (auto p = mon.begin(); p != mon.end(); ++p)
-        result += _gen_deg(p->g()) * p->e();
+        result += _gen_deg(p->g()) * p->e_masked();
     return result;
 }
 
@@ -548,7 +552,7 @@ using Poly2d = std::vector<Poly1d>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 void powP(const Poly& poly, uint32_t n, Poly& result, Poly& tmp);
@@ -583,7 +587,7 @@ Poly subsTpl(const Poly& poly, const FnMap& map)
     for (const Mon& m : poly.data) {
         Poly fm = Poly::Unit();
         for (auto p = m.begin(); p != m.end(); ++p) {
-            powP(map(p->g()), p->e(), tmp_prod, tmp);
+            powP(map(p->g()), p->e_masked(), tmp_prod, tmp);
             fm.imulP(tmp_prod, tmp);
         }
         result.iaddP(fm, tmp);
@@ -693,7 +697,7 @@ using Mod1d = std::vector<Mod>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
-    return std::cout << x.Str();
+    return sout << x.Str();
 }
 
 inline Mod operator+(const Mod& x, const Mod& y)
