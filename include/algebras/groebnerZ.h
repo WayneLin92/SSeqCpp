@@ -218,8 +218,8 @@ public: /* Getters and Setters */
         ut::push_back(leads_group_by_last_gen_, (size_t)backg, index);
 
         if (g.data.size() == 1) {
-            if (m.frontg() == backg && backg > 0 && m.m().begin()->e() == 1) {
-                size_t index = (size_t)m.frontg();
+            if (m.frontg() == backg && backg > 0 && m.m().begin()->e_masked() == 1) {
+                size_t index = backg;
                 gen_2tor_degs_[index] = std::min(m.c(), gen_2tor_degs_[index]);
             }
         }
@@ -371,7 +371,7 @@ Poly subsMGbTpl(const Poly& poly, const Groebner& gb, const FnMap& map)
     for (const Mon& m : poly.data) {
         Poly fm = Poly::twoTo(m.c());
         for (auto p = m.m().begin(); p != m.m().end(); ++p) {
-            powP(map(p->g()), p->e(), gb, tmp_prod, tmp);
+            powP(map(p->g()), p->e_masked(), gb, tmp_prod, tmp);
             fm.imulP(tmp_prod, tmp);
         }
         fm = gb.Reduce(std::move(fm));

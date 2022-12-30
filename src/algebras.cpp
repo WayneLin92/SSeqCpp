@@ -14,7 +14,7 @@ std::string GE::Str() const
 {
     std::string result = "x_";
     std::string under = std::to_string(g());
-    std::string upper = std::to_string(e());
+    std::string upper = std::to_string(e_masked());
     if (under.size() > 1)
         result += '{' + under + '}';
     else
@@ -22,7 +22,7 @@ std::string GE::Str() const
 
     if (upper.size() > 1)
         result += "^{" + upper + '}';
-    else if (e() != 1)
+    else if (e_masked() != 1)
         result += '^' + upper;
     return result;
 }
@@ -38,7 +38,7 @@ MonTrace Mon::Trace() const
         const int bits_exp1 = 56;
         const int bits_exp2 = 64 - bits_exp1;
         result |= (MonTrace(1) << (data_[i].g() % bits_exp1));
-        if (data_[i].e() >= 2)
+        if (data_[i].e_masked() >= 2)
             result |= (MonTrace(1) << ((data_[i].g() % bits_exp2) + bits_exp1));
     }
     return result;
@@ -166,7 +166,7 @@ int log(const Mon& mon1, const Mon& mon2)
             break;
         }
         else {
-            int q1 = k->e() / l->e();
+            int q1 = k->e_masked() / l->e_masked();
             if (q == -1 || q > q1)
                 q = q1;
             ++k;
