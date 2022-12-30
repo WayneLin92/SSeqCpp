@@ -29,6 +29,11 @@ namespace detail {
     {
         return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
     }
+
+    inline AdamsDeg DegLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
+    {
+        return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
+    }
 }  // namespace detail
 
 class Groebner;
@@ -60,17 +65,17 @@ using CriPair2d = std::vector<CriPair1d>;
 class GbCriPairs
 {
 public:
-    int deg_trunc_;                                                      /* Truncation degree */
+    int t_trunc_;                                                      /* Truncation degree */
     CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
     std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_; /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
     std::vector<std::pair<int, CriPair>> new_pairs__;                    /* tmp variable to be used in functions */
 
 public:
-    GbCriPairs(int d_trunc) : deg_trunc_(d_trunc) {}
+    GbCriPairs(int t_trunc) : t_trunc_(t_trunc) {}
     int deg_trunc() const
     {
-        return deg_trunc_;
+        return t_trunc_;
     }
     CriPair1d Criticals(int d)
     {
@@ -168,10 +173,10 @@ private:
 
 public:
     Groebner() : criticals_(DEG_MAX), gen_degs_({AdamsDeg(1, 1)}), gen_2tor_degs_({FIL_MAX + 1}) {}
-    Groebner(int deg_trunc, AdamsDeg1d gen_degs) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)), gen_2tor_degs_(gen_degs_.size(), FIL_MAX + 1) {}
+    Groebner(int t_trunc, AdamsDeg1d gen_degs) : criticals_(t_trunc), gen_degs_(std::move(gen_degs)), gen_2tor_degs_(gen_degs_.size(), FIL_MAX + 1) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic = false);
+    Groebner(int t_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic = false);
 
 private:
     static TypeIndexKey Key(const Mon& lead)

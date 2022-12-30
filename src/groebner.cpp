@@ -18,9 +18,10 @@ bool detail::HasGCD(const Mon& mon1, const Mon& mon2)
     return false;
 }
 
-int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
+template<typename T>
+auto TplDegLCM(const Mon& mon1, const Mon& mon2, const std::vector<T>& gen_degs)
 {
-    int result = 0;
+    auto result = T();
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw()) {
@@ -45,6 +46,16 @@ int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
     for (; l != mon2.end(); ++l)
         result += gen_degs[l->g()] * l->e_masked();
     return result;
+}
+
+int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
+{
+    return TplDegLCM(mon1, mon2, gen_degs);
+}
+
+AdamsDeg detail::DegLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
+{
+    return TplDegLCM(mon1, mon2, gen_degs);
 }
 
 void detail::MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2)

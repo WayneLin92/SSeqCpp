@@ -23,6 +23,7 @@ namespace detail {
     }
 
     int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs);
+    AdamsDeg DegLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs);
 
     void MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2);
 }  // namespace detail

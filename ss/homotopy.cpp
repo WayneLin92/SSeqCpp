@@ -1764,8 +1764,11 @@ int main_deduce_ext(int argc, char** argv, int index)
         catch (TerminationException&) {
         }
         diagram.SimplifyPiRels();
+        std::cout << "S0 pi_gb.size()=" << diagram.GetS0().pi_gb.data().size() << '\n';
+        for (size_t iCof = 0; iCof < diagram.GetCofs().size(); ++iCof)
+            std::cout << diagram.GetCofs()[iCof].name << " pi_gb.size()=" << diagram.GetCofs()[iCof].pi_gb.data().size() << '\n';
 
-        for (size_t k = 0; k < dbnames.size(); ++k) {
+        /*for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
             auto pi_table = GetComplexName(dbnames[k]);
             db.begin_transaction();
@@ -1791,7 +1794,7 @@ int main_deduce_ext(int argc, char** argv, int index)
             }
 
             db.end_transaction();
-        }
+        }*/
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {
