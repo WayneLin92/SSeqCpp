@@ -214,7 +214,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
         if (detail::HasGCD(leads[i], mon, traces[i], t)) {
             AdamsDeg d_pair = detail::DegLCM(leads[i], mon, gen_degs);
             if (d_pair.t <= t_trunc_) {
-                new_pairs__[i].first = d_pair.stem();
+                new_pairs__[i].first = d_pair.t;
                 CriPair::SetFromLM(new_pairs__[i].second, leads[i], mon, leads_O[i], O, (uint32_t)i, (uint32_t)lead_size, gen_degs);
             }
         }
@@ -237,7 +237,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
                     else if (!detail::HasGCD(npi.second.m1, npj.second.m1) && detail::HasGCD(leads[i], leads[j], traces[i], traces[j]) && NEPair(npi.second, npj.second)) {
                         AdamsDeg dij = detail::DegLCM(leads[i], leads[j], gen_degs);
                         if (dij.t <= t_trunc_) {
-                            buffer_redundent_pairs_[dij.stem()].insert(ut::Bind(i, j));
+                            buffer_redundent_pairs_[dij.t].insert(ut::Bind(i, j));
                         }
                     }
                 }
@@ -267,7 +267,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
         new_pairs__[i].first = -1;
         AdamsDeg d_pair = detail::DegLCM(leadsx[i], mon.m, gen_degs) + v_degs[mon.v];
         if (d_pair.t <= t_trunc_) {
-            new_pairs__[i].first = d_pair.stem();
+            new_pairs__[i].first = d_pair.t;
             CriPair::SetFromLM(new_pairs__[i].second, leadsx[i], mon.m, leadsx_O[i] + v_degs[mon.v].s, O, uint32_t(i | FLAG_INDEX_X), (uint32_t)leads_size, gen_degs);
         }
     }
@@ -277,7 +277,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
         if (leads[i].v == mon.v) {
             AdamsDeg d_pair = detail::DegLCM(leads[i].m, mon.m, gen_degs) + v_degs[mon.v];
             if (d_pair.t <= t_trunc_) {
-                new_pairs_i.first = d_pair.stem();
+                new_pairs_i.first = d_pair.t;
                 CriPair::SetFromLM(new_pairs_i.second, leads[i].m, mon.m, leads_O[i], O, (uint32_t)i, (uint32_t)leads_size, gen_degs);
             }
         }
@@ -302,7 +302,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
                         const size_t j1 = j - leadsx_size;
                         AdamsDeg dij = detail::DegLCM(leadsi, leads[j1].m, gen_degs) + v_degs[leads[j1].v];
                         if (dij.t <= t_trunc_) {
-                            buffer_redundent_pairs_[dij.stem()].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
+                            buffer_redundent_pairs_[dij.t].insert(ut::Bind(i < leadsx_size ? (i | FLAG_INDEX_X) : i - leadsx_size, j1));
                         }
                     }
                 }
@@ -333,7 +333,7 @@ void GbCriPairs::AddToBuffersX(const Mon1d& leadsx, const MonTrace1d& tracesx, c
             new_pairs_i.first = -1;
             AdamsDeg d_pair = detail::DegLCM(leadsx[i], mon.m, gen_degs) + v_degs[mon.v];
             if (d_pair.t <= t_trunc_) {
-                new_pairs_i.first = d_pair.stem();
+                new_pairs_i.first = d_pair.t;
                 CriPair::SetFromLM(new_pairs_i.second, leadsx[i], mon.m, leadsx_O[i] + v_degs[mon.v].s, leads_O[l], uint32_t(i | FLAG_INDEX_X), (uint32_t)l, gen_degs);
             }
         }
@@ -607,21 +607,18 @@ void Groebner::AddRels(Poly1d rels, int t_max)
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, Poly1d> rels_graded;
-    int debug_i = 0;
     for (auto& rel : rels) {
-        debug_i++;
         if (rel) {
-            AdamsDeg d = GetDeg(rel.GetLead(), gen_degs_);
-            if (d.t <= t_max) {
-                rels_graded[d.stem()].push_back(std::move(rel));
-            }
+            int t = GetDegT(rel.GetLead(), gen_degs_);
+            if (t <= t_max)
+                rels_graded[t].push_back(std::move(rel));
         }
     }
 
     for (int t = 1; t <= t_max && ((!rels_graded.empty() && t <= rels_graded.rbegin()->first) || !criticals_.empty()); ++t) {
-        int nextd = criticals_.NextD();
-        if (nextd != -1 && nextd < t) {
-            if (nextd < t - 1)
+        int next_d = criticals_.NextD();
+        if (next_d != -1 && next_d < t) {
+            if (next_d < t - 1)
                 throw MyException(0xc3b447bcU, "buffer_min_pairs_ contains degree < t - 1");
             --t;
         }
@@ -645,23 +642,32 @@ void Groebner::AddRels(Poly1d rels, int t_max)
                 std::cout << "debug\n";
             }*/
         }
-        std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Poly& p1, const Poly& p2) { return p1.EffNum() > p2.EffNum(); });
+        ut::for_each_par(rels_tmp.size(), [this, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
+        std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Poly& p1, const Poly& p2) { return p1.UnknownFil() > p2.UnknownFil(); });
 
         for (auto& p : rels_tmp) {
             p = ReduceForGbRel(std::move(p));
             if (p && !p.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
                 if (deg.t <= d_trunc) {
-                    /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
-                        std::cout << (p.data[0] < p.data[1]) << '\n';
-                        std::cout << "debug\n";
-                    }*/
-                    push_back_data(std::move(p), deg);
+                    if (t_max == d_trunc && deg.t > t) {
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
+                        rels_graded[deg.t].push_back(std::move(p));
+                    }
+                    else {
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
+                        push_back_data(std::move(p), deg);
+                    }
                 }
             }
         }
     }
-    criticals_.ClearBuffer();
 }
 
 void Groebner::SimplifyRels()
@@ -1022,10 +1028,10 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max)
 
     Mod tmp;
     for (int t = 0; t <= t_max && ((!rels_graded.empty() && t <= rels_graded.rbegin()->first) || !criticals_.empty()); ++t) {
-        int nextd = criticals_.NextD();
-        if (nextd != -1 && nextd < t) {
-            if (nextd < t - 1)
-                throw MyException(0xc3b447bcU, "buffer_min_pairs_ contains degree < d - 1");
+        int next_stem = criticals_.NextD();
+        if (next_stem != -1 && next_stem < t) {
+            if (next_stem < t - 1)
+                throw MyException(0x3dc040d6U, "buffer_min_pairs_ contains degree < t - 1");
             --t;
         }
 
@@ -1037,23 +1043,30 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max)
             pairs_d[i].SijMod(*pGb_, *this, rels_tmp[i], tmp);
         for (size_t i = 0; i < rels_d.size(); ++i)
             rels_tmp[pairs_d_size + i] = std::move(rels_d[i]);
-        std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Mod& p1, const Mod& p2) { return p1.EffNum() > p2.EffNum(); });
+        ut::for_each_par(rels_tmp.size(), [this, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
+        std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Mod& p1, const Mod& p2) { return p1.UnknownFil() > p2.UnknownFil(); });
 
         for (auto& p : rels_tmp) {
             p = ReduceForGbRel(std::move(p));
             if (p && !p.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(p.GetLead(), pGb_->gen_degs(), v_degs_);
                 if (deg.t <= d_trunc) {
-                    /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
-                        std::cout << (p.data[0] < p.data[1]) << '\n';
-                        std::cout << "debug\n";
-                    }*/
-                    push_back_data(std::move(p), deg);
+                    if (t == d_trunc && deg.t > t) {
+                        /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
+                            std::cout << "debug\n";*/
+                        rels_graded[deg.t].push_back(std::move(p));
+                    }
+                    else {
+                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
+                            std::cout << (p.data[0] < p.data[1]) << '\n';
+                            std::cout << "debug\n";
+                        }*/
+                        push_back_data(std::move(p), deg);
+                    }
                 }
             }
         }
     }
-    criticals_.ClearBuffer();
 }
 
 void GroebnerMod::SimplifyRels()

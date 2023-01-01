@@ -108,12 +108,6 @@ public:
         buffer_redundent_pairs_.clear();
     }
 
-    void ClearBuffer()
-    {
-        buffer_min_pairs_.clear();
-        buffer_redundent_pairs_.clear();
-    }
-
     void Pop(size_t rel_size)
     {
         gb_.resize(rel_size);
