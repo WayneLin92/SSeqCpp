@@ -139,7 +139,7 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
     }
 }
 
-Diagram::Diagram(const std::vector<std::string>& dbnames)
+Diagram::Diagram(const std::vector<std::string>& dbnames, DeduceFlag flag)
 {
     {
         DBSS db(dbnames[0]);
@@ -153,10 +153,14 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssS0_.basis_ss = {db.load_basis_ss(table_S0), {}};
         ssS0_.basis_ss.reserve(MAX_NUM_NODES + 1);
         ssS0_.gb = Groebner(ssS0_.t_max, {}, db.load_gb(table_S0, DEG_MAX));
-        ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
-        ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
-        ssS0_.pi_basis.reserve(MAX_NUM_NODES);
-        db.load_pi_def(complexName, ssS0_.pi_gen_defs, ssS0_.pi_gen_def_mons);
+
+        if (flag & DeduceFlag::homotopy) {
+            ssS0_.pi_gen_Einf = db.get_column_from_str<Poly>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
+            ssS0_.pi_gb = algZ::Groebner(ssS0_.t_max, db.load_pi_gen_adamsdegs(complexName), db.load_pi_gb(complexName, DEG_MAX), true);
+            ssS0_.pi_basis.reserve(MAX_NUM_NODES);
+            if (flag & DeduceFlag::homotopy_def)
+                db.load_pi_def(complexName, ssS0_.pi_gen_defs, ssS0_.pi_gen_def_mons);
+        }
 
         all_names_.push_back(ssS0_.name);
         all_basis_ss_.push_back(&ssS0_.basis_ss);
@@ -176,15 +180,18 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         ssCof.basis_ss.reserve(MAX_NUM_NODES + 1);
         Mod1d xs = dbCof.load_gb_mod(table_CW, DEG_MAX);
         ssCof.gb = GroebnerMod(&ssS0_.gb, ssCof.t_max, {}, std::move(xs));
-        ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
-        ssCof.pi_gb = algZ::GroebnerMod(&ssS0_.pi_gb, ssCof.t_max, dbCof.load_pi_gen_adamsdegs(complexName), dbCof.load_pi_gb_mod(complexName, DEG_MAX), true);
-        ssCof.pi_basis.reserve(MAX_NUM_NODES);
-        dbCof.load_pi_def_mod(complexName, ssCof.pi_gen_defs, ssCof.pi_gen_def_mons);
-
         ssCof.qt = dbCof.get_column_from_str<Poly>(table_CW + "_generators", "to_S0", "", myio::Deserialize<Poly>);
         ssCof.deg_qt = AdamsDeg(0, GetTopCellT(dbnames[i]));
-        ssCof.pi_qt = {dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "ORDER BY id", myio::Deserialize<algZ::Poly>)};
-        ssCof.pi_qt.reserve(MAX_NUM_NODES);
+
+        if (flag & DeduceFlag::homotopy) {
+            ssCof.pi_gen_Einf = dbCof.get_column_from_str<Mod>(complexName + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
+            ssCof.pi_gb = algZ::GroebnerMod(&ssS0_.pi_gb, ssCof.t_max, dbCof.load_pi_gen_adamsdegs(complexName), dbCof.load_pi_gb_mod(complexName, DEG_MAX), true);
+            ssCof.pi_basis.reserve(MAX_NUM_NODES);
+            if (flag & DeduceFlag::homotopy_def)
+                dbCof.load_pi_def(complexName, ssCof.pi_gen_defs, ssCof.pi_gen_def_mons);
+            ssCof.pi_qt = {dbCof.get_column_from_str<algZ::Poly>(complexName + "_pi_generators", "to_S0", "ORDER BY id", myio::Deserialize<algZ::Poly>)};
+            ssCof.pi_qt.reserve(MAX_NUM_NODES);
+        }
 
         ssCofs_.push_back(std::move(ssCof));
     }
@@ -194,7 +201,48 @@ Diagram::Diagram(const std::vector<std::string>& dbnames)
         all_t_max_.push_back(ssCofs_[iCof].t_max);
     }
 
-    //VersionConvertReorderRels();
+    if (flag & DeduceFlag::homotopy)
+        UpdateAllPossEinf();
+
+    // VersionConvertReorderRels();
+}
+
+void Diagram::save(const std::vector<std::string>& dbnames, DeduceFlag flag)
+{
+    for (size_t k = 0; k < dbnames.size(); ++k) {
+        DBSS db(dbnames[k]);
+        auto pi_table = GetComplexName(dbnames[k]);
+        db.begin_transaction();
+
+        db.update_basis_ss(pi_table + "_AdamsE2", (*all_basis_ss_[k])[1]);
+        if (flag & DeduceFlag::homotopy) {
+            db.drop_and_create_pi_relations(pi_table);
+            db.drop_and_create_pi_basis(pi_table);
+            if (flag & DeduceFlag::homotopy_def)
+                db.drop_and_create_pi_definitions(pi_table);
+            if (k == 0) {
+                db.drop_and_create_pi_generators(pi_table);
+                db.save_pi_generators(pi_table, ssS0_.pi_gb.gen_degs(), ssS0_.pi_gen_Einf);
+                db.save_pi_gb(pi_table, ssS0_.pi_gb.OutputForDatabase(), GetS0GbEinf());
+                db.save_pi_basis(pi_table, ssS0_.pi_basis.front());
+                if (flag & DeduceFlag::homotopy_def)
+                    db.save_pi_def(pi_table, ssS0_.pi_gen_defs, ssS0_.pi_gen_def_mons);
+            }
+            else {
+                db.drop_and_create_pi_generators_mod(pi_table);
+                auto& Cof = ssCofs_[k - 1];
+                if (Cof.pi_qt.size() != 1)
+                    throw MyException(0x925afecU, "Not on the initial node");
+                db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_qt.front());
+                db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), GetCofGbEinf(k - 1));
+                db.save_pi_basis_mod(pi_table, Cof.pi_basis.front());
+                if (flag & DeduceFlag::homotopy_def)
+                    db.save_pi_def(pi_table, Cof.pi_gen_defs, Cof.pi_gen_def_mons);
+            }
+        }
+
+        db.end_transaction();
+    }
 }
 
 const Staircase& Diagram::GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg)
@@ -206,46 +254,49 @@ const Staircase& Diagram::GetRecentStaircase(const Staircases1d& basis_ss, Adams
 }
 
 /* Add a node */
-void Diagram::AddNode()
+void Diagram::AddNode(DeduceFlag flag)
 {
-    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
+    for (size_t k = 0; k < all_basis_ss_.size(); ++k)
         all_basis_ss_[k]->push_back({});
-    }
 
-    ssS0_.pi_nodes_gen.push_back(ssS0_.pi_gb.gen_degs().size());
-    ssS0_.pi_nodes_rel.push_back(ssS0_.pi_gb.data().size());
-    ssS0_.pi_nodes_gen_2tor_degs.push_back(ssS0_.pi_gb.gen_2tor_degs());
-    ssS0_.pi_basis.push_back({});
-    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
-        auto& ssCof = ssCofs_[iCof];
-        ssCof.pi_nodes_gen.push_back(ssCof.pi_gb.v_degs().size());
-        ssCof.pi_nodes_rel.push_back(ssCof.pi_gb.data().size());
-        ssCof.pi_qt.push_back(ssCof.pi_qt.back());
-        ssCof.pi_basis.push_back({});
+    if (flag & DeduceFlag::homotopy) {
+        ssS0_.pi_nodes_gen.push_back(ssS0_.pi_gb.gen_degs().size());
+        ssS0_.pi_nodes_rel.push_back(ssS0_.pi_gb.data().size());
+        ssS0_.pi_nodes_gen_2tor_degs.push_back(ssS0_.pi_gb.gen_2tor_degs());
+        ssS0_.pi_basis.push_back({});
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+            auto& ssCof = ssCofs_[iCof];
+            ssCof.pi_nodes_gen.push_back(ssCof.pi_gb.v_degs().size());
+            ssCof.pi_nodes_rel.push_back(ssCof.pi_gb.data().size());
+            ssCof.pi_qt.push_back(ssCof.pi_qt.back());
+            ssCof.pi_basis.push_back({});
+        }
     }
 }
 
 /* Pop the lastest node */
-void Diagram::PopNode()
+void Diagram::PopNode(DeduceFlag flag)
 {
-    for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
+    for (size_t k = 0; k < all_basis_ss_.size(); ++k)
         all_basis_ss_[k]->pop_back();
-    }
-    ssS0_.pi_gb.Pop(ssS0_.pi_nodes_gen.back(), ssS0_.pi_nodes_rel.back());
-    ssS0_.pi_gb.set_gen_2tor_degs(std::move(ssS0_.pi_nodes_gen_2tor_degs.back()));
-    ssS0_.pi_gen_Einf.resize(ssS0_.pi_nodes_gen.back());
-    ssS0_.pi_nodes_gen.pop_back();
-    ssS0_.pi_nodes_rel.pop_back();
-    ssS0_.pi_nodes_gen_2tor_degs.pop_back();
-    ssS0_.pi_basis.pop_back();
-    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
-        auto& ssCof = ssCofs_[iCof];
-        ssCof.pi_gb.Pop(ssCof.pi_nodes_gen.back(), ssCof.pi_nodes_rel.back());
-        ssCof.pi_gen_Einf.resize(ssCof.pi_nodes_gen.back());
-        ssCof.pi_qt.pop_back();
-        ssCof.pi_nodes_gen.pop_back();
-        ssCof.pi_nodes_rel.pop_back();
-        ssCof.pi_basis.pop_back();
+    if (flag & DeduceFlag::homotopy) {
+        ssS0_.pi_gb.Pop(ssS0_.pi_nodes_gen.back(), ssS0_.pi_nodes_rel.back());
+        ssS0_.pi_gb.set_gen_2tor_degs(std::move(ssS0_.pi_nodes_gen_2tor_degs.back()));
+        ssS0_.pi_gen_Einf.resize(ssS0_.pi_nodes_gen.back());
+        ssS0_.pi_nodes_gen.pop_back();
+        ssS0_.pi_nodes_rel.pop_back();
+        ssS0_.pi_nodes_gen_2tor_degs.pop_back();
+        ssS0_.pi_basis.pop_back();
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
+            auto& ssCof = ssCofs_[iCof];
+            ssCof.pi_gb.Pop(ssCof.pi_nodes_gen.back(), ssCof.pi_nodes_rel.back());
+            ssCof.pi_gen_Einf.resize(ssCof.pi_nodes_gen.back());
+            ssCof.pi_qt.pop_back();
+            ssCof.pi_nodes_gen.pop_back();
+            ssCof.pi_nodes_rel.pop_back();
+            ssCof.pi_basis.pop_back();
+        }
+        UpdateAllPossEinf();
     }
 }
 

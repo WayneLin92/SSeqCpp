@@ -30,9 +30,9 @@ namespace detail {
         return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
     }
 
-    inline AdamsDeg DegLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
+    inline int DegTLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
     {
-        return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
+        return gen_degs[0].t * std::max(mon1.c(), mon2.c()) + alg2::detail::DegTLCM(mon1.m(), mon2.m(), gen_degs);
     }
 }  // namespace detail
 
@@ -65,7 +65,7 @@ using CriPair2d = std::vector<CriPair1d>;
 class GbCriPairs
 {
 public:
-    int t_trunc_;                                                      /* Truncation degree */
+    int t_trunc_;                                                        /* Truncation degree */
     CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
     std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_; /* To generate `buffer_min_pairs_` and for computing Sij */
     std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
@@ -108,13 +108,21 @@ public:
         buffer_redundent_pairs_.clear();
     }
 
+    void ClearBuffer()
+    {
+        buffer_min_pairs_.clear();
+        buffer_redundent_pairs_.clear();
+    }
+
     void Pop(size_t rel_size)
     {
         gb_.resize(rel_size);
         if (!buffer_min_pairs_.empty())
-            throw MyException(0, "BUG");
-        if (!buffer_redundent_pairs_.empty())
-            throw MyException(0, "BUG");
+            throw MyException(1, "BUG");
+        if (!buffer_redundent_pairs_.empty()) {
+            std::cout << buffer_redundent_pairs_.begin()->first << '\n';
+            throw MyException(1, "BUG");
+        }
     }
 
     void Pop(size_t xrels_size, size_t rel_size)
@@ -125,9 +133,9 @@ public:
             ut::RemoveIf(gb_[j], [i1_end](const CriPair& cp) { return cp.i1 >= i1_end; });
 
         if (!buffer_min_pairs_.empty())
-            throw MyException(0, "BUG");
+            throw MyException(1, "BUG");
         if (!buffer_redundent_pairs_.empty())
-            throw MyException(0, "BUG");
+            throw MyException(1, "BUG");
     }
 
     /* Minimize `buffer_min_pairs_[d]` and maintain `pairs_` */
@@ -143,6 +151,8 @@ public:
     void init(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, int t_min_buffer);
     void init(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, int t_min_buffer);
 };
+
+int NextO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, int O_min);
 
 /* 2 is considered as the first generator */
 class Groebner
@@ -161,13 +171,22 @@ private:
     std::unordered_map<TypeIndexKey, int1d> leads_group_by_key_; /* Cache for fast divisibility test */
     int2d leads_group_by_last_gen_;                              /* Cache for generating a basis */
     std::map<AdamsDeg, int1d> leads_group_by_deg_;               /* Cache for generating a basis */
+    std::map<int, int1d> leads_group_by_t_;                      /* Cache for iteration */
 
     AdamsDeg1d gen_degs_; /* degree of generators */
     int1d gen_2tor_degs_; /* 2 torsion degree of generators */
 
 public:
     Groebner() : criticals_(DEG_MAX), gen_degs_({AdamsDeg(1, 1)}), gen_2tor_degs_({FIL_MAX + 1}) {}
-    Groebner(int t_trunc, AdamsDeg1d gen_degs) : criticals_(t_trunc), gen_degs_(std::move(gen_degs)), gen_2tor_degs_(gen_degs_.size(), FIL_MAX + 1) {}
+    Groebner(int t_trunc, AdamsDeg1d gen_degs) : criticals_(t_trunc), gen_degs_(std::move(gen_degs))
+    {
+        for (AdamsDeg deg : gen_degs_) {
+            if (deg == AdamsDeg(1, 1))
+                gen_2tor_degs_.push_back(FIL_MAX + 1);
+            else
+                gen_2tor_degs_.push_back((deg.stem() + 5) / 2);
+        }
+    }
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
     Groebner(int t_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic = false);
@@ -213,6 +232,7 @@ public: /* Getters and Setters */
         int index = (int)data_.size();
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
+        leads_group_by_t_[deg.t].push_back(index);
         uint32_t backg = m.backg();
         ut::push_back(leads_group_by_last_gen_, (size_t)backg, index);
 
@@ -240,6 +260,7 @@ public: /* Getters and Setters */
         leads_O_.clear();
         leads_group_by_key_.clear();
         leads_group_by_deg_.clear();
+        leads_group_by_t_.clear();
         leads_group_by_last_gen_.clear();
         data_.clear();
 
@@ -284,6 +305,11 @@ public: /* Getters and Setters */
     const auto& leads_group_by_deg() const
     {
         return leads_group_by_deg_;
+    }
+
+    const auto& leads_group_by_t() const
+    {
+        return leads_group_by_t_;
     }
 
     auto OutputForDatabase() const -> const std::map<AdamsDeg, Poly1d>
@@ -332,16 +358,16 @@ public:
         if (deg == AdamsDeg(1, 1))
             gen_2tor_degs_.push_back(FIL_MAX + 1);
         else
-            gen_2tor_degs_.push_back((deg.stem() + 5) / 2);  //// TODO: modify
+            gen_2tor_degs_.push_back((deg.stem() + 5) / 2);
     }
 
     /**
      * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`
      */
-    void AddRels(Poly1d rels, int deg);
+    void AddRels(Poly1d rels, int deg, const ut::map_seq2d<int, 0>& possEinf);
 
-    void SimplifyRels();
-    void SimplifyRelsReorder();
+    void SimplifyRels(const ut::map_seq2d<int, 0>& possEinf);
+    void SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf);
 };
 
 /**
@@ -402,7 +428,8 @@ private:
     int1d leads_O_;                                              /* Cache for certainty of data_ */
     std::unordered_map<TypeIndexKey, int1d> leads_group_by_key_; /* Cache for fast divisibility test */
     int2d leads_group_by_v_;                                     /* Cache for generating a basis */
-    std::map<AdamsDeg, int1d> leads_group_by_deg_;               /* Cache for generating a basis */
+    std::map<AdamsDeg, int1d> leads_group_by_deg_;               /* Cache for iteration */
+    std::map<int, int1d> leads_group_by_t_;                      /* Cache for iteration */
 
     AdamsDeg1d v_degs_; /* degree of generators of modules */
 
@@ -460,6 +487,7 @@ public: /* Getters and Setters */
         int index = (int)data_.size();
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
+        leads_group_by_t_[deg.t].push_back(index);
         ut::push_back(leads_group_by_v_, (size_t)m.v, index);
         data_.push_back(std::move(g));
     }
@@ -479,6 +507,7 @@ public: /* Getters and Setters */
         leads_O_.clear();
         leads_group_by_key_.clear();
         leads_group_by_deg_.clear();
+        leads_group_by_t_.clear();
         leads_group_by_v_.clear();
         data_.clear();
     }
@@ -514,6 +543,11 @@ public: /* Getters and Setters */
     const auto& leads_group_by_deg() const
     {
         return leads_group_by_deg_;
+    }
+
+    const auto& leads_group_by_t() const
+    {
+        return leads_group_by_t_;
     }
 
     const std::map<AdamsDeg, Mod1d> OutputForDatabase() const
@@ -565,10 +599,10 @@ public:
     /**
      * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`
      */
-    void AddRels(Mod1d rels, int deg);
+    void AddRels(Mod1d rels, int deg, const ut::map_seq2d<int, 0>& possEinf);
 
-    void SimplifyRels();
-    void SimplifyRelsReorder();
+    void SimplifyRels(const ut::map_seq2d<int, 0>& possEinf);
+    void SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf);
 };
 
 inline bool IsValidRel(const Poly& poly)

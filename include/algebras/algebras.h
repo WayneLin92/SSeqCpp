@@ -8,6 +8,7 @@
 
 #include "myexception.h"
 #include "utility.h"
+//#include "benchmark.h"////
 #include <algorithm>
 #include <array>
 #include <climits>
@@ -236,7 +237,7 @@ using namespace alg;
 /********************************************************
  *                      Monomials
  ********************************************************/
-constexpr size_t MONSIZE = 16;
+constexpr size_t MONSIZE = 7;
 
 class Mon
 {
@@ -326,10 +327,8 @@ public:
     }
     void push_back(GE p)
     {
-#ifndef NDEBUG
         if (size_ >= MONSIZE)
             throw MyException(0x9b96a118U, "Mon overflow");
-#endif
         data_[size_++] = p;
     }
     auto& operator[](size_t i) const
@@ -366,7 +365,7 @@ inline std::ostream& operator<<(std::ostream& sout, const Mon& x)
  * Obtain the degree of a monomial given the degrees of generators.
  */
 template <typename FnGenDeg>
-inline auto GetDegTpl(const Mon& mon, const FnGenDeg& _gen_deg)
+inline auto GetDegTpl(const Mon& mon, FnGenDeg _gen_deg)
 {
     using TypeReturn = decltype(_gen_deg(0));
     auto result = TypeReturn();

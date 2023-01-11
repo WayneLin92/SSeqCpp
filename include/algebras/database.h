@@ -143,6 +143,14 @@ public:
     }
 
 public:
+    bool has_table(const std::string& table_name) const
+    {
+        return get_int("SELECT count(*) FROM sqlite_master WHERE name='" + table_name + "'");
+    }
+    bool has_column(const std::string& table_name, const std::string& column_name) const
+    {
+        return get_int("select count(*) from pragma_table_info('" + table_name + "') where name='" + column_name + "'");
+    }
     void drop_table(const std::string& table_name) const
     {
         execute_cmd("DROP TABLE IF EXISTS " + table_name);

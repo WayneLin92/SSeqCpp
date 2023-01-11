@@ -843,7 +843,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
 
         std::atomic<int> threadsLeft = (int)arr_s.size();
         std::mutex print_mutex = {};
-        ut::for_each_par(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft, t](size_t i) {
+        ut::for_each_par128(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft, t](size_t i) {
             size_t s = arr_s[i];
             gb.ReduceBatch(cris[s], data_tmps[s], s);
 

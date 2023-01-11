@@ -65,7 +65,7 @@ int main_add_diff(int argc, char** argv, int index)
     int1d x = myio::Deserialize<int1d>(x_str);
     int1d dx = myio::Deserialize<int1d>(dx_str);
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, DeduceFlag::no_op);
 
     /* Check if x, dx are valid */
     std::sort(x.begin(), x.end());
@@ -100,12 +100,7 @@ int main_add_diff(int argc, char** argv, int index)
     }
 
     if (mode == "add" || mode == "deduce") {
-        for (size_t iSS = 0; iSS < dbnames.size(); ++iSS) {
-            DBSS db(dbnames[iSS]);
-            db.begin_transaction();
-            db.update_basis_ss(GetE2TablePrefix(dbnames[iSS]), diagram.GetBasisSSChanges(iSS));
-            db.end_transaction();
-        }
+        diagram.save(dbnames, DeduceFlag::no_op);
     }
     std::cout << "Done" << std::endl;
     return 0;

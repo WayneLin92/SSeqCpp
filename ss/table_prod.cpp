@@ -288,7 +288,7 @@ int main_plot(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, DeduceFlag::no_op);
     diagram.DeduceTrivialDiffs();
     auto& ssS0 = diagram.GetS0();
     auto& ssCof = diagram.GetCofs();
@@ -523,7 +523,7 @@ int main_plotpi(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, DeduceFlag::homotopy);
     /* pi_basis_products */
     int count_ss = 0, count_homotopy = 0;
     diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
@@ -691,32 +691,7 @@ int main_plotpi(int argc, char** argv, int index)
     for (auto& db : dbPlots)
         db.end_transaction();
 
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        DBSS db(dbnames[k]);
-        auto pi_table = GetComplexName(dbnames[k]);
-        db.begin_transaction();
-        db.update_basis_ss(pi_table + "_AdamsE2", (*diagram.GetAllBasisSs()[k])[1]);
-
-        db.drop_and_create_pi_relations(pi_table);
-        db.drop_and_create_pi_basis(pi_table);
-        if (k == 0) {
-            db.drop_and_create_pi_generators(pi_table);
-            db.save_pi_generators(pi_table, diagram.GetS0().pi_gb.gen_degs(), diagram.GetS0().pi_gen_Einf);
-            db.save_pi_gb(pi_table, diagram.GetS0().pi_gb.OutputForDatabase(), diagram.GetS0GbEinf());
-            db.save_pi_basis(pi_table, diagram.GetS0().pi_basis.front());
-        }
-        else {
-            db.drop_and_create_pi_generators_mod(pi_table);
-            auto& Cof = diagram.GetCofs()[k - 1];
-            if (Cof.pi_qt.size() != 1)
-                throw MyException(0x925afecU, "Not on the initial node");
-            db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_qt.front());
-            db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), diagram.GetCofGbEinf(int(k - 1)));
-            db.save_pi_basis_mod(pi_table, Cof.pi_basis.front());
-        }
-
-        db.end_transaction();
-    }
+    diagram.save(dbnames, DeduceFlag::homotopy);
     return 0;
 }
 

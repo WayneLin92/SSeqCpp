@@ -6,7 +6,7 @@
 #include "algebras/groebnerZ.h"
 #include <set>
 
-inline const char* VERSION = "Version:\n  3.0 (2022-11-14)";
+inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
 using namespace alg2;
 
 constexpr int kLevelMax = 10000;
@@ -18,17 +18,18 @@ enum class DeduceFlag : uint32_t
 {
     no_op = 0,
     set_diff = 1,
-    homotopy = 2,
-    fast_try_diff = 4,   /* SetDiffLeibniz will update only partially in the try node */
-    check_exactness = 8, /* Check exactness of htpy in the try node */
-    all_x = 16,          /* Deduce dx for all x including linear combinations */
+    fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
+    all_x = 4,        /* Deduce dx for all x including linear combinations */
+    homotopy = 8,
+    homotopy_exact = 16, /* Check exactness of htpy in the try node */
+    homotopy_def = 32, /* Check exactness of htpy in the try node */
 };
 
 enum class DefFlag : int
 {
     no_def = 0,
     dec = 1, /* Decomposable */
-    mon = 2, /* Up to some monomial */
+    constraints = 2, /* The indeterminancies have some constraints */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -126,6 +127,14 @@ struct NullDiff
 
 using NullDiff1d = std::vector<NullDiff>;
 
+/* This constrains the choice of a generator g by requiring that Unknownfil(g*m)=O. */
+struct GenConstraint
+{
+    int map_id;
+    algZ::Mon m;
+    int O;
+};
+
 struct SS
 {
     std::string name; /* Constant after initialization */
@@ -134,6 +143,7 @@ struct SS
     std::map<AdamsDeg, Mon1d> basis;
     AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
     Staircases1d basis_ss;
+    ut::map_seq2d<int, 0> basis_ss_possEinf;
 
     algZ::Groebner pi_gb;
     Poly1d pi_gen_Einf = {Poly::Gen(0)}; /* Projection onto the E_infty page */
@@ -143,7 +153,7 @@ struct SS
     int2d pi_nodes_gen_2tor_degs;
 
     std::vector<DefFlag> pi_gen_defs;
-    std::vector<std::set<algZ::Mon>> pi_gen_def_mons;
+    std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
 
 struct SSMod
@@ -156,6 +166,7 @@ struct SSMod
     AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
     Poly1d qt;
     Staircases1d basis_ss;
+    ut::map_seq2d<int, 0> basis_ss_possEinf;
 
     algZ::GroebnerMod pi_gb;
     Mod1d pi_gen_Einf; /* Projection onto the E_infty page */
@@ -165,7 +176,7 @@ struct SSMod
     std::vector<size_t> pi_nodes_rel;
 
     std::vector<DefFlag> pi_gen_defs;
-    std::vector<std::set<algZ::MMod>> pi_gen_def_mons;
+    std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
 
 using SSMod1d = std::vector<SSMod>;
@@ -187,13 +198,14 @@ protected:
     int1d all_t_max_;
 
 public:
-    Diagram(const std::vector<std::string>& dbnames);
+    Diagram(const std::vector<std::string>& dbnames, DeduceFlag flag);
     void VersionConvertReorderRels()
     {
-        ssS0_.pi_gb.SimplifyRelsReorder();
+        ssS0_.pi_gb.SimplifyRelsReorder(ssS0_.basis_ss_possEinf);
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            ssCofs_[iCof].pi_gb.SimplifyRelsReorder();
+            ssCofs_[iCof].pi_gb.SimplifyRelsReorder(ssCofs_[iCof].basis_ss_possEinf);
     }
+    void save(const std::vector<std::string>& dbnames, DeduceFlag flag);
 
 public:
     /* Return the newest version of the staircase in history */
@@ -279,10 +291,10 @@ protected:
 
 public:
     /* Add a node */
-    void AddNode();
+    void AddNode(DeduceFlag flag);
 
     /* Pop the lastest node */
-    void PopNode();
+    void PopNode(DeduceFlag flag);
 
     /* Apply the change of the staircase to the current history */
     void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
@@ -326,6 +338,13 @@ public:
 public:
     /* Return if Einf at deg is possibly nontrivial */
     static int PossEinf(const Staircases1d& basis_ss, AdamsDeg deg);
+    static void UpdatePossEinf(const Staircases1d& basis_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf);
+    void UpdateAllPossEinf()
+    {
+        UpdatePossEinf(ssS0_.basis_ss, ssS0_.basis_ss_possEinf);
+        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+            UpdatePossEinf(ssCofs_[iCof].basis_ss, ssCofs_[iCof].basis_ss_possEinf);
+    }
     /* Return if Einf at deg could have more nontrivial elements */
     static int PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg);
     void PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) const;
@@ -339,24 +358,25 @@ public:
      */
     int ExtendRelS0(int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const;
     int ExtendRelCof(size_t iCof, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const;
-    void ExtendRelS0(int stem, algZ::Poly& rel) const;
-    void ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const;
-    void ExtendRelS0V2(int stem, algZ::Poly& rel, ut::default_vec<int, 0>& num_leads) const;
-    void ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::default_vec<int, 0>& num_leads) const;
+    int ExtendRelS0(int stem, algZ::Poly& rel) const;
+    int ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const;
+    int ExtendRelS0V2(int stem, algZ::Poly& rel, ut::map_seq<int, 0>& num_leads) const;
+    int ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::map_seq<int, 0>& num_leads) const;
     int2d GetS0GbEinf(AdamsDeg deg) const;
     std::map<AdamsDeg, int2d> GetS0GbEinf() const;
-    int2d GetCofGbEinf(int iCof, AdamsDeg deg) const;
-    std::map<AdamsDeg, int2d> GetCofGbEinf(int iCof) const;
+    int2d GetCofGbEinf(size_t iCof, AdamsDeg deg) const;
+    std::map<AdamsDeg, int2d> GetCofGbEinf(size_t iCof) const;
 
 public: /* homotopy groups */
+    void SetPermanentCycle(size_t iCof, AdamsDeg deg_x);
     void AddPiRelsS0(algZ::Poly1d rels);
     void AddPiRelsCof(size_t iCof, algZ::Mod1d rels);
     void AddPiRelsCof2S0(size_t iCof);
     void SimplifyPiRels()
     {
-        ssS0_.pi_gb.SimplifyRels();
+        ssS0_.pi_gb.SimplifyRels(ssS0_.basis_ss_possEinf);
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            ssCofs_[iCof].pi_gb.SimplifyRels();
+            ssCofs_[iCof].pi_gb.SimplifyRels(ssCofs_[iCof].basis_ss_possEinf);
     }
     static algZ::Mon1d GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& pi_basis);
     static algZ::MMod1d GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& basis);
@@ -369,13 +389,15 @@ public: /* homotopy groups */
             SyncCofHomotopy((int)iCof, deg_min, count_ss, count_homotopy, depth);
     }
     int DeduceTrivialExtensions(int depth);
+    int DeduceExtensions2tor();
     int DeduceExtensionsByExactness(int stem_min, int stem_max, int depth);
 
     unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
     unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
     unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag);
-    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag fla);
+    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag flag);
     int DefineDependenceInExtensions(int depth);
+    int DefineDependenceInExtensionsV2(int stem_max_mult, int depth);
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -388,17 +410,17 @@ public:
 
     void create_basis_ss(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, base TEXT, diff TEXT, level SMALLINT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, base TEXT, diff TEXT, level SMALLINT, s SMALLINT, t SMALLINT)");
     }
 
     void create_pi_generators_mod(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, Einf TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators (id INTEGER PRIMARY KEY, name TEXT UNIQUE, Einf TEXT, to_S0 TEXT, s SMALLINT, t SMALLINT)");
     }
 
     void create_pi_def(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators_def (id INTEGER PRIMARY KEY, def TINYINT, mons TEXT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators_def (id INTEGER PRIMARY KEY, def TINYINT, map_ids TEXT, multipliers TEXT, mult_name TEXT, fils TEXT)");
     }
 
     void drop_and_create_basis_ss(const std::string& table_prefix) const
@@ -423,14 +445,12 @@ public:
     void save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
-    void save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const;
-    void save_pi_def_mod(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const;
+    void save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
-    void load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const;
-    void load_pi_def_mod(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const;
+    void load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
@@ -494,7 +514,9 @@ int main_add_ext(int argc, char** argv, int index);
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_ext(int argc, char** argv, int index);
-int main_deduce_extdef(int argc, char** argv, int index);
+int main_deduce_ext_def(int argc, char** argv, int index);
+int main_deduce_ext_def2(int argc, char** argv, int index);
+int main_deduce_ext_2tor(int argc, char** argv, int index);
 int main_deduce_migrate(int argc, char** argv, int index);
 
 int main_mod(int argc, char** argv, int index);

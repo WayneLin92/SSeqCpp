@@ -18,6 +18,30 @@ path_html_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-
 path_js_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\AdamsSS_tmp\data.js"
 
 ########################### Read #################################
+def has_table(c, table_name):
+    if (
+        c.execute(
+            f"SELECT name FROM sqlite_master WHERE name='{table_name}_ss_primitives'"
+        ).fetchone()
+        is not None
+    ):
+        return True
+    else:
+        return False
+
+
+def has_column(c, table_name, column_name):
+    if (
+        c.execute(
+            f"SELECT * FROM pragma_table_info('{table_name}') WHERE name='{column_name}'"
+        ).fetchone()
+        is not None
+    ):
+        return True
+    else:
+        return False
+
+
 def str2array(str_array: str):
     return [int(i) for i in str_array.split(",")] if len(str_array) > 0 else []
 
@@ -87,15 +111,21 @@ def load_basis_from_res(c, complex):
     return result
 
 
-def load_pi_basis(c, table, is_ring: bool):
+def load_pi_basis(c, complex, is_ring: bool):
     result = {
         "basis": [],
         "bullets": defaultdict(list),
         "bullets_color": defaultdict(list),
         "bullets_ind": set(),
     }
+
+    id_ind_def = {}
+    sql = f"SELECT id, def FROM {complex}_pi_generators_def"
+    for id_, def_ in c.execute(sql):
+        id_ind_def[id_] = def_
+
     index = 0
-    sql = f"SELECT mon, s, t FROM {table} ORDER BY id"
+    sql = f"SELECT mon, s, t FROM {complex}_pi_basis ORDER BY id"
     for str_mon, s, t in c.execute(sql):
         if is_ring:
             mon = list(map(int, str_mon.split(","))) if len(str_mon) > 0 else []
@@ -111,8 +141,14 @@ def load_pi_basis(c, table, is_ring: bool):
         result["basis"].append(mon)
         result["bullets"][(t - s, s)].append(index)
         if len(mon) == 2 and mon[1] == 1:
-            color = "blue"
             result["bullets_ind"].add(index)
+            def_type = id_ind_def.get(mon[0], 0)
+            if def_type == 1:
+                color = "#0000ff"
+            elif def_type == 2:
+                color = "#0080a0"
+            else:
+                color = "#00c0ff"
         else:
             color = "black"
         result["bullets_color"][(t - s, s)].append(color)
@@ -334,7 +370,7 @@ def load_pi_ring(path_ring):
     complex_ring = get_complex_name(path_ring)
 
     is_ring = True
-    data = load_pi_basis(c_ring, complex_ring + "_pi_basis", is_ring)
+    data = load_pi_basis(c_ring, complex_ring, is_ring)
     data["gen_names"] = load_gen_names(c_ring, complex_ring + "_pi_generators", "\\mu")
     data["products"], data["products_factors"] = load_pi_multiplications(
         c_plot, complex_ring + "_pi_basis_products"
@@ -368,7 +404,7 @@ def load_pi_mod(path_ring, path_mod):
     complex_mod = get_complex_name(path_mod)
 
     is_ring = True
-    data_ring = load_pi_basis(c_ring, complex_ring + "_pi_basis", is_ring)
+    data_ring = load_pi_basis(c_ring, complex_ring, is_ring)
     data_ring["gen_names"] = load_gen_names(
         c_ring, complex_ring + "_pi_generators", "\\rho"
     )
@@ -380,7 +416,7 @@ def load_pi_mod(path_ring, path_mod):
     )
 
     is_ring = False  # TODO: remove unnecessary ones
-    data_mod = load_pi_basis(c_mod, complex_mod + "_pi_basis", is_ring)
+    data_mod = load_pi_basis(c_mod, complex_mod, is_ring)
     data_mod["gen_names"] = load_gen_names(
         c_mod, complex_mod + "_pi_generators", "\\iota"
     )
@@ -608,12 +644,13 @@ def element_line(
     x2,
     y2,
     *,
-    w,
-    p: int,
+    width: float,
+    page: int,
     class_: str,
     color: str = None,
     dashed=False,
     straight=False,
+    r=False,
 ):
     if dashed and (x1 >= 127 or x2 >= 127):
         return ""
@@ -622,22 +659,25 @@ def element_line(
         attr_more += f' stroke="{color}"'
     if dashed:
         attr_more += ' stroke-dasharray="0.2,0.2"'
+    if r:
+        r = round(y2) - round(y1)
+        attr_more += f' data-r="{r}"'
 
     range_x = f"data-x1={round(min(x1, x2))} data-x2={round(max(x1, x2))}"
     if straight or round(y2) - round(y1) <= 1:
-        return f'<line class="{class_}" x1={x1:.6g} y1={y1:.6g} x2={x2:.6g} y2={y2:.6g} {range_x} stroke-width={w:.6g} data-page={p}{attr_more} />'
+        return f'<line class="{class_}" x1={x1:.6g} y1={y1:.6g} x2={x2:.6g} y2={y2:.6g} {range_x} stroke-width={width:.6g} data-page={page}{attr_more} />'
     else:
         if round(x1) == round(x2):
             return (
                 f'<path class="{class_}" d="M {x1:.6g} {y1:.6g} C {x1 + 0.3:.6g} {y1 * 0.7 + y2 * 0.3:.6g}, {x2 + 0.3:.6g} {y1 * 0.3 + y2 * 0.7:.6g}, {x2:.6g} {y2:.6g}" '
-                f"{range_x} stroke-width={w:.6g}{attr_more} />\n"
+                f"{range_x} stroke-width={width:.6g}{attr_more} />\n"
             )
         else:
             x_diff = abs(round(x2) - round(x1))
             sign = 1 if x2 > x1 else -1
             return (
                 f'<path class="{class_}" d="M {x1:.6g} {y1:.6g} C {x1 + 0.5 * sign:.6g} {y1 + 0.5 / x_diff:.6g}, {x2 - x_diff * sign / 4 / (y2 - y1):.6g} {y2 - 0.5:.6g}, {x2:.6g} {y2:.6g}" '
-                f"{range_x} stroke-width={w:.6g}{attr_more} />\n"
+                f"{range_x} stroke-width={width:.6g}{attr_more} />\n"
             )
 
 
@@ -657,8 +697,8 @@ def export_h_lines(index2xyrp, lines, class_: str = None):
                 y1,
                 x2,
                 y2,
-                w=min(r1, r2) / 4,
-                p=min(p1, p2),
+                width=min(r1, r2) / 4,
+                page=min(p1, p2),
                 class_=f"strt_l{class_}",
             )
     return tpl_lines
@@ -682,8 +722,8 @@ def export_pi_h_lines(index2xyrp, lines, dashed_lines, class_: str = None):
                 y1,
                 x2,
                 y2,
-                w=min(r1, r2) / 4,
-                p=min(p1, p2),
+                width=min(r1, r2) / 4,
+                page=min(p1, p2),
                 class_=f"strt_l{class_}",
                 dashed=False,
                 color=color,
@@ -700,8 +740,8 @@ def export_pi_h_lines(index2xyrp, lines, dashed_lines, class_: str = None):
                 y1,
                 x2,
                 y2,
-                w=min(r1, r2) / 4,
-                p=min(p1, p2),
+                width=min(r1, r2) / 4,
+                page=min(p1, p2),
                 class_=f"strt_l dashed_l{class_}",
                 dashed=True,
                 color=extend_colors[i],
@@ -724,8 +764,8 @@ def export_pi_lines(index2xyrp, lines, dashed_lines, class_: str = None):
             y1,
             x2,
             y2,
-            w=min(r1, r2) / 4,
-            p=min(p1, p2),
+            width=min(r1, r2) / 4,
+            page=min(p1, p2),
             class_=f"strt_l{class_}",
             dashed=False,
         )
@@ -740,8 +780,8 @@ def export_pi_lines(index2xyrp, lines, dashed_lines, class_: str = None):
             y1,
             x2,
             y2,
-            w=min(r1, r2) / 4,
-            p=min(p1, p2),
+            width=min(r1, r2) / 4,
+            page=min(p1, p2),
             class_=f"strt_l dashed_l{class_}",
             dashed=True,
         )
@@ -759,11 +799,12 @@ def export_diffs(data, index2xyrp):
                 y1,
                 x2,
                 y2,
-                w=min(r1, r2) / 4,
-                p=min(p1, p2),
+                width=min(r1, r2) / 4,
+                page=min(p1, p2),
                 class_="diff_l",
                 dashed=False,
                 straight=True,
+                r=True,
             )
     for index, lines in enumerate(data["null_diff_lines"]):
         for i1, i2 in lines:
@@ -774,11 +815,12 @@ def export_diffs(data, index2xyrp):
                 y1,
                 x2,
                 y2,
-                w=min(r1, r2) / 4,
-                p=min(p1, p2),
+                width=min(r1, r2) / 4,
+                page=min(p1, p2),
                 class_="dashed_l",
                 dashed=True,
                 straight=True,
+                r=True,
             )
     return tpl_diff_lines
 

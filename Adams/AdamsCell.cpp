@@ -308,7 +308,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                     fd[id_ind].resize(diffs_d1_size);
                 }
 
-                ut::for_each_par(diffs_d1_size * id_inds.size(), [&id_inds, &fd, &diffs_d1, &f_cell1_sm2, diffs_d1_size](size_t i) {
+                ut::for_each_par128(diffs_d1_size * id_inds.size(), [&id_inds, &fd, &diffs_d1, &f_cell1_sm2, diffs_d1_size](size_t i) {
                     int id_ind = id_inds[i / diffs_d1_size];
                     size_t j = i % diffs_d1_size;
                     fd.at(id_ind)[j] = subs(diffs_d1[j], f_cell1_sm2.at(id_ind));
@@ -322,7 +322,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                     f[id_ind].resize(diffs_d1_size);
                 }
 
-                ut::for_each_par(id_inds.size(), [&id_inds, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[id_inds[i]], f[id_inds[i]], s1[i]); });
+                ut::for_each_par128(id_inds.size(), [&id_inds, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[id_inds[i]], f[id_inds[i]], s1[i]); });
 
                 /* compute fh */
                 std::map<int, int2d> fh;
@@ -426,7 +426,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                     fd[id_ind].resize(diffs_d_size);
                 }
 
-                ut::for_each_par(diffs_d_size * id_inds.size(), [&id_inds, &fd, &diffs_d, &diffs_d_cell1, &f_sm1, &f_cell1_sm1, diffs_d_size](size_t i) {
+                ut::for_each_par128(diffs_d_size * id_inds.size(), [&id_inds, &fd, &diffs_d, &diffs_d_cell1, &f_sm1, &f_cell1_sm1, diffs_d_size](size_t i) {
                     int id_ind = id_inds[i / diffs_d_size];
                     size_t j = i % diffs_d_size;
                     fd.at(id_ind)[j] = subs(diffs_d[j], f_sm1.at(id_ind)) + subs(diffs_d_cell1[j], f_cell1_sm1.at(id_ind));
@@ -440,7 +440,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                     f[id_ind].resize(diffs_d_size);
                 }
 
-                ut::for_each_par(id_inds.size(), [&id_inds, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[id_inds[i]], f[id_inds[i]], s1[i]); });
+                ut::for_each_par128(id_inds.size(), [&id_inds, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[id_inds[i]], f[id_inds[i]], s1[i]); });
 
                 /* compute fh */
                 std::map<int, int2d> fh; /* fh[id_ind][deg_id]={s_id,...} */

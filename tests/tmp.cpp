@@ -124,9 +124,19 @@ void test5()
     std::cout << p2 * p1 << '\n';
 }
 
+void test_for_each_pair_par128()
+{
+    std::vector<std::vector<size_t>> p(19);
+    ut::for_each_pair_par128(p.size(), [&p](size_t i, size_t j) {
+        p[i].push_back(j);
+        p[j].push_back(i);
+    });
+    std::cout << "Done\n";
+}
+
 int main()
 {
-    test5();
+    test_for_each_pair_par128();
 
     return 0;
 }

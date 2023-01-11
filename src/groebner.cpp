@@ -18,44 +18,45 @@ bool detail::HasGCD(const Mon& mon1, const Mon& mon2)
     return false;
 }
 
-template<typename T>
-auto TplDegLCM(const Mon& mon1, const Mon& mon2, const std::vector<T>& gen_degs)
+template <typename FnGenDeg>
+auto TplDegLCM(const Mon& mon1, const Mon& mon2, FnGenDeg _gen_deg)
 {
-    auto result = T();
+    using ReturnType = decltype(_gen_deg(0));
+    auto result = ReturnType();
     auto k = mon1.begin(), l = mon2.begin();
     while (k != mon1.end() && l != mon2.end()) {
         if (k->g_raw() > l->g_raw()) {
-            result += gen_degs[k->g()] * k->e_masked();
+            result += _gen_deg(k->g()) * k->e_masked();
             ++k;
         }
         else if (k->g_raw() < l->g_raw()) {
-            result += gen_degs[l->g()] * l->e_masked();
+            result += _gen_deg(l->g()) * l->e_masked();
             ++l;
         }
         else {
             if (k->e() < l->e())
-                result += gen_degs[l->g()] * l->e_masked();
+                result += _gen_deg(l->g()) * l->e_masked();
             else
-                result += gen_degs[k->g()] * k->e_masked();
+                result += _gen_deg(k->g()) * k->e_masked();
             ++k;
             ++l;
         }
     }
     for (; k != mon1.end(); ++k)
-        result += gen_degs[k->g()] * k->e_masked();
+        result += _gen_deg(k->g()) * k->e_masked();
     for (; l != mon2.end(); ++l)
-        result += gen_degs[l->g()] * l->e_masked();
+        result += _gen_deg(l->g()) * l->e_masked();
     return result;
 }
 
 int detail::DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
 {
-    return TplDegLCM(mon1, mon2, gen_degs);
+    return TplDegLCM(mon1, mon2, [&gen_degs](size_t i) { return gen_degs[i]; });
 }
 
-AdamsDeg detail::DegLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
+int detail::DegTLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
 {
-    return TplDegLCM(mon1, mon2, gen_degs);
+    return TplDegLCM(mon1, mon2, [&gen_degs](size_t i) { return gen_degs[i].t; });
 }
 
 void detail::MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2)

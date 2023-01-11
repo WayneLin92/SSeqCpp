@@ -2,10 +2,6 @@
 #include "main.h"
 #include <set>
 
-#ifndef MYDEPLOY
-std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0};
-#endif
-
 /* Deduce zero differentials for degree reason
  * t_test is for DeduceDiffs() */
 int Diagram::DeduceTrivialDiffs()
@@ -50,10 +46,12 @@ int Diagram::DeduceTrivialDiffs()
 
 int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag)
 {
-    AddNode();
+    AddNode(flag);
     bool bException = false;
     try {
         SetDiffLeibnizV2(iSS, deg_x, x, dx, r, flag & DeduceFlag::fast_try_diff);
+        int count_trivial = DeduceTrivialDiffs();
+
         /*if (flag & DeduceFlag::set_diff)
             DeduceDiffs(depth + 1, 0);*/
         if (flag & DeduceFlag::homotopy) {
@@ -61,9 +59,13 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
             AdamsDeg deg_min = deg_x - AdamsDeg(0, 1);
             if (iSS > 0)
                 deg_min = deg_min - ssCofs_[iSS - 1].deg_qt;
+            if (count_trivial) {
+                deg_min.t = deg_min.stem();
+                deg_min.s = 0;
+            }
             SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
             DeduceTrivialExtensions(depth + 1);
-            if (flag & DeduceFlag::check_exactness)
+            if (flag & DeduceFlag::homotopy_exact)
                 DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
     }
@@ -72,7 +74,7 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
         std::cout << std::hex << e.id() << ": " << e.what() << '\n';*/
         bException = true;
     }
-    PopNode();
+    PopNode(flag);
 
     if (bException)
         return 1;
@@ -203,7 +205,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                 }
                 SyncHomotopy(deg_min, count, count_homotopy1, depth);
                 DeduceTrivialExtensions(depth);
-                if (flag & DeduceFlag::check_exactness)
+                if (flag & DeduceFlag::homotopy_exact)
                     DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
             }
         }
@@ -220,7 +222,7 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
         int count_homotopy1 = 0;
         SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
         DeduceTrivialExtensions(depth + 1);
-        if (flag & DeduceFlag::check_exactness)
+        if (flag & DeduceFlag::homotopy_exact)
             DeduceExtensionsByExactness(0, stem_max_exactness_, depth + 1);
     }
 
@@ -283,14 +285,14 @@ int main_deduce_diff(int argc, char** argv, int index)
         else if (f == "homotopy")
             flag = flag | DeduceFlag::homotopy;
         else if (f == "exact")
-            flag = flag | DeduceFlag::check_exactness;
+            flag = flag | DeduceFlag::homotopy_exact;
         else {
             std::cout << "Not a supported flag: " << f << '\n';
             return 100;
         }
     }
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, flag);
 
     int count = 0;
     try {
@@ -298,42 +300,14 @@ int main_deduce_diff(int argc, char** argv, int index)
             int count_homotopy1 = 0;
             diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
             diagram.DeduceTrivialExtensions(0);
-            if (flag & DeduceFlag::check_exactness)
+            if (flag & DeduceFlag::homotopy_exact)
                 diagram.DeduceExtensionsByExactness(0, diagram.stem_max_exactness_, 0);
         }
         count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
         if (flag & DeduceFlag::homotopy) {
             diagram.SimplifyPiRels();
         }
-        for (size_t k = 0; k < dbnames.size(); ++k) {
-            DBSS db(dbnames[k]);
-            db.begin_transaction();
-            db.update_basis_ss(GetE2TablePrefix(dbnames[k]), (*diagram.GetAllBasisSs()[k])[1]);
-
-            if (flag & DeduceFlag::homotopy) {
-                auto pi_table = GetComplexName(dbnames[k]);
-                db.drop_and_create_pi_relations(pi_table);
-                db.drop_and_create_pi_basis(pi_table);
-
-                if (k == 0) {
-                    db.drop_and_create_pi_generators(pi_table);
-                    db.save_pi_generators(pi_table, diagram.GetS0().pi_gb.gen_degs(), diagram.GetS0().pi_gen_Einf);
-                    db.save_pi_gb(pi_table, diagram.GetS0().pi_gb.OutputForDatabase(), diagram.GetS0GbEinf());
-                    db.save_pi_basis(pi_table, diagram.GetS0().pi_basis.front());
-                }
-                else {
-                    db.drop_and_create_pi_generators_mod(pi_table);
-                    auto& Cof = diagram.GetCofs()[k - 1];
-                    if (Cof.pi_qt.size() != 1)
-                        throw MyException(0x925afecU, "Not on the initial node");
-                    db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_qt.front());
-                    db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), diagram.GetCofGbEinf(int(k - 1)));
-                    db.save_pi_basis_mod(pi_table, Cof.pi_basis.front());
-                }
-            }
-
-            db.end_transaction();
-        }
+        diagram.save(dbnames, flag);
         myio::Logger::cout_fout() << "Changed differentials: " << count << '\n';
     }
 #ifdef MYDEPLOY
@@ -371,41 +345,14 @@ int main_deduce_tmp(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, flag);
 
     int count = 0;
     try {
         int count_ss = 0, count_homotopy = 0;
         diagram.DeduceExtensions(0, 30, count_ss, count_homotopy, 0, flag);
         diagram.SimplifyPiRels();
-
-        for (size_t k = 0; k < dbnames.size(); ++k) {
-            DBSS db(dbnames[k]);
-            auto pi_table = GetComplexName(dbnames[k]);
-            db.begin_transaction();
-            db.update_basis_ss(pi_table + "_AdamsE2", (*diagram.GetAllBasisSs()[k])[1]);
-
-            db.drop_and_create_pi_relations(pi_table);
-            db.drop_and_create_pi_basis(pi_table);
-
-            if (k == 0) {
-                db.drop_and_create_pi_generators(pi_table);
-                db.save_pi_generators(pi_table, diagram.GetS0().pi_gb.gen_degs(), diagram.GetS0().pi_gen_Einf);
-                db.save_pi_gb(pi_table, diagram.GetS0().pi_gb.OutputForDatabase(), diagram.GetS0GbEinf());
-                db.save_pi_basis(pi_table, diagram.GetS0().pi_basis.front());
-            }
-            else {
-                db.drop_and_create_pi_generators_mod(pi_table);
-                auto& Cof = diagram.GetCofs()[k - 1];
-                if (Cof.pi_qt.size() != 1)
-                    throw MyException(0x925afecU, "Not on the initial node");
-                db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_qt.front());
-                db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), diagram.GetCofGbEinf(int(k - 1)));
-                db.save_pi_basis_mod(pi_table, Cof.pi_basis.front());
-            }
-
-            db.end_transaction();
-        }
+        diagram.save(dbnames, flag);
         std::cout << "Changed differentials: " << count << '\n';
     }
 #ifdef MYDEPLOY
@@ -447,8 +394,12 @@ int main_deduce(int argc, char** argv, int index)
         return main_deduce_diff(argc, argv, index);
     else if (cmd == "ext")
         return main_deduce_ext(argc, argv, index);
-    else if (cmd == "extdef")
-        return main_deduce_extdef(argc, argv, index);
+    else if (cmd == "ext_def")
+        return main_deduce_ext_def(argc, argv, index);
+    else if (cmd == "ext_def2")
+        return main_deduce_ext_def2(argc, argv, index);
+    else if (cmd == "ext_2tor")
+        return main_deduce_ext_2tor(argc, argv, index);
     else if (cmd == "tmp")
         return main_deduce_tmp(argc, argv, index);
     else

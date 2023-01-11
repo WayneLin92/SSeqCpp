@@ -52,8 +52,6 @@ inline std::string Serialize(const Mod& x)
 
 inline std::string Serialize(const algZ::Poly& poly)
 {
-    if (poly.data.size() == 1 && !poly.data[0])
-        return ";";
     return StrCont("", ";", "", "", poly.data, [](const algZ::Mon& mon) { return Serialize(mon); });
 }
 

@@ -72,7 +72,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
     }
 }
 
-int main_deduce_migrate(int argc, char** argv, int index)
+int main_deduce_migrate(int argc, char** argv, int index)  ////
 {
     std::string db_in = "";
     std::string table_in = "AdamsE2";
@@ -106,7 +106,7 @@ int main_deduce_migrate(int argc, char** argv, int index)
     DBSS db1(db_in);
     DbMiagrate db2(db_out);
 
-    Diagram diagram1({db_in}), diagram2({db_out});
+    Diagram diagram1({db_in}, DeduceFlag::no_op), diagram2({db_out}, DeduceFlag::no_op);
 
     try {
         Staircases primitives;

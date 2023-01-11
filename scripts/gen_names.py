@@ -4,6 +4,7 @@ import sqlite3
 import os
 from collections import defaultdict
 
+
 def get_complex_name(path):
     path = os.path.basename(path)
     names = ["S0", "C2", "Ceta", "Cnu", "Csigma"]
@@ -11,6 +12,7 @@ def get_complex_name(path):
         if path.startswith(name):
             return name
     raise ValueError(f"{path=} is not recognized")
+
 
 def tex_outside_delimiter(text: str, symbol: str):
     """Return if symbol appears in text and is outside any pair of delimiters including ()[]{}"""
@@ -25,6 +27,7 @@ def tex_outside_delimiter(text: str, symbol: str):
             return True
     return False
 
+
 def tex_pow(base, exp: int) -> str:
     """Return base^exp in latex."""
     if type(base) != str:
@@ -36,15 +39,18 @@ def tex_pow(base, exp: int) -> str:
             base = "(" + base + ")"
         return f"{base}^{exp}" if len(str(exp)) == 1 else f"{base}^{{{exp}}}"
 
+
 def get_mon_name(m, gen_names):
-    it = map(int, m.split(','))
+    it = map(int, m.split(","))
     return "".join(tex_pow(gen_names[i], e) for i, e in zip(it, it))
 
+
 def get_poly_name(p, gen_names):
-    coeff = '+'.join(get_mon_name(m, gen_names) for m in p.split(';'))
+    coeff = "+".join(get_mon_name(m, gen_names) for m in p.split(";"))
     if tex_outside_delimiter(coeff, "+"):
         coeff = "(" + coeff + ")"
-    return '(' + coeff + R"i_1)"
+    return "(" + coeff + R"i_1)"
+
 
 def set_E2_name(paths):
     with open("E2_gen_names.json") as fp:
@@ -52,19 +58,23 @@ def set_E2_name(paths):
     gen_names = {int(k): v for k, v in gen_names.items()}
 
     for i, path in enumerate(paths):
-        conn = sqlite3.connect(os.path.join(R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release", path))
+        conn = sqlite3.connect(
+            os.path.join(
+                R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release", path
+            )
+        )
         c = conn.cursor()
         if i == 0:
             sql = f"select id, s, t from S0_AdamsE2_generators"
             name_i = defaultdict(int)
             for id, s, t in c.execute(sql):
                 if id not in gen_names:
-                    if name_i[(t-s, s)] == 0:
+                    if name_i[(t - s, s)] == 0:
                         gen_names[id] = f"x_{{{t-s}, {s}}}"
                     else:
                         gen_names[id] = f"x_{{{t-s}, {s}, {name_i[(t-s, s)]}}}"
-                name_i[(t-s, s)] += 1
-            
+                name_i[(t - s, s)] += 1
+
             sql = f"Update S0_AdamsE2_generators SET name=?2 where id=?1"
             c.executemany(sql, gen_names.items())
         else:
@@ -84,12 +94,19 @@ def set_E2_name(paths):
         conn.commit()
         conn.close()
 
+
 def set_pi_name(path_S0):
     with open("pi_gen_names.json") as fp:
         pi_gen_names = json.load(fp)
-    pi_gen_names = {(int((s := k.split(','))[0]), int(s[1])): v for k, v in pi_gen_names.items()}
+    pi_gen_names = {
+        (int((s := k.split(","))[0]), int(s[1])): v for k, v in pi_gen_names.items()
+    }
 
-    conn_S0 = sqlite3.connect(path_S0)
+    conn_S0 = sqlite3.connect(
+        os.path.join(
+            R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release", path_S0
+        )
+    )
     c_S0 = conn_S0.cursor()
 
     sql = f"select id, s, t from S0_pi_generators"
@@ -99,14 +116,30 @@ def set_pi_name(path_S0):
         if (t - s, s) in pi_gen_names:
             id_to_name[id] = pi_gen_names[(t - s, s)]
         else:
-            if (name_i[t-s] > 0):
+            if name_i[t - s] > 0:
                 id_to_name[id] = f"\\rho_{{{t-s}, {name_i[t-s]}}}"
             else:
                 id_to_name[id] = f"\\rho_{{{t-s}}}"
-        name_i[t-s] += 1
-    
+        name_i[t - s] += 1
+
     sql = f"Update S0_pi_generators SET name=?2 where id=?1"
     c_S0.executemany(sql, id_to_name.items())
+
+    c_S0.close()
+    conn_S0.commit()
+    conn_S0.close()
+
+
+def reset_pi_name(path_S0):
+    conn_S0 = sqlite3.connect(
+        os.path.join(
+            R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release", path_S0
+        )
+    )
+    c_S0 = conn_S0.cursor()
+
+    sql = f"Update S0_pi_generators SET name=NULL"
+    c_S0.execute(sql)
 
     c_S0.close()
     conn_S0.commit()

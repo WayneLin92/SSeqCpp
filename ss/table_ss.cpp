@@ -87,32 +87,33 @@ void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& 
     myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
-void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const
+void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
 {
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, mons) VALUES (?1, ?2, ?3);");
+    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, map_ids, multipliers, mult_name, fils) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
 
     for (size_t i = 0; i < pi_gen_defs.size(); ++i) {
         stmt.bind_int(1, (int)i);
         stmt.bind_int(2, (int)pi_gen_defs[i]);
+
+        int1d map_ids;
         algZ::Poly mons;
-        mons.data.insert(mons.data.end(), pi_gen_def_mons[i].begin(), pi_gen_def_mons[i].end());
-        stmt.bind_str(3, myio::Serialize(mons));
-        stmt.step_and_reset();
-    }
-
-    myio::Logger::out() << pi_gen_defs.size() << " definitions are inserted into " + table_prefix + "_pi_generators_def!\n";
-}
-
-void DBSS::save_pi_def_mod(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const
-{
-    Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, mons) VALUES (?1, ?2, ?3);");
-
-    for (size_t i = 0; i < pi_gen_defs.size(); ++i) {
-        stmt.bind_int(1, (int)i);
-        stmt.bind_int(2, (int)pi_gen_defs[i]);
-        algZ::Mod mons;
-        mons.data.insert(mons.data.end(), pi_gen_def_mons[i].begin(), pi_gen_def_mons[i].end());
-        stmt.bind_str(3, myio::Serialize(mons));
+        int1d fils;
+        for (auto& gd : pi_gen_def_mons[i]) {
+            map_ids.push_back(gd.map_id);
+            mons.data.push_back(gd.m);
+            fils.push_back(gd.O);
+        }
+        stmt.bind_str(3, myio::Serialize(map_ids));
+        stmt.bind_str(4, myio::Serialize(mons));
+        if (mons) {
+            std::string name = mons.data[0].Str();
+            for (size_t i = 1; i < mons.data.size(); ++i)
+                name += "," + mons.data[i].Str();
+            stmt.bind_str(5, name);
+        }
+        else
+            stmt.bind_str(5, "");
+        stmt.bind_str(6, myio::Serialize(fils));
         stmt.step_and_reset();
     }
 
@@ -176,32 +177,42 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
     return basis_ss;
 }
 
-void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::Mon>>& pi_gen_def_mons) const
+void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
 {
-    Statement stmt(*this, "SELECT def, mons FROM " + table_prefix + "_pi_generators_def order by id;");
-    while (stmt.step() == MYSQLITE_ROW) {
-        pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
-        pi_gen_def_mons.push_back({});
-        if (pi_gen_defs.back() == DefFlag::mon) {
-            algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(1));
-            pi_gen_def_mons.back().insert(mons.data.begin(), mons.data.end());
+    if (has_table(table_prefix + "_pi_generators_def")) {
+        if (has_column(table_prefix + "_pi_generators_def", "map_ids")) {
+            Statement stmt(*this, "SELECT def, map_ids, multipliers, fils FROM " + table_prefix + "_pi_generators_def order by id;");
+            while (stmt.step() == MYSQLITE_ROW) {
+                pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+                pi_gen_def_mons.push_back({});
+                if (pi_gen_defs.back() == DefFlag::constraints) {
+                    int1d map_ids = myio::Deserialize<int1d>(stmt.column_str(1));
+                    algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(2));
+                    int1d fils = myio::Deserialize<int1d>(stmt.column_str(3));
+                    for (size_t i = 0; i < map_ids.size(); ++i)
+                        pi_gen_def_mons.back().push_back(GenConstraint{map_ids[i], mons.data[i], fils[i]});
+                }
+            }
         }
-    }
-    myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
-}
-
-void DBSS::load_pi_def_mod(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::set<algZ::MMod>>& pi_gen_def_mons) const
-{
-    Statement stmt(*this, "SELECT def, mons FROM " + table_prefix + "_pi_generators_def order by id;");
-    while (stmt.step() == MYSQLITE_ROW) {
-        pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
-        pi_gen_def_mons.push_back({});
-        if (pi_gen_defs.back() == DefFlag::mon) {
-            algZ::Mod mons = myio::Deserialize<algZ::Mod>(stmt.column_str(1));
-            pi_gen_def_mons.back().insert(mons.data.begin(), mons.data.end());
+        else {
+            std::string c;  // Compatibility
+            if (has_column(table_prefix + "_pi_generators_def", "property"))
+                c = "property";
+            else
+                c = "mons";
+            Statement stmt(*this, "SELECT def, " + c + " FROM " + table_prefix + "_pi_generators_def order by id;");
+            while (stmt.step() == MYSQLITE_ROW) {
+                pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+                pi_gen_def_mons.push_back({});
+                if (pi_gen_defs.back() == DefFlag::constraints) {
+                    algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(1));
+                    for (size_t i = 0; i < mons.data.size(); i += 2)
+                        pi_gen_def_mons.back().push_back(GenConstraint{0, mons.data[i], mons.data[i + 1].fil()});
+                }
+            }
         }
+        myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
     }
-    myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
 }
 
 /* generate the table of the spectral sequence */
@@ -265,7 +276,7 @@ int main_reset(int argc, char** argv, int index)
         generate_ss(dbnames[k], 2);
     }
 
-    Diagram diagram(dbnames);
+    Diagram diagram(dbnames, DeduceFlag::no_op);
 
     std::cout << "Confirm to reset\n";
     if (myio::UserConfirm()) {

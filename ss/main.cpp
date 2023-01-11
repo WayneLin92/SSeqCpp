@@ -3,6 +3,11 @@
 #include "algebras/utility.h"
 #include <iostream>
 
+#ifndef MYDEPLOY
+std::vector<int> bench::Counter::counts_ = {0, 0, 0};
+std::vector<int> bench::MaxGetter::max_ = {0};
+#endif
+
 int main(int argc, char** argv)
 {
     myio::Logger::Init("ss.log", "ss_deduce.log");

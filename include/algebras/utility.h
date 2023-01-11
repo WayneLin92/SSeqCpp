@@ -19,8 +19,6 @@
  */
 namespace ut {
 
-inline constexpr size_t FUTURE_NUM_THREADS = 128;
-
 /*
  * A "random access" iterator of [begin, end) generated on the fly.
  */
@@ -131,7 +129,7 @@ inline std::vector<size_t> size_t_range(size_t n)
 
 /* T should be a basic trivial type */
 template <typename T, T d>
-struct default_vec
+struct map_seq
 {
     std::vector<T> data;
     T operator[](size_t index) const
@@ -147,13 +145,42 @@ struct default_vec
             data.resize(index + 1, d);
         return data[index];
     }
+    T at(size_t index) const
+    {
+        return (*this)[index];
+    }
+};
+
+template <typename T, T d>
+struct map_seq2d
+{
+    std::vector<std::vector<T>> data;
+    T operator()(size_t i, size_t j) const
+    {
+        if (i < data.size() && j < data[i].size())
+            return data[i][j];
+        else
+            return d;
+    }
+    T& operator()(size_t i, size_t j)
+    {
+        if (i >= data.size())
+            data.resize(i + 1);
+        if (j >= data[i].size())
+            data[i].resize(j + 1, d);
+        return data[i][j];
+    }
+    T at(size_t i, size_t j) const
+    {
+        return (*this)(i, j);
+    }
 };
 
 /**
  * Remove elements of `cont` for which the Predicate is true
  */
 template <typename Container1d, typename FnPred>
-void RemoveIf(Container1d& cont, const FnPred& pred)
+void RemoveIf(Container1d& cont, FnPred pred)
 {
     cont.erase(std::remove_if(cont.begin(), cont.end(), pred), cont.end());
 }
@@ -195,6 +222,12 @@ void push_back(std::vector<std::vector<T>>& map, size_t k, T vi)
     if (map.size() <= k)
         map.resize(k + 1);
     map[k].push_back(std::move(vi));
+}
+
+template <typename T, typename K>
+bool has(const T& map, const K& key)
+{
+    return map.find(key) != map.end();
 }
 
 namespace detail {
@@ -273,7 +306,7 @@ inline int popcount(uint64_t i)
  * For i=0,...,n-1, execute f(i) in sequence.
  */
 template <typename Fn>
-void for_each_seq(size_t n, const Fn& f)
+void for_each_seq(size_t n, Fn f)
 {
     for (size_t i = 0; i < n; ++i)
         f(i);
@@ -283,17 +316,56 @@ void for_each_seq(size_t n, const Fn& f)
  * For i=0,...,n-1, execute f(i) in parallel.
  */
 template <typename Fn>
-void for_each_par(size_t n, const Fn& f)
+void for_each_par128(size_t n, Fn f)
 {
+    if (n == 0)
+        return;
+
+    static constexpr size_t THREADS_MAX = 128;
     std::vector<std::future<void>> futures;
-    size_t nThreads = std::min(FUTURE_NUM_THREADS, n);
-    for (size_t j = 0; j < nThreads; ++j)
-        futures.push_back(std::async(std::launch::async, [&f, j, n]() {
-            for (size_t i = j; i < n; i += FUTURE_NUM_THREADS)
+    size_t nThreads = std::min(THREADS_MAX, n);
+    for (size_t t = 0; t < nThreads; ++t)
+        futures.push_back(std::async(std::launch::async, [&f, t, n]() {
+            for (size_t i = t; i < n; i += THREADS_MAX)
                 f(i);
         }));
-    for (size_t i = 0; i < nThreads; ++i)
-        futures[i].wait();
+    for (auto& f : futures)
+        f.wait();
+}
+
+/**
+ * For i=0,...,n-1, execute f(i) in parallel.
+ */
+template <typename Fn, size_t THREADS_MAX>
+void for_each_pair_par(size_t n, Fn f)
+{
+    if (n < 2)
+        return;
+
+    std::vector<std::future<void>> futures;
+    const size_t m = (n + 1) / 2;
+    const size_t m1 = (n % 2 == 0) ? m : m - 1;
+    size_t nThreads = std::min(THREADS_MAX, m1);
+    for (size_t k = 0; k < 2 * m - 1; ++k) {
+        for (size_t t = 0; t < nThreads; ++t) {
+            futures.push_back(std::async(std::launch::async, [&f, t, m1, k, m]() {
+                for (size_t i = k + 1 + t; i <= k + m1; i += THREADS_MAX) {
+                    if (i == k + m)
+                        f(k, 2 * m - 1);
+                    else {
+                        size_t ii = i % (2 * m - 1);
+                        size_t jj = (2 * k + (2 * m - 1) - ii) % (2 * m - 1);
+                        if (ii > jj)
+                            std::swap(ii, jj);
+                        f(ii, jj);
+                    }
+                }
+            }));
+        }
+        for (auto& f : futures)
+            f.wait();
+        futures.clear();
+    }
 }
 
 }  // namespace ut
