@@ -9,16 +9,16 @@ int Diagram::DeduceTrivialDiffs()
     int old_count = 0, count_new_diffs = 0;
     while (true) {
         for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
-            auto& basis_ss = *all_basis_ss_[k];
+            auto& nodes_ss = *all_basis_ss_[k];
             int t_max = all_t_max_[k];
-            for (auto& [d, basis_ss_d] : basis_ss.front()) {
-                const Staircase& sc = GetRecentStaircase(basis_ss, d);
+            for (auto& [d, basis_ss_d] : nodes_ss.front()) {
+                const Staircase& sc = GetRecentStaircase(nodes_ss, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.diffs_ind[i] == int1d{-1}) {
                         if (sc.levels[i] > kLevelPC) {
                             const int r = kLevelMax - sc.levels[i];
                             /* Find the first possible d_{r1} target for r1>=r */
-                            int r1 = NextRTgt(basis_ss, t_max, d, r);
+                            int r1 = NextRTgt(nodes_ss, t_max, d, r);
                             if (r != r1) {
                                 SetDiffLeibnizV2(k, d, sc.basis_ind[i], {}, r);
                                 ++count_new_diffs;
@@ -26,7 +26,7 @@ int Diagram::DeduceTrivialDiffs()
                         }
                         else if (sc.levels[i] < kLevelMax / 2) {
                             const int r = sc.levels[i];
-                            int r1 = NextRSrc(basis_ss, d, r);
+                            int r1 = NextRSrc(nodes_ss, d, r);
                             if (r != r1) {
                                 SetDiffLeibnizV2(k, d - AdamsDeg(r, r - 1), {}, sc.basis_ind[i], r);
                                 ++count_new_diffs;
@@ -84,7 +84,7 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
 
 int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
 {
-    auto& basis_ss = *all_basis_ss_[iSS];
+    auto& nodes_ss = *all_basis_ss_[iSS];
     auto& name = all_names_[iSS];
 
     int count = 0;
@@ -110,7 +110,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
             int count_pass = 0;
             unsigned i_max = 1 << nd.count;
             for (unsigned i = 1; i < i_max; ++i) {
-                const Staircase& sc_tgt = GetRecentStaircase(basis_ss, deg_tgt);
+                const Staircase& sc_tgt = GetRecentStaircase(nodes_ss, deg_tgt);
                 dx1.clear();
                 for (int j : two_expansion(i))
                     dx1 = lina::AddVectors(dx1, sc_tgt.basis_ind[(size_t)(nd.first + j)]);
@@ -140,7 +140,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
         else {
             r = -nd.r;
             deg_src = deg - AdamsDeg{r, r - 1};
-            const Staircase& sc_src = GetRecentStaircase(basis_ss, deg_src);
+            const Staircase& sc_src = GetRecentStaircase(nodes_ss, deg_src);
             dx = nd.x;
 
             int1d x1;
@@ -227,7 +227,7 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
     }
 
     for (size_t iSS = 0; iSS < all_basis_ss_.size(); ++iSS) {
-        // auto& basis_ss = *all_basis_ss_[iSS];
+        // auto& nodes_ss = *all_basis_ss_[iSS];
         auto& name = all_names_[iSS];
         auto& degs = [&]() {
             if (iSS == 0)

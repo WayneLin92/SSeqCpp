@@ -97,7 +97,7 @@ using MayDeg1d = std::vector<MayDeg>;
  *
  * v is the complement degree of the May degree.
  * $v(R_{ij})=j-i-1$.
- * Degrees are ordered by t, s, v.
+ * Degrees are ordered by t, s.
  */
 struct AdamsDeg
 {
@@ -237,7 +237,7 @@ using namespace alg;
 /********************************************************
  *                      Monomials
  ********************************************************/
-constexpr size_t MONSIZE = 7;
+constexpr size_t MONSIZE = 10;
 
 class Mon
 {
@@ -327,8 +327,10 @@ public:
     }
     void push_back(GE p)
     {
-        if (size_ >= MONSIZE)
+        if (size_ >= MONSIZE) {
+            std::cout << "Mon overflow" << std::endl;
             throw MyException(0x9b96a118U, "Mon overflow");
+        }
         data_[size_++] = p;
     }
     auto& operator[](size_t i) const

@@ -199,7 +199,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
     for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) { /* module */
         auto& ssCof = ssCofs_[iCof];
         auto& pi_gb = ssCof.pi_gb;
-        auto& basis_ss = ssCof.basis_ss;
+        auto& nodes_ss = ssCof.nodes_ss;
 
         if (ssCof.pi_gen_defs.size() < ssCof.pi_gb.v_degs().size())
             ssCof.pi_gen_defs.resize(ssCof.pi_gb.v_degs().size(), DefFlag::no_def);

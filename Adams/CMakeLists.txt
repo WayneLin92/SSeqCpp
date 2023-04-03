@@ -1,4 +1,4 @@
-add_executable(Adams AdamsRes.cpp groebner_steenrod.h groebner_steenrod.cpp groebner_steenrod_const.h AdamsResProd.cpp AdamsResExport.cpp AdamsCell.cpp main.h main.cpp)
+add_executable(Adams AdamsRes.cpp groebner_res.h groebner_res.cpp groebner_res_const.h AdamsResProd.cpp AdamsResExport.cpp AdamsCell.cpp main.h main.cpp)
 target_compile_features(Adams PRIVATE cxx_std_17)
 target_include_directories(Adams PRIVATE ../include)
 target_link_libraries(Adams PRIVATE algebras)

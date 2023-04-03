@@ -17,11 +17,11 @@ public:
         create_ss_primitives(table_prefix);
     }
 
-    void save_ss_primitives(const std::string& table_prefix, const Staircases& basis_ss) const
+    void save_ss_primitives(const std::string& table_prefix, const Staircases& nodes_ss) const
     {
         myio::Statement stmt(*this, "INSERT INTO " + table_prefix + "_ss_primitives (id, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
         int count = 0;
-        for (const auto& [deg, basis_ss_d] : basis_ss) {
+        for (const auto& [deg, basis_ss_d] : nodes_ss) {
             for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
                 stmt.bind_int(1, count++);
                 stmt.bind_str(2, myio::Serialize(basis_ss_d.basis_ind[i]));
@@ -42,7 +42,7 @@ public:
 /* Copy */
 void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max_zero)
 {
-    const auto& basis_ss1 = ss1.GetS0().basis_ss;
+    const auto& basis_ss1 = ss1.GetS0().nodes_ss;
 
     ss2.DeduceDiffs(0, 1, 0, DeduceFlag::no_op);
 
@@ -51,7 +51,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
         degs.push_back(d);
     std::sort(degs.begin(), degs.end(), [](AdamsDeg d1, AdamsDeg d2) { return d1.stem() < d2.stem() || (d1.stem() == d2.stem() && d1.s < d2.s); });
     for (AdamsDeg deg : degs) {
-        const auto& sc = ss1.GetRecentStaircase(ss1.GetS0().basis_ss, deg);
+        const auto& sc = ss1.GetRecentStaircase(ss1.GetS0().nodes_ss, deg);
         for (size_t i = 0; i < sc.levels.size(); ++i) {
             if (sc.levels[i] > kLevelMax / 2) {
                 int rt = 0;

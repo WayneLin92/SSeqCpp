@@ -290,8 +290,8 @@ public:
     {
         save_groups(table_prefix + "_basis", "repr", "mon_id", mon_reprs, [](const Poly<FnCmp>& a) { return Serialize(a); });
     }
-    void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& basis_ss) const;
-    void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& basis_ss) const;
+    void save_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& nodes_ss) const;
+    void update_ss(const std::string& table_prefix, const std::map<MayDeg, alg2::Staircase>& nodes_ss) const;
 };
 
 }  // namespace myio

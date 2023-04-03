@@ -3,7 +3,7 @@
 
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
-#include "algebras/groebnerZ.h"
+#include "pigroebner.h"
 #include <set>
 
 inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
@@ -142,7 +142,7 @@ struct SS
     Groebner gb;
     std::map<AdamsDeg, Mon1d> basis;
     AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
-    Staircases1d basis_ss;
+    Staircases1d nodes_ss;
     ut::map_seq2d<int, 0> basis_ss_possEinf;
 
     algZ::Groebner pi_gb;
@@ -165,7 +165,7 @@ struct SSMod
     std::map<AdamsDeg, MMod1d> basis;
     AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
     Poly1d qt;
-    Staircases1d basis_ss;
+    Staircases1d nodes_ss;
     ut::map_seq2d<int, 0> basis_ss_possEinf;
 
     algZ::GroebnerMod pi_gb;
@@ -209,10 +209,10 @@ public:
 
 public:
     /* Return the newest version of the staircase in history */
-    static auto GetRecentStaircase(const Staircases1d& basis_ss, AdamsDeg deg) -> const Staircase&;
-    static auto GetRecentStaircase(Staircases1d& basis_ss, AdamsDeg deg) -> Staircase&
+    static auto GetRecentStaircase(const Staircases1d& nodes_ss, AdamsDeg deg) -> const Staircase&;
+    static auto GetRecentStaircase(Staircases1d& nodes_ss, AdamsDeg deg) -> Staircase&
     {
-        return const_cast<Staircase&>(GetRecentStaircase((const Staircases1d&)(basis_ss), deg));
+        return const_cast<Staircase&>(GetRecentStaircase((const Staircases1d&)(nodes_ss), deg));
     }
     static auto GetRecentPiBasis(const PiBasis1d& pi_basis, AdamsDeg deg) -> const PiBase*;
     static auto GetRecentPiBasis(const PiBasisMod1d& pi_basis, AdamsDeg deg) -> const PiBaseMod*;
@@ -238,24 +238,24 @@ public:
     }
 
     /* Return if it is possibly a new dr target for r<=r_max */
-    static bool IsPossTgt(const Staircases1d& basis_ss, AdamsDeg deg, int r_max);
+    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
 
     /* Return if it is possibly a new dr source for r>=r_min */
-    static bool IsPossSrc(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r_min);
+    static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
      * Return a level such that all levels above will not decrease further.
      */
-    static int GetFirstFixedLevelForPlot(const Staircases1d& basis_ss, AdamsDeg deg);
+    static int GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg);
 
     /* Return the first index (with level >=`level_min`) such that all levels above are already fixed */
-    static size_t GetFirstIndexOfFixedLevels(const Staircases1d& basis_ss, AdamsDeg deg, int level_min);
+    static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
 
     /* Count the number of all possible d_r targets. Return (count, index). */
-    auto CountPossDrTgt(const Staircases1d& basis_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
+    auto CountPossDrTgt(const Staircases1d& nodes_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
 
     /* Count the number of all possible d_r sources. Return (count, index). */
-    std::pair<int, int> CountPossDrSrc(const Staircases1d& basis_ss, const AdamsDeg& deg_src, int r) const;
+    std::pair<int, int> CountPossDrSrc(const Staircases1d& nodes_ss, const AdamsDeg& deg_src, int r) const;
 
     /*
      * Return the smallest r1>=r such that d_{r1} has a possible target
@@ -263,17 +263,17 @@ public:
      * Range >= t_max is deem unknown and thus possiple.
      * Return -1 if not found
      */
-    int NextRTgt(const Staircases1d& basis_ss, int t_max, AdamsDeg deg, int r) const;
+    int NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const;
 
     /*
      * Return the largest r1<=r such that d_{r1} has a possible source
      *
      * Return -1 if not found
      */
-    int NextRSrc(const Staircases1d& basis_ss, AdamsDeg deg, int r) const;
+    int NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const;
 
-    int1d GetDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, int r) const;
-    bool IsNewDiff(const Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
+    int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
+    bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
 
     auto& GetBasisSSChanges(size_t iBasisSS) const
     {
@@ -284,10 +284,10 @@ public:
 
 protected:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiff(Staircases1d& basis_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
+    void SetDiff(Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
 
     /* Add an image. dx must be nonempty. */
-    void SetImage(Staircases1d& basis_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
+    void SetImage(Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
 
 public:
     /* Add a node */
@@ -297,7 +297,7 @@ public:
     void PopNode(DeduceFlag flag);
 
     /* Apply the change of the staircase to the current history */
-    void UpdateStaircase(Staircases1d& basis_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
+    void UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
     void CacheNullDiffs(size_t iSS, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
@@ -337,16 +337,16 @@ public:
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
-    static int PossEinf(const Staircases1d& basis_ss, AdamsDeg deg);
-    static void UpdatePossEinf(const Staircases1d& basis_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf);
+    static int PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
+    static void UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf);
     void UpdateAllPossEinf()
     {
-        UpdatePossEinf(ssS0_.basis_ss, ssS0_.basis_ss_possEinf);
+        UpdatePossEinf(ssS0_.nodes_ss, ssS0_.basis_ss_possEinf);
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            UpdatePossEinf(ssCofs_[iCof].basis_ss, ssCofs_[iCof].basis_ss_possEinf);
+            UpdatePossEinf(ssCofs_[iCof].nodes_ss, ssCofs_[iCof].basis_ss_possEinf);
     }
     /* Return if Einf at deg could have more nontrivial elements */
-    static int PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg);
+    static int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
     void PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) const;
     void PossMoreEinfFirstS_Cof(size_t iCof, int1d& O1s, int1d& O2s, int1d& isSingle) const;
 
@@ -442,13 +442,13 @@ public:
     }
 
     void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const;
-    void save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const;
+    void save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
     void save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
-    void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const;
+    void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& nodes_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
     void load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };

@@ -1,6 +1,7 @@
 #include "algebras/groebnerZ.h"
 #include "algebras/myio.h"
-#include "algebras/steenrod.h"
+#include "algebras/groebner_steenrod.h"
+#include "algebras/dbAdamsSS.h"
 #include <iostream>
 
 void test()
@@ -52,8 +53,9 @@ void test1()
     Poly p3 = y7 * y7 * y6 * y6 + Mon::O(20);
 
     auto gb = Groebner(100, {{1, 1}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {1, 2}, {1, 2}});
-    gb.AddRels({Poly(Mon::two_x_square(6, 1)), Poly(Mon::two_x_square(7, 1))}, 100);
-    gb.AddRels({p1, p2, p3}, 100);
+    ut::map_seq2d<int, 0> possEinf;
+    gb.AddRels({Poly(Mon::two_x_square(6, 1)), Poly(Mon::two_x_square(7, 1))}, 100, possEinf);
+    gb.AddRels({p1, p2, p3}, 100, possEinf);
 
     for (auto& rel : gb.data())
         std::cout << rel.GetLead().fil() << " " << rel << '\n';
@@ -124,19 +126,105 @@ void test5()
     std::cout << p2 * p1 << '\n';
 }
 
-void test_for_each_pair_par128()
+void test_for_each_pair_par()
 {
     std::vector<std::vector<size_t>> p(19);
-    ut::for_each_pair_par128(p.size(), [&p](size_t i, size_t j) {
+    ut::for_each_pair_par(p.size(), [&p](size_t i, size_t j) {
         p[i].push_back(j);
         p[j].push_back(i);
     });
     std::cout << "Done\n";
 }
 
+void test_groebner_steenrod()
+{
+    using namespace steenrod;
+    int t_trunc = 50;
+    int1d v_degs;
+    std::vector<uint64_t> bcs;
+    std::unordered_map<uint64_t, uint64_t> bc2v;
+    for (int t = 1; t <= t_trunc; ++t) {
+        for (int c = 0; c <= t / 3; ++c) {
+            int b = t - 3 * c;
+            v_degs.push_back(t);
+            auto bc = ut::Bind((uint64_t)b, (uint64_t)c);
+            bcs.push_back(bc);
+            bc2v[bc] = bcs.size() - 1;
+        }
+    }
+    Mod1d rels;
+    Mod tmp;
+
+    for (size_t i = 0; (1 << i) <= t_trunc; ++i) {
+        size_t a = (size_t)1 << i;
+        for (size_t j = 0; j < bcs.size(); ++j) {
+            int d = v_degs[j];
+            if (a + d > t_trunc)
+                continue;
+            uint64_t b, c;
+            ut::UnBind(bcs[j], b, c);
+            Mod rel = MMilnor::Sq((uint32_t)a) * MMod(MMilnor(), j);
+            for (size_t n = 0; n <= (a + d) / 3; ++n) {
+                size_t m = a + d - 3 * n; 
+                if (!((a + 2 * c - 2 * n) & (b + c - n)) && c <= n && !(c & (n - c))) {
+                    auto mn = ut::Bind((uint64_t)m, (uint64_t)n);
+                    auto v_mn = bc2v.at(mn);
+                    rel.iaddP(MMod(MMilnor(), v_mn), tmp);
+                }
+                //std::cout << "rel=" << rel << '\n';
+            }
+            rels.push_back(std::move(rel));
+        }
+    }
+
+    Groebner gb(t_trunc, {}, v_degs);
+    gb.AddRels(rels, t_trunc);
+    gb.MinimizeOrderedGens();
+
+    /*for (auto& rel : gb.data())
+        std::cout << rel << '\n';*/
+    std::cout << "v_degs=" << myio::StrCont("{", ",", "}", "{}", gb.v_degs(), [](int i) { return std::to_string(i); }) << '\n';
+}
+
+void minimize_rels()
+{
+    using namespace alg2;
+    myio::DbAdamsSS db("C:/Users/lwnpk/Documents/Projects/algtop_cpp_build/bin/Release/main/S0_AdamsSS_t261.db");
+    auto gb = Groebner(261, {}, db.load_gb("S0_AdamsE2", 261));
+    auto gen_degs = db.load_gen_adamsdegs("S0_AdamsE2");
+    int1d gen_degs_t;
+    for (auto& d : gen_degs)
+        gen_degs_t.push_back(d.t);
+    auto gb1 = Groebner(261, gen_degs_t, {}, true);
+    int1d min_rels;
+    gb1.AddRels(gb.data(), 261, min_rels);
+
+    std::cout << "gb.data().size()=" << gb.data().size() << '\n';
+    std::cout << "gb1.data().size()=" << gb1.data().size() << '\n';
+    std::cout << "min_rels.size()=" << min_rels.size() << '\n';
+}
+
+void reduce_gb()
+{
+    using namespace alg2;
+    myio::DbAdamsSS db("C:/Users/lwnpk/Documents/Projects/algtop_cpp_build/bin/Release/main/S0_AdamsSS_t261.db");
+    auto gb = Groebner(261, {}, db.load_gb("S0_AdamsE2", 261));
+    auto gen_degs = db.load_gen_adamsdegs("S0_AdamsE2");
+    gb.ReducedGb();
+    std::map<AdamsDeg, Poly1d> gb_group_by_deg;
+    for (auto& rel : gb.data()) {
+        auto deg = GetDeg(rel.GetLead(), gen_degs);
+        gb_group_by_deg[deg].push_back(rel);
+    }
+    db.begin_transaction();
+    db.drop_and_create_relations("S0_AdamsE2");
+    db.save_gb("S0_AdamsE2", gb_group_by_deg);
+    db.end_transaction();
+}
+
 int main()
 {
-    test_for_each_pair_par128();
+    minimize_rels();
 
     return 0;
 }

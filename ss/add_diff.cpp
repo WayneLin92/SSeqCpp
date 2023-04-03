@@ -70,24 +70,24 @@ int main_add_diff(int argc, char** argv, int index)
     /* Check if x, dx are valid */
     std::sort(x.begin(), x.end());
     std::sort(dx.begin(), dx.end());
-    auto& basis_ss = diagram.GetAllBasisSs()[iDb]->front();
+    auto& nodes_ss = diagram.GetAllBasisSs()[iDb]->front();
     if (!x.empty()) {
-        if (basis_ss.find(deg_x) == basis_ss.end()) {
+        if (nodes_ss.find(deg_x) == nodes_ss.end()) {
             std::cout << "deg_x not found" << std::endl;
             return 101;
         }
-        if (x.front() < 0 || basis_ss.at(deg_x).levels.size() <= (size_t)x.back()) {
+        if (x.front() < 0 || nodes_ss.at(deg_x).levels.size() <= (size_t)x.back()) {
             std::cout << "Invalid x";
             return 102;
         }
     }
     if (!dx.empty()) {
         AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
-        if (basis_ss.find(deg_dx) == basis_ss.end()) {
+        if (nodes_ss.find(deg_dx) == nodes_ss.end()) {
             std::cout << "deg_dx not found" << std::endl;
             return 103;
         }
-        if (dx.front() < 0 || basis_ss.at(deg_dx).levels.size() <= (size_t)dx.back()) {
+        if (dx.front() < 0 || nodes_ss.at(deg_dx).levels.size() <= (size_t)dx.back()) {
             std::cout << "Invalid dx" << std::endl;
             return 104;
         }
@@ -100,6 +100,7 @@ int main_add_diff(int argc, char** argv, int index)
     }
 
     if (mode == "add" || mode == "deduce") {
+        std::cout << "changed differentials: " << count << '\n';
         diagram.save(dbnames, DeduceFlag::no_op);
     }
     std::cout << "Done" << std::endl;

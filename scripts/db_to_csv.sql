@@ -1,3 +1,3 @@
 .headers on
 .mode csv
-select t-s as stem, s, t, count(*) as dim from SteenrodMRes_generators GROUP BY s, t ORDER BY stem;
+select rel, s, t from S0_AdamsE2_relations;

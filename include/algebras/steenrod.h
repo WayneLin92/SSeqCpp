@@ -192,7 +192,7 @@ public:
     {
         return data_ < rhs.data_;
     };
-
+    
     bool operator==(MMilnor rhs) const
     {
         return data_ == rhs.data_;

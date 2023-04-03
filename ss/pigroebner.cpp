@@ -1,6 +1,6 @@
-#include "groebnerZ.h"
-#include "myio.h"
-#include "utility.h"
+#include "pigroebner.h"
+#include "algebras/myio.h"
+#include "algebras/utility.h"
 // #include "benchmark.h"////
 #include <set>
 
@@ -417,7 +417,7 @@ void GbCriPairs::init(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1
 
 int NextO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, int O_min)
 {
-    int s_max = (stem + 3) / 2; ////
+    int s_max = (stem + 3) / 2;  ////
     for (int s = O_min; s <= s_max; ++s) {
         if (stem + s > t_max || possEinf(stem, s))
             return s;

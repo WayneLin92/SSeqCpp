@@ -5,8 +5,8 @@
 #ifndef GROEBNERZ_H
 #define GROEBNERZ_H
 
-#include "algebrasZ.h"
-#include "groebner.h"
+#include "algebras/algebrasZ.h"
+#include "algebras/groebner.h"
 #include <unordered_map>
 
 /* extension of namespace alg in algebras.h */

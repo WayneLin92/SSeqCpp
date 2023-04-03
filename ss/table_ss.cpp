@@ -18,13 +18,13 @@ void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDe
     myio::Logger::out() << "Generators inserted into " + table_prefix + "_pi_generators, size=" << gen_degs.size() << '\n';
 }
 
-void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& basis_ss) const
+void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_ss (id, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
     int count = 0;
-    auto degs = OrderDegsV2(basis_ss);
+    auto degs = OrderDegsV2(nodes_ss);
     for (const auto& deg : degs) {
-        auto& basis_ss_d = basis_ss.at(deg);
+        auto& basis_ss_d = nodes_ss.at(deg);
         for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
             stmt.bind_int(1, count++);
             stmt.bind_str(2, myio::Serialize(basis_ss_d.basis_ind[i]));
@@ -134,13 +134,13 @@ std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix
     return result;
 }
 
-void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& basis_ss) const
+void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& nodes_ss) const
 {
     std::map<AdamsDeg, int> indices = load_basis_indices(table_prefix);
     Statement stmt(*this, "UPDATE " + table_prefix + "_ss SET base=?1, diff=?2, level=?3 WHERE id=?4;");
 
     int count = 0;
-    for (const auto& [deg, basis_ss_d] : basis_ss) {
+    for (const auto& [deg, basis_ss_d] : nodes_ss) {
         for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
             stmt.bind_str(1, myio::Serialize(basis_ss_d.basis_ind[i]));
             if (basis_ss_d.diffs_ind[i] == int1d{-1})
@@ -158,7 +158,7 @@ void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<Adams
 
 Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
 {
-    Staircases basis_ss;
+    Staircases nodes_ss;
     Statement stmt(*this, "SELECT base, COALESCE(diff, \"-1\"), level, s, t FROM " + table_prefix + "_ss;");
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {
@@ -167,14 +167,14 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
         int level = stmt.column_int(2);
         AdamsDeg deg = {stmt.column_int(3), stmt.column_int(4)};
 
-        basis_ss[deg].basis_ind.push_back(std::move(base));
-        basis_ss[deg].levels.push_back(level);
+        nodes_ss[deg].basis_ind.push_back(std::move(base));
+        nodes_ss[deg].levels.push_back(level);
 
         int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
-        basis_ss[deg].diffs_ind.push_back(std::move(diff));
+        nodes_ss[deg].diffs_ind.push_back(std::move(diff));
     }
     myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
-    return basis_ss;
+    return nodes_ss;
 }
 
 void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
@@ -223,25 +223,25 @@ void generate_ss(const std::string& db_filename, int r)
     DBSS db(db_filename);
     std::string table_prefix = GetE2TablePrefix(db_filename);
     std::map<AdamsDeg, Mon1d> basis = db.load_basis(table_prefix);
-    std::map<AdamsDeg, Staircase> basis_ss;
+    std::map<AdamsDeg, Staircase> nodes_ss;
 
-    /* fill basis_ss */
+    /* fill nodes_ss */
     int prev_t = 0;
     for (auto& [d, basis_d] : basis) {
         for (int i = 0; i < (int)basis_d.size(); ++i) {
-            basis_ss[d].basis_ind.push_back({i});
-            basis_ss[d].diffs_ind.push_back({-1});
-            basis_ss[d].levels.push_back(kLevelMax - r);
+            nodes_ss[d].basis_ind.push_back({i});
+            nodes_ss[d].diffs_ind.push_back({-1});
+            nodes_ss[d].levels.push_back(kLevelMax - r);
         }
     }
 
-    basis_ss[AdamsDeg{0, 0}].diffs_ind = {{}};
-    basis_ss[AdamsDeg{0, 0}].levels = {kLevelMax / 2};
+    nodes_ss[AdamsDeg{0, 0}].diffs_ind = {{}};
+    nodes_ss[AdamsDeg{0, 0}].levels = {kLevelMax / 2};
 
     /* insert into the database */
     db.begin_transaction();
     db.drop_and_create_basis_ss(table_prefix);
-    db.save_basis_ss(table_prefix, basis_ss);
+    db.save_basis_ss(table_prefix, nodes_ss);
 
     auto pi_table = GetComplexName(db_filename);
     db.begin_transaction();
@@ -381,10 +381,10 @@ int main_truncate(int argc, char** argv, int index)
     for (size_t k = 0; k < dbnames.size(); ++k) {
         DBSS db(dbnames[k]);
         auto table = GetE2TablePrefix(dbnames[k]);
-        auto basis_ss = db.load_basis_ss(table);
-        int t_max = basis_ss.rbegin()->first.t;
+        auto nodes_ss = db.load_basis_ss(table);
+        int t_max = nodes_ss.rbegin()->first.t;
 
-        for (auto& [d, sc] : basis_ss) {
+        for (auto& [d, sc] : nodes_ss) {
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.levels[i] > kLevelPC) {
                     int r = kLevelMax - sc.levels[i];
@@ -395,7 +395,7 @@ int main_truncate(int argc, char** argv, int index)
         }
 
         db.begin_transaction();
-        db.update_basis_ss(table, basis_ss);
+        db.update_basis_ss(table, nodes_ss);
         db.end_transaction();
     }
 

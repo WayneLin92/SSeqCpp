@@ -282,29 +282,29 @@ const PiBaseMod* Diagram::GetRecentPiBasis(const PiBasisMod1d& pi_basis, AdamsDe
     return nullptr;
 }
 
-int Diagram::PossEinf(const Staircases1d& basis_ss, AdamsDeg deg)
+int Diagram::PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
-    if (basis_ss.front().find(deg) != basis_ss.front().end()) {
-        const Staircase& sc = GetRecentStaircase(basis_ss, deg);
+    if (nodes_ss.front().find(deg) != nodes_ss.front().end()) {
+        const Staircase& sc = GetRecentStaircase(nodes_ss, deg);
         size_t i_start_perm = GetFirstIndexOnLevel(sc, kLevelMax / 2);
-        size_t i_stable = GetFirstIndexOfFixedLevels(basis_ss, deg, kLevelPC + 1);
+        size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, kLevelPC + 1);
         return int(i_stable - i_start_perm);
     }
     return 0;
 }
 
-void Diagram::UpdatePossEinf(const Staircases1d& basis_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf)
+void Diagram::UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf)
 {
-    for (auto& [deg, _] : basis_ss.front())
-        basis_ss_possEinf(deg.stem(), deg.s) = PossEinf(basis_ss, deg);
+    for (auto& [deg, _] : nodes_ss.front())
+        basis_ss_possEinf(deg.stem(), deg.s) = PossEinf(nodes_ss, deg);
 }
 
-int Diagram::PossMoreEinf(const Staircases1d& basis_ss, AdamsDeg deg)
+int Diagram::PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
-    if (basis_ss.front().find(deg) != basis_ss.front().end()) {
-        const Staircase& sc = GetRecentStaircase(basis_ss, deg);
+    if (nodes_ss.front().find(deg) != nodes_ss.front().end()) {
+        const Staircase& sc = GetRecentStaircase(nodes_ss, deg);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, kLevelPC + 1);
-        size_t i_stable = GetFirstIndexOfFixedLevels(basis_ss, deg, kLevelPC + 1);
+        size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, kLevelPC + 1);
         return int(i_stable - i_end_perm);
     }
     return 0;
@@ -317,8 +317,8 @@ void Diagram::PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) con
         O2s.push_back(ssS0_.t_max - i + 1);
         isSingle.push_back(0);
     }
-    for (auto& [deg, _] : ssS0_.basis_ss.front()) {
-        if (int num = PossMoreEinf(ssS0_.basis_ss, deg)) {
+    for (auto& [deg, _] : ssS0_.nodes_ss.front()) {
+        if (int num = PossMoreEinf(ssS0_.nodes_ss, deg)) {
             if (deg.s < O1s[deg.stem()]) {
                 O2s[deg.stem()] = O1s[deg.stem()];
                 O1s[deg.stem()] = deg.s;
@@ -343,8 +343,8 @@ void Diagram::PossMoreEinfFirstS_Cof(size_t iCof, int1d& O1s, int1d& O2s, int1d&
         O2s.push_back(ssCof.t_max - i + 1);
         isSingle.push_back(0);
     }
-    for (auto& [deg, _] : ssCof.basis_ss.front()) {
-        if (int num = PossMoreEinf(ssCof.basis_ss, deg)) {
+    for (auto& [deg, _] : ssCof.nodes_ss.front()) {
+        if (int num = PossMoreEinf(ssCof.nodes_ss, deg)) {
             if (deg.s < O1s[deg.stem()]) {
                 O2s[deg.stem()] = O1s[deg.stem()];
                 O1s[deg.stem()] = deg.s;
@@ -483,11 +483,11 @@ std::map<AdamsDeg, int2d> Diagram::GetCofGbEinf(size_t iCof) const
 
 void Diagram::SetPermanentCycle(size_t iCof, AdamsDeg deg_x)
 {
-    auto& basis_ss = ssCofs_[iCof].basis_ss;
-    if (basis_ss.front().find(deg_x) != basis_ss.front().end()) {
-        const Staircase& sc = GetRecentStaircase(basis_ss, deg_x);
+    auto& nodes_ss = ssCofs_[iCof].nodes_ss;
+    if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
+        const Staircase& sc = GetRecentStaircase(nodes_ss, deg_x);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, kLevelPC + 1);
-        size_t i_stable = GetFirstIndexOfFixedLevels(basis_ss, deg_x, kLevelPC + 1);
+        size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, kLevelPC + 1);
         if (i_stable - i_end_perm == 1) {
             int1d x = {(int)i_end_perm};
             SetCofDiffLeibnizV2(iCof, deg_x, x, {}, kLevelPC - 1);
@@ -572,7 +572,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     int t_max = ssS0_.t_max;
     auto& gb = ssS0_.gb;
     auto& basis = ssS0_.basis;
-    auto& basis_ss = ssS0_.basis_ss;
+    auto& nodes_ss = ssS0_.nodes_ss;
     auto& pi_gb = ssS0_.pi_gb;
     auto& pi_basis = ssS0_.pi_basis;
     auto& pi_gen_Einf = ssS0_.pi_gen_Einf;
@@ -607,7 +607,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 auto& basis_d = basis.at(deg);
                 int2d projs;
                 {
-                    auto& sc = GetRecentStaircase(basis_ss, deg);
+                    auto& sc = GetRecentStaircase(nodes_ss, deg);
                     size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
                     for (auto& m : pi_basis_d) {
                         int1d proj = Poly2Indices(gb.Reduce(Proj(m, pi_gen_Einf)), basis_d);
@@ -642,7 +642,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 /* Add new generators in homotopy */
                 int2d Einf;
                 {
-                    auto& sc = GetRecentStaircase(basis_ss, deg);
+                    auto& sc = GetRecentStaircase(nodes_ss, deg);
                     size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
                     size_t last_PC = GetFirstIndexOnLevel(sc, kLevelPC + 1);
                     for (size_t i = first_PC; i < last_PC; ++i)
@@ -688,7 +688,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
         }
     }
     if (count_ss_old != count_ss)
-        UpdatePossEinf(ssS0_.basis_ss, ssS0_.basis_ss_possEinf);
+        UpdatePossEinf(ssS0_.nodes_ss, ssS0_.basis_ss_possEinf);
 }
 
 void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
@@ -697,7 +697,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     int t_max = ssCof.t_max;
     auto& gb = ssCof.gb;
     auto& basis = ssCof.basis;
-    auto& basis_ss = ssCof.basis_ss;
+    auto& nodes_ss = ssCof.nodes_ss;
     auto& pi_gb = ssCof.pi_gb;
     auto& pi_basis = ssCof.pi_basis;
     auto& pi_gen_Einf = ssCof.pi_gen_Einf;
@@ -733,7 +733,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 auto& basis_d = basis.at(deg);
                 int2d projs;
                 {
-                    auto& sc = GetRecentStaircase(basis_ss, deg);
+                    auto& sc = GetRecentStaircase(nodes_ss, deg);
                     size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
                     for (auto& m : pi_basis_d) {
                         int1d proj = Mod2Indices(gb.Reduce(Proj(m, ssS0_.pi_gen_Einf, pi_gen_Einf)), basis_d);
@@ -768,7 +768,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 /* Add new generators in homotopy */
                 int2d Einf;
                 {
-                    auto& sc = GetRecentStaircase(basis_ss, deg);
+                    auto& sc = GetRecentStaircase(nodes_ss, deg);
                     size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
                     size_t last_PC = GetFirstIndexOnLevel(sc, kLevelPC + 1);
                     for (size_t i = first_PC; i < last_PC; ++i)
@@ -791,7 +791,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                     AdamsDeg deg_S0 = deg - ssCof.deg_qt;
                     if (fx) {
                         int1d ifx = Poly2Indices(fx, ssS0_.basis.at(deg_S0));
-                        auto& sc = GetRecentStaircase(ssS0_.basis_ss, deg_S0);
+                        auto& sc = GetRecentStaircase(ssS0_.nodes_ss, deg_S0);
                         size_t first = GetFirstIndexOnLevel(sc, kLevelMax / 2);
                         ifx = lina::Residue(sc.basis_ind.begin(), sc.basis_ind.begin() + first, std::move(ifx));
 
@@ -826,7 +826,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
         }
     }
     if (count_ss_old != count_ss)
-        UpdatePossEinf(ssCof.basis_ss, ssCof.basis_ss_possEinf);
+        UpdatePossEinf(ssCof.nodes_ss, ssCof.basis_ss_possEinf);
 }
 
 int Diagram::DeduceTrivialExtensions(int depth)
@@ -895,7 +895,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) { /* module */
             auto& ssCof = ssCofs_[iCof];
             auto& pi_gb = ssCof.pi_gb;
-            auto& basis_ss = ssCof.basis_ss;
+            auto& nodes_ss = ssCof.nodes_ss;
             size_t iSS = iCof + 1;
 
             algZ::Mod1d new_rels;
@@ -1112,7 +1112,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     if (depth == 0) {
         for (auto& [deg, pi_basis_d] : ssS0_.pi_basis.front())
             for (auto& m : pi_basis_d.pi_basis)
-                basis_S0[deg.stem()].push_back(m);
+                basis_S0[deg.stem()].push_back(m);//
         for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
             for (auto& [deg, pi_basis_d] : ssCofs_[iCof].pi_basis.front())
                 for (auto& m : pi_basis_d.pi_basis)
@@ -1226,12 +1226,12 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 if (k && !k.GetLead().IsUnKnown()) {
                     int s = k.GetLead().fil();
                     AdamsDeg deg(s, stem + s);
-                    if (!IsPossTgt(ssS0_.basis_ss, deg, kRPC)) {
+                    if (!IsPossTgt(ssS0_.nodes_ss, deg, kRPC)) {
                         if (s < O1) {
                             throw SSPiException(0xdb0fa447U, "Top cell map can not hit the kernel of h. " /*+ ssCof.name + " stem=" + std::to_string(stem) + " kernel=" + k.Str()*/);
                         }
                         if (s < O2) {
-                            if (!PossMoreEinf(ssS0_.basis_ss, deg) && num_leads_kernel[s] == 1) {
+                            if (!PossMoreEinf(ssS0_.nodes_ss, deg) && num_leads_kernel[s] == 1) {
                                 if (gO.data.size() == 1 && !gO.GetLead().IsUnKnown() && !gO.GetLead().m) {
                                     size_t v = (size_t)gO.GetLead().v;
                                     auto& f = ssCof.pi_qt.back()[v];
@@ -1350,12 +1350,12 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 if (k && !k.GetLead().IsUnKnown()) {
                     int s = k.GetLead().fil();
                     AdamsDeg deg(s, stem + s);
-                    if (!IsPossTgt(ssS0_.basis_ss, deg, kRPC)) {
+                    if (!IsPossTgt(ssS0_.nodes_ss, deg, kRPC)) {
                         if (s < O1) {
                             throw SSPiException(0xc927323U, "h multiples can not hit the kernel of i");
                         }
                         if (s < O2) {
-                            if (!PossMoreEinf(ssS0_.basis_ss, deg) && num_leads_kernel[s] == 1) {
+                            if (!PossMoreEinf(ssS0_.nodes_ss, deg) && num_leads_kernel[s] == 1) {
                                 if (gO && !gO.GetLead().IsUnKnown()) {
                                     auto& rel = algZ::Poly(h) * gO + k.LF() + algZ::Poly::O(s + 1);
                                     if (depth == 0) {
@@ -1481,13 +1481,13 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
                 if (k && !k.GetLead().IsUnKnown()) {
                     int s = k.GetLead().fil();
                     AdamsDeg deg(s, stem + s);
-                    if (!IsPossTgt(ssCof.basis_ss, deg, kRPC)) {
+                    if (!IsPossTgt(ssCof.nodes_ss, deg, kRPC)) {
                         if (s < O1) {
                             // std::cout << "Error: For " << ssCof.name << " stem=" << stem << " O1=" << O1 << " k=" << k << '\n';////
                             throw SSPiException(0xb977ae09U, "i can not hit the kernel of q");
                         }
                         if (s < O2) {
-                            if (!PossMoreEinf(ssCof.basis_ss, deg) && num_leads_kernel[s] == 1) {
+                            if (!PossMoreEinf(ssCof.nodes_ss, deg) && num_leads_kernel[s] == 1) {
                                 if (gO && !gO.GetLead().IsUnKnown()) {
                                     auto& rel = algZ::Mod(gO, 0, 0) + k.LF() + algZ::Mod::O(s + 1);
                                     if (depth == 0) {
@@ -1635,7 +1635,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                 if (stem < stem_min || stem > stem_max)
                     continue;
                 AdamsDeg deg(s, stem + s);
-                if (deg.t > ssS0_.t_max || PossMoreEinf(ssS0_.basis_ss, deg) > 0)
+                if (deg.t > ssS0_.t_max || PossMoreEinf(ssS0_.nodes_ss, deg) > 0)
                     continue;
 
                 algZ::Poly O1 = algZ::Poly::O(s + 1);
@@ -1740,7 +1740,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                 if (stem < stem_min || stem > stem_max)
                     continue;
                 AdamsDeg deg(s, stem + s);
-                if (deg.t > ssS0_.t_max || PossMoreEinf(ssS0_.basis_ss, deg) > 0 || GetRecentPiBasis(ssS0_.pi_basis, deg) == nullptr)
+                if (deg.t > ssS0_.t_max || PossMoreEinf(ssS0_.nodes_ss, deg) > 0 || GetRecentPiBasis(ssS0_.pi_basis, deg) == nullptr)
                     continue;
                 algZ::Poly O1 = algZ::Poly::O(s + 1);
 
@@ -1803,7 +1803,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
             auto& ssCof = ssCofs_[iCof];
             if (ut::has(ssCof.pi_gb.leads_group_by_t(), t)) {
                 auto& name = ssCof.name;
-                auto& basis_ss = ssCof.basis_ss;
+                auto& nodes_ss = ssCof.nodes_ss;
                 auto& pi_gb = ssCof.pi_gb;
                 auto& pi_basis = ssCof.pi_basis;
                 size_t iSS = iCof + 1;
@@ -1820,7 +1820,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
                     if (stem < stem_min || stem > stem_max)
                         continue;
                     AdamsDeg deg(s, stem + s);
-                    if (deg.t > ssCof.t_max || PossMoreEinf(basis_ss, deg) > 0 || GetRecentPiBasis(ssCof.pi_basis, deg) == nullptr)
+                    if (deg.t > ssCof.t_max || PossMoreEinf(nodes_ss, deg) > 0 || GetRecentPiBasis(ssCof.pi_basis, deg) == nullptr)
                         continue;
 
                     algZ::Mod O1 = algZ::Mod::O(s + 1);

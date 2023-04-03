@@ -121,15 +121,15 @@ public:
         myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
 
-    void load_basis_ss_v2(const std::string& table_prefix, int2d& basis_ss, AdamsDeg1d& deg_basis) const
+    void load_basis_ss_v2(const std::string& table_prefix, int2d& nodes_ss, AdamsDeg1d& deg_basis) const
     {
         Statement stmt(*this, "SELECT base, s, t FROM " + table_prefix + "_ss ORDER BY id");
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
-            basis_ss.push_back(myio::Deserialize<int1d>(stmt.column_str(0)));
+            nodes_ss.push_back(myio::Deserialize<int1d>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << basis_ss.size() << '\n';
+        myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << nodes_ss.size() << '\n';
     }
 };
 
@@ -316,10 +316,10 @@ int main_plot(int argc, char** argv, int index)
         int3d basis_sss(all_basis_ss.size());
         AdamsDeg2d deg_bases(all_basis_ss.size());
         for (size_t i = 0; i < all_basis_ss.size(); ++i) {
-            auto& basis_ss = all_basis_ss[i]->front();
-            auto degs = OrderDegsV2(basis_ss);
+            auto& nodes_ss = all_basis_ss[i]->front();
+            auto degs = OrderDegsV2(nodes_ss);
             for (auto& d : degs) {
-                for (auto& b : basis_ss.at(d).basis_ind) {
+                for (auto& b : nodes_ss.at(d).basis_ind) {
                     basis_sss[i].push_back(b);
                     deg_bases[i].push_back(d);
                 }
@@ -339,7 +339,7 @@ int main_plot(int argc, char** argv, int index)
                         Poly poly_prod = ssS0.gb.Reduce(bi * bj);
                         if (poly_prod) {
                             int1d prod = Poly2Indices(poly_prod, ssS0.basis.at(deg_prod));
-                            prod = lina::GetInvImage(ssS0.basis_ss.front().at(deg_prod).basis_ind, prod);
+                            prod = lina::GetInvImage(ssS0.nodes_ss.front().at(deg_prod).basis_ind, prod);
                             for (size_t k = 0; k < prod.size(); ++k)
                                 prod[k] += deg2ids[0][deg_prod];
 
@@ -354,7 +354,7 @@ int main_plot(int argc, char** argv, int index)
         }
 
         for (size_t k = 1; k < dbPlots.size(); ++k) {
-            auto& basis_ss = *all_basis_ss[k];
+            auto& nodes_ss = *all_basis_ss[k];
             auto& basis = ssCof[k - 1].basis;
             auto& gb = ssCof[k - 1].gb;
             int t_max = ssCof[k - 1].t_max;
@@ -371,7 +371,7 @@ int main_plot(int argc, char** argv, int index)
                         Mod x_prod = gb.Reduce(ai.GetLead() * bj);
                         if (x_prod) {
                             int1d prod = Mod2Indices(x_prod, basis.at(deg_prod));
-                            prod = lina::GetInvImage(basis_ss.front().at(deg_prod).basis_ind, prod);
+                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis_ind, prod);
                             for (size_t l = 0; l < prod.size(); ++l)
                                 prod[l] += deg2ids[k][deg_prod];
 
@@ -389,15 +389,15 @@ int main_plot(int argc, char** argv, int index)
     /* ss_diffs */
     for (size_t k = 0; k < dbPlots.size(); ++k) {
         dbPlots[k].drop_and_create_ss_diff(tablesE2[k]);
-        auto& basis_ss = *all_basis_ss[k];
+        auto& nodes_ss = *all_basis_ss[k];
         myio::Statement stmt(dbPlots[k], "INSERT INTO " + tablesE2[k] + "_ss_diffs (src, r, tgt) VALUES (?1, ?2, ?3);");
-        for (auto& [deg, basis_ss_d] : basis_ss.front()) {
+        for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             for (size_t i = 0; i < basis_ss_d.levels.size(); ++i) {
                 int src = deg2ids[k][deg] + (int)i;
                 if (basis_ss_d.levels[i] > 9800 && basis_ss_d.diffs_ind[i] != int1d{-1}) {
                     int r = kLevelMax - basis_ss_d.levels[i];
                     AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
-                    int1d tgt = lina::GetInvImage(basis_ss.front().at(deg_tgt).basis_ind, basis_ss_d.diffs_ind[i]);
+                    int1d tgt = lina::GetInvImage(nodes_ss.front().at(deg_tgt).basis_ind, basis_ss_d.diffs_ind[i]);
                     for (size_t l = 0; l < tgt.size(); ++l)
                         tgt[l] += deg2ids[k][deg_tgt];
 
@@ -423,6 +423,8 @@ int main_plot(int argc, char** argv, int index)
         }();
 
         for (AdamsDeg deg : degs) {
+            if (deg == AdamsDeg(30, 127 + 30))
+                std::cout << "debug\n";
             NullDiff1d nds;
             diagram.CacheNullDiffs(iSS, deg, DeduceFlag::no_op, nds);
             for (auto& nd : nds) {
@@ -455,12 +457,12 @@ int main_plot(int argc, char** argv, int index)
     for (size_t k = 0; k < dbPlots.size(); ++k) {
         dbPlots[k].drop_and_create_ss_stable_levels(tablesE2[k]);
         myio::Statement stmt(dbPlots[k], "INSERT INTO " + tablesE2[k] + "_ss_stable_levels (s, t, l) VALUES (?1, ?2, ?3);");
-        auto& basis_ss = *all_basis_ss[k];
+        auto& nodes_ss = *all_basis_ss[k];
 
-        for (auto& [deg, basis_ss_d] : basis_ss.front()) {
+        for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             stmt.bind_int(1, deg.s);
             stmt.bind_int(2, deg.t);
-            int level = diagram.GetFirstFixedLevelForPlot(basis_ss, deg);
+            int level = diagram.GetFirstFixedLevelForPlot(nodes_ss, deg);
             stmt.bind_int(3, level);
             stmt.step_and_reset();
         }

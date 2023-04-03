@@ -127,7 +127,10 @@ inline std::vector<size_t> size_t_range(size_t n)
     return result;
 }
 
-/* T should be a basic trivial type */
+/**
+ * emulate std::map<int, T> by a vector
+ * T should be a type easy to copy
+ */
 template <typename T, T d>
 struct map_seq
 {
@@ -151,6 +154,10 @@ struct map_seq
     }
 };
 
+/**
+ * emulate std::map<(int, int), T> by a 2d vector
+ * T should be a type easy to copy
+ */
 template <typename T, T d>
 struct map_seq2d
 {
@@ -195,7 +202,7 @@ void RemoveEmptyElements(Container1d& cont)
 }
 
 /**
- * Remove elements of `cont` which are zero
+ * Remove elements of `cont` whose bool() evaluates to false
  */
 template <typename Container>
 void RemoveZeroElements(Container& cont)
@@ -228,6 +235,12 @@ template <typename T, typename K>
 bool has(const T& map, const K& key)
 {
     return map.find(key) != map.end();
+}
+
+template <typename T>
+bool has(const std::vector<T>& sorted, const T& key)
+{
+    return std::binary_search(sorted.begin(), sorted.end(), key);
 }
 
 namespace detail {
@@ -334,14 +347,15 @@ void for_each_par128(size_t n, Fn f)
 }
 
 /**
- * For i=0,...,n-1, execute f(i) in parallel.
+ * For 0<=i<j<n, execute f(i,j) in parallel.
  */
-template <typename Fn, size_t THREADS_MAX>
+template <typename Fn>
 void for_each_pair_par(size_t n, Fn f)
 {
     if (n < 2)
         return;
 
+    static constexpr size_t THREADS_MAX = 128;
     std::vector<std::future<void>> futures;
     const size_t m = (n + 1) / 2;
     const size_t m1 = (n % 2 == 0) ? m : m - 1;

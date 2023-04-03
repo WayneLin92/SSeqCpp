@@ -1,11 +1,29 @@
 # SSeqCpp
 This is a cross platform C++ project to compute and maintain spectral sequences based on sqlite3 databases and algorithms on Groebner basis.
 
-## AdamsE2
-This is one of the projects that is more polished. Compile this project and in the `build/bin` folder run
+## Adams
+This is the project that computes free resolutions over the Steenrod algebra. Compile this project and you can find the executable file `Adams` in the `build/bin` folder.
+```bash
+./Adams res S0 100
 ```
-./AdamsE2
-```
-It will compute a minimal resolution of the Steenrod algebra and save it in a database file `AdamsE2.db`. You can stop the program anytime and it can resume later from where it was stopped.
+This computes a minimal resolution of F2 over the mod 2 Steenrod algebra up to total degree of 100. It outputs a database file `S0_Adams_res.db`.
 
-The computation of total degrees `t<=100` takes about 70 seconds with a single CPU thread on a PC. It can also run in parallel and utilize multiple CPU cores.
+You can stop the program anytime and it can resume later from where it was stopped.
+
+This computation takes 7 seconds on my AMD Ryzen 9 3900X CPU.
+
+```bash
+./Adams prod 100
+```
+This computes some chain maps in order to obtain the products in the cohomology of the Steenrod algebra up to total degree of 100. `S0_Adams_res.db` is the input file and it outputs another database file `S0_Adams_res_prod.db`.
+
+You can stop the program anytime and it can resume later from where it was stopped.
+
+This computation takes 25 seconds on my AMD Ryzen 9 3900X CPU.
+
+```bash
+./Adams export 100
+```
+This generates the cohomology of the Steenrod algebra up to total degree of 100 according to the input file `S0_Adams_res_prod.db`. It outputs another database file `S0_AdamsSS.db`.
+
+This computation takes 0.1 seconds on my AMD Ryzen 9 3900X CPU.

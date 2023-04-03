@@ -2,7 +2,7 @@
 #include "algebras/database.h"
 #include "algebras/linalg.h"
 #include "algebras/utility.h"
-#include "groebner_steenrod_const.h"
+#include "groebner_res_const.h"
 #include "main.h"
 #include <cstring>
 

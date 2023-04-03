@@ -122,7 +122,7 @@ public:
     Groebner(int deg_trunc, int1d gen_degs) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    Groebner(int deg_trunc, int1d gen_degs, Poly1d polys, bool bDynamic = false);
+    Groebner(int deg_trunc, int1d gen_degs, Poly1d data, bool bDynamic = false);
 
 private:
     static TypeIndexKey Key(const Mon& lead)
@@ -204,9 +204,20 @@ public:
     Poly Reduce(Poly poly) const;
 
     /**
+     * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`.
+     * min_rels is the indices of the indecomposable relations
+     */
+    void AddRels(const Poly1d& rels, int deg, int1d& min_rels);
+
+    /**
      * Comsume relations from 'rels` and `gb.criticals_` in degree `<= deg`
      */
     void AddRels(const Poly1d& rels, int deg);
+
+    /**
+     * Make the Groebner basis reduced.
+     */
+    void ReducedGb();
 };
 
 /**

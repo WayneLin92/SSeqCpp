@@ -48,7 +48,7 @@ def str2array(str_array: str):
 
 def get_complex_name(path):
     path = os.path.basename(path)
-    names = ["S0", "C2", "Ceta", "Cnu", "Csigma", "RP10", "RPinf"]
+    names = ["S0", "C2", "Ceta", "Cnu", "Csigma", "RP10", "RPinf", "X2"]
     for name in names:
         if path.startswith(name):
             return name
@@ -266,8 +266,7 @@ def load_ss_ring(path_ring):
 
     complex = get_complex_name(path_ring)
 
-    is_ring = True
-    data = load_basis(c_ring, complex, is_ring)
+    data = load_basis(c_ring, complex, is_ring=True)
     data["gen_names"] = load_gen_names(c_ring, complex + "_AdamsE2_generators", "x")
     data["basis_ss"] = load_basis_ss(c_ring, complex)
     data["stable_levels"] = load_ss_stable_levels(c_plot, complex)
@@ -449,8 +448,8 @@ def smoothen(radius):
     b_changed = True
     while b_changed:
         for x, y in radius:
-            r = radius[(x, y)] * 1.085
-            r1 = radius[(x, y)] * 1.13
+            r = radius[(x, y)] + 0.01
+            r1 = radius[(x, y)] + 0.01 * 1.4
             radius_ub[(x + 1, y)] = min(radius_ub[(x + 1, y)], r)
             radius_ub[(x - 1, y)] = min(radius_ub[(x - 1, y)], r)
             radius_ub[(x, y + 1)] = min(radius_ub[(x, y + 1)], r)
@@ -652,7 +651,7 @@ def element_line(
     straight=False,
     r=False,
 ):
-    if dashed and (x1 >= 127 or x2 >= 127):
+    if dashed and (x1 >= 126.5 or x2 >= 126.5):
         return ""
     attr_more = ""
     if color:
@@ -822,6 +821,7 @@ def export_diffs(data, index2xyrp):
                 straight=True,
                 r=True,
             )
+
     return tpl_diff_lines
 
 

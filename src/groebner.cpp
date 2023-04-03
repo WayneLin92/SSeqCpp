@@ -382,7 +382,7 @@ void GbCriPairs::init(const Mon1d& leadsx, const MonTrace1d& tracesx, const MMod
     RemoveSmallKey(buffer_redundent_pairs_, t_min_buffer);
 }
 
-Groebner::Groebner(int deg_trunc, int1d gen_degs, Poly1d polys, bool bDynamic) : criticals_(deg_trunc), data_(std::move(polys)), gen_degs_(std::move(gen_degs))
+Groebner::Groebner(int deg_trunc, int1d gen_degs, Poly1d data, bool bDynamic) : criticals_(deg_trunc), data_(std::move(data)), gen_degs_(std::move(gen_degs))
 {
     for (int i = 0; i < (int)data_.size(); ++i) {
         leads_.push_back(data_[i].GetLead());
@@ -428,7 +428,7 @@ Poly Groebner::Reduce(Poly poly) const
     return poly;
 }
 
-void Groebner::AddRels(const Poly1d& rels, int deg_max)
+void Groebner::AddRels(const Poly1d& rels, int deg_max, int1d& min_rels)
 {
     using PPoly1d = std::vector<const Poly*>;
     Poly tmp1, tmp2;
@@ -439,39 +439,60 @@ void Groebner::AddRels(const Poly1d& rels, int deg_max)
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, PPoly1d> rels_graded;
-    for (const auto& rel : rels) {
-        if (rel) {
-            int d = GetDeg(rel.GetLead(), gen_degs_);
-            if (d <= deg_max)
-                rels_graded[d].push_back(&rel);
+    std::map<int, int1d> indices_rels;
+    for (size_t i = 0; i < rels.size(); ++i) {
+        if (rels[i]) {
+            int d = GetDeg(rels[i].GetLead(), gen_degs_);
+            if (d <= deg_max) {
+                rels_graded[d].push_back(&rels[i]);
+                indices_rels[d].push_back((int)i);
+            }
         }
     }
 
     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
     for (int d = 1; d <= deg_max && (d <= deg_max_rels || !criticals_.empty()); ++d) {
         CriPair1d pairs_d = Criticals(d);
+        size_t pairs_d_size = pairs_d.size();
         auto& rels_d = rels_graded[d];
         Poly1d rels_tmp(pairs_d.size() + rels_d.size());
 
         for (size_t i = 0; i < pairs_d.size(); ++i)
             pairs_d[i].SijP(*this, rels_tmp[i], tmp1, tmp2);
-        size_t pairs_d_size = pairs_d.size();
         ut::for_each_seq(pairs_d.size(), [this, &pairs_d, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
         ut::for_each_seq(rels_d.size(), [this, &rels_d, &rels_tmp, pairs_d_size](size_t i) { rels_tmp[pairs_d_size + i] = Reduce(*rels_d[i]); });
 
         /* Triangulate these relations */
         Poly1d gb_rels_d;
-        for (auto& rel : rels_tmp) {
+        for (size_t i = 0; i < rels_tmp.size(); ++i) {
+            auto& rel = rels_tmp[i];
             for (const Poly& rel1 : gb_rels_d)
                 if (std::binary_search(rel.data.begin(), rel.data.end(), rel1.GetLead()))
                     rel.iaddP(rel1, tmp1);
-            if (rel)
+            if (rel) {
                 gb_rels_d.push_back(std::move(rel));
+                if (i >= pairs_d_size)
+                    min_rels.push_back(indices_rels.at(d)[i - pairs_d_size]);
+            }
         }
 
         /* Add these relations */
         for (auto& rel : gb_rels_d)
             push_back(std::move(rel));
+    }
+}
+
+void Groebner::AddRels(const Poly1d& rels, int deg) {
+    int1d min_rels;
+    AddRels(rels, deg, min_rels);
+}
+
+void Groebner::ReducedGb()
+{
+    for (auto& rel : data_) {
+        auto rel1 = rel + rel.GetLead();
+        rel1 = Reduce(rel1);
+        rel = rel1 + rel.GetLead();
     }
 }
 
@@ -496,7 +517,6 @@ void powP(const Poly& poly, int n, const Groebner& gb, Poly& result, Poly& tmp)
 }
 
 /********************************* Modules ****************************************/
-
 GroebnerMod::GroebnerMod(Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), data_(std::move(polys)), v_degs_(std::move(v_degs))
 {
     for (int i = 0; i < (int)data_.size(); ++i) {

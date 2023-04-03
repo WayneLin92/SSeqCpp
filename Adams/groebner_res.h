@@ -2,80 +2,16 @@
  * A Component for Groebner bases.
  */
 
-#ifndef GROEBNER_STEENROD_H
-#define GROEBNER_STEENROD_H
+#ifndef GROEBNER_RES_H
+#define GROEBNER_RES_H
 
 #include "algebras/benchmark.h"
-#include "algebras/steenrod.h"
+#include "algebras/groebner_steenrod.h"
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
 
 using namespace steenrod;
-
-struct CriMilnor
-{
-    int i1 = -1, i2 = -1;
-    MMilnor m1, m2;
-
-    /* Compute the pair for two leading monomials. */
-    CriMilnor() = default;
-    static void SetFromLM(CriMilnor& result, MMilnor lead1, MMilnor lead2, int i, int j)
-    {
-        MMilnor gcd = gcdLF(lead1, lead2);
-        result.m1 = divLF(lead2, gcd);
-        result.m2 = divLF(lead1, gcd);
-        result.i1 = i;
-        result.i2 = j;
-    }
-    static CriMilnor Single(MMilnor m2, int j)
-    {
-        CriMilnor result;
-        result.m2 = m2;
-        result.i1 = -1;
-        result.i2 = j;
-        return result;
-    }
-};
-using CriMilnor1d = std::vector<CriMilnor>;
-using CriMilnor2d = std::vector<CriMilnor1d>;
-using CriMilnor3d = std::vector<CriMilnor2d>;
-using PtCriMilnor1d = std::vector<CriMilnor*>;
-using PtCriMilnor2d = std::vector<PtCriMilnor1d>;
-
-/* Groebner basis of critical pairs */
-class CriMilnors
-{
-    friend class AdamsRes;
-
-private:
-    int t_trunc_;                                                        /* Truncation degree */
-    CriMilnor2d gb_;                                                     /* `pairs_[j]` is the set of pairs (i, j) with given j */
-    std::map<int, CriMilnor2d> buffer_min_pairs_;                        /* `buffer_min_pairs_[t]` To generate minimal pairs to compute Sij */
-    std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
-    std::map<int, CriMilnor1d> buffer_singles_;                          /* For computing Sj. `buffer_singles_` stores indices of singles_ */
-
-public:
-    CriMilnors(int t_trunc) : t_trunc_(t_trunc) {}
-
-    int t_trunc() const
-    {
-        return t_trunc_;
-    }
-    /* Return both critical pairs and critical singles */
-    CriMilnor1d Criticals(int t);
-
-    /* Minimize `buffer_min_pairs_[t]` and maintain `pairs_` */
-    void Minimize(const MMod1d& leads, int t);
-
-    /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
-    ** `buffer_min_pairs_` will become a Groebner basis at this stage.
-    */
-    void AddToBuffers(const MMod1d& leads, MMod mon, int t_v);
-
-    void init(const MMod1d& leads, const int1d& basis_degrees, int t_min_buffer);
-};
-using CriMilnors1d = std::vector<CriMilnors>;
 
 struct Filtr
 {
