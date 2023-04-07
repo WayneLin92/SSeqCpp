@@ -491,7 +491,7 @@ void Groebner::ReducedGb()
 {
     for (auto& rel : data_) {
         auto rel1 = rel + rel.GetLead();
-        rel1 = Reduce(rel1);
+        rel1 = Reduce(std::move(rel1));
         rel = rel1 + rel.GetLead();
     }
 }

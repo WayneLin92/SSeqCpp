@@ -492,11 +492,11 @@ void Diagram::SetPermanentCycle(size_t iCof, AdamsDeg deg_x)
             int1d x = {(int)i_end_perm};
             SetCofDiffLeibnizV2(iCof, deg_x, x, {}, kLevelPC - 1);
         }
-        else
-            throw MyException(0xc625fffU, "Permanent cycles not found");
+        else if (i_stable - i_end_perm > 1)
+            throw MyException(0xc625fffU, "More than one possible permanent cycles");
     }
     else
-        throw MyException(0xccd5e2c4U, "Permanent cycles not found");
+        throw MyException(0xccd5e2c4U, "deg_x for the permanent cycle not found");
 }
 
 void Diagram::AddPiRelsS0(algZ::Poly1d rels)
@@ -1964,7 +1964,7 @@ int main_deduce_ext(int argc, char** argv, int index)
         ;
     }
 
-    // bench::Counter::print();
+    bench::Counter::print();
     return 0;
 }
 

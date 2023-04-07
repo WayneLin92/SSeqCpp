@@ -1,4 +1,4 @@
-#include "algebras/groebnerZ.h"
+#include "algebras/groebner.h"
 #include "algebras/myio.h"
 #include "algebras/groebner_steenrod.h"
 #include "algebras/dbAdamsSS.h"

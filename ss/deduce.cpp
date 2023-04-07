@@ -404,5 +404,6 @@ int main_deduce(int argc, char** argv, int index)
         return main_deduce_tmp(argc, argv, index);
     else
         std::cerr << "Invalid cmd: " << cmd << '\n';
+
     return 0;
 }

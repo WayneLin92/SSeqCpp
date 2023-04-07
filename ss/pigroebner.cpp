@@ -1,10 +1,34 @@
 #include "pigroebner.h"
+#include "algebras/benchmark.h"  ////
 #include "algebras/myio.h"
 #include "algebras/utility.h"
-// #include "benchmark.h"////
 #include <set>
 
 namespace algZ {
+
+namespace detail {
+    /*
+     * Return if `mon1` and `mon2` have a nontrivial common factor.
+     */
+    inline bool HasGCD(const Mon& mon1, const Mon& mon2)
+    {
+        return std::min(mon1.c(), mon2.c()) > 0 || alg2::detail::HasGCD(mon1.m(), mon2.m());
+    }
+    inline bool HasGCD(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2)
+    {
+        return (t1 & t2) && HasGCD(mon1, mon2);
+    }
+
+    inline int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
+    {
+        return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
+    }
+
+    inline int DegTLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
+    {
+        return gen_degs[0].t * std::max(mon1.c(), mon2.c()) + alg2::detail::DegTLCM(mon1.m(), mon2.m(), gen_degs);
+    }
+}  // namespace detail
 
 void CriPair::SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int O1, int O2, int i, int j, const AdamsDeg1d& gen_degs)
 {
@@ -25,7 +49,7 @@ void CriPair::SijP(const Groebner& gb, Poly& result, Poly& tmp) const
 {
     result.data.clear();
     auto& gen_2tor_degs = gb.gen_2tor_degs();
-    result.iaddmulP(m1, gb[i1], tmp, gen_2tor_degs);  //// TODO: improve this
+    result.iaddmulP(m1, gb[i1], tmp, gen_2tor_degs);
     result.iaddmulP(m2, gb[i2], tmp, gen_2tor_degs);
 }
 
@@ -33,198 +57,24 @@ void CriPair::SijMod(const Groebner& gb, const GroebnerMod& gbm, Mod& result, Mo
 {
     result.data.clear();
     auto& gen_2tor_degs = gb.gen_2tor_degs();
-    /*if (i2 >= gbm.size())
-        throw MyException(1, "BUG");*/
     if (i1 & FLAG_INDEX_X) {
         int v = gbm[i2].GetLead().v;
         result.iaddmulP(m1, Mod(gb[i1 ^ FLAG_INDEX_X], v, gbm.v_degs()[v].s), tmp, gen_2tor_degs);
     }
     else
-        result.iaddmulP(m1, gbm[i1], tmp, gen_2tor_degs);  //// TODO: improve this
+        result.iaddmulP(m1, gbm[i1], tmp, gen_2tor_degs);
     result.isubmulP(m2, gbm[i2], tmp, gen_2tor_degs);
 }
 
-void GbCriPairs::Minimize(const Mon1d& leads, const int1d& leads_O, int d, const AdamsDeg1d& gen_degs_)
-{
-    if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != d)
-        return;
-    if (buffer_min_pairs_.empty() || buffer_min_pairs_.begin()->first != d) {
-#ifdef NDEBUG
-        buffer_redundent_pairs_.erase(d);
-        return;
-#else
-        buffer_min_pairs_[d];
-#endif
-    }
-
-    /* Add to the Groebner basis of critical pairs */
-    constexpr uint64_t NULL_J = ~uint64_t(0);
-    auto& b_min_pairs_d = buffer_min_pairs_.begin()->second;
-    for (uint64_t ij : buffer_redundent_pairs_.begin()->second) {
-        uint64_t i, j;
-        ut::UnBind(ij, i, j);
-        while (j != NULL_J) {
-            Mon gcd = GCD(leads[i], leads[j]);
-            if (!gcd)
-                break;
-            gcd.SetFil(gen_degs_);
-            Mon m2 = div_unsigned(leads[i], gcd);
-            int O = std::min({leads[j].fil() - gcd.fil() + leads_O[i], m2.fil() + leads_O[j], FIL_MAX + 1});
-            if (b_min_pairs_d.find((int)j) != b_min_pairs_d.end()) {
-                auto& pairs = b_min_pairs_d.at((int)j);
-                auto p = std::find_if(pairs.begin(), pairs.end(), [&m2, O](const CriPair& c) { return c.m2 == m2 && (O > FIL_MAX || c.O <= O); });
-                /* Remove it from `buffer_min_pairs_` */
-                if (p != pairs.end()) {
-                    p->i2 = NULL_INDEX32;
-                    break;
-                }
-            }
-
-            /* Reduce (i, j) */
-            MonTrace t_m2 = m2.Trace();
-            auto c = gb_[j].begin();
-            auto end = gb_[j].end();
-            for (; c < end; ++c) {
-                if (divisible(c->m2, m2, c->trace_m2, t_m2)) {
-                    if (c->O > FIL_MAX || c->O - c->m2.fil() >= O - m2.fil()) {
-                        Mon m1 = div_unsigned(leads[j], gcd);
-                        if (detail::HasGCD(c->m1, m1)) {
-                            j = NULL_J;
-                            break;
-                        }
-                        else {
-                            j = c->i1;
-                            if (i > j)
-                                std::swap(i, j);
-                            else if (i == j)
-                                j = NULL_J;
-                            break;
-                        }
-                    }
-                }
-            }
-#ifndef NDEBUG
-            if (c == end)
-                throw MyException(0x3bc25c87U, "Should not happen because gb_ is groebner");
-#endif
-        }
-    }
-
-    /* Delete `bufbuffer_redundent_pairs_[d]` */
-    buffer_redundent_pairs_.erase(d);
-}
-
-void GbCriPairs::Minimize(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, int d, const AdamsDeg1d& gen_degs_)
-{
-    if (buffer_redundent_pairs_.empty() || buffer_redundent_pairs_.begin()->first != d)
-        return;
-    if (buffer_min_pairs_.empty() || buffer_min_pairs_.begin()->first != d) {
-#ifdef NDEBUG
-        buffer_redundent_pairs_.erase(d);
-        return;
-#else
-        buffer_min_pairs_[d];
-#endif
-    }
-
-    /* Add to the Groebner basis of critical pairs */
-    constexpr uint64_t NULL_J = ~uint64_t(0);
-    auto& b_min_pairs_d = buffer_min_pairs_.begin()->second;
-    for (uint64_t ij : buffer_redundent_pairs_.begin()->second) {
-        uint64_t i, j;
-        ut::UnBind(ij, i, j);
-        while (j != NULL_J) {
-            Mon leadsi = (i & FLAG_INDEX_X) ? leadsx[i ^ FLAG_INDEX_X] : leads[i].m; /* Warning leads[i].m.fil contains v fil */
-            Mon gcd = GCD(leadsi, leads[j].m);
-            gcd.SetFil(gen_degs_);
-            Mon m2 = div_unsigned(leadsi, gcd);
-            m2.SetFil(gen_degs_);
-            int Oi;
-            if (i & FLAG_INDEX_X)
-                Oi = leads[j].fil() - gcd.fil() + leadsx_O[i ^ FLAG_INDEX_X];
-            else {
-                int vj_fil = leads[j].fil() - GetDeg(leads[j].m, gen_degs_).s;
-                Oi = leads[j].fil() - gcd.fil() + leads_O[i] - vj_fil;
-            }
-            int O = std::min({Oi, m2.fil() + leads_O[j], FIL_MAX + 1});
-            if (b_min_pairs_d.find((int)j) != b_min_pairs_d.end()) {
-                auto& pairs = b_min_pairs_d.at((int)j);
-                auto p = std::find_if(pairs.begin(), pairs.end(), [&m2, O](const CriPair& c) { return c.m2 == m2 && (O > FIL_MAX || c.O <= O); });
-                /* Remove it from `buffer_min_pairs_` */
-                if (p != pairs.end()) {
-                    p->i2 = NULL_INDEX32;
-                    break;
-                }
-            }
-
-            /* Reduce (i, j) */
-            MonTrace t_m2 = m2.Trace();
-            auto c = gb_[j].begin();
-            auto end = gb_[j].end();
-            for (; c < end; ++c) {
-                if (divisible(c->m2, m2, c->trace_m2, t_m2)) {
-                    if (c->O > FIL_MAX || c->O - c->m2.fil() >= O - m2.fil()) {
-                        Mon m1 = div_unsigned(leads[j].m, gcd);
-                        if (detail::HasGCD(c->m1, m1)) {
-                            j = NULL_J;
-                            break;
-                        }
-                        else {
-                            j = c->i1;
-                            if (i > j || (j & FLAG_INDEX_X))
-                                std::swap(i, j);
-                            if (i == j || j & FLAG_INDEX_X)
-                                j = NULL_J;
-                            break;
-                        }
-                    }
-                }
-            }
-#ifndef NDEBUG
-            if (c == end)
-                throw MyException(0xbcf149e1U, "Should not happen because gb_ is groebner");
-#endif
-        }
-    }
-
-    /* Delete `bufbuffer_redundent_pairs_[d]` */
-    buffer_redundent_pairs_.erase(d);
-}
-
+/* return p1>=p2 in terms of certainty */
 bool GEPair(const CriPair& p1, const CriPair& p2)
 {
     return p1.O > FIL_MAX || p1.O - p1.m2.fil() >= p2.O - p2.m2.fil();
 }
 
-bool NEPair(const CriPair& p1, const CriPair& p2)
-{
-    return p1.O > FIL_MAX || p2.O > FIL_MAX || p1.O - p1.m2.fil() != p2.O - p2.m2.fil();
-}
-
-void ReduceNewPairs(const Mon1d& leads, const MonTrace1d& traces, const AdamsDeg1d& gen_degs, int t_trunc, std::pair<int, CriPair>& npi, std::pair<int, CriPair>& npj, std::vector<std::pair<int, uint64_t>>& redundents)
-{
-    if (npi.first != -1 && npj.first != -1) {
-        if (divisible(npi.second.m2, npj.second.m2, npi.second.trace_m2, npj.second.trace_m2) && GEPair(npi.second, npj.second))
-            npj.first = -1;
-        else if (divisible(npj.second.m2, npi.second.m2, npj.second.trace_m2, npi.second.trace_m2) && GEPair(npj.second, npi.second))
-            npi.first = -1;
-        else {
-            size_t ii = npi.second.i1;
-            size_t jj = npj.second.i1;
-            if (!detail::HasGCD(npi.second.m1, npj.second.m1) && detail::HasGCD(leads[ii], leads[jj], traces[ii], traces[jj]) && NEPair(npi.second, npj.second)) {
-                int dij = detail::DegTLCM(leads[ii], leads[jj], gen_degs);
-                if (dij <= t_trunc)
-                    redundents.emplace_back(dij, ut::Bind(ii, jj));
-            }
-        }
-    }
-}
-
 void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const Mon& mon, int O, const AdamsDeg1d& gen_degs)
 {
     size_t leads_size = leads.size();
-    if (gb_.size() < leads_size + 1)
-        gb_.resize(leads_size + 1);
     MonTrace t = mon.Trace();
 
     /* Populate `new_pairs__` */
@@ -254,22 +104,12 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
                     else if (divisible(npj.second.m2, npi.second.m2, npj.second.trace_m2, npi.second.trace_m2) && GEPair(npj.second, npi.second)) {
                         npi.first = -1;
                     }
-                    else {
-                        size_t ii = npi.second.i1;
-                        size_t jj = npj.second.i1;
-                        if (!detail::HasGCD(npi.second.m1, npj.second.m1) && detail::HasGCD(leads[ii], leads[jj], traces[ii], traces[jj]) && NEPair(npi.second, npj.second)) {
-                            int dij = detail::DegTLCM(leads[ii], leads[jj], gen_degs);
-                            if (dij <= t_trunc_)
-                                buffer_redundent_pairs_[dij].insert(ut::Bind(ii, jj));
-                        }
-                    }
                 }
             }
         }
     }
     for (auto& npi : new_pairs__) {
         if (npi.first != -1) {
-            gb_[leads_size].push_back(npi.second);
             buffer_min_pairs_[npi.first][(int)leads_size].push_back(std::move(npi.second));
         }
     }
@@ -279,8 +119,6 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
 {
     size_t leadsx_size = leadsx.size();
     size_t leads_size = leads.size();
-    if (gb_.size() < leads_size + 1)
-        gb_.resize(leads_size + 1);
     MonTrace t = mon.m.Trace();
 
     /* Populate `new_pairs__` */
@@ -304,7 +142,7 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
         }
     }
 
-    /* Remove some critical pairs to form Groebner basis and discover redundent pairs */
+    /* Remove some critical pairs to form Groebner basis */
     for (size_t j = 0; j < new_pairs__.size(); ++j) {
         auto& npj = new_pairs__[j];
         if (npj.first != -1) {
@@ -318,20 +156,12 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
                     else if (divisible(npj.second.m2, npi.second.m2, npj.second.trace_m2, npi.second.trace_m2) && GEPair(npj.second, npi.second)) {
                         npi.first = -1;
                     }
-                    else if (!(npj.second.i1 & FLAG_INDEX_X) && detail::HasGCD(npi.second.m1, npj.second.m1) && NEPair(npi.second, npj.second)) {
-                        auto& leadsi = (npi.second.i1 & FLAG_INDEX_X) ? leadsx[npi.second.i1 ^ FLAG_INDEX_X] : leads[npi.second.i1].m;
-                        auto& leadsj = leads[npj.second.i1];
-                        int dij = detail::DegTLCM(leadsi, leadsj.m, gen_degs) + v_degs[leadsj.v].t;
-                        if (dij <= t_trunc_)
-                            buffer_redundent_pairs_[dij].insert(ut::Bind(npi.second.i1, npj.second.i1));
-                    }
                 }
             }
         }
     }
     for (auto& npi : new_pairs__) {
         if (npi.first != -1) {
-            gb_[leads_size].push_back(npi.second);
             buffer_min_pairs_[npi.first][(int)leads_size].push_back(std::move(npi.second));
         }
     }
@@ -375,7 +205,6 @@ void GbCriPairs::AddToBuffersX(const Mon1d& leadsx, const MonTrace1d& tracesx, c
         }
         for (auto& npi : new_pairs__) {
             if (npi.first != -1) {
-                gb_[l].push_back(npi.second);
                 buffer_min_pairs_[npi.first][(int)l].push_back(std::move(npi.second));
             }
         }
@@ -391,28 +220,6 @@ void RemoveSmallKey(T& map, int t_min_buffer)
         else
             ++it;
     }
-}
-
-void GbCriPairs::init(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, int t_min_buffer)
-{
-    Mon1d tmp_leads;
-    for (size_t i = 0; i < leads.size(); ++i) {
-        AddToBuffers(tmp_leads, traces, leads_O, leads[i], leads_O[i], gen_degs);
-        tmp_leads.push_back(leads[i]);
-    }
-    RemoveSmallKey(buffer_min_pairs_, t_min_buffer);
-    RemoveSmallKey(buffer_redundent_pairs_, t_min_buffer);
-}
-
-void GbCriPairs::init(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, int t_min_buffer)
-{
-    MMod1d tmp_leads;
-    for (size_t i = 0; i < leads.size(); ++i) {
-        AddToBuffers(leadsx, tracesx, leadsx_O, tmp_leads, traces, leads_O, leads[i], leads_O[i], gen_degs, v_degs);
-        tmp_leads.push_back(leads[i]);
-    }
-    RemoveSmallKey(buffer_min_pairs_, t_min_buffer);
-    RemoveSmallKey(buffer_redundent_pairs_, t_min_buffer);
 }
 
 int NextO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, int O_min)
@@ -458,10 +265,8 @@ Groebner::Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynam
     }
     for (auto& p : polys) {
         AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
-        push_back_data_init(std::move(p), deg);
+        push_back_data(std::move(p), deg);
     }
-    if (bDynamic)
-        criticals_.init(leads_, traces_, leads_O_, gen_degs_, deg_trunc + 1);
 }
 
 void pop_indices_by_ub(int1d& indices, int ub)
@@ -475,11 +280,10 @@ void Groebner::Pop(size_t gen_size, size_t rel_size)
     gen_degs_.resize(gen_size);
     gen_2tor_degs_.resize(gen_size);
 
-    criticals_.Pop(rel_size);
     data_.resize(rel_size);
     leads_.resize(rel_size);
     traces_.resize(rel_size);
-    leads_O_.resize(rel_size);
+    data_O_.resize(rel_size);
     for (auto& [_, indices] : leads_group_by_key_)
         pop_indices_by_ub(indices, (int)rel_size);
     for (auto& [_, indices] : leads_group_by_deg_)
@@ -513,11 +317,6 @@ void Groebner::debug_print() const
     for (auto& indices : leads_group_by_last_gen_)
         sum += indices.size();
     std::cout << "leads_group_by_last_gen_=" << sum << '\n';
-
-    sum = 0;
-    for (auto& cps : criticals_.gb_)
-        sum += cps.size();
-    std::cout << "criticals_=" << sum << '\n';
 }
 
 int Groebner::IndexOfDivisibleLeading(const Mon& mon, int eff_min) const
@@ -712,7 +511,7 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
             if (IsValidRel(rel)) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), gen_degs_);
                 if (deg.t <= d_trunc) {
-                    if (t_max == d_trunc && deg.t > t) {
+                    if (deg.t > t) {
                         /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
                             std::cout << (p.data[0] < p.data[1]) << '\n';
                             std::cout << "debug\n";
@@ -725,7 +524,7 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
                             std::cout << "debug\n";
                         }*/
                         ExtendO(possEinf, d_trunc, deg.stem(), rel);
-                        push_back_data(std::move(rel), deg);
+                        push_back_data_buffer(std::move(rel), deg);
                     }
                 }
             }
@@ -737,9 +536,44 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
 
 void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
 {
-    Poly1d data1 = std::move(data_);
+    Poly1d data;
+    MonTrace1d traces;
+    data.reserve(data_.size());
+    for (auto& [t, indices] : leads_group_by_t_) {
+        for (int i : indices) {
+            data.push_back(std::move(data_[i]));
+            traces.push_back(traces_[i]);
+            //bench::Counter(0);////
+        }
+    }
     ResetRels();
-    AddRels(std::move(data1), criticals_.deg_trunc(), possEinf);
+
+    for (size_t i = 0; i < data.size() - 1; ++i) {
+        if (data[i]) {
+            for (size_t j = i + 1; j < data.size(); ++j) {
+                if (data[j]) {
+                    if (data_[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead(), data[j].GetLead(), traces[i], traces[j])) {
+                        data[j].data.clear();
+                        // bench::Counter(1);////
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto& g : data) {
+        if (g) {
+            auto deg = GetDeg(g.GetLead(), gen_degs_);
+            push_back_data(g, deg);
+        }
+    }
+
+    for (auto& g : data_) {
+        Poly g1;
+        std::copy(g.data.begin() + 1, g.data.end(), std::back_inserter(g1.data));
+        g1 = Reduce(std::move(g1));
+        g = g1 + g.GetLead();
+    }
 }
 
 /**
@@ -826,10 +660,8 @@ GroebnerMod::GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d 
 {
     for (auto& p : polys) {
         AdamsDeg deg = GetDeg(p.GetLead(), pGb_->gen_degs(), v_degs_);
-        push_back_data_init(std::move(p), deg);
+        push_back_data(std::move(p), deg);
     }
-    if (bDynamic)
-        criticals_.init(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, pGb_->gen_degs(), v_degs_, deg_trunc + 1);
 }
 
 bool GroebnerMod::IsNewBaseByV(const Mon& mon, uint32_t v) const
@@ -854,11 +686,10 @@ void GroebnerMod::Pop(size_t gen_size, size_t rel_size)
     old_pGb_size_ = pGb_->leads_.size();
     v_degs_.resize(gen_size);
 
-    criticals_.Pop(old_pGb_size_, rel_size);
     data_.resize(rel_size);
     leads_.resize(rel_size);
     traces_.resize(rel_size);
-    leads_O_.resize(rel_size);
+    data_O_.resize(rel_size);
     for (auto& [_, indices] : leads_group_by_key_)
         pop_indices_by_ub(indices, (int)rel_size);
     for (auto& [_, indices] : leads_group_by_deg_)
@@ -892,11 +723,6 @@ void GroebnerMod::debug_print() const
     for (auto& indices : leads_group_by_v_)
         sum += indices.size();
     std::cout << "leads_group_by_v_=" << sum << '\n';
-
-    sum = 0;
-    for (auto& cps : criticals_.gb_)
-        sum += cps.size();
-    std::cout << "criticals_=" << sum << '\n';
 }
 
 int GroebnerMod::IndexOfDivisibleLeading(const MMod& mon, int eff_min) const
@@ -1084,7 +910,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
     if (t_max > d_trunc)
         throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
     if (old_pGb_size_ != pGb_->leads_.size()) {
-        criticals_.AddToBuffersX(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, pGb_->gen_degs(), v_degs_, old_pGb_size_);
+        criticals_.AddToBuffersX(pGb_->leads_, pGb_->traces_, pGb_->data_O_, leads_, traces_, data_O_, pGb_->gen_degs(), v_degs_, old_pGb_size_);
         old_pGb_size_ = pGb_->leads_.size();
     }
 
@@ -1123,7 +949,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
             if (rel && !rel.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), pGb_->gen_degs(), v_degs_);
                 if (deg.t <= d_trunc) {
-                    if (t == d_trunc && deg.t > t) {
+                    if (deg.t > t) {
                         /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
                             std::cout << "debug\n";*/
                         rels_graded[deg.t].push_back(std::move(rel));
@@ -1134,7 +960,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
                             std::cout << "debug\n";
                         }*/
                         ExtendO(possEinf, d_trunc, deg.stem(), rel);
-                        push_back_data(std::move(rel), deg);
+                        push_back_data_buffer(std::move(rel), deg);
                     }
                 }
             }
@@ -1146,9 +972,49 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
 
 void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
 {
-    Mod1d data1 = std::move(data_);
+    Mod1d data;
+    MonTrace1d traces;
+    data.reserve(data_.size());
+    for (auto& [t, indices] : leads_group_by_t_) {
+        for (int i : indices) {
+            data.push_back(std::move(data_[i]));
+            traces.push_back(traces_[i]);
+        }
+    }
     ResetRels();
-    AddRels(std::move(data1), criticals_.deg_trunc(), possEinf);
+
+    for (size_t i = 0; i < pGb_->data_.size() - 1; ++i) {
+        for (size_t j = 0; j < data.size(); ++j) {
+            if (data[j]) {
+                if (pGb_->data_[i].EffNum() >= data[j].EffNum() && divisible(pGb_->data_[i].GetLead(), data[i].GetLead().m, pGb_->traces_[i], traces[j]))
+                    data[j].data.clear();
+            }
+        }
+    }
+    for (size_t i = 0; i < data.size() - 1; ++i) {
+        if (data[i]) {
+            for (size_t j = i + 1; j < data.size(); ++j) {
+                if (data[j] && data[i].GetLead().v == data[j].GetLead().v) {
+                    if (data_[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead().m, data[i].GetLead().m, traces[i], traces[j]))
+                        data[j].data.clear();
+                }
+            }
+        }
+    }
+
+    for (auto& g : data) {
+        if (g) {
+            auto deg = GetDeg(g.GetLead(), pGb_->gen_degs(), v_degs_);
+            push_back_data(g, deg);
+        }
+    }
+
+    for (auto& g : data_) {
+        Mod g1;
+        std::copy(g.data.begin() + 1, g.data.end(), std::back_inserter(g1.data));
+        g1 = Reduce(std::move(g1));
+        g = g1 + g.GetLead();
+    }
 }
 
 void GroebnerMod::SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf)
@@ -1160,67 +1026,5 @@ void GroebnerMod::SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf)
         Merge1(p.data, tmp);
     AddRels(std::move(data1), criticals_.deg_trunc(), possEinf);
 }
-
-// void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max, int1d& index_ind)
-//{
-//     int d_trunc = deg_trunc();
-//     if (deg_max > d_trunc)
-//         throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
-//     Mod tmp;
-//
-//     const size_t rels_size = rels.size();
-//     for (Mod& x : data_)
-//         for (MMod m : x.data)
-//             m.v += (uint32_t)rels_size;
-//     v_degs_.resize(v_degs_.size() + rels_size);
-//     for (size_t i = v_degs_.size(); i-- > rels_size;)
-//         v_degs_[i] = v_degs_[i - rels_size];
-//
-//     /* Calculate the degrees of `rels` and group them by degree */
-//     std::map<int, Mod1d> rels_graded;
-//     for (size_t i = 0; i < rels.size(); ++i) {
-//         if (rels[i]) {
-//             AdamsDeg d = GetDeg(rels[i].GetLead().m, pGb_->gen_degs()) + v_degs_[(size_t)rels[i].GetLead().v + rels_size];
-//             if (!rels_graded.empty() && d.t < rels_graded.rbegin()->first)
-//                 throw MyException(0x39b4cfd4U, "rels is not ordered.");
-//             if (d.t <= deg_max) {
-//                 Mod rel = rels[i];
-//                 v_degs_[i] = d;
-//                 for (MMod& m : rel.data)
-//                     m.v += (uint32_t)rels_size;
-//                 rel.iaddP(MMod(Mon(), (uint32_t)i, v_degs_[i].s), tmp);
-//                 rels_graded[d.t].push_back(rel);
-//             }
-//         }
-//     }
-//
-//     int deg_max_rels = rels_graded.empty() ? 0 : rels_graded.rbegin()->first;
-//     for (int d = 1; d <= deg_max && (d <= deg_max_rels || !criticals_.empty()); ++d) {
-//         // std::cout << "d=" << d << '\n';
-//         CriPair1d pairs_d = Criticals(d);
-//         auto& rels_d = rels_graded[d];
-//         Mod1d rels_tmp(pairs_d.size() + rels_d.size());
-//
-//         for (size_t i = 0; i < pairs_d.size(); ++i)
-//             pairs_d[i].SijMod(*pGb_, *this, rels_tmp[i], tmp);
-//         size_t offset = pairs_d.size();
-//         ut::for_each_seq(offset, [this, &pairs_d, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
-//         ut::for_each_seq(rels_d.size(), [this, &rels_d, &rels_tmp, offset](size_t i) { rels_tmp[offset + i] = Reduce(rels_d[i]); });
-//
-//         /* Triangulate these relations */
-//         Mod1d gb_rels_d;
-//         for (auto& rel : rels_tmp) {
-//             for (const Mod& rel1 : gb_rels_d)
-//                 if (std::binary_search(rel.data.begin(), rel.data.end(), rel1.GetLead()))
-//                     rel.iaddP(rel1, tmp);
-//             if (rel)
-//                 gb_rels_d.push_back(std::move(rel));
-//         }
-//
-//         /* Add these relations */
-//         for (auto& rel : gb_rels_d)
-//             push_back_data(std::move(rel));
-//     }
-// }
 
 }  // namespace algZ

@@ -12,30 +12,6 @@
 /* extension of namespace alg in algebras.h */
 namespace algZ {
 
-namespace detail {
-    /*
-     * Return if `mon1` and `mon2` have a nontrivial common factor.
-     */
-    inline bool HasGCD(const Mon& mon1, const Mon& mon2)
-    {
-        return std::min(mon1.c(), mon2.c()) > 0 || alg2::detail::HasGCD(mon1.m(), mon2.m());
-    }
-    inline bool HasGCD(const Mon& mon1, const Mon& mon2, MonTrace t1, MonTrace t2)
-    {
-        return (t1 & t2) && HasGCD(mon1, mon2);
-    }
-
-    inline int DegLCM(const Mon& mon1, const Mon& mon2, const int1d& gen_degs)
-    {
-        return gen_degs[0] * std::max(mon1.c(), mon2.c()) + alg2::detail::DegLCM(mon1.m(), mon2.m(), gen_degs);
-    }
-
-    inline int DegTLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs)
-    {
-        return gen_degs[0].t * std::max(mon1.c(), mon2.c()) + alg2::detail::DegTLCM(mon1.m(), mon2.m(), gen_degs);
-    }
-}  // namespace detail
-
 class Groebner;
 class GroebnerMod;
 
@@ -47,11 +23,10 @@ struct CriPair
     uint32_t i1 = NULL_INDEX32, i2 = NULL_INDEX32;
     Mon m1, m2;
     int O = -1;
-
     MonTrace trace_m2 = 0; /* = Trace(m2) */
 
-    /* Compute the pair for two leading monomials. */
     CriPair() = default;
+    /* Compute the pair for two leading monomials. */
     static void SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int O1, int O2, int i, int j, const AdamsDeg1d& gen_degs);
 
     /* Return `m1 * gb[i1] + m2 * gb[i2]` */
@@ -66,9 +41,7 @@ class GbCriPairs
 {
 public:
     int t_trunc_;                                                        /* Truncation degree */
-    CriPair2d gb_;                                                       /* `pairs_[j]` is the set of pairs (i, j) with given j */
     std::map<int, std::unordered_map<int, CriPair1d>> buffer_min_pairs_; /* To generate `buffer_min_pairs_` and for computing Sij */
-    std::map<int, std::unordered_set<uint64_t>> buffer_redundent_pairs_; /* Used to minimize `buffer_min_pairs_` */
     std::vector<std::pair<int, CriPair>> new_pairs__;                    /* tmp variable to be used in functions */
 
 public:
@@ -103,44 +76,13 @@ public:
 
     void Reset()
     {
-        gb_.clear();
         buffer_min_pairs_.clear();
-        buffer_redundent_pairs_.clear();
     }
 
     void ClearBuffer()
     {
         buffer_min_pairs_.clear();
-        buffer_redundent_pairs_.clear();
     }
-
-    void Pop(size_t rel_size)
-    {
-        gb_.resize(rel_size);
-        if (!buffer_min_pairs_.empty())
-            throw MyException(1, "BUG");
-        if (!buffer_redundent_pairs_.empty()) {
-            std::cout << buffer_redundent_pairs_.begin()->first << '\n';
-            throw MyException(1, "BUG");
-        }
-    }
-
-    void Pop(size_t xrels_size, size_t rel_size)
-    {
-        gb_.resize(rel_size);
-        uint32_t i1_end = uint32_t(xrels_size) | FLAG_INDEX_X;
-        for (size_t j = 0; j < gb_.size(); ++j)
-            ut::RemoveIf(gb_[j], [i1_end](const CriPair& cp) { return cp.i1 >= i1_end; });
-
-        if (!buffer_min_pairs_.empty())
-            throw MyException(1, "BUG");
-        if (!buffer_redundent_pairs_.empty())
-            throw MyException(1, "BUG");
-    }
-
-    /* Minimize `buffer_min_pairs_[d]` and maintain `pairs_` */
-    void Minimize(const Mon1d& leads, const int1d& leads_O, int d, const AdamsDeg1d& gen_degs_);
-    void Minimize(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, int d, const AdamsDeg1d& gen_degs_);
 
     /* Propogate `buffer_redundent_pairs_` and `buffer_min_pairs_`.
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
@@ -148,8 +90,6 @@ public:
     void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const Mon& mon, int O, const AdamsDeg1d& gen_degs);
     void AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const MMod& mon, int O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs);
     void AddToBuffersX(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, size_t i_start);
-    void init(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, int t_min_buffer);
-    void init(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, int t_min_buffer);
 };
 
 int NextO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, int O_min);
@@ -167,7 +107,7 @@ private:
     Poly1d data_;
     Mon1d leads_;                                                /* Leading monomials */
     MonTrace1d traces_;                                          /* Cache for fast divisibility test */
-    int1d leads_O_;                                              /* Cache for certainty of data_ */
+    int1d data_O_;                                               /* Cache for certainty of data_ */
     std::unordered_map<TypeIndexKey, int1d> leads_group_by_key_; /* Cache for fast divisibility test */
     int2d leads_group_by_last_gen_;                              /* Cache for generating a basis */
     std::map<AdamsDeg, int1d> leads_group_by_deg_;               /* Cache for generating a basis */
@@ -209,7 +149,7 @@ public: /* Getters and Setters */
     /* This function will erase `gb_pairs_.buffer_min_pairs[d]` */
     CriPair1d Criticals(int d)
     {
-        criticals_.Minimize(leads_, leads_O_, d, gen_degs_);
+        // criticals_.Minimize(leads_, data_O_, d, gen_degs_);
         return criticals_.Criticals(d);
     }
 
@@ -222,13 +162,13 @@ public: /* Getters and Setters */
         return data_[index];
     }
 
-    void push_back_data_init(Poly g, AdamsDeg deg)
+    void push_back_data(Poly g, AdamsDeg deg)
     {
         const Mon& m = g.GetLead();
 
         leads_.push_back(m);
         traces_.push_back(m.Trace());
-        leads_O_.push_back(g.UnknownFil());
+        data_O_.push_back(g.UnknownFil());
         int index = (int)data_.size();
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
@@ -246,10 +186,10 @@ public: /* Getters and Setters */
         data_.push_back(std::move(g));
     }
 
-    void push_back_data(Poly g, AdamsDeg deg)
+    void push_back_data_buffer(Poly g, AdamsDeg deg)
     {
-        criticals_.AddToBuffers(leads_, traces_, leads_O_, g.GetLead(), g.UnknownFil(), gen_degs_);
-        push_back_data_init(std::move(g), deg);
+        criticals_.AddToBuffers(leads_, traces_, data_O_, g.GetLead(), g.UnknownFil(), gen_degs_);
+        push_back_data(std::move(g), deg);
     }
 
     void ResetRels()
@@ -257,7 +197,7 @@ public: /* Getters and Setters */
         criticals_.Reset();
         leads_.clear();
         traces_.clear();
-        leads_O_.clear();
+        data_O_.clear();
         leads_group_by_key_.clear();
         leads_group_by_deg_.clear();
         leads_group_by_t_.clear();
@@ -367,6 +307,7 @@ public:
     void AddRels(Poly1d rels, int deg, const ut::map_seq2d<int, 0>& possEinf);
 
     void SimplifyRels(const ut::map_seq2d<int, 0>& possEinf);
+    /* Apply differential monommial orderings to old database */
     void SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf);
 };
 
@@ -425,7 +366,7 @@ private:
     Mod1d data_;
     MMod1d leads_;                                               /* Leading monomials */
     MonTrace1d traces_;                                          /* Cache for fast divisibility test */
-    int1d leads_O_;                                              /* Cache for certainty of data_ */
+    int1d data_O_;                                               /* Cache for certainty of data_ */
     std::unordered_map<TypeIndexKey, int1d> leads_group_by_key_; /* Cache for fast divisibility test */
     int2d leads_group_by_v_;                                     /* Cache for generating a basis */
     std::map<AdamsDeg, int1d> leads_group_by_deg_;               /* Cache for iteration */
@@ -446,14 +387,6 @@ private:
         return TypeIndexKey{lead.v + (lead.m ? ((lead.m.backg() + 1) << 16) : 0)};
     }
 
-public:
-    /**
-     * Transform to a submodule.
-     *
-     * `rels` should be ordered by degree.
-     */
-    // void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
-
 public: /* Getters and Setters */
     const auto& gb_pairs() const
     {
@@ -465,7 +398,6 @@ public: /* Getters and Setters */
     }
     CriPair1d Criticals(int d)
     {
-        criticals_.Minimize(pGb_->leads_, pGb_->leads_O_, leads_, leads_O_, d, pGb_->gen_degs_);
         return criticals_.Criticals(d);
     }
 
@@ -477,13 +409,13 @@ public: /* Getters and Setters */
     {
         return data_[index];
     }
-    void push_back_data_init(Mod g, AdamsDeg deg)
+    void push_back_data(Mod g, AdamsDeg deg)
     {
         const MMod& m = g.GetLead();
 
         leads_.push_back(m);
         traces_.push_back(m.m.Trace());
-        leads_O_.push_back(g.UnknownFil());
+        data_O_.push_back(g.UnknownFil());
         int index = (int)data_.size();
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
@@ -492,10 +424,10 @@ public: /* Getters and Setters */
         data_.push_back(std::move(g));
     }
     /* This is used for initialization */
-    void push_back_data(Mod g, AdamsDeg deg)
+    void push_back_data_buffer(Mod g, AdamsDeg deg)
     {
-        criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, pGb_->leads_O_, leads_, traces_, leads_O_, g.GetLead(), g.UnknownFil(), pGb_->gen_degs(), v_degs_);
-        push_back_data_init(std::move(g), deg);
+        criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, pGb_->data_O_, leads_, traces_, data_O_, g.GetLead(), g.UnknownFil(), pGb_->gen_degs(), v_degs_);
+        push_back_data(std::move(g), deg);
     }
 
     void ResetRels()
@@ -504,7 +436,7 @@ public: /* Getters and Setters */
         criticals_.Reset();
         leads_.clear();
         traces_.clear();
-        leads_O_.clear();
+        data_O_.clear();
         leads_group_by_key_.clear();
         leads_group_by_deg_.clear();
         leads_group_by_t_.clear();

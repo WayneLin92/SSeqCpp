@@ -423,8 +423,6 @@ int main_plot(int argc, char** argv, int index)
         }();
 
         for (AdamsDeg deg : degs) {
-            if (deg == AdamsDeg(30, 127 + 30))
-                std::cout << "debug\n";
             NullDiff1d nds;
             diagram.CacheNullDiffs(iSS, deg, DeduceFlag::no_op, nds);
             for (auto& nd : nds) {
