@@ -4,9 +4,10 @@
 
 #include "json.h"
 #include "main.h"
+#include "mylog.h"
 #include <fstream>
 
-std::vector<std::string> GetDbNames(const std::string& selector)
+std::vector<std::string> GetDbNames(const std::string& selector, bool log)
 {
     using json = nlohmann::json;
     std::vector<std::string> result;
@@ -21,8 +22,14 @@ std::vector<std::string> GetDbNames(const std::string& selector)
     }
     try {
         json& databases = js["databases"][selector];
-        for (auto& db : databases)
-            result.push_back(db["path"].get<std::string>());
+        for (auto& db : databases) {
+            if (db["name"] == "log") {
+                if (log)
+                    Logger::SetOutDeduce(db["path"].get<std::string>().c_str());
+            }
+            else
+                result.push_back(db["path"].get<std::string>());
+        }
     }
     catch (nlohmann::detail::exception e) {
         std::cout << "Error:" << e.what() << '\n';

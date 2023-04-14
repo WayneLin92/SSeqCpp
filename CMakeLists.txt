@@ -15,6 +15,7 @@ add_subdirectory(src)
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Optionally set things like CMAKE_CXX_STANDARD, CMAKE_POSITION_INDEPENDENT_CODE here
+    set (CMAKE_CXX_STANDARD 17)
 
     # Let's ensure -std=c++xx instead of -std=g++xx
     set(CMAKE_CXX_EXTENSIONS OFF)
@@ -39,6 +40,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # add_subdirectory(MayE4)
     add_subdirectory(Adams)
     add_subdirectory(tests)
+    add_subdirectory(thirdparty/fmt)
 
     # Docs only available if this is the main app
     find_package(Doxygen)

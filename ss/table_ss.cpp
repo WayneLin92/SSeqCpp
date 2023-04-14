@@ -1,4 +1,5 @@
 #include "main.h"
+#include <fmt/ranges.h>///
 
 using namespace alg2;
 
@@ -15,7 +16,7 @@ void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDe
         stmt.step_and_reset();
     }
 
-    myio::Logger::out() << "Generators inserted into " + table_prefix + "_pi_generators, size=" << gen_degs.size() << '\n';
+    // myio::Logger::out() << "Generators inserted into " + table_prefix + "_pi_generators, size=" << gen_degs.size() << '\n';
 }
 
 void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const
@@ -38,7 +39,7 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& node
             stmt.step_and_reset();
         }
     }
-    myio::Logger::out() << "basis_ss are inserted into " << table_prefix << "_ss, size=" << count << '\n';
+    // myio::Logger::out() << "basis_ss are inserted into " << table_prefix << "_ss, size=" << count << '\n';
 }
 
 void DBSS::save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const
@@ -61,7 +62,7 @@ void DBSS::save_pi_basis(const std::string& table_prefix, const PiBasis& basis) 
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
 void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const
@@ -84,7 +85,7 @@ void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& 
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
 void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
@@ -117,7 +118,7 @@ void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFla
         stmt.step_and_reset();
     }
 
-    myio::Logger::out() << pi_gen_defs.size() << " definitions are inserted into " + table_prefix + "_pi_generators_def!\n";
+    // myio::Logger::out() << pi_gen_defs.size() << " definitions are inserted into " + table_prefix + "_pi_generators_def!\n";
 }
 
 std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix) const
@@ -130,7 +131,7 @@ std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix
         AdamsDeg d = {stmt.column_int(0), stmt.column_int(1)};
         result[d] = stmt.column_int(2);
     }
-    myio::Logger::out() << "Indices loaded from " << table_prefix << "_ss, size=" << count << '\n';
+    // myio::Logger::out() << "Indices loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return result;
 }
 
@@ -153,7 +154,7 @@ void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<Adams
             ++count;
         }
     }
-    myio::Logger::out() << table_prefix + "_ss is updated, num_of_change=" << count << '\n';
+    // myio::Logger::out() << table_prefix + "_ss is updated, num_of_change=" << count << '\n';
 }
 
 Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
@@ -173,7 +174,7 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
         int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
         nodes_ss[deg].diffs_ind.push_back(std::move(diff));
     }
-    myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
+    // myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return nodes_ss;
 }
 
@@ -194,8 +195,8 @@ void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi
                 }
             }
         }
-        else {
-            std::string c;  // Compatibility
+        else {  //// Compatibility
+            std::string c;
             if (has_column(table_prefix + "_pi_generators_def", "property"))
                 c = "property";
             else
@@ -211,7 +212,7 @@ void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi
                 }
             }
         }
-        myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
+        // myio::Logger::out() << "Definitions loaded from " << table_prefix << "_pi_generators_def, size=" << pi_gen_defs.size() << '\n';
     }
 }
 
@@ -235,8 +236,10 @@ void generate_ss(const std::string& db_filename, int r)
         }
     }
 
-    nodes_ss[AdamsDeg{0, 0}].diffs_ind = {{}};
-    nodes_ss[AdamsDeg{0, 0}].levels = {kLevelMax / 2};
+    if (GetComplexName(db_filename) == "S0") {  ////if it is a ring
+        nodes_ss[AdamsDeg{0, 0}].diffs_ind = {{}};
+        nodes_ss[AdamsDeg{0, 0}].levels = {kLevelMax / 2};
+    }
 
     /* insert into the database */
     db.begin_transaction();
@@ -247,6 +250,7 @@ void generate_ss(const std::string& db_filename, int r)
     db.begin_transaction();
     db.drop_and_create_pi_relations(pi_table);
     db.drop_and_create_pi_basis(pi_table);
+    db.drop_and_create_pi_definitions(pi_table);
     if (pi_table == "S0")
         db.drop_and_create_pi_generators(pi_table);
     else
@@ -272,14 +276,13 @@ int main_reset(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        generate_ss(dbnames[k], 2);
-    }
-
-    Diagram diagram(dbnames, DeduceFlag::no_op);
-
-    std::cout << "Confirm to reset\n";
+    std::cout << "Confirm to reset " << selector << '\n';
     if (myio::UserConfirm()) {
+        for (size_t k = 0; k < dbnames.size(); ++k)
+            generate_ss(dbnames[k], 2);
+
+        Diagram diagram(dbnames, DeduceFlag::no_op);
+
         int count = diagram.DeduceTrivialDiffs();
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
@@ -310,7 +313,7 @@ int main_resetpi(int argc, char** argv, int index)
         return index;
     auto dbnames = GetDbNames(selector);
 
-    std::cout << "Confirm to resetpi\n";
+    std::cout << "Confirm to resetpi " << selector << '\n';
     if (myio::UserConfirm()) {
         for (size_t k = 0; k < dbnames.size(); ++k) {
             DBSS db(dbnames[k]);
@@ -325,78 +328,6 @@ int main_resetpi(int argc, char** argv, int index)
                 db.drop_and_create_pi_generators_mod(pi_table);
             db.end_transaction();
         }
-    }
-
-    return 0;
-}
-
-int main_resetfrom(int argc, char** argv, int index)
-{
-    std::string selector = "debug";
-    std::string selector_from = "debug-reset";
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Initialize the homotopy data\n";
-        std::cout << "Usage:\n  ss resetfrom [selector] [selector_from]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  selector = " << selector << "\n\n";
-        std::cout << "  selector_from = " << selector_from << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
-        return index;
-    auto dbnames = GetDbNames(selector);
-    auto dbnames_from = GetDbNames(selector_from);
-
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        std::ifstream src(dbnames_from[k], std::ios::binary);
-        std::ofstream dst(dbnames[k], std::ios::binary);
-        dst << src.rdbuf();
-    }
-
-    return 0;
-}
-
-int main_truncate(int argc, char** argv, int index)
-{
-    std::string selector = "default";
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss truncate [selector]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  selector = " << selector << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
-        return index;
-    auto dbnames = GetDbNames(selector);
-
-    for (size_t k = 0; k < dbnames.size(); ++k) {
-        DBSS db(dbnames[k]);
-        auto table = GetE2TablePrefix(dbnames[k]);
-        auto nodes_ss = db.load_basis_ss(table);
-        int t_max = nodes_ss.rbegin()->first.t;
-
-        for (auto& [d, sc] : nodes_ss) {
-            for (size_t i = 0; i < sc.levels.size(); ++i) {
-                if (sc.levels[i] > kLevelPC) {
-                    int r = kLevelMax - sc.levels[i];
-                    if (d.t + r - 1 > t_max && sc.diffs_ind[i] != int1d{-1})
-                        sc.diffs_ind[i] = int1d{-1};
-                }
-            }
-        }
-
-        db.begin_transaction();
-        db.update_basis_ss(table, nodes_ss);
-        db.end_transaction();
     }
 
     return 0;

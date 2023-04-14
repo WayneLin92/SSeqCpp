@@ -129,7 +129,7 @@ public:
             numInTransaction_ = 0;
         }
     }
-    void end_transaction(int min=0)
+    void end_transaction(int min = 0)
     {
         if (numInTransaction_ >= min) {
             execute_cmd("END TRANSACTION");
@@ -172,7 +172,7 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_str(0)));
-        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        // myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
 
@@ -184,7 +184,7 @@ public:
         Statement stmt(*this, "SELECT " + column_name + " FROM " + table_name + ' ' + conditions + ';');
         while (stmt.step() == MYSQLITE_ROW)
             result.push_back(map(stmt.column_blob(0), stmt.column_blob_size(0)));
-        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        // myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
 
@@ -198,7 +198,7 @@ public:
                 result.push_back(map(stmt.column_str(0)));
             else
                 result.push_back(null_value);
-        myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
+        // myio::Logger::out() << column_name << "'s loaded from " << table_name << ", size=" << result.size() << '\n';
         return result;
     }
 

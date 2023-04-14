@@ -543,7 +543,6 @@ void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
         for (int i : indices) {
             data.push_back(std::move(data_[i]));
             traces.push_back(traces_[i]);
-            //bench::Counter(0);////
         }
     }
     ResetRels();
@@ -552,9 +551,8 @@ void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
         if (data[i]) {
             for (size_t j = i + 1; j < data.size(); ++j) {
                 if (data[j]) {
-                    if (data_[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead(), data[j].GetLead(), traces[i], traces[j])) {
+                    if (data[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead(), data[j].GetLead(), traces[i], traces[j])) {
                         data[j].data.clear();
-                        // bench::Counter(1);////
                     }
                 }
             }
@@ -564,7 +562,7 @@ void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
     for (auto& g : data) {
         if (g) {
             auto deg = GetDeg(g.GetLead(), gen_degs_);
-            push_back_data(g, deg);
+            push_back_data(std::move(g), deg);
         }
     }
 
@@ -572,7 +570,8 @@ void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
         Poly g1;
         std::copy(g.data.begin() + 1, g.data.end(), std::back_inserter(g1.data));
         g1 = Reduce(std::move(g1));
-        g = g1 + g.GetLead();
+        g.data.resize(1);
+        std::copy(g1.data.begin(), g1.data.end(), std::back_inserter(g.data));
     }
 }
 
@@ -983,10 +982,10 @@ void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
     }
     ResetRels();
 
-    for (size_t i = 0; i < pGb_->data_.size() - 1; ++i) {
+    for (size_t i = 0; i < pGb_->data_.size(); ++i) {
         for (size_t j = 0; j < data.size(); ++j) {
             if (data[j]) {
-                if (pGb_->data_[i].EffNum() >= data[j].EffNum() && divisible(pGb_->data_[i].GetLead(), data[i].GetLead().m, pGb_->traces_[i], traces[j]))
+                if (pGb_->data_[i].EffNum() >= data[j].EffNum() && divisible(pGb_->data_[i].GetLead(), data[j].GetLead().m, pGb_->traces_[i], traces[j]))
                     data[j].data.clear();
             }
         }
@@ -995,8 +994,9 @@ void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
         if (data[i]) {
             for (size_t j = i + 1; j < data.size(); ++j) {
                 if (data[j] && data[i].GetLead().v == data[j].GetLead().v) {
-                    if (data_[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead().m, data[i].GetLead().m, traces[i], traces[j]))
+                    if (data[i].EffNum() >= data[j].EffNum() && divisible(data[i].GetLead().m, data[j].GetLead().m, traces[i], traces[j])) {
                         data[j].data.clear();
+                    }
                 }
             }
         }
@@ -1005,15 +1005,17 @@ void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
     for (auto& g : data) {
         if (g) {
             auto deg = GetDeg(g.GetLead(), pGb_->gen_degs(), v_degs_);
-            push_back_data(g, deg);
+            push_back_data(std::move(g), deg);
         }
     }
+    old_pGb_size_ = pGb_->data().size();
 
     for (auto& g : data_) {
         Mod g1;
         std::copy(g.data.begin() + 1, g.data.end(), std::back_inserter(g1.data));
         g1 = Reduce(std::move(g1));
-        g = g1 + g.GetLead();
+        g.data.resize(1);
+        std::copy(g1.data.begin(), g1.data.end(), std::back_inserter(g.data));
     }
 }
 

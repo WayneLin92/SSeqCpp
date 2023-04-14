@@ -2,6 +2,7 @@
 #include <sqlite3.h>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 
 #if SQLITE_ROW != MYSQLITE_ROW
@@ -12,6 +13,12 @@
 #endif
 
 namespace myio {
+
+bool file_exists(const std::string& filename)
+{
+    std::ifstream f(filename);
+    return f.good();
+}
 
 template <>
 int1d Deserialize<int1d>(const std::string& str)
@@ -33,7 +40,7 @@ int1d Deserialize<int1d>(const std::string& str)
 Database::Database(const std::string& filename)
 {
     if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK)
-        throw MyException(0x8de81e80, std::string("database ") + filename + " not found");
+        throw MyException(0x8de81e80, "Cannot open database " + filename);
 }
 
 Database::~Database()

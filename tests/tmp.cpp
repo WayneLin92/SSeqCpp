@@ -3,6 +3,7 @@
 #include "algebras/groebner_steenrod.h"
 #include "algebras/dbAdamsSS.h"
 #include <iostream>
+#include <fmt/os.h>
 
 void test()
 {
@@ -30,35 +31,6 @@ void test()
 
     for (auto& g : gbm.data())
         std::cout << g.Str() << '\n';
-}
-
-void test1()
-{
-    using namespace algZ;
-    auto x1 = Poly::Gen(1, 1, 3, true);
-    auto x2 = Poly::Gen(2, 1, 3, true);
-    auto x3 = Poly::Gen(3, 1, 3, true);
-    auto x4 = Poly::Gen(4, 1, 3, true);
-    auto x5 = Poly::Gen(5, 1, 3, true);
-    auto y6 = Poly::Gen(6, 1, 1, false);
-    auto y7 = Poly::Gen(7, 1, 1, false);
-    auto two = Poly::twoTo(1);
-
-    Mon m1 = (x1 * x3 * x5).data[0];
-    Mon m2 = (x1 * x4 * x5).data[0];
-    Mon m3 = (x1 * y6).data[0];
-
-    Poly p1 = y6 * y6 + x1 + Mon::O(10);
-    Poly p2 = y7 * y7 + x2 + Mon::O(4);
-    Poly p3 = y7 * y7 * y6 * y6 + Mon::O(20);
-
-    auto gb = Groebner(100, {{1, 1}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {3, 5}, {1, 2}, {1, 2}});
-    ut::map_seq2d<int, 0> possEinf;
-    gb.AddRels({Poly(Mon::two_x_square(6, 1)), Poly(Mon::two_x_square(7, 1))}, 100, possEinf);
-    gb.AddRels({p1, p2, p3}, 100, possEinf);
-
-    for (auto& rel : gb.data())
-        std::cout << rel.GetLead().fil() << " " << rel << '\n';
 }
 
 void test2()
@@ -222,9 +194,17 @@ void reduce_gb()
     db.end_transaction();
 }
 
+void test_fmt()
+{
+    fmt::ostream out = fmt::output_file("out.txt");
+    for (int ln = 0; ln < 4; ++ln) {
+        out.print("line {}\n", ln);
+    }
+}
+
 int main()
 {
-    minimize_rels();
+    test_fmt();
 
     return 0;
 }

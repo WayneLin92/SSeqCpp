@@ -107,7 +107,7 @@ public:
             basis.push_back(myio::Deserialize<Mon>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
+        //myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
 
     void load_basis_mod_v2(const std::string& table_prefix, MMod1d& basis, AdamsDeg1d& deg_basis) const
@@ -118,7 +118,7 @@ public:
             basis.push_back(myio::Deserialize<MMod>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
+        //myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
 
     void load_basis_ss_v2(const std::string& table_prefix, int2d& nodes_ss, AdamsDeg1d& deg_basis) const
@@ -129,7 +129,7 @@ public:
             nodes_ss.push_back(myio::Deserialize<int1d>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << nodes_ss.size() << '\n';
+        //myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << nodes_ss.size() << '\n';
     }
 };
 

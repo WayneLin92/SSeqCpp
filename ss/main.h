@@ -14,6 +14,8 @@ constexpr int kLevelMin = 2;
 constexpr int kRPC = 200;
 constexpr int kLevelPC = kLevelMax - kRPC; /* Level of Permanant cycles */
 
+inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
+
 enum class DeduceFlag : uint32_t
 {
     no_op = 0,
@@ -227,6 +229,16 @@ public:
         return ssCofs_;
     }
 
+    auto& GetS0()
+    {
+        return ssS0_;
+    }
+
+    auto& GetCofs()
+    {
+        return ssCofs_;
+    }
+
     auto& GetAllBasisSs() const
     {
         return all_basis_ss_;
@@ -277,17 +289,19 @@ public:
 
     auto& GetBasisSSChanges(size_t iBasisSS) const
     {
-        if ((*all_basis_ss_[iBasisSS]).size() != 2)
+        if ((*all_basis_ss_[iBasisSS]).size() != 2) {
+            std::cout << "0xc2fa755cU: Not on the change node\n" << '\n';
             throw MyException(0xc2fa755cU, "Not on the change node");
+        }
         return (*all_basis_ss_[iBasisSS])[1];
     }
 
 protected:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiff(Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
+    void SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
 
     /* Add an image. dx must be nonempty. */
-    void SetImage(Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
+    void SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
 
 public:
     /* Add a node */
@@ -368,7 +382,7 @@ public:
     std::map<AdamsDeg, int2d> GetCofGbEinf(size_t iCof) const;
 
 public: /* homotopy groups */
-    void SetPermanentCycle(size_t iCof, AdamsDeg deg_x);
+    void SetPermanentCycle(int depth, size_t iCof, AdamsDeg deg_x);
     void AddPiRelsS0(algZ::Poly1d rels);
     void AddPiRelsCof(size_t iCof, algZ::Mod1d rels);
     void AddPiRelsCof2S0(size_t iCof);
@@ -504,26 +518,15 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
-std::vector<std::string> GetDbNames(const std::string& selector);
+std::vector<std::string> GetDbNames(const std::string& selector, bool log=true);
 
-int main_basis_prod(int argc, char** argv, int index);
-int main_plot(int argc, char** argv, int index);
-int main_plotpi(int argc, char** argv, int index);
-int main_add_diff(int argc, char** argv, int index);
-int main_add_ext(int argc, char** argv, int index);
+
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_ext(int argc, char** argv, int index);
 int main_deduce_ext_def(int argc, char** argv, int index);
 int main_deduce_ext_def2(int argc, char** argv, int index);
 int main_deduce_ext_2tor(int argc, char** argv, int index);
-int main_deduce_migrate(int argc, char** argv, int index);
-
-int main_mod(int argc, char** argv, int index);
-
-int main_reset(int argc, char** argv, int index);
-int main_resetpi(int argc, char** argv, int index);
-int main_resetfrom(int argc, char** argv, int index);
-int main_truncate(int argc, char** argv, int index);
+int main_deduce_migrateV2(int argc, char** argv, int index);
 
 #endif

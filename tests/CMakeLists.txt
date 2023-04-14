@@ -23,8 +23,8 @@ add_test(NAME test_database COMMAND test_database)
 # A temporary target
 add_executable(tmp tmp.cpp)
 target_compile_features(tmp PRIVATE cxx_std_17)
-target_include_directories(tmp PRIVATE ../include)
-target_link_libraries(tmp PRIVATE algebras)
+target_include_directories(tmp PRIVATE ../include ../thirdparty/fmt)
+target_link_libraries(tmp PRIVATE algebras fmt)
 
 # target for benchmark
 add_executable(benchmark benchmark.cpp)

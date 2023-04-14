@@ -1,9 +1,8 @@
 #ifndef BENCHMARK_INCLUDED
 #define BENCHMARK_INCLUDED
-
-#include "utility.h"
-#include "myio.h"
-#include <iostream>
+#include <vector>
+#include <chrono>
+#include <string>
 
 namespace bench {
 /**
@@ -16,27 +15,10 @@ private:
     bool bPrinted_;
 
 public:
-    Timer() : bPrinted_(false)
-    {
-        start_ = std::chrono::system_clock::now();
-    }
-    ~Timer()
-    {
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed = end - start_;
-        if (!bPrinted_) {
-            myio::Logger::allfout() << "time: " << elapsed.count() << "s (" << ut::get_time() << ")\n";
-            std::cout << "\033[0;32m" << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
-        }
-    }
-    void print(const char* msg = "")
-    {
-        bPrinted_ = true;
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed = end - start_;
-        std::cout << "\033[0;32m" << msg << elapsed.count() << "s (" << ut::get_time() << ")\033[0m\n";
-        Reset();
-    }
+    Timer();
+    ~Timer();
+    void print(const char* msg = "");
+    std::string print2str();
     double Elapsed() const
     {
         std::chrono::duration<double> result = std::chrono::system_clock::now() - start_;
@@ -93,12 +75,7 @@ public:
         ended_ = false;
         n_ = n == -1 ? n : n_;
     }
-    static void print()
-    {
-        std::cout << "AccTimer:\n";
-        for (size_t i = 0; i < counts_.size(); ++i)
-            std::cout << i << ": " << counts_[i] << "s\n";
-    }
+    static void print();
 };
 
 /**
@@ -115,12 +92,7 @@ public:
         ++counts_[n];
     }
 
-    static void print()
-    {
-        std::cout << "Counter:\n";
-        for (size_t i = 0; i < counts_.size(); ++i)
-            std::cout << i << ": " << counts_[i] << "\n";
-    }
+    static void print();
 };
 
 /**
@@ -138,12 +110,7 @@ public:
             max_[n] = value;
     }
 
-    static void print()
-    {
-        std::cout << "MaxGetter:\n";
-        for (size_t i = 0; i < max_.size(); ++i)
-            std::cout << i << ": " << max_[i] << "\n";
-    }
+    static void print();
 };
 
 }  // namespace bench

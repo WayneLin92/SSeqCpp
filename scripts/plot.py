@@ -14,8 +14,9 @@ cosA = math.cos(Config.bullets_tilt_angle)
 sinA = math.sin(Config.bullets_tilt_angle)
 
 path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\index_tpl.html"
-path_html_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\AdamsSS_tmp\index.html"
-path_js_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\AdamsSS_tmp\data.js"
+path_html_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
+path_js_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
+
 
 ########################### Read #################################
 def has_table(c, table_name):

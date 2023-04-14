@@ -219,7 +219,7 @@ void DbAdamsSS::save_generators(const std::string& table_prefix, const alg2::Ada
         stmt.step_and_reset();
     }
 
-    myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
+    // myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
 }
 
 void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg, Poly1d>& gb) const
@@ -236,7 +236,7 @@ void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg
         }
     }
 
-    myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_relations!\n";
+    // myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_relations!\n";
 }
 
 void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<AdamsDeg, Mod1d>& gbm) const
@@ -254,7 +254,7 @@ void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<Adam
         }
     }
 
-    myio::Logger::out() << gbm.size() << " relations are inserted into " + table_prefix + "_relations!\n";
+    // myio::Logger::out() << gbm.size() << " relations are inserted into " + table_prefix + "_relations!\n";
 }
 
 template <typename T>
@@ -287,7 +287,7 @@ void DbAdamsSS::save_basis(const std::string& table_prefix, const std::map<alg2:
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_basis!\n";
 }
 
 void DbAdamsSS::save_basis_mod(const std::string& table_prefix, const std::map<alg2::AdamsDeg, alg2::MMod1d>& basis, const std::map<AdamsDeg, int2d>& repr) const
@@ -309,7 +309,7 @@ void DbAdamsSS::save_basis_mod(const std::string& table_prefix, const std::map<a
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_basis!\n";
 }
 
 AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
@@ -318,7 +318,7 @@ AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
     Statement stmt(*this, "SELECT s, t FROM " + table_prefix + "_generators ORDER BY id;");
     while (stmt.step() == MYSQLITE_ROW)
         result.push_back({stmt.column_int(0), stmt.column_int(1)});
-    myio::Logger::out() << "gen_adamsdegs loaded from " << table_prefix + "_generators, size=" << result.size() << '\n';
+    // myio::Logger::out() << "gen_adamsdegs loaded from " << table_prefix + "_generators, size=" << result.size() << '\n';
     return result;
 }
 
@@ -330,7 +330,7 @@ Poly1d DbAdamsSS::load_gb(const std::string& table_prefix, int t_max) const
         Poly g = Deserialize<Poly>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
-    myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
+    // myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
     return result;
 }
 
@@ -342,7 +342,7 @@ Mod1d DbAdamsSS::load_gb_mod(const std::string& table_prefix, int t_max) const
         Mod g = Deserialize<Mod>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
-    myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
+    // myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
     return result;
 }
 
@@ -356,7 +356,7 @@ std::map<AdamsDeg, Mon1d> DbAdamsSS::load_basis(const std::string& table_prefix)
         AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
         result[deg].push_back(Deserialize<Mon>(stmt.column_str(2)));
     }
-    myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
+    // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
     return result;
 }
 
@@ -370,7 +370,7 @@ std::map<AdamsDeg, MMod1d> DbAdamsSS::load_basis_mod(const std::string& table_pr
         AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
         result[deg].push_back(Deserialize<MMod>(stmt.column_str(2)));
     }
-    myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
+    // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
     return result;
 }
 
@@ -386,7 +386,7 @@ void DbAdamsSS::save_pi_generators(const std::string& table_prefix, const AdamsD
         stmt.step_and_reset();
     }
 
-    myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_pi_generators!\n";
+    // myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_pi_generators!\n";
 }
 
 void DbAdamsSS::save_pi_gb(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Poly1d>& gb, const std::map<AdamsDeg, int2d>& gb_Einf) const
@@ -406,7 +406,7 @@ void DbAdamsSS::save_pi_gb(const std::string& table_prefix, const std::map<Adams
         }
     }
 
-    myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_pi_relations!\n";
+    // myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_pi_relations!\n";
 }
 
 void DbAdamsSS::save_pi_gb_mod(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Mod1d>& gbm, const std::map<AdamsDeg, int2d>& gb_Einf) const
@@ -426,7 +426,7 @@ void DbAdamsSS::save_pi_gb_mod(const std::string& table_prefix, const std::map<A
         }
     }
 
-    myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_pi_relations!\n";
+    // myio::Logger::out() << count << " relations are inserted into " + table_prefix + "_pi_relations!\n";
 }
 
 void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<AdamsDeg, algZ::Mon1d>& basis, const std::map<AdamsDeg, int2d>& basis_Einf) const
@@ -449,7 +449,7 @@ void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<Ad
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
 void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::map<AdamsDeg, algZ::MMod1d>& basis, const std::map<AdamsDeg, int2d>& basis_Einf) const
@@ -472,7 +472,7 @@ void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::ma
         }
     }
 
-    myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
+    // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
 algZ::Poly1d DbAdamsSS::load_pi_gb(const std::string& table_prefix, int t_max) const
@@ -483,7 +483,7 @@ algZ::Poly1d DbAdamsSS::load_pi_gb(const std::string& table_prefix, int t_max) c
         algZ::Poly g = Deserialize<algZ::Poly>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
-    myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
+    // myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
     return result;
 }
 
@@ -495,7 +495,7 @@ algZ::Mod1d DbAdamsSS::load_pi_gb_mod(const std::string& table_prefix, int t_max
         algZ::Mod g = Deserialize<algZ::Mod>(stmt.column_str(0));
         result.push_back(std::move(g));
     }
-    myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
+    // myio::Logger::out() << "gb loaded from " << table_prefix + "_relations, size=" << result.size() << '\n';
     return result;
 }
 
@@ -509,7 +509,7 @@ std::map<AdamsDeg, algZ::Mon1d> DbAdamsSS::load_pi_basis(const std::string& tabl
         AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
         result[deg].push_back(Deserialize<algZ::Mon>(stmt.column_str(2)));
     }
-    myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
+    // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
     return result;
 }
 
@@ -523,7 +523,7 @@ std::map<AdamsDeg, algZ::MMod1d> DbAdamsSS::load_pi_basis_mod(const std::string&
         AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
         result[deg].push_back(Deserialize<algZ::MMod>(stmt.column_str(2)));
     }
-    myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
+    // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << count << '\n';
     return result;
 }
 

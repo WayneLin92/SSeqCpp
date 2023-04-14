@@ -1,14 +1,10 @@
 #include "myio.h"
 #include "utility.h"
+#include <iostream>
 
 /*********** FUNCTIONS **********/
 
 namespace myio {
-
-std::ofstream Logger::fout1_;
-std::ofstream Logger::fout2_;
-bool Logger::bInitialized = false;
-
 
 /*
 ** Consume and ignore string `pattern` from istream.
@@ -23,32 +19,18 @@ void consume(std::istream& sin, const char* pattern)
         sin.setstate(std::ios_base::badbit);
 }
 
-void Logger::Init(const char* filename, const char* filename1)
-{
-    bInitialized = true;
-    fout1_.open(filename, std::ofstream::app);
-    fout2_.open(filename1, std::ofstream::app);
-    fout1_ << "\nLogging start at " << ut::get_time() << std::endl;
-    fout2_ << "\nLogging start at " << ut::get_time() << std::endl;
-}
-
-std::ostream& Logger::smart_stream()
-{
-    return bInitialized ? fout1_ : std::cout;
-}
-
 bool UserConfirm()
 {
     std::string input;
     while (true) {
-        std::cout << "Input to confirm: [Y/N]" << std::endl;
+        fmt::print("Input to confirm: [Y/N]\n");
         std::cin >> input;
-        if (input == "Y")
+        if (input == "Y" || input == "y")
             return true;
-        else if (input == "N")
+        else if (input == "N" || input == "n")
             return false;
         else
-            std::cout << "Invalid input!\n";
+            fmt::print("Invalid input!\n");
     }
 }
 

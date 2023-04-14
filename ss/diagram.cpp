@@ -40,7 +40,7 @@ public:
 };
 
 /* Copy */
-void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max_zero)
+void migrateV2(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max_zero)
 {
     const auto& basis_ss1 = ss1.GetS0().nodes_ss;
 
@@ -72,7 +72,7 @@ void migrate(const Diagram& ss1, Diagram& ss2, Staircases& primitives, int t_max
     }
 }
 
-int main_deduce_migrate(int argc, char** argv, int index)  ////
+int main_deduce_migrateV2(int argc, char** argv, int index)  ////
 {
     std::string db_in = "";
     std::string table_in = "AdamsE2";
@@ -82,7 +82,7 @@ int main_deduce_migrate(int argc, char** argv, int index)  ////
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Deduce trivial differentials for degree reason\n";
-        std::cout << "Usage:\n  ss deduce migrate <db_in> <table_in> <db_out> <table_out> [t_max_zero]\n\n"; //TODO: delete tables
+        std::cout << "Usage:\n  ss deduce migrateV2 <db_in> <table_in> <db_out> <table_out> [t_max_zero]\n\n"; //TODO: delete tables
 
         std::cout << "Default values:\n";
 
@@ -110,7 +110,7 @@ int main_deduce_migrate(int argc, char** argv, int index)  ////
 
     try {
         Staircases primitives;
-        migrate(diagram1, diagram2, primitives, t_max_zero);
+        migrateV2(diagram1, diagram2, primitives, t_max_zero);
 
         db2.begin_transaction();
         db2.update_basis_ss(table_out, diagram2.GetBasisSSChanges(0));

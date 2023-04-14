@@ -1,9 +1,8 @@
 #ifndef MYIO_H
 #define MYIO_H
 
+#include <fmt/core.h>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -123,7 +122,7 @@ int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
         }
         std::istringstream ss(argv[index]);
         if (!(ss >> x)) {
-            std::cerr << "Invalid " << name << ": " << argv[index] << '\n';
+            fmt::print("Invalid: {}: {}\n", name, argv[index]);
             return 1;
         }
     }
@@ -137,7 +136,7 @@ int load_arg(int argc, char** argv, int index, const char* name, T& x)
         return load_op_arg(argc, argv, index, name, x);
     }
     else {
-        std::cout << "Mising argument <" << name << ">\n";
+        fmt::print("Mising argument <{}>\n", name);
         return 2;
     }
     return 0;
@@ -156,100 +155,7 @@ int load_args(int argc, char** argv, int index, const char* name, std::vector<T>
     return 0;
 }
 
-/**
- * The class `Counter` records counts in a static variable.
- */
-class Logger
-{
-private:
-    static std::ofstream fout1_;
-    static std::ofstream fout2_;
-    static bool bInitialized;
-
-    /* 0: smart mode
-     * 1: file out mode
-     * 1: std out mode
-     * 3: double out mode
-     */
-    int mode_;
-    static std::ostream& smart_stream();
-
-public:
-    Logger(int mode) : mode_(mode) {}
-
-    static void Init(const char* filename, const char* filename1);
-
-    /* either std::cout or fout1_ */
-    static Logger out()
-    {
-        return Logger(0);
-    }
-
-    static Logger fout()
-    {
-        return Logger(2);
-    }
-
-    static Logger fout2()
-    {
-        return Logger(4);
-    }
-
-    /* Output to both log file and std::cout */
-    static Logger cout_fout()
-    {
-        return Logger(1 + 2);
-    }
-
-    /* Output to both log file and std::cout */
-    static Logger cout_fout2()
-    {
-        return Logger(1 + 4);
-    }
-
-    static Logger allfout()
-    {
-        return Logger(2 + 4);
-    }
-
-    static Logger allout()
-    {
-        return Logger(1 + 2 + 4);
-    }
-
-    template <typename T>
-    Logger operator<<(const T& x)
-    {
-        if (mode_ == 0) {
-            smart_stream() << x;
-        }
-        else {
-            if (mode_ & 1)
-                std::cout << x;
-            if ((mode_ & 2) && bInitialized)
-                fout1_ << x;
-            if ((mode_ & 4) && bInitialized)
-                fout2_ << x;
-        }
-        return *this;
-    }
-
-    void endl()
-    {
-        if (mode_ == 0) {
-            smart_stream() << std::endl;
-        }
-        else {
-            if (mode_ & 1)
-                std::cout << std::endl;
-            if ((mode_ & 2) && bInitialized)
-                fout1_ << std::endl;
-            if ((mode_ & 4) && bInitialized)
-                fout2_ << std::endl;
-        }
-    }
-};
-
+/* Return true if user inputs Y; Return false if user inputs N */
 bool UserConfirm();
 
 }  // namespace myio

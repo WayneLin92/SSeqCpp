@@ -1,5 +1,6 @@
 #include "algebras/linalg.h"
 #include "main.h"
+#include "mylog.h"
 #include <set>
 
 /* Deduce zero differentials for degree reason
@@ -49,6 +50,7 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
     AddNode(flag);
     bool bException = false;
     try {
+        Logger::LogDiff(depth + 1, enumReason::try_, all_names_[iSS], deg_x, x, dx, r);
         SetDiffLeibnizV2(iSS, deg_x, x, dx, r, flag & DeduceFlag::fast_try_diff);
         int count_trivial = DeduceTrivialDiffs();
 
@@ -70,8 +72,6 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
         }
     }
     catch (SSException&) {
-        /*std::cout << iSS << ' ' << deg_x.StrAdams() << ' ' << x << ' ' << r << ' ' << dx << '\n';
-        std::cout << std::hex << e.id() << ": " << e.what() << '\n';*/
         bException = true;
     }
     PopNode(flag);
@@ -176,21 +176,12 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
 
         if (bNewDiff) {
             ++count;
+            Logger::PrintDepth();
+            if (nd.r > 0)
+                Logger::LogDiff(depth, enumReason::deduce, name, deg, x, dx, r);
+            else
+                Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
             SetDiffLeibnizV2(iSS, deg_src, x, dx, r);
-            if (depth == 0) {
-                if (deg.stem() <= 127) {
-                    if (x.empty() || dx.empty())
-                        color = "\033[38;2;255;150;150m";
-                    else
-                        color = "\033[38;2;255;100;100m";
-                }
-                else
-                    color = "";
-                if (nd.r > 0)
-                    std::cout << color << name << "  " << deg.StrAdams() << "  d_{" << r << '}' << x << '=' << dx << "                  " + color_end + '\n';
-                else
-                    std::cout << color << name << "  " << deg.StrAdams() << "  " << dx << "=d_{" << r << '}' << x << "                  " + color_end + '\n';
-            }
             int count_trivial = DeduceTrivialDiffs();
             count += count_trivial;
             CacheNullDiffs(iSS, deg, flag, nds);
@@ -209,6 +200,8 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                     DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
             }
         }
+        else
+            Logger::ClearDepth();
     }
     return count;
 }
@@ -227,7 +220,6 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
     }
 
     for (size_t iSS = 0; iSS < all_basis_ss_.size(); ++iSS) {
-        // auto& nodes_ss = *all_basis_ss_[iSS];
         auto& name = all_names_[iSS];
         auto& degs = [&]() {
             if (iSS == 0)
@@ -308,7 +300,7 @@ int main_deduce_diff(int argc, char** argv, int index)
             diagram.SimplifyPiRels();
         }
         diagram.save(dbnames, flag);
-        myio::Logger::cout_fout() << "Changed differentials: " << count << '\n';
+        Logger::LogSummary("Changed differentials", count);
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {

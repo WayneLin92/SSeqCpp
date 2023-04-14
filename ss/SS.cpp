@@ -1,5 +1,7 @@
 #include "algebras/linalg.h"
 #include "main.h"
+#include "mylog.h"
+#include <fmt/ranges.h>
 
 std::string GetComplexName(const std::string& db)
 {
@@ -231,8 +233,10 @@ void Diagram::save(const std::vector<std::string>& dbnames, DeduceFlag flag)
             else {
                 db.drop_and_create_pi_generators_mod(pi_table);
                 auto& Cof = ssCofs_[k - 1];
-                if (Cof.pi_qt.size() != 1)
+                if (Cof.pi_qt.size() != 1) {
+                    Logger::LogException(0, 0x925afecU, "Not on the initial node\n");
                     throw MyException(0x925afecU, "Not on the initial node");
+                }
                 db.save_pi_generators_mod(pi_table, Cof.pi_gb.v_degs(), Cof.pi_gen_Einf, Cof.pi_qt.front());
                 db.save_pi_gb_mod(pi_table, Cof.pi_gb.OutputForDatabase(), GetCofGbEinf(k - 1));
                 db.save_pi_basis_mod(pi_table, Cof.pi_basis.front());
@@ -250,7 +254,8 @@ const Staircase& Diagram::GetRecentStaircase(const Staircases1d& nodes_ss, Adams
     for (auto p = nodes_ss.rbegin(); p != nodes_ss.rend(); ++p)
         if (p->find(deg) != p->end())
             return p->at(deg);
-    throw MyException(0x553989e0U, "RecentStaircase not found. deg=" + deg.Str());
+    Logger::LogException(0, 0x553989e0U, "RecentStaircase not found. deg={}\n", deg);
+    throw MyException(0x553989e0U, "RecentStaircase not found.");
 }
 
 /* Add a node */
@@ -520,14 +525,14 @@ bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1
     return false;
 }  // TODO: replace int1d{-1}
 
-void Diagram::SetDiff(Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r)
+void Diagram::SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
 
     /* If x is zero then dx is in Im(d_{r-1}) */
     if (x_.empty()) {
         if (dx != int1d{-1} && !dx.empty())
-            SetImage(nodes_ss, deg_dx, dx, {-1}, r - 1);
+            SetImageSc(name, nodes_ss, deg_dx, dx, {-1}, r - 1);
         return;
     }
 
@@ -537,7 +542,7 @@ void Diagram::SetDiff(Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x_, c
     if (x.empty()) {
         /* If x is in Ker(d_r) then dx is in Im(d_{r-1}) */
         if (dx != int1d{-1} && !dx.empty())
-            SetImage(nodes_ss, deg_dx, dx, {-1}, r - 1);
+            SetImageSc(name, nodes_ss, deg_dx, dx, {-1}, r - 1);
         return;
     }
 
@@ -563,26 +568,28 @@ void Diagram::SetDiff(Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x_, c
         if (level_image_new < kLevelMax / 2) {
             /* Add a d_{r1-1} image */
             AdamsDeg deg_image_new = deg_x + AdamsDeg{level_image_new, level_image_new - 1};
-            SetImage(nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
+            SetImageSc(name, nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
         }
         else {
             /* Add a d_{r1} cycle */
             int r_image = kLevelMax - level_image_new;
             AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, r_image - 1};
-            SetDiff(nodes_ss, deg_image_new, image_new, {}, r_image);
+            SetDiffSc(name, nodes_ss, deg_image_new, image_new, {}, r_image);
         }
     }
 
     /* Add image */
     if (dx != int1d{-1} && !dx.empty())
-        SetImage(nodes_ss, deg_dx, dx, x, r);
+        SetImageSc(name, nodes_ss, deg_dx, dx, x, r);
 }
 
-void Diagram::SetImage(Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
+void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
 {
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
-    if (deg_x.s < 0)
-        throw SSException(0x7dc5fa8cU, "7dc5fa8cU: No source for the image. deg_dx=" + deg_dx.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx_));
+    if (deg_x.s < 0) {
+        Logger::LogException(int(nodes_ss.size() - 2), 0x7dc5fa8cU, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx_, r);
+        throw SSException(0x7dc5fa8cU, "No source for the image.");
+    }
 
     /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
     const Staircase& sc = GetRecentStaircase(nodes_ss, deg_dx);
@@ -590,7 +597,7 @@ void Diagram::SetImage(Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_
     int1d dx = lina::Residue(sc.basis_ind.begin(), sc.basis_ind.begin() + first_r, dx_);
     if (dx.empty()) {
         if (x != int1d{-1} && !x.empty())
-            SetDiff(nodes_ss, deg_x, x, {-1}, r + 1);
+            SetDiffSc(name, nodes_ss, deg_x, x, {-1}, r + 1);
         return;
     }
 
@@ -602,29 +609,28 @@ void Diagram::SetImage(Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_
         dx = lina::Residue(sc.basis_ind.begin() + first_r, sc.basis_ind.begin() + first_rp2, dx);
         if (!dx.empty()) {
             if (!IsPossTgt(nodes_ss, deg_dx, r)) {
-                /*if (deg_dx == AdamsDeg(17, 90) && nodes_ss.size() == 2)
-                    throw TerminationException(1, "end");*/
-                throw SSException(0x75989376U, "75989376U: No source for the image. deg_dx=" + deg_dx.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(dx));
+                Logger::LogException(int(nodes_ss.size() - 2), 0x75989376U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx, r);
+                throw SSException(0x75989376U, "No source for the image.");
             }
             UpdateStaircase(nodes_ss, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
         }
     }
     else {
         /* Otherwise insert it to the beginning of level r */
-        UpdateStaircase(nodes_ss, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);  //
+        UpdateStaircase(nodes_ss, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);
     }
 
     if (level_image_new != -1) {
         if (level_image_new < kLevelMax / 2) {
             /* Add a d_{r1-1} image */
             AdamsDeg deg_image_new = deg_dx + AdamsDeg{level_image_new, level_image_new - 1};
-            SetImage(nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
+            SetImageSc(name, nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
         }
         else {
             /* Add a d_r1 cycle */
             int r_image = kLevelMax - level_image_new;
             AdamsDeg deg_image_new = deg_dx - AdamsDeg{r_image, r_image - 1};
-            SetDiff(nodes_ss, deg_image_new, image_new, {-1}, r_image + 1);
+            SetDiffSc(name, nodes_ss, deg_image_new, image_new, {-1}, r_image + 1);
         }
     }
 }
@@ -701,7 +707,7 @@ int Diagram::SetS0DiffLeibniz(AdamsDeg deg_x, const int1d& x, const int1d& dx, i
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
-                    SetDiff(nodes_ss, deg_xy, xy, dxy, R);
+                    SetDiffSc("S0", nodes_ss, deg_xy, xy, dxy, R);
                     ++count;
                 }
             }
@@ -718,10 +724,11 @@ int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, cons
 #endif
     int count = 0;
 
-    auto& nodes_ss = ssCofs_[iCof].nodes_ss;
-    auto& basis = ssCofs_[iCof].basis;
-    auto& gb = ssCofs_[iCof].gb;
-    int t_max = ssCofs_[iCof].t_max;
+    auto& ssCof = ssCofs_[iCof];
+    auto& nodes_ss = ssCof.nodes_ss;
+    auto& basis = ssCof.basis;
+    auto& gb = ssCof.gb;
+    const int t_max = ssCof.t_max;
     Mod poly_x = Indices2Mod(x, basis.at(deg_x));
 
     for (auto& [deg_y, basis_ss_d_original] : ssS0_.nodes_ss.front()) {
@@ -764,7 +771,7 @@ int Diagram::SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, cons
             }
 
             if (!xy.empty() || !dxy.empty()) {
-                SetDiff(nodes_ss, deg_xy, xy, dxy, R);
+                SetDiffSc(ssCof.name, nodes_ss, deg_xy, xy, dxy, R);
                 ++count;
             }
         }
@@ -863,9 +870,12 @@ int Diagram::SetS0ImageLeibniz(AdamsDeg deg_x, const int1d& x, int r)
 {
     int count = 0;
 
+    const int r_original = r;
     r = NextRSrc(ssS0_.nodes_ss, deg_x, r);
-    if (r == -1)
-        throw SSException(0x51274f1dU, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " r=" + std::to_string(r) + " dx=" + myio::Serialize(x));
+    if (r == -1) {
+        Logger::LogException(int(ssS0_.nodes_ss.size() - 2), 0x51274f1dU, "No source for the image. S0 deg_dx={}, dx={}, r={}\n", deg_x, x, r_original);
+        throw SSException(0x51274f1dU, "No source for the image.");
+    }
 
     Poly poly_x = Indices2Poly(x, ssS0_.basis.at(deg_x));
     for (size_t k = 0; k < all_basis_ss_.size(); ++k) {
@@ -898,7 +908,7 @@ int Diagram::SetS0ImageLeibniz(AdamsDeg deg_x, const int1d& x, int r)
                 }
 
                 if (!xy.empty()) {
-                    SetImage(nodes_ss, deg_xy, xy, {-1}, r);
+                    SetImageSc("S0", nodes_ss, deg_xy, xy, {-1}, r);
                     ++count;
                 }
             }
@@ -911,16 +921,17 @@ int Diagram::SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int
 {
     int count = 0;
 
-    auto& nodes_ss = ssCofs_[iCof].nodes_ss;
-    auto& basis = ssCofs_[iCof].basis;
-    auto& gb = ssCofs_[iCof].gb;
-    int t_max = ssCofs_[iCof].t_max;
+    auto& ssCof = ssCofs_[iCof];
+    auto& nodes_ss = ssCof.nodes_ss;
+    auto& basis = ssCof.basis;
+    auto& gb = ssCof.gb;
+    int t_max = ssCof.t_max;
 
+    const int r_original = r;
     r = NextRSrc(nodes_ss, deg_x, r);
     if (r == -1) {
-        if (nodes_ss.size() == 2)
-            std::cout << ssCofs_[iCof].name << " " << deg_x.StrAdams() << " x=" << x << '\n';
-        throw SSException(0xda298807U, "bef9931bU: No source for the image. deg_dx=" + deg_x.StrAdams() + " dx=" + myio::Serialize(x));
+        Logger::LogException(int(nodes_ss.size() - 2), 0xda298807U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", ssCof.name, deg_x, x, r_original);
+        throw SSException(0xda298807U, "No source for the image.");
     }
 
     Mod poly_x = Indices2Mod(x, basis.at(deg_x));
@@ -939,7 +950,7 @@ int Diagram::SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int
             int1d xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_xy)) : int1d();
 
             if (!xy.empty()) {
-                SetImage(nodes_ss, deg_xy, xy, {-1}, r);
+                SetImageSc(ssCof.name, nodes_ss, deg_xy, xy, {-1}, r);
                 ++count;
             }
         }

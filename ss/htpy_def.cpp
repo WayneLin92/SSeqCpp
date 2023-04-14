@@ -1,5 +1,6 @@
-#include "algebras/linalg.h"
+#include "mylog.h"
 #include "main.h"
+#include "algebras/linalg.h"
 
 bool EndWithIndAndO(const algZ::Poly& p, uint32_t& gen_id)
 {
@@ -187,8 +188,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
                     ssS0_.pi_gen_defs[gen_id] = DefFlag::dec;
                     algZ::Poly rel1 = DefRel(rel, pi_gb);
 
-                    if (depth == 0)
-                        myio::Logger::cout_fout2() << "By definition:  S0  stem=" << deg.stem() << "  " << rel << " --> " << rel1 << '\n';
+                    Logger::LogHtpyRel(depth, enumReason::def, "S0", deg, rel, rel1);
                     new_rels.push_back(std::move(rel1));
                     ++count_homotopy;
                 }
@@ -215,9 +215,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
                 if (ssCof.pi_gen_defs[v_id] == DefFlag::no_def) {
                     ssCof.pi_gen_defs[v_id] = DefFlag::dec;
                     algZ::Mod rel1 = DefRel(rel, pi_gb);
-
-                    if (depth == 0)
-                        myio::Logger::cout_fout2() << "By definition:  " << ssCof.name << "  stem=" << deg.stem() << "  " << rel << " --> " << rel1 << '\n';
+                    Logger::LogHtpyRel(depth, enumReason::def, ssCof.name, deg, rel, rel1);
                     new_rels.push_back(std::move(rel1));
                     ++count_homotopy;
                 }
@@ -412,8 +410,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     GetImageLeads(indeterminancy, m_by_ind, ssS0_.pi_gb, ssS0_.pi_gb, num_leads);
                     algZ::Poly prod_extended = prod_reduced;
                     if (ExtendRelS0V2(d_prod.stem(), prod_extended, num_leads)) {
-                        if (depth == 0)
-                            myio::Logger::cout_fout2() << "By definition:  S0  " << m << '*' << g << '=' << prod_reduced << " --> " << prod_extended << '\n';
+                        Logger::LogHtpyProd(depth, enumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
                         prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
                         ssS0_.pi_gen_defs[gen_id] = DefFlag::constraints;
                         ssS0_.pi_gen_def_mons[gen_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
@@ -468,8 +465,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     GetImageLeads(indeterminancy, m_by_ind, ssCof.pi_gb, ssCof.pi_gb, num_leads);
                     algZ::Mod prod_extended = prod_reduced;
                     if (ExtendRelCofV2(iCof, d_prod.stem(), prod_extended, num_leads)) {
-                        if (depth == 0)
-                            myio::Logger::cout_fout2() << "By definition:  " << ssCof.name << "  " << m << '*' << g << '=' << prod_reduced << " --> " << prod_extended << '\n';
+                        Logger::LogHtpyProd(depth, enumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
                         prod_extended.isubP(prod, tmpm, pi_gb.gen_2tor_degs());
                         ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
                         ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
@@ -527,16 +523,15 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     algZ::Poly q_prod_extended = q_prod_reduced;
                     if (ExtendRelS0V2(d_q.stem(), q_prod_extended, num_leads)) {
                         if (m) {
-                            if (depth == 0)
-                                myio::Logger::cout_fout2() << "By definition:  " << ssCof.name << "  q(" << m << '*' << g << ")=" << m << '*' << ssCof.pi_qt.back()[v_id] << "=" << q_prod_reduced << " --> " << q_prod_extended << '\n';
+                            std::string qm = fmt::format("q*{}", algZ::Poly(m));
+                            Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, qm, v_id, q_prod_reduced, q_prod_extended);
                             q_prod_extended.isubP(q_prod, tmp, pi_gb.gen_2tor_degs());
                             ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
                             ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
                             new_rels_S0.push_back(std::move(q_prod_extended));
                         }
                         else {
-                            if (depth == 0)
-                                myio::Logger::cout_fout2() << "By definition:  " << ssCof.name << "  q" << v_id << "=" << q_prod_reduced << " --> " << q_prod_extended << '\n';
+                            Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
                             ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
                             ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
                             ssCof.pi_qt.back()[v_id] = std::move(q_prod_extended);

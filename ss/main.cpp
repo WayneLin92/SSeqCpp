@@ -1,6 +1,7 @@
 #include "main.h"
 #include "algebras/myio.h"
 #include "algebras/utility.h"
+#include "mylog.h"
 #include <iostream>
 
 #ifndef MYDEPLOY
@@ -8,13 +9,23 @@ std::vector<int> bench::Counter::counts_ = {0, 0, 0};
 std::vector<int> bench::MaxGetter::max_ = {0};
 #endif
 
+int main_basis_prod(int argc, char** argv, int index);
+int main_plot(int argc, char** argv, int index);
+int main_plotpi(int argc, char** argv, int index);
+int main_add_diff(int argc, char** argv, int index);
+int main_add_ext(int argc, char** argv, int index);
+
+int main_mod(int argc, char** argv, int index);
+
+int main_reset(int argc, char** argv, int index);
+int main_resetpi(int argc, char** argv, int index);
+int main_resetfrom(int argc, char** argv, int index);
+int main_migrate_ss(int argc, char** argv, int index);
+
 int main(int argc, char** argv)
 {
-    myio::Logger::Init("ss.log", "ss_deduce.log");
-    myio::Logger::allfout() << "cmd: ";
-    for (int i = 0; i < argc; ++i)
-        myio::Logger::allfout() << argv[i] << ' ';
-    myio::Logger::allfout().endl();
+    Logger::SetOutMain("ss.log");
+    Logger::LogCmd(argc, argv);
 
     bench::Timer timer;
 
@@ -40,30 +51,34 @@ int main(int argc, char** argv)
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
         return index;
 
+    int rt = 0;
     if (cmd == "reset")
-        return main_reset(argc, argv, index);
+        rt = main_reset(argc, argv, index);
     else if (cmd == "resetpi")
-        return main_resetpi(argc, argv, index);
+        rt = main_resetpi(argc, argv, index);
     else if (cmd == "resetfrom")
-        return main_resetfrom(argc, argv, index);
-    else if (cmd == "truncate")
-        return main_truncate(argc, argv, index);
+        rt = main_resetfrom(argc, argv, index);
+    else if (cmd == "migrate_ss")
+        rt = main_migrate_ss(argc, argv, index);
     else if (cmd == "basis_prod")
-        return main_basis_prod(argc, argv, index);
+        rt = main_basis_prod(argc, argv, index);
     else if (cmd == "plot")
-        return main_plot(argc, argv, index);
+        rt = main_plot(argc, argv, index);
     else if (cmd == "plotpi")
-        return main_plotpi(argc, argv, index);
+        rt = main_plotpi(argc, argv, index);
     else if (cmd == "add_diff")
-        return main_add_diff(argc, argv, index);
+        rt = main_add_diff(argc, argv, index);
     else if (cmd == "add_ext")
-        return main_add_ext(argc, argv, index);
+        rt = main_add_ext(argc, argv, index);
     else if (cmd == "deduce")
-        return main_deduce(argc, argv, index);
+        rt = main_deduce(argc, argv, index);
     else if (cmd == "mod")
-        return main_mod(argc, argv, index);
+        rt = main_mod(argc, argv, index);
     else {
         std::cerr << "Invalid cmd: " << cmd << '\n';
-        return 0;
+        return -1;
     }
+
+    Logger::LogTime(timer.print2str());
+    return rt;
 }

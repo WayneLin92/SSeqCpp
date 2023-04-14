@@ -1,0 +1,1 @@
+#    define FMT_USE_FCNTL 1
