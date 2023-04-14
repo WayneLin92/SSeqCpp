@@ -15,21 +15,21 @@ int Diagram::DeduceTrivialDiffs()
             for (auto& [d, basis_ss_d] : nodes_ss.front()) {
                 const Staircase& sc = GetRecentStaircase(nodes_ss, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    if (sc.diffs_ind[i] == int1d{-1}) {
+                    if (sc.diffs[i] == NULL_DIFF) {
                         if (sc.levels[i] > kLevelPC) {
-                            const int r = kLevelMax - sc.levels[i];
+                            const int r = LEVEL_MAX - sc.levels[i];
                             /* Find the first possible d_{r1} target for r1>=r */
                             int r1 = NextRTgt(nodes_ss, t_max, d, r);
                             if (r != r1) {
-                                SetDiffLeibnizV2(k, d, sc.basis_ind[i], {}, r);
+                                SetDiffGlobal(k, d, sc.basis[i], {}, r);
                                 ++count_new_diffs;
                             }
                         }
-                        else if (sc.levels[i] < kLevelMax / 2) {
+                        else if (sc.levels[i] < LEVEL_MAX / 2) {
                             const int r = sc.levels[i];
                             int r1 = NextRSrc(nodes_ss, d, r);
                             if (r != r1) {
-                                SetDiffLeibnizV2(k, d - AdamsDeg(r, r - 1), {}, sc.basis_ind[i], r);
+                                SetDiffGlobal(k, d - AdamsDeg(r, r - 1), {}, sc.basis[i], r);
                                 ++count_new_diffs;
                             }
                         }
@@ -51,7 +51,7 @@ int Diagram::TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx
     bool bException = false;
     try {
         Logger::LogDiff(depth + 1, enumReason::try_, all_names_[iSS], deg_x, x, dx, r);
-        SetDiffLeibnizV2(iSS, deg_x, x, dx, r, flag & DeduceFlag::fast_try_diff);
+        SetDiffGlobal(iSS, deg_x, x, dx, r, flag & DeduceFlag::fast_try_diff);
         int count_trivial = DeduceTrivialDiffs();
 
         /*if (flag & DeduceFlag::set_diff)
@@ -113,7 +113,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                 const Staircase& sc_tgt = GetRecentStaircase(nodes_ss, deg_tgt);
                 dx1.clear();
                 for (int j : two_expansion(i))
-                    dx1 = lina::AddVectors(dx1, sc_tgt.basis_ind[(size_t)(nd.first + j)]);
+                    dx1 = lina::AddVectors(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
 
                 if (!TryDiff(iSS, deg_src, x, dx1, r, depth, flag)) {
                     ++count_pass;
@@ -150,7 +150,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
             for (unsigned i = 1; i < i_max; ++i) {
                 x1.clear();
                 for (int j : two_expansion(i))
-                    x1 = lina::AddVectors(x1, sc_src.basis_ind[(size_t)(nd.first + j)]);
+                    x1 = lina::AddVectors(x1, sc_src.basis[(size_t)(nd.first + j)]);
 
                 if (!TryDiff(iSS, deg_src, x1, dx, r, depth, flag)) {
                     ++count_pass;
@@ -181,7 +181,7 @@ int Diagram::DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag)
                 Logger::LogDiff(depth, enumReason::deduce, name, deg, x, dx, r);
             else
                 Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
-            SetDiffLeibnizV2(iSS, deg_src, x, dx, r);
+            SetDiffGlobal(iSS, deg_src, x, dx, r);
             int count_trivial = DeduceTrivialDiffs();
             count += count_trivial;
             CacheNullDiffs(iSS, deg, flag, nds);

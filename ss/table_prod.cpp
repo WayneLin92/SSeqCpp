@@ -107,7 +107,7 @@ public:
             basis.push_back(myio::Deserialize<Mon>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        //myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
+        // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
 
     void load_basis_mod_v2(const std::string& table_prefix, MMod1d& basis, AdamsDeg1d& deg_basis) const
@@ -118,7 +118,7 @@ public:
             basis.push_back(myio::Deserialize<MMod>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        //myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
+        // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
     }
 
     void load_basis_ss_v2(const std::string& table_prefix, int2d& nodes_ss, AdamsDeg1d& deg_basis) const
@@ -129,7 +129,7 @@ public:
             nodes_ss.push_back(myio::Deserialize<int1d>(stmt.column_str(0)));
             deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
         }
-        //myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << nodes_ss.size() << '\n';
+        // myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << nodes_ss.size() << '\n';
     }
 };
 
@@ -319,7 +319,7 @@ int main_plot(int argc, char** argv, int index)
             auto& nodes_ss = all_basis_ss[i]->front();
             auto degs = OrderDegsV2(nodes_ss);
             for (auto& d : degs) {
-                for (auto& b : nodes_ss.at(d).basis_ind) {
+                for (auto& b : nodes_ss.at(d).basis) {
                     basis_sss[i].push_back(b);
                     deg_bases[i].push_back(d);
                 }
@@ -339,7 +339,7 @@ int main_plot(int argc, char** argv, int index)
                         Poly poly_prod = ssS0.gb.Reduce(bi * bj);
                         if (poly_prod) {
                             int1d prod = Poly2Indices(poly_prod, ssS0.basis.at(deg_prod));
-                            prod = lina::GetInvImage(ssS0.nodes_ss.front().at(deg_prod).basis_ind, prod);
+                            prod = lina::GetInvImage(ssS0.nodes_ss.front().at(deg_prod).basis, prod);
                             for (size_t k = 0; k < prod.size(); ++k)
                                 prod[k] += deg2ids[0][deg_prod];
 
@@ -371,7 +371,7 @@ int main_plot(int argc, char** argv, int index)
                         Mod x_prod = gb.Reduce(ai.GetLead() * bj);
                         if (x_prod) {
                             int1d prod = Mod2Indices(x_prod, basis.at(deg_prod));
-                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis_ind, prod);
+                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
                             for (size_t l = 0; l < prod.size(); ++l)
                                 prod[l] += deg2ids[k][deg_prod];
 
@@ -394,10 +394,10 @@ int main_plot(int argc, char** argv, int index)
         for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             for (size_t i = 0; i < basis_ss_d.levels.size(); ++i) {
                 int src = deg2ids[k][deg] + (int)i;
-                if (basis_ss_d.levels[i] > 9800 && basis_ss_d.diffs_ind[i] != int1d{-1}) {
-                    int r = kLevelMax - basis_ss_d.levels[i];
+                if (basis_ss_d.levels[i] > 9800 && basis_ss_d.diffs[i] != NULL_DIFF) {
+                    int r = LEVEL_MAX - basis_ss_d.levels[i];
                     AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
-                    int1d tgt = lina::GetInvImage(nodes_ss.front().at(deg_tgt).basis_ind, basis_ss_d.diffs_ind[i]);
+                    int1d tgt = lina::GetInvImage(nodes_ss.front().at(deg_tgt).basis, basis_ss_d.diffs[i]);
                     for (size_t l = 0; l < tgt.size(); ++l)
                         tgt[l] += deg2ids[k][deg_tgt];
 
@@ -428,16 +428,16 @@ int main_plot(int argc, char** argv, int index)
             for (auto& nd : nds) {
                 auto& basis_ss_d = all_basis_ss[iSS]->front().at(deg);
                 size_t index = 0;
-                while (index < basis_ss_d.basis_ind.size() && basis_ss_d.basis_ind[index] != nd.x)
+                while (index < basis_ss_d.basis.size() && basis_ss_d.basis[index] != nd.x)
                     ++index;
-                if (index == basis_ss_d.basis_ind.size())
+                if (index == basis_ss_d.basis.size())
                     throw MyException(0xef63215fU, "nd could be wrong");
                 int src = deg2ids[iSS][deg] + (int)index;
                 if (basis_ss_d.levels[index] > 9800) {
                     int1d tgt;
                     for (int j = nd.first; j < nd.first + nd.count; ++j)
                         tgt.push_back(j);
-                    int r = kLevelMax - basis_ss_d.levels[index];
+                    int r = LEVEL_MAX - basis_ss_d.levels[index];
                     AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
                     for (size_t j = 0; j < tgt.size(); ++j)
                         tgt[j] += deg2ids[iSS][deg_tgt];

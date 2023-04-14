@@ -517,7 +517,7 @@ def export_ss_bullets(data, radius, is_ring: bool):
             else:
                 index_first_bullet = offset_x + int(base.split(",")[0])
                 if index_first_bullet in data["bullets_ind"]:
-                    str_fill = ' fill="Maroon"'
+                    str_fill = ' fill="blue"'
                 elif index_first_bullet in data["bullets_from_S0"]:
                     str_fill = ""
                 else:

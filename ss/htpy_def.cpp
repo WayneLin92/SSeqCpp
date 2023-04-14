@@ -174,7 +174,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
     { /* sphere */
         auto& pi_gb = ssS0_.pi_gb;
         if (ssS0_.pi_gen_defs.size() < ssS0_.pi_gb.gen_degs().size())
-            ssS0_.pi_gen_defs.resize(ssS0_.pi_gb.gen_degs().size(), DefFlag::no_def);
+            ssS0_.pi_gen_defs.resize(ssS0_.pi_gb.gen_degs().size(), EnumDef::no_def);
         if (ssS0_.pi_gen_def_mons.size() < ssS0_.pi_gb.gen_degs().size())
             ssS0_.pi_gen_def_mons.resize(ssS0_.pi_gb.gen_degs().size());
 
@@ -184,8 +184,8 @@ int Diagram::DefineDependenceInExtensions(int depth)
             uint32_t gen_id = -1;
             if (EndWithIndAndO(rel, gen_id)) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), pi_gb.gen_degs());
-                if (ssS0_.pi_gen_defs[gen_id] == DefFlag::no_def) {
-                    ssS0_.pi_gen_defs[gen_id] = DefFlag::dec;
+                if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def) {
+                    ssS0_.pi_gen_defs[gen_id] = EnumDef::dec;
                     algZ::Poly rel1 = DefRel(rel, pi_gb);
 
                     Logger::LogHtpyRel(depth, enumReason::def, "S0", deg, rel, rel1);
@@ -202,7 +202,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
         auto& nodes_ss = ssCof.nodes_ss;
 
         if (ssCof.pi_gen_defs.size() < ssCof.pi_gb.v_degs().size())
-            ssCof.pi_gen_defs.resize(ssCof.pi_gb.v_degs().size(), DefFlag::no_def);
+            ssCof.pi_gen_defs.resize(ssCof.pi_gb.v_degs().size(), EnumDef::no_def);
         if (ssCof.pi_gen_def_mons.size() < ssCof.pi_gb.v_degs().size())
             ssCof.pi_gen_def_mons.resize(ssCof.pi_gb.v_degs().size());
 
@@ -212,8 +212,8 @@ int Diagram::DefineDependenceInExtensions(int depth)
             uint32_t v_id = -1;
             if (EndWithIndAndO(rel, v_id)) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), ssS0_.pi_gb.gen_degs(), pi_gb.v_degs());
-                if (ssCof.pi_gen_defs[v_id] == DefFlag::no_def) {
-                    ssCof.pi_gen_defs[v_id] = DefFlag::dec;
+                if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def) {
+                    ssCof.pi_gen_defs[v_id] = EnumDef::dec;
                     algZ::Mod rel1 = DefRel(rel, pi_gb);
                     Logger::LogHtpyRel(depth, enumReason::def, ssCof.name, deg, rel, rel1);
                     new_rels.push_back(std::move(rel1));
@@ -237,8 +237,8 @@ int Diagram::DefineDependenceInExtensions(int depth)
     //            uint32_t gen_id = -1;
     //            if (EndWithIndAndO(qi, gen_id)) {
     //                AdamsDeg deg = GetDeg(qi.GetLead(), ssS0_.pi_gb.gen_degs());
-    //                if (ssS0_.pi_gen_defs[gen_id] == DefFlag::no_def) {
-    //                    ssS0_.pi_gen_defs[gen_id] = DefFlag::dec;
+    //                if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def) {
+    //                    ssS0_.pi_gen_defs[gen_id] = EnumDef::dec;
     //                    algZ::Poly qi1 = DefPoly(qi, ssS0_.pi_gb);
 
     //                    if (depth == 0)
@@ -373,13 +373,13 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
         { /* sphere */
             auto& pi_gb = ssS0_.pi_gb;
             if (ssS0_.pi_gen_defs.size() < ssS0_.pi_gb.gen_degs().size())
-                ssS0_.pi_gen_defs.resize(ssS0_.pi_gb.gen_degs().size(), DefFlag::no_def);
+                ssS0_.pi_gen_defs.resize(ssS0_.pi_gb.gen_degs().size(), EnumDef::no_def);
             if (ssS0_.pi_gen_def_mons.size() < ssS0_.pi_gb.gen_degs().size())
                 ssS0_.pi_gen_def_mons.resize(ssS0_.pi_gb.gen_degs().size());
 
             algZ::Poly1d new_rels;
             for (size_t gen_id = 0; gen_id < pi_gb.gen_degs().size(); ++gen_id) {
-                if (ssS0_.pi_gen_defs[gen_id] == DefFlag::no_def || ssS0_.pi_gen_defs[gen_id] == DefFlag::constraints) {
+                if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def || ssS0_.pi_gen_defs[gen_id] == EnumDef::constraints) {
                     AdamsDeg d_g = ssS0_.pi_gb.gen_degs()[gen_id];
                     algZ::Poly g = ssS0_.pi_gb.ReduceV2(ssS0_.pi_gb.Gen((uint32_t)gen_id));
                     if (!g)
@@ -402,7 +402,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                             indeterminancy.push_back(b);
                     // if (gen_id == 38)
                     //     std::cout << "debug\n";
-                    if (ssS0_.pi_gen_defs[gen_id] == DefFlag::constraints)
+                    if (ssS0_.pi_gen_defs[gen_id] == EnumDef::constraints)
                         ReduceIndeterminancy(indeterminancy, ssS0_.pi_gen_def_mons[gen_id], ssS0_.pi_gb);
                     for (auto& b : indeterminancy)
                         m_by_ind.push_back(ssS0_.pi_gb.ReduceV2(algZ::Poly(m) * b));
@@ -412,7 +412,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     if (ExtendRelS0V2(d_prod.stem(), prod_extended, num_leads)) {
                         Logger::LogHtpyProd(depth, enumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
                         prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
-                        ssS0_.pi_gen_defs[gen_id] = DefFlag::constraints;
+                        ssS0_.pi_gen_defs[gen_id] = EnumDef::constraints;
                         ssS0_.pi_gen_def_mons[gen_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
                         new_rels.push_back(std::move(prod_extended));
                     }
@@ -426,13 +426,13 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
             auto& pi_gb = ssCof.pi_gb;
 
             if (ssCof.pi_gen_defs.size() < ssCof.pi_gb.v_degs().size())
-                ssCof.pi_gen_defs.resize(ssCof.pi_gb.v_degs().size(), DefFlag::no_def);
+                ssCof.pi_gen_defs.resize(ssCof.pi_gb.v_degs().size(), EnumDef::no_def);
             if (ssCof.pi_gen_def_mons.size() < ssCof.pi_gb.v_degs().size())
                 ssCof.pi_gen_def_mons.resize(ssCof.pi_gb.v_degs().size());
 
             algZ::Mod1d new_rels;
             for (size_t v_id = 0; v_id < pi_gb.v_degs().size(); ++v_id) {
-                if (ssCof.pi_gen_defs[v_id] == DefFlag::no_def || ssCof.pi_gen_defs[v_id] == DefFlag::constraints) {
+                if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def || ssCof.pi_gen_defs[v_id] == EnumDef::constraints) {
                     AdamsDeg d_g = ssCof.pi_gb.v_degs()[v_id];
                     algZ::Mod g = ssCof.pi_gb.ReduceV2(ssCof.pi_gb.Gen((uint32_t)v_id));
                     if (!g)
@@ -456,7 +456,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     for (auto& b : basis_stem)
                         if (b.fil() > d_g.s)
                             indeterminancy.push_back(b);
-                    if (ssCof.pi_gen_defs[v_id] == DefFlag::constraints)
+                    if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
                         ReduceIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
                     for (auto& b : indeterminancy)
                         m_by_ind.push_back(ssCof.pi_gb.ReduceV2(algZ::Poly(m) * b));
@@ -467,7 +467,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     if (ExtendRelCofV2(iCof, d_prod.stem(), prod_extended, num_leads)) {
                         Logger::LogHtpyProd(depth, enumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
                         prod_extended.isubP(prod, tmpm, pi_gb.gen_2tor_degs());
-                        ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
+                        ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
                         ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
                         new_rels.push_back(std::move(prod_extended));
                     }
@@ -484,7 +484,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
 
             algZ::Poly1d new_rels_S0;
             for (size_t v_id = 0; v_id < pi_gb.v_degs().size(); ++v_id) {
-                if (ssCof.pi_gen_defs[v_id] == DefFlag::no_def || ssCof.pi_gen_defs[v_id] == DefFlag::constraints) {
+                if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def || ssCof.pi_gen_defs[v_id] == EnumDef::constraints) {
                     AdamsDeg d_g = ssCof.pi_gb.v_degs()[v_id];
                     algZ::Mod g = ssCof.pi_gb.ReduceV2(ssCof.pi_gb.Gen((uint32_t)v_id));
                     if (!g)
@@ -510,7 +510,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                     for (auto& b : basis_stem)
                         if (b.fil() > d_g.s)
                             indeterminancy.push_back(b);
-                    if (ssCof.pi_gen_defs[v_id] == DefFlag::constraints)
+                    if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
                         ReduceIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
                     for (auto& b : indeterminancy) {
                         auto q = algZ::subsMod(ssCof.pi_gb.Reduce(algZ::Poly(m) * b), ssCof.pi_qt.back(), ssCof.pi_gb.v_degs());
@@ -526,13 +526,13 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
                             std::string qm = fmt::format("q*{}", algZ::Poly(m));
                             Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, qm, v_id, q_prod_reduced, q_prod_extended);
                             q_prod_extended.isubP(q_prod, tmp, pi_gb.gen_2tor_degs());
-                            ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
+                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
                             ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
                             new_rels_S0.push_back(std::move(q_prod_extended));
                         }
                         else {
                             Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
-                            ssCof.pi_gen_defs[v_id] = DefFlag::constraints;
+                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
                             ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
                             ssCof.pi_qt.back()[v_id] = std::move(q_prod_extended);
                             v_ids_changed.push_back((int)v_id);

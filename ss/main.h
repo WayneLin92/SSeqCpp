@@ -9,10 +9,10 @@
 inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
 using namespace alg2;
 
-constexpr int kLevelMax = 10000;
+constexpr int LEVEL_MAX = 10000;
 constexpr int kLevelMin = 2;
 constexpr int kRPC = 200;
-constexpr int kLevelPC = kLevelMax - kRPC; /* Level of Permanant cycles */
+constexpr int kLevelPC = LEVEL_MAX - kRPC; /* Level of Permanant cycles */
 
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 
@@ -21,17 +21,10 @@ enum class DeduceFlag : uint32_t
     no_op = 0,
     set_diff = 1,
     fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
-    all_x = 4,        /* Deduce dx for all x including linear combinations */
+    all_x = 4,         /* Deduce dx for all x including linear combinations */
     homotopy = 8,
     homotopy_exact = 16, /* Check exactness of htpy in the try node */
-    homotopy_def = 32, /* Check exactness of htpy in the try node */
-};
-
-enum class DefFlag : int
-{
-    no_def = 0,
-    dec = 1, /* Decomposable */
-    constraints = 2, /* The indeterminancies have some constraints */
+    homotopy_def = 32,   /* Check exactness of htpy in the try node */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -44,10 +37,19 @@ inline bool operator&(DeduceFlag lhs, DeduceFlag rhs)
     return uint32_t(lhs) & uint32_t(rhs);
 }
 
+enum class EnumDef : int
+{
+    no_def = 0,
+    dec = 1,         /* Decomposable */
+    constraints = 2, /* The indeterminancies have some constraints */
+};
+
+inline const auto NULL_DIFF = int1d{-1};
+
 struct Staircase
 {
-    int2d basis_ind;
-    int2d diffs_ind; /* element {-1} means null */
+    int2d basis;
+    int2d diffs; /* element {-1} means null */
     int1d levels;
 };
 
@@ -154,7 +156,7 @@ struct SS
     std::vector<size_t> pi_nodes_rel;
     int2d pi_nodes_gen_2tor_degs;
 
-    std::vector<DefFlag> pi_gen_defs;
+    std::vector<EnumDef> pi_gen_defs;
     std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
 
@@ -177,7 +179,7 @@ struct SSMod
     std::vector<size_t> pi_nodes_gen;
     std::vector<size_t> pi_nodes_rel;
 
-    std::vector<DefFlag> pi_gen_defs;
+    std::vector<EnumDef> pi_gen_defs;
     std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
 
@@ -249,16 +251,31 @@ public:
         return all_t_max_;
     }
 
-    /* Return if it is possibly a new dr target for r<=r_max */
-    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
-
-    /* Return if it is possibly a new dr source for r>=r_min */
-    static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
+    auto& GetBasisSSChanges(size_t iBasisSS) const
+    {
+        if ((*all_basis_ss_[iBasisSS]).size() != 2) {
+            std::cout << "0xc2fa755cU: Not on the change node\n" << '\n';
+            throw MyException(0xc2fa755cU, "Not on the change node");
+        }
+        return (*all_basis_ss_[iBasisSS])[1];
+    }
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
      * Return a level such that all levels above will not decrease further.
      */
     static int GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg);
+
+private: /* Staircase */
+    static size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level);
+    static int GetMaxLevelWithNull(const Staircase& sc);
+    static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
+
+private: /* ss */
+    /* Return if it is possibly a new dr target for r<=r_max */
+    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
+
+    /* Return if it is possibly a new dr source for r>=r_min */
+    static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
 
     /* Return the first index (with level >=`level_min`) such that all levels above are already fixed */
     static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
@@ -287,21 +304,22 @@ public:
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
     bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
 
-    auto& GetBasisSSChanges(size_t iBasisSS) const
-    {
-        if ((*all_basis_ss_[iBasisSS]).size() != 2) {
-            std::cout << "0xc2fa755cU: Not on the change node\n" << '\n';
-            throw MyException(0xc2fa755cU, "Not on the change node");
-        }
-        return (*all_basis_ss_[iBasisSS])[1];
-    }
-
-protected:
+private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
     void SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
 
     /* Add an image. dx must be nonempty. */
     void SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
+
+    /**
+     * Add d_r(x)=dx;
+     * Add d_s(xy)=d_s(x)y+xd_s(y) for y with level=LEVEL_MAX-s and s>=r_min.
+     * Return the number of changed degrees.
+     *
+     * dx should not be null.
+     */
+    int SetS0DiffLeibniz(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
+    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
 
 public:
     /* Add a node */
@@ -317,27 +335,17 @@ public:
     void CacheNullDiffs(size_t iSS, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
 
     /**
-     * Add d_r(x)=dx;
-     * Add d_s(xy)=d_s(x)y+xd_s(y) for y with level=kLevelMax-s and s>=r_min.
-     * Return the number of changed degrees.
-     *
-     * dx should not be null.
-     */
-    int SetS0DiffLeibniz(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
-    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
-
-    /**
      * Check first if it is a new differential before adding it.
      * Do some deductions by degree.
      *
      * Return the number of changed degrees.
      */
-    int SetS0DiffLeibnizV2(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetCofDiffLeibnizV2(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetDiffLeibnizV2(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetS0DiffGlobal(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetCofDiffGlobal(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetDiffGlobal(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
 
     /* Add d_r(?)=x;
-     * Add d_r(?)=xy for d_ry=0 (y in level < kLevelMax - r);
+     * Add d_r(?)=xy for d_ry=0 (y in level < LEVEL_MAX - r);
      */
     int SetS0ImageLeibniz(AdamsDeg deg_x, const int1d& x, int r);
     int SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int r);
@@ -459,12 +467,12 @@ public:
     void save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
-    void save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
+    void save_pi_def(const std::string& table_prefix, const std::vector<EnumDef>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& nodes_ss) const;
     Staircases load_basis_ss(const std::string& table_prefix) const;
-    void load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
+    void load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
@@ -518,9 +526,7 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
-std::vector<std::string> GetDbNames(const std::string& selector, bool log=true);
-
-
+std::vector<std::string> GetDbNames(const std::string& selector, bool log = true);
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_ext(int argc, char** argv, int index);

@@ -1,5 +1,5 @@
 #include "main.h"
-#include <fmt/ranges.h>///
+#include <fmt/ranges.h>  ///
 
 using namespace alg2;
 
@@ -26,13 +26,13 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& node
     auto degs = OrderDegsV2(nodes_ss);
     for (const auto& deg : degs) {
         auto& basis_ss_d = nodes_ss.at(deg);
-        for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
+        for (size_t i = 0; i < basis_ss_d.basis.size(); ++i) {
             stmt.bind_int(1, count++);
-            stmt.bind_str(2, myio::Serialize(basis_ss_d.basis_ind[i]));
-            if (basis_ss_d.diffs_ind[i] == int1d{-1})
+            stmt.bind_str(2, myio::Serialize(basis_ss_d.basis[i]));
+            if (basis_ss_d.diffs[i] == NULL_DIFF)
                 stmt.bind_null(3);
             else
-                stmt.bind_str(3, myio::Serialize(basis_ss_d.diffs_ind[i]));
+                stmt.bind_str(3, myio::Serialize(basis_ss_d.diffs[i]));
             stmt.bind_int(4, basis_ss_d.levels[i]);
             stmt.bind_int(5, deg.s);
             stmt.bind_int(6, deg.t);
@@ -88,7 +88,7 @@ void DBSS::save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& 
     // myio::Logger::out() << count << " bases are inserted into " + table_prefix + "_pi_basis!\n";
 }
 
-void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<DefFlag>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
+void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<EnumDef>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators_def (id, def, map_ids, multipliers, mult_name, fils) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
 
@@ -142,12 +142,12 @@ void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<Adams
 
     int count = 0;
     for (const auto& [deg, basis_ss_d] : nodes_ss) {
-        for (size_t i = 0; i < basis_ss_d.basis_ind.size(); ++i) {
-            stmt.bind_str(1, myio::Serialize(basis_ss_d.basis_ind[i]));
-            if (basis_ss_d.diffs_ind[i] == int1d{-1})
+        for (size_t i = 0; i < basis_ss_d.basis.size(); ++i) {
+            stmt.bind_str(1, myio::Serialize(basis_ss_d.basis[i]));
+            if (basis_ss_d.diffs[i] == NULL_DIFF)
                 stmt.bind_null(2);
             else
-                stmt.bind_str(2, myio::Serialize(basis_ss_d.diffs_ind[i]));
+                stmt.bind_str(2, myio::Serialize(basis_ss_d.diffs[i]));
             stmt.bind_int(3, basis_ss_d.levels[i]);
             stmt.bind_int(4, indices[deg] + (int)i);
             stmt.step_and_reset();
@@ -168,25 +168,25 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
         int level = stmt.column_int(2);
         AdamsDeg deg = {stmt.column_int(3), stmt.column_int(4)};
 
-        nodes_ss[deg].basis_ind.push_back(std::move(base));
+        nodes_ss[deg].basis.push_back(std::move(base));
         nodes_ss[deg].levels.push_back(level);
 
         int1d diff = myio::Deserialize<int1d>(stmt.column_str(1));
-        nodes_ss[deg].diffs_ind.push_back(std::move(diff));
+        nodes_ss[deg].diffs.push_back(std::move(diff));
     }
     // myio::Logger::out() << "basis_ss loaded from " << table_prefix << "_ss, size=" << count << '\n';
     return nodes_ss;
 }
 
-void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
+void DBSS::load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
 {
     if (has_table(table_prefix + "_pi_generators_def")) {
         if (has_column(table_prefix + "_pi_generators_def", "map_ids")) {
             Statement stmt(*this, "SELECT def, map_ids, multipliers, fils FROM " + table_prefix + "_pi_generators_def order by id;");
             while (stmt.step() == MYSQLITE_ROW) {
-                pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+                pi_gen_defs.push_back(EnumDef(stmt.column_int(0)));
                 pi_gen_def_mons.push_back({});
-                if (pi_gen_defs.back() == DefFlag::constraints) {
+                if (pi_gen_defs.back() == EnumDef::constraints) {
                     int1d map_ids = myio::Deserialize<int1d>(stmt.column_str(1));
                     algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(2));
                     int1d fils = myio::Deserialize<int1d>(stmt.column_str(3));
@@ -203,9 +203,9 @@ void DBSS::load_pi_def(const std::string& table_prefix, std::vector<DefFlag>& pi
                 c = "mons";
             Statement stmt(*this, "SELECT def, " + c + " FROM " + table_prefix + "_pi_generators_def order by id;");
             while (stmt.step() == MYSQLITE_ROW) {
-                pi_gen_defs.push_back(DefFlag(stmt.column_int(0)));
+                pi_gen_defs.push_back(EnumDef(stmt.column_int(0)));
                 pi_gen_def_mons.push_back({});
-                if (pi_gen_defs.back() == DefFlag::constraints) {
+                if (pi_gen_defs.back() == EnumDef::constraints) {
                     algZ::Poly mons = myio::Deserialize<algZ::Poly>(stmt.column_str(1));
                     for (size_t i = 0; i < mons.data.size(); i += 2)
                         pi_gen_def_mons.back().push_back(GenConstraint{0, mons.data[i], mons.data[i + 1].fil()});
@@ -230,15 +230,15 @@ void generate_ss(const std::string& db_filename, int r)
     int prev_t = 0;
     for (auto& [d, basis_d] : basis) {
         for (int i = 0; i < (int)basis_d.size(); ++i) {
-            nodes_ss[d].basis_ind.push_back({i});
-            nodes_ss[d].diffs_ind.push_back({-1});
-            nodes_ss[d].levels.push_back(kLevelMax - r);
+            nodes_ss[d].basis.push_back({i});
+            nodes_ss[d].diffs.push_back({-1});
+            nodes_ss[d].levels.push_back(LEVEL_MAX - r);
         }
     }
 
     if (GetComplexName(db_filename) == "S0") {  ////if it is a ring
-        nodes_ss[AdamsDeg{0, 0}].diffs_ind = {{}};
-        nodes_ss[AdamsDeg{0, 0}].levels = {kLevelMax / 2};
+        nodes_ss[AdamsDeg{0, 0}].diffs = {{}};
+        nodes_ss[AdamsDeg{0, 0}].levels = {LEVEL_MAX / 2};
     }
 
     /* insert into the database */

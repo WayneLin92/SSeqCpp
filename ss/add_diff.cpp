@@ -12,7 +12,7 @@ std::ostream& operator<<(std::ostream& sout, const Staircase& sc)
 {
     sout << "Staircase:\n";
     for (size_t i = 0; i < sc.levels.size(); ++i) {
-        sout << sc.levels[i] << "  " << sc.basis_ind[i] << "  " << sc.diffs_ind[i] << '\n';
+        sout << sc.levels[i] << "  " << sc.basis[i] << "  " << sc.diffs[i] << '\n';
     }
     return sout;
 }
@@ -93,7 +93,7 @@ int main_add_diff(int argc, char** argv, int index)
         }
     }
 
-    int count = diagram.SetDiffLeibnizV2(iDb, deg_x, x, dx, r);
+    int count = diagram.SetDiffGlobal(iDb, deg_x, x, dx, r);
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Timer timer(300);
         diagram.DeduceDiffs(0, 500, 0, DeduceFlag::no_op);////

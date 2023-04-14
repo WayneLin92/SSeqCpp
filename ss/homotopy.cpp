@@ -287,7 +287,7 @@ int Diagram::PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
     if (nodes_ss.front().find(deg) != nodes_ss.front().end()) {
         const Staircase& sc = GetRecentStaircase(nodes_ss, deg);
-        size_t i_start_perm = GetFirstIndexOnLevel(sc, kLevelMax / 2);
+        size_t i_start_perm = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, kLevelPC + 1);
         return int(i_stable - i_start_perm);
     }
@@ -490,13 +490,13 @@ void Diagram::SetPermanentCycle(int depth, size_t iCof, AdamsDeg deg_x)
         size_t i_end_perm = GetFirstIndexOnLevel(sc, kLevelPC + 1);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, kLevelPC + 1);
         if (i_stable - i_end_perm == 1) {
-            int r = kLevelMax - kLevelPC;
+            int r = LEVEL_MAX - kLevelPC;
             if (i_end_perm > 0)
-                r = std::min(r, kLevelMax - sc.levels[i_end_perm - 1]);
-            if (r != kLevelMax - sc.levels[i_end_perm]) {
-                int1d x = {sc.basis_ind[i_end_perm]};
+                r = std::min(r, LEVEL_MAX - sc.levels[i_end_perm - 1]);
+            if (r != LEVEL_MAX - sc.levels[i_end_perm]) {
+                int1d x = {sc.basis[i_end_perm]};
                 Logger::LogDiff(depth, enumReason::exact_hq, ssCofs_[iCof].name, deg_x, x, {}, r - 1);
-                SetCofDiffLeibnizV2(iCof, deg_x, x, {}, r - 1);
+                SetCofDiffGlobal(iCof, deg_x, x, {}, r - 1);
             }
         }
         else if (i_stable - i_end_perm > 1) {
@@ -604,7 +604,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                 for (int1d& boundary : boundaries) {
                     if (!boundaries.empty()) {
-                        const int count1 = SetS0DiffLeibnizV2(deg_src, {}, boundary, r);
+                        const int count1 = SetS0DiffGlobal(deg_src, {}, boundary, r);
                         if (count1 > 0) {
                             Logger::LogDiffBoun(depth, enumReason::htpy2ss, "S0", deg, boundary);
                             count_ss += count1;
@@ -617,10 +617,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 int2d projs;
                 {
                     auto& sc = GetRecentStaircase(nodes_ss, deg);
-                    size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
+                    size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
                     for (auto& m : pi_basis_d) {
                         int1d proj = Poly2Indices(gb.Reduce(Proj(m, pi_gen_Einf)), basis_d);
-                        proj = lina::Residue(sc.basis_ind.begin(), sc.basis_ind.begin() + first_PC, proj);
+                        proj = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_PC, proj);
                         projs.push_back(proj);
                     }
                 }
@@ -649,10 +649,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
                 int2d Einf;
                 {
                     auto& sc = GetRecentStaircase(nodes_ss, deg);
-                    size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
+                    size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
                     size_t last_PC = GetFirstIndexOnLevel(sc, kLevelPC + 1);
                     for (size_t i = first_PC; i < last_PC; ++i)
-                        Einf.push_back(sc.basis_ind[i]);
+                        Einf.push_back(sc.basis[i]);
                 }
                 int2d new_generators = QuotientSpace(Einf, image); /* image is supposed to be a subspace of Einf */
                 size_t gen_size_old = pi_gb.gen_degs().size();
@@ -722,7 +722,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                 for (auto& boundary : boundaries) {
                     if (!boundaries.empty()) {
-                        const int count1 = SetCofDiffLeibnizV2(iCof, deg_src, {}, boundary, r);
+                        const int count1 = SetCofDiffGlobal(iCof, deg_src, {}, boundary, r);
                         if (count1 > 0) {
                             Logger::LogDiffBoun(depth, enumReason::htpy2ss, ssCof.name, deg, boundary);
                             count_ss += count1;
@@ -735,10 +735,10 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 int2d projs;
                 {
                     auto& sc = GetRecentStaircase(nodes_ss, deg);
-                    size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
+                    size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
                     for (auto& m : pi_basis_d) {
                         int1d proj = Mod2Indices(gb.Reduce(Proj(m, ssS0_.pi_gen_Einf, pi_gen_Einf)), basis_d);
-                        proj = lina::Residue(sc.basis_ind.begin(), sc.basis_ind.begin() + first_PC, proj);
+                        proj = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_PC, proj);
                         projs.push_back(proj);
                     }
                 }
@@ -767,10 +767,10 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                 int2d Einf;
                 {
                     auto& sc = GetRecentStaircase(nodes_ss, deg);
-                    size_t first_PC = GetFirstIndexOnLevel(sc, kLevelMax / 2);
+                    size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
                     size_t last_PC = GetFirstIndexOnLevel(sc, kLevelPC + 1);
                     for (size_t i = first_PC; i < last_PC; ++i)
-                        Einf.push_back(sc.basis_ind[i]);
+                        Einf.push_back(sc.basis[i]);
                 }
                 int2d new_generators = QuotientSpace(Einf, image); /* image is supposed to be a subspace of Einf */
                 size_t gen_size_old = pi_gb.v_degs().size();
@@ -787,8 +787,8 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
                     if (fx) {
                         int1d ifx = Poly2Indices(fx, ssS0_.basis.at(deg_S0));
                         auto& sc = GetRecentStaircase(ssS0_.nodes_ss, deg_S0);
-                        size_t first = GetFirstIndexOnLevel(sc, kLevelMax / 2);
-                        ifx = lina::Residue(sc.basis_ind.begin(), sc.basis_ind.begin() + first, std::move(ifx));
+                        size_t first = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
+                        ifx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first, std::move(ifx));
 
                         int2d image, g;
                         auto& pi_basis_d = *GetRecentPiBasis(ssS0_.pi_basis, deg_S0);

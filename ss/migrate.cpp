@@ -16,29 +16,29 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                     break;
                 const auto& sc1 = diagram1.GetRecentStaircase(nodes_ss1, deg);
                 for (size_t i = 0; i < sc1.levels.size(); ++i) {
-                    if (sc1.levels[i] > kLevelMax / 2) {
-                        int r = kLevelMax - sc1.levels[i];
-                        if (deg.t + r - 1 > t_max2 && sc1.diffs_ind[i] != int1d{-1})
-                            diff = int1d{-1};
+                    if (sc1.levels[i] > LEVEL_MAX / 2) {
+                        int r = LEVEL_MAX - sc1.levels[i];
+                        if (deg.t + r - 1 > t_max2 && sc1.diffs[i] != NULL_DIFF)
+                            diff = NULL_DIFF;
                         else
-                            diff = sc1.diffs_ind[i];
-                        if (diff != int1d{-1}) {
-                            int count = diagram2.SetS0DiffLeibnizV2(deg, sc1.basis_ind[i], diff, r);
+                            diff = sc1.diffs[i];
+                        if (diff != NULL_DIFF) {
+                            int count = diagram2.SetS0DiffGlobal(deg, sc1.basis[i], diff, r);
                             if (count > 0)
-                                Logger::LogDiff(0, enumReason::migrate, "S0", deg, sc1.basis_ind[i], diff, r);
+                                Logger::LogDiff(0, enumReason::migrate, "S0", deg, sc1.basis[i], diff, r);
                         }
                         else {
-                            int count = diagram2.SetS0DiffLeibnizV2(deg, sc1.basis_ind[i], int1d{}, r - 1);
+                            int count = diagram2.SetS0DiffGlobal(deg, sc1.basis[i], int1d{}, r - 1);
                             if (count > 0)
-                                Logger::LogDiff(0, enumReason::migrate, "S0", deg, sc1.basis_ind[i], int1d{}, r - 1);
+                                Logger::LogDiff(0, enumReason::migrate, "S0", deg, sc1.basis[i], int1d{}, r - 1);
                         }
                     }
-                    else if (sc1.levels[i] < kLevelMax / 2 && sc1.diffs_ind[i] == int1d{-1}) {
+                    else if (sc1.levels[i] < LEVEL_MAX / 2 && sc1.diffs[i] == NULL_DIFF) {
                         int r = sc1.levels[i] + 1;
                         const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
-                        int count = diagram2.SetS0DiffLeibnizV2(deg_src, {}, sc1.basis_ind[i], r);
+                        int count = diagram2.SetS0DiffGlobal(deg_src, {}, sc1.basis[i], r);
                         if (count > 0)
-                            Logger::LogDiffInv(0, enumReason::migrate, "S0", deg, {}, sc1.basis_ind[i], r);
+                            Logger::LogDiffInv(0, enumReason::migrate, "S0", deg, {}, sc1.basis[i], r);
                     }
                 }
             }
@@ -54,29 +54,29 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                     break;
                 const auto& sc1 = diagram1.GetRecentStaircase(nodes_ss1, deg);
                 for (size_t i = 0; i < sc1.levels.size(); ++i) {
-                    if (sc1.levels[i] > kLevelMax / 2) {
-                        int r = kLevelMax - sc1.levels[i];
-                        if (deg.t + r - 1 > t_max2 && sc1.diffs_ind[i] != int1d{-1})
-                            diff = int1d{-1};
+                    if (sc1.levels[i] > LEVEL_MAX / 2) {
+                        int r = LEVEL_MAX - sc1.levels[i];
+                        if (deg.t + r - 1 > t_max2 && sc1.diffs[i] != NULL_DIFF)
+                            diff = NULL_DIFF;
                         else
-                            diff = sc1.diffs_ind[i];
-                        if (diff != int1d{-1}) {
-                            int count = diagram2.SetCofDiffLeibnizV2(iCof, deg, sc1.basis_ind[i], diff, r);
+                            diff = sc1.diffs[i];
+                        if (diff != NULL_DIFF) {
+                            int count = diagram2.SetCofDiffGlobal(iCof, deg, sc1.basis[i], diff, r);
                             if (count > 0)
-                                Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis_ind[i], diff, r);
+                                Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], diff, r);
                         }
                         else {
-                            int count = diagram2.SetCofDiffLeibnizV2(iCof, deg, sc1.basis_ind[i], int1d{}, r - 1);
+                            int count = diagram2.SetCofDiffGlobal(iCof, deg, sc1.basis[i], int1d{}, r - 1);
                             if (count > 0)
-                                Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis_ind[i], int1d{}, r - 1);
+                                Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
                         }
                     }
-                    else if (sc1.levels[i] < kLevelMax / 2 && sc1.diffs_ind[i] == int1d{-1}) {
+                    else if (sc1.levels[i] < LEVEL_MAX / 2 && sc1.diffs[i] == NULL_DIFF) {
                         int r = sc1.levels[i] + 1;
                         const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
-                        int count = diagram2.SetCofDiffLeibnizV2(iCof, deg_src, {}, sc1.basis_ind[i], r);
+                        int count = diagram2.SetCofDiffGlobal(iCof, deg_src, {}, sc1.basis[i], r);
                         if (count > 0)
-                            Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis_ind[i], r);
+                            Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis[i], r);
                     }
                 }
             }
@@ -208,9 +208,9 @@ int main_truncate(int argc, char** argv, int index)
         for (auto& [d, sc] : nodes_ss) {
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.levels[i] > kLevelPC) {
-                    int r = kLevelMax - sc.levels[i];
-                    if (d.t + r - 1 > t_max && sc.diffs_ind[i] != int1d{-1})
-                        sc.diffs_ind[i] = int1d{-1};
+                    int r = LEVEL_MAX - sc.levels[i];
+                    if (d.t + r - 1 > t_max && sc.diffs[i] != NULL_DIFF)
+                        sc.diffs[i] = NULL_DIFF;
                 }
             }
         }

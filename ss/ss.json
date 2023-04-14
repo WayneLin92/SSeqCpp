@@ -1,0 +1,80 @@
+{
+  "databases": {
+    "default": [
+      { "name": "S0", "path": "auto100/S0_AdamsSS_t261.db" },
+      { "name": "C2", "path": "auto100/C2_AdamsSS_t246.db" },
+      { "name": "Ceta", "path": "auto100/Ceta_AdamsSS_t200.db" },
+      { "name": "Cnu", "path": "auto100/Cnu_AdamsSS_t200.db" },
+      { "name": "Csigma", "path": "auto100/Csigma_AdamsSS_t200.db" },
+      { "name": "log", "path": "auto100/deduction.log" }
+    ],
+    "main": [
+      { "name": "S0", "path": "main/S0_AdamsSS_t261.db" },
+      { "name": "C2", "path": "main/C2_AdamsSS_t246.db" },
+      { "name": "Ceta", "path": "main/Ceta_AdamsSS_t200.db" },
+      { "name": "Cnu", "path": "main/Cnu_AdamsSS_t200.db" },
+      { "name": "Csigma", "path": "main/Csigma_AdamsSS_t200.db" },
+      { "name": "log", "path": "main/deduction.log" }
+    ],
+    "mix": [
+      { "name": "S0", "path": "mix/S0_AdamsSS_t261.db" },
+      { "name": "C2", "path": "mix/C2_AdamsSS_t246.db" },
+      { "name": "Ceta", "path": "mix/Ceta_AdamsSS_t200.db" },
+      { "name": "Cnu", "path": "mix/Cnu_AdamsSS_t200.db" },
+      { "name": "Csigma", "path": "mix/Csigma_AdamsSS_t200.db" },
+      { "name": "log", "path": "mix/deduction.log" }
+    ],
+    "mix100": [
+      { "name": "S0", "path": "mix100/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "mix100/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "mix100/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "mix100/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "mix100/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "mix100/deduction.log" }
+    ],
+    "auto100": [
+      { "name": "S0", "path": "auto100/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "auto100/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "auto100/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "auto100/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "auto100/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "auto100/deduction.log" }
+    ],
+    "benchmark": [
+      { "name": "S0", "path": "benchmark/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "benchmark/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "benchmark/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "benchmark/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "benchmark/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "benchmark/deduction.log" }
+    ],
+    "debug": [
+      { "name": "S0", "path": "debug/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "debug/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "debug/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "debug/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "debug/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "debug/deduction.log" }
+    ],
+    "debug2": [
+      { "name": "S0", "path": "debug2/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "debug2/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "debug2/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "debug2/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "debug2/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "debug2/deduction.log" }
+    ],
+    "debug-reset": [
+      { "name": "S0", "path": "debug-before-def1/S0_AdamsSS_t100.db" },
+      { "name": "C2", "path": "debug-before-def1/C2_AdamsSS_t100.db" },
+      { "name": "Ceta", "path": "debug-before-def1/Ceta_AdamsSS_t100.db" },
+      { "name": "Cnu", "path": "debug-before-def1/Cnu_AdamsSS_t100.db" },
+      { "name": "Csigma", "path": "debug-before-def1/Csigma_AdamsSS_t100.db" },
+      { "name": "log", "path": "debug-before-def1/deduction.log" }
+    ],
+    "from": [],
+    "to": [],
+    "test": []
+  },
+  "CheckExactnessStemMax": 90
+}
