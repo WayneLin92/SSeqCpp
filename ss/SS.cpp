@@ -57,7 +57,7 @@ int GetTopCellT(const std::string& db)
 bool Diagram::IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
 {
     r_max = std::min(r_max, deg.s);
-    for (int r1 = kLevelMin; r1 <= r_max; ++r1) {
+    for (int r1 = LEVEL_MIN; r1 <= r_max; ++r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
         if (nodes_ss.front().find(d_src) != nodes_ss.front().end())
             if (GetMaxLevelWithNull(GetRecentStaircase(nodes_ss, d_src)) >= LEVEL_MAX - r1)
@@ -84,8 +84,8 @@ bool Diagram::IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, i
 int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
     auto& sc = GetRecentStaircase(nodes_ss, deg);
-    int result = LEVEL_MAX - kLevelMin;
-    for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= kLevelPC;) {
+    int result = LEVEL_MAX - LEVEL_MIN;
+    for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= LEVEL_PERM;) {
         if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
             int r = LEVEL_MAX - sc.levels[i];
             if (IsPossTgt(nodes_ss, deg + AdamsDeg{r, r - 1}, r - 1))
@@ -166,7 +166,7 @@ int Diagram::NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const
     int count = 0, index = -1;
     int r_max = std::min(r, deg.s - 1);
     const Staircase& sc = GetRecentStaircase(nodes_ss, deg);
-    for (int r1 = r_max; r1 >= kLevelMin; --r1) {
+    for (int r1 = r_max; r1 >= LEVEL_MIN; --r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
         auto [index, count] = CountPossDrSrc(nodes_ss, d_src, r1);
         if (count > 0)
@@ -185,7 +185,7 @@ void Diagram::CacheNullDiffs(size_t iSS, AdamsDeg deg, DeduceFlag flag, NullDiff
     for (size_t i = 0; i < sc.diffs.size(); ++i) {
         if (sc.diffs[i] == int1d{-1}) {
             NullDiff nd;
-            if (sc.levels[i] > kLevelPC) {
+            if (sc.levels[i] > LEVEL_PERM) {
                 int r = LEVEL_MAX - sc.levels[i];
                 AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
                 auto [index, count] = CountPossDrTgt(nodes_ss, t_max, deg_tgt, r);

@@ -5,6 +5,8 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
+#include <fstream>
+#include <fmt/os.h>
 
 /********************************************************
  *                    class GroebnerX2m
@@ -539,6 +541,31 @@ public:
         return basis_degrees;
     }
 
+    void generators_to_csv(const std::string& table_prefix) const
+    {
+        Statement stmt(*this, "SELECT s, t, diff, id FROM " + table_prefix + "_generators WHERE t<=261 ORDER BY id;");
+        auto fout = fmt::output_file("E:/S0_Adams_res.csv");
+        fout.print("id,s,t,index,diff\n");
+        ut::map_seq<int, 0> indices;
+        while (stmt.step() == MYSQLITE_ROW) {
+            int s = stmt.column_int(0), t = stmt.column_int(1);
+            Mod diff;
+            diff.data = stmt.column_blob_tpl<MMod>(2);
+            int id = t = stmt.column_int(3);
+            fout.print("{},{},{},{},", id, s, t, indices[s]++);
+            if (diff) {
+                fout.print("\"{}\"", myio::TplStrCont("", "+", "", "", diff.data.begin(), diff.data.end(), [](MMod m) {
+                               auto xi = m.m_no_weight().ToXi();
+                               auto xi_end = xi.end();
+                               while (xi_end != xi.begin() && *(xi_end - 1) == 0)
+                                   --xi_end;
+                               return myio::TplStrCont("", ",", "", "", xi.begin(), xi_end, [](int r) { return std::to_string(r); }) + ":" + std::to_string(m.v());
+                           }));
+            }
+            fout.print("\n");
+        }
+    }
+
     int2d load_basis_degrees_x2m(const std::string& table_prefix) const
     {
         return load_basis_degrees(table_prefix + "_X2m");
@@ -777,4 +804,11 @@ void ResetDb(const std::string& filename, const std::string& tablename)
     db.drop_and_create_generators_x2m(tablename);
     db.drop_and_create_relations_x2m(tablename);
     db.drop_and_create_time(tablename);
+}
+
+int main_generators_to_csv(const std::string& db_filename, const std::string& tablename)
+{
+    DbSteenrod db(db_filename);
+    db.generators_to_csv(tablename);
+    return 0;
 }

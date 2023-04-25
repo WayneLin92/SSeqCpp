@@ -6,7 +6,6 @@
 
 #ifndef MYDEPLOY
 std::vector<int> bench::Counter::counts_ = {0, 0, 0};
-std::vector<int> bench::MaxGetter::max_ = {0};
 #endif
 
 int main_basis_prod(int argc, char** argv, int index);
@@ -21,6 +20,7 @@ int main_reset(int argc, char** argv, int index);
 int main_resetpi(int argc, char** argv, int index);
 int main_resetfrom(int argc, char** argv, int index);
 int main_migrate_ss(int argc, char** argv, int index);
+int main_migrate_htpy(int argc, char** argv, int index);
 
 int main(int argc, char** argv)
 {
@@ -60,6 +60,8 @@ int main(int argc, char** argv)
         rt = main_resetfrom(argc, argv, index);
     else if (cmd == "migrate_ss")
         rt = main_migrate_ss(argc, argv, index);
+    else if (cmd == "migrate_htpy")
+        rt = main_migrate_htpy(argc, argv, index);
     else if (cmd == "basis_prod")
         rt = main_basis_prod(argc, argv, index);
     else if (cmd == "plot")

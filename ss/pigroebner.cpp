@@ -540,6 +540,7 @@ void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
     MonTrace1d traces;
     data.reserve(data_.size());
     for (auto& [t, indices] : leads_group_by_t_) {
+        std::sort(indices.begin(), indices.end(), [this](int i, int j) { return data_[i].EffNum() > data_[j].EffNum(); });
         for (int i : indices) {
             data.push_back(std::move(data_[i]));
             traces.push_back(traces_[i]);
@@ -903,6 +904,16 @@ Mod GroebnerMod::ReduceV2(Mod x) const
     return x;
 }
 
+template <typename T, typename... T1>
+T&& debug_hook(T&& rel, T1&&... args)
+{
+    if (rel.Str() == "x_{22}x_{40}v_0+2x_1x_{162}v_0+O(9)") {
+        fmt::print(args...);
+        __debugbreak();
+    }
+    return rel;
+}
+
 void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& possEinf)
 {
     int d_trunc = deg_trunc();
@@ -936,11 +947,17 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
         size_t pairs_d_size = pairs_d.size();
         auto& rels_d = rels_graded[t];
         Mod1d rels_tmp(pairs_d_size + rels_d.size());
-        for (size_t i = 0; i < pairs_d.size(); ++i)
+        for (size_t i = 0; i < pairs_d.size(); ++i) {
             pairs_d[i].SijMod(*pGb_, *this, rels_tmp[i], tmp);
+            debug_hook(rels_tmp[i], "i1={}, i2={}\n", (pairs_d[i].i1 & FLAG_INDEX_X) ? pGb_->data_[pairs_d[i].i1 ^ FLAG_INDEX_X].Str() : data_[pairs_d[i].i1].Str(), data_[pairs_d[i].i2].Str());
+        }
         for (size_t i = 0; i < rels_d.size(); ++i)
-            rels_tmp[pairs_d_size + i] = std::move(rels_d[i]);
-        ut::for_each_par128(rels_tmp.size(), [this, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
+            rels_tmp[pairs_d_size + i] = std::move(debug_hook(rels_d[i], ""));
+        ut::for_each_par128(rels_tmp.size(), [this, &rels_tmp](size_t i) {
+            auto tmp = rels_tmp[i];
+            rels_tmp[i] = Reduce(std::move(rels_tmp[i]));
+            debug_hook(rels_tmp[i], "{}\n", tmp.Str());
+        });
         std::sort(rels_tmp.begin(), rels_tmp.end(), [](const Mod& p1, const Mod& p2) { return p1.UnknownFil() > p2.UnknownFil(); });
 
         for (auto& rel : rels_tmp) {
@@ -948,16 +965,9 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
             if (rel && !rel.GetLead().IsUnKnown()) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), pGb_->gen_degs(), v_degs_);
                 if (deg.t <= d_trunc) {
-                    if (deg.t > t) {
-                        /*if (p.Str() == "x_5v_6+O(16)" || p.Str() == "x_1v_{13}")
-                            std::cout << "debug\n";*/
+                    if (deg.t > t)
                         rels_graded[deg.t].push_back(std::move(rel));
-                    }
                     else {
-                        /*if (p.Str() == "x_8x_{51}+x_{13}x_{43}+O(29)") {
-                            std::cout << (p.data[0] < p.data[1]) << '\n';
-                            std::cout << "debug\n";
-                        }*/
                         ExtendO(possEinf, d_trunc, deg.stem(), rel);
                         push_back_data_buffer(std::move(rel), deg);
                     }
@@ -975,6 +985,7 @@ void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
     MonTrace1d traces;
     data.reserve(data_.size());
     for (auto& [t, indices] : leads_group_by_t_) {
+        std::sort(indices.begin(), indices.end(), [this](int i, int j) { return data_[i].EffNum() > data_[j].EffNum(); });
         for (int i : indices) {
             data.push_back(std::move(data_[i]));
             traces.push_back(traces_[i]);

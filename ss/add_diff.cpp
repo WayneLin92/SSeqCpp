@@ -1,5 +1,6 @@
 #include "algebras/linalg.h"
 #include "main.h"
+#include "mylog.h"
 
 using namespace alg2;
 
@@ -100,7 +101,7 @@ int main_add_diff(int argc, char** argv, int index)
     }
 
     if (mode == "add" || mode == "deduce") {
-        std::cout << "changed differentials: " << count << '\n';
+        Logger::LogSummary("Changed differentials", count);
         diagram.save(dbnames, DeduceFlag::no_op);
     }
     std::cout << "Done" << std::endl;

@@ -16,7 +16,7 @@ int Diagram::DeduceTrivialDiffs()
                 const Staircase& sc = GetRecentStaircase(nodes_ss, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.diffs[i] == NULL_DIFF) {
-                        if (sc.levels[i] > kLevelPC) {
+                        if (sc.levels[i] > LEVEL_PERM) {
                             const int r = LEVEL_MAX - sc.levels[i];
                             /* Find the first possible d_{r1} target for r1>=r */
                             int r1 = NextRTgt(nodes_ss, t_max, d, r);

@@ -8,6 +8,8 @@
 std::vector<int> bench::Counter::counts_ = {0, 0, 0};
 #endif
 
+int main_generators_to_csv(const std::string& db_filename, const std::string& tablename);
+
 int main(int argc, char** argv)
 {
     std::string cmd;
@@ -42,6 +44,8 @@ int main(int argc, char** argv)
         return main_prod(argc, argv, index);
     else if (cmd == "export")
         return main_export(argc, argv, index);
+    else if (cmd == "res_csv")
+        return main_generators_to_csv("E:/S0_Adams_res_d261.db", "S0_Adams_res");
     else
         std::cerr << "Invalid cmd: " << cmd << '\n';
 }

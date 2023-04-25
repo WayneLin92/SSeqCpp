@@ -6,6 +6,7 @@
 namespace bench {
 
 std::vector<double> AccTimer::counts_;
+std::vector<int> MaxGetter::max_;
 
 Timer::Timer() : bPrinted_(false)
 {

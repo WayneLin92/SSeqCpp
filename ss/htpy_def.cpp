@@ -1,6 +1,6 @@
-#include "mylog.h"
-#include "main.h"
 #include "algebras/linalg.h"
+#include "main.h"
+#include "mylog.h"
 
 bool EndWithIndAndO(const algZ::Poly& p, uint32_t& gen_id)
 {
@@ -166,7 +166,7 @@ void GetImageLeads(const std::vector<T1>& x, const std::vector<T2>& fx, const GB
     }
 }
 
-int Diagram::DefineDependenceInExtensions(int depth)
+int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
 {
     int count_homotopy = 0;
 
@@ -184,7 +184,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
             uint32_t gen_id = -1;
             if (EndWithIndAndO(rel, gen_id)) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), pi_gb.gen_degs());
-                if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def) {
+                if (stem_min <= deg.stem() && deg.stem() <= stem_max && ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def) {
                     ssS0_.pi_gen_defs[gen_id] = EnumDef::dec;
                     algZ::Poly rel1 = DefRel(rel, pi_gb);
 
@@ -212,7 +212,7 @@ int Diagram::DefineDependenceInExtensions(int depth)
             uint32_t v_id = -1;
             if (EndWithIndAndO(rel, v_id)) {
                 AdamsDeg deg = GetDeg(rel.GetLead(), ssS0_.pi_gb.gen_degs(), pi_gb.v_degs());
-                if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def) {
+                if (stem_min <= deg.stem() && deg.stem() <= stem_max && ssCof.pi_gen_defs[v_id] == EnumDef::no_def) {
                     ssCof.pi_gen_defs[v_id] = EnumDef::dec;
                     algZ::Mod rel1 = DefRel(rel, pi_gb);
                     Logger::LogHtpyRel(depth, enumReason::def, ssCof.name, deg, rel, rel1);
@@ -223,47 +223,6 @@ int Diagram::DefineDependenceInExtensions(int depth)
         }
         AddPiRelsCof(iCof, std::move(new_rels));
     }
-
-    /* top cell maps */
-    //{
-    //    algZ::Poly1d new_rels_S0; /* By exactness qi * h = 0 */
-    //    int old_count_homotopy = count_homotopy;
-    //    for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) {
-    //        auto& ssCof = ssCofs_[iCof];
-    //        auto& q = ssCof.pi_qt.back();
-    //        for (size_t i = 0; i < q.size(); ++i) {
-    //            auto& qi = q[i];
-    //            qi = ssS0_.pi_gb.Reduce(std::move(qi));
-    //            uint32_t gen_id = -1;
-    //            if (EndWithIndAndO(qi, gen_id)) {
-    //                AdamsDeg deg = GetDeg(qi.GetLead(), ssS0_.pi_gb.gen_degs());
-    //                if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def) {
-    //                    ssS0_.pi_gen_defs[gen_id] = EnumDef::dec;
-    //                    algZ::Poly qi1 = DefPoly(qi, ssS0_.pi_gb);
-
-    //                    if (depth == 0)
-    //                        myio::Logger::cout_fout2() << "By definition:  " << ssCof.name << "  stem=" << deg.stem() << "  q" << std::to_string(i) << "=" << qi << " --> " << qi1 << '\n';
-    //                    qi = std::move(qi1);
-    //                    ++count_homotopy;
-
-    //                    algZ::Poly h = ssS0_.pi_gb.Gen((uint32_t)iCof);
-    //                    algZ::Poly relS0 = ssS0_.pi_gb.Reduce(qi * h);
-    //                    if (algZ::IsValidRel(relS0)) {
-    //                        if (depth == 0)
-    //                            myio::Logger::cout_fout2() << "    -> S0 rel: " << relS0 << '\n';
-    //                        new_rels_S0.push_back(std::move(relS0));
-    //                        ++count_homotopy;
-    //                    }
-    //                }
-    //            }
-    //        }
-    //        if (count_homotopy > old_count_homotopy) {
-    //            AddPiRelsCof2S0(iCof);
-    //            old_count_homotopy = count_homotopy;
-    //        }
-    //    }
-    //    AddPiRelsS0(std::move(new_rels_S0));
-    //}
 
     return count_homotopy;
 }
@@ -278,7 +237,7 @@ void ReduceIndeterminancyId(algZ::Poly1d& indeterminancy, const GenConstraint& c
     indeterminancy = std::move(kernel);
 }
 
-void ReduceIndeterminancy(algZ::Poly1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb)
+void FilterIndeterminancy(algZ::Poly1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb)
 {
     for (auto& gc : constraints)
         ReduceIndeterminancyId(indeterminancy, gc, gb);
@@ -307,7 +266,7 @@ void ReduceIndeterminancyQ(algZ::Mod1d& indeterminancy, const GenConstraint& con
     indeterminancy = std::move(kernel);
 }
 
-void ReduceIndeterminancy(algZ::Mod1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb, const SSMod& ssCof)
+void FilterIndeterminancy(algZ::Mod1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb, const SSMod& ssCof)
 {
     for (auto& gc : constraints) {
         if (gc.map_id == 0)
@@ -319,7 +278,7 @@ void ReduceIndeterminancy(algZ::Mod1d& indeterminancy, const std::vector<GenCons
     }
 }
 
-int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
+int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth)
 {
     int count_homotopy = 0;
 
@@ -381,40 +340,42 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
             for (size_t gen_id = 0; gen_id < pi_gb.gen_degs().size(); ++gen_id) {
                 if (ssS0_.pi_gen_defs[gen_id] == EnumDef::no_def || ssS0_.pi_gen_defs[gen_id] == EnumDef::constraints) {
                     AdamsDeg d_g = ssS0_.pi_gb.gen_degs()[gen_id];
-                    algZ::Poly g = ssS0_.pi_gb.ReduceV2(ssS0_.pi_gb.Gen((uint32_t)gen_id));
-                    if (!g)
-                        continue;
-                    AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
-                    AdamsDeg d_prod = d_g + d_m;
-                    algZ::Poly prod;
-                    prod.iaddmulP(m, g, tmp, pi_gb.gen_2tor_degs());
-                    auto prod_reduced = pi_gb.ReduceV2(prod);
-                    if (prod_reduced.UnknownFil() > algZ::FIL_MAX)
-                        continue;
-                    ExtendRelS0(d_prod.stem(), prod_reduced);
-                    if (d_prod.t + prod_reduced.UnknownFil() - d_prod.s > ssS0_.t_max)
-                        continue;
+                    if (stem_min <= d_g.stem() && d_g.stem() <= stem_max) {
+                        algZ::Poly g = ssS0_.pi_gb.Reduce(ssS0_.pi_gb.Gen((uint32_t)gen_id));
+                        if (!g)
+                            continue;
+                        AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
+                        AdamsDeg d_prod = d_g + d_m;
+                        algZ::Poly prod;
+                        prod.iaddmulP(m, g, tmp, pi_gb.gen_2tor_degs());
+                        auto prod_reduced = pi_gb.ReduceV2(prod);
+                        if (prod_reduced.UnknownFil() > algZ::FIL_MAX)
+                            continue;
+                        ExtendRelS0(d_prod.stem(), prod_reduced);
+                        if (d_prod.t + prod_reduced.UnknownFil() - d_prod.s > ssS0_.t_max)
+                            continue;
 
-                    algZ::Poly1d indeterminancy, m_by_ind;
-                    auto& basis_stem = basis_S0[d_g.stem()];
-                    for (auto& b : basis_stem)
-                        if (b.fil() > d_g.s)
-                            indeterminancy.push_back(b);
-                    // if (gen_id == 38)
-                    //     std::cout << "debug\n";
-                    if (ssS0_.pi_gen_defs[gen_id] == EnumDef::constraints)
-                        ReduceIndeterminancy(indeterminancy, ssS0_.pi_gen_def_mons[gen_id], ssS0_.pi_gb);
-                    for (auto& b : indeterminancy)
-                        m_by_ind.push_back(ssS0_.pi_gb.ReduceV2(algZ::Poly(m) * b));
-                    ut::map_seq<int, 0> num_leads;
-                    GetImageLeads(indeterminancy, m_by_ind, ssS0_.pi_gb, ssS0_.pi_gb, num_leads);
-                    algZ::Poly prod_extended = prod_reduced;
-                    if (ExtendRelS0V2(d_prod.stem(), prod_extended, num_leads)) {
-                        Logger::LogHtpyProd(depth, enumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
-                        prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
-                        ssS0_.pi_gen_defs[gen_id] = EnumDef::constraints;
-                        ssS0_.pi_gen_def_mons[gen_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
-                        new_rels.push_back(std::move(prod_extended));
+                        algZ::Poly1d indeterminancy, m_by_ind;
+                        auto& basis_stem = basis_S0[d_g.stem()];
+                        for (auto& b : basis_stem)
+                            if (b.fil() > d_g.s)
+                                indeterminancy.push_back(b);
+                        // if (gen_id == 38)
+                        //     std::cout << "debug\n";
+                        if (ssS0_.pi_gen_defs[gen_id] == EnumDef::constraints)
+                            FilterIndeterminancy(indeterminancy, ssS0_.pi_gen_def_mons[gen_id], ssS0_.pi_gb);
+                        for (auto& b : indeterminancy)
+                            m_by_ind.push_back(ssS0_.pi_gb.ReduceV2(algZ::Poly(m) * b));
+                        ut::map_seq<int, 0> num_leads;
+                        GetImageLeads(indeterminancy, m_by_ind, ssS0_.pi_gb, ssS0_.pi_gb, num_leads);
+                        algZ::Poly prod_extended = prod_reduced;
+                        if (ExtendRelS0V2(d_prod.stem(), prod_extended, num_leads)) {
+                            Logger::LogHtpyProd(depth, enumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
+                            prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
+                            ssS0_.pi_gen_defs[gen_id] = EnumDef::constraints;
+                            ssS0_.pi_gen_def_mons[gen_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
+                            new_rels.push_back(std::move(prod_extended));
+                        }
                     }
                 }
             }
@@ -434,42 +395,44 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
             for (size_t v_id = 0; v_id < pi_gb.v_degs().size(); ++v_id) {
                 if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def || ssCof.pi_gen_defs[v_id] == EnumDef::constraints) {
                     AdamsDeg d_g = ssCof.pi_gb.v_degs()[v_id];
-                    algZ::Mod g = ssCof.pi_gb.ReduceV2(ssCof.pi_gb.Gen((uint32_t)v_id));
-                    if (!g)
-                        continue;
-                    AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
-                    AdamsDeg d_prod = d_g + d_m;
-                    algZ::Mod prod;
-                    prod.iaddmulP(m, g, tmpm, pi_gb.gen_2tor_degs());
-                    auto prod_reduced = pi_gb.ReduceV2(prod);
-                    if (prod_reduced.UnknownFil() > algZ::FIL_MAX)
-                        continue;
-                    ExtendRelCof(iCof, d_prod.stem(), prod_reduced);
-                    if (d_prod.t + prod_reduced.UnknownFil() - d_prod.s > ssCof.t_max)
-                        continue;
+                    if (stem_min <= d_g.stem() && d_g.stem() <= stem_max) {
+                        algZ::Mod g = ssCof.pi_gb.Reduce(ssCof.pi_gb.Gen((uint32_t)v_id));
+                        if (!g)
+                            continue;
+                        AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
+                        AdamsDeg d_prod = d_g + d_m;
+                        algZ::Mod prod;
+                        prod.iaddmulP(m, g, tmpm, pi_gb.gen_2tor_degs());
+                        auto prod_reduced = pi_gb.ReduceV2(prod);
+                        if (prod_reduced.UnknownFil() > algZ::FIL_MAX)
+                            continue;
+                        ExtendRelCof(iCof, d_prod.stem(), prod_reduced);
+                        if (d_prod.t + prod_reduced.UnknownFil() - d_prod.s > ssCof.t_max)
+                            continue;
 
-                    /*if (iCof == 0 && v_id == 21)
-                        std::cout << "debug\n";*/
+                        /*if (iCof == 0 && v_id == 21)
+                            std::cout << "debug\n";*/
 
-                    algZ::Mod1d indeterminancy, m_by_ind;
-                    auto& basis_stem = basis_Cofs[iCof][d_g.stem()];
-                    for (auto& b : basis_stem)
-                        if (b.fil() > d_g.s)
-                            indeterminancy.push_back(b);
-                    if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
-                        ReduceIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
-                    for (auto& b : indeterminancy)
-                        m_by_ind.push_back(ssCof.pi_gb.ReduceV2(algZ::Poly(m) * b));
+                        algZ::Mod1d indeterminancy, m_by_ind;
+                        auto& basis_stem = basis_Cofs[iCof][d_g.stem()];
+                        for (auto& b : basis_stem)
+                            if (b.fil() > d_g.s)
+                                indeterminancy.push_back(b);
+                        if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
+                            FilterIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
+                        for (auto& b : indeterminancy)
+                            m_by_ind.push_back(ssCof.pi_gb.ReduceV2(algZ::Poly(m) * b));
 
-                    ut::map_seq<int, 0> num_leads;
-                    GetImageLeads(indeterminancy, m_by_ind, ssCof.pi_gb, ssCof.pi_gb, num_leads);
-                    algZ::Mod prod_extended = prod_reduced;
-                    if (ExtendRelCofV2(iCof, d_prod.stem(), prod_extended, num_leads)) {
-                        Logger::LogHtpyProd(depth, enumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
-                        prod_extended.isubP(prod, tmpm, pi_gb.gen_2tor_degs());
-                        ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
-                        ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
-                        new_rels.push_back(std::move(prod_extended));
+                        ut::map_seq<int, 0> num_leads;
+                        GetImageLeads(indeterminancy, m_by_ind, ssCof.pi_gb, ssCof.pi_gb, num_leads);
+                        algZ::Mod prod_extended = prod_reduced;
+                        if (ExtendRelCofV2(iCof, d_prod.stem(), prod_extended, num_leads)) {
+                            Logger::LogHtpyProd(depth, enumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
+                            prod_extended.isubP(prod, tmpm, pi_gb.gen_2tor_degs());
+                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
+                            ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
+                            new_rels.push_back(std::move(prod_extended));
+                        }
                     }
                 }
             }
@@ -477,72 +440,66 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
         }
 
         /* top cell maps */
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) { /* module */
-            auto& ssCof = ssCofs_[iCof];
-            auto& pi_gb = ssCof.pi_gb;
-            int1d v_ids_changed;
+        if (!m) {
+            for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof) { /* module */
+                auto& ssCof = ssCofs_[iCof];
+                auto& pi_gb = ssCof.pi_gb;
+                int1d v_ids_changed;
 
-            algZ::Poly1d new_rels_S0;
-            for (size_t v_id = 0; v_id < pi_gb.v_degs().size(); ++v_id) {
-                if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def || ssCof.pi_gen_defs[v_id] == EnumDef::constraints) {
-                    AdamsDeg d_g = ssCof.pi_gb.v_degs()[v_id];
-                    algZ::Mod g = ssCof.pi_gb.ReduceV2(ssCof.pi_gb.Gen((uint32_t)v_id));
-                    if (!g)
-                        continue;
-                    AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
-                    AdamsDeg d_q = d_g + d_m - ssCof.deg_qt;
-                    algZ::Mod prod;
-                    prod.iaddmulP(m, g, tmpm, ssCof.pi_gb.gen_2tor_degs());
-                    auto q_prod = algZ::subsMod(prod, ssCof.pi_qt.back(), ssCof.pi_gb.v_degs());
-                    q_prod = ssS0_.pi_gb.Reduce(q_prod);
-                    if (!algZ::IsValidRel(q_prod))
-                        continue;
-                    auto q_prod_reduced = ssS0_.pi_gb.ReduceV2(q_prod);
-                    if (q_prod_reduced.UnknownFil() > algZ::FIL_MAX)
-                        continue;
-                    ExtendRelS0(d_q.stem(), q_prod_reduced);
-                    if (d_q.t + q_prod_reduced.UnknownFil() - d_q.s > ssS0_.t_max)
-                        continue;
+                algZ::Poly1d new_rels_S0;
+                for (size_t v_id = 0; v_id < pi_gb.v_degs().size(); ++v_id) {
+                    if (ssCof.pi_gen_defs[v_id] == EnumDef::no_def || ssCof.pi_gen_defs[v_id] == EnumDef::constraints) {
+                        AdamsDeg d_g = ssCof.pi_gb.v_degs()[v_id];
+                        if (stem_min <= d_g.stem() && d_g.stem() <= stem_max) {
+                            algZ::Mod g = ssCof.pi_gb.Reduce(ssCof.pi_gb.Gen((uint32_t)v_id));
+                            if (!g)
+                                continue;
+                            AdamsDeg d_m = GetDeg(m, ssS0_.pi_gb.gen_degs());
+                            AdamsDeg d_q = d_g + d_m - ssCof.deg_qt;
+                            algZ::Mod prod;
+                            prod.iaddmulP(m, g, tmpm, ssCof.pi_gb.gen_2tor_degs());
+                            auto q_prod = algZ::subsMod(prod, ssCof.pi_qt.back(), ssCof.pi_gb.v_degs());
+                            q_prod = ssS0_.pi_gb.Reduce(q_prod);
+                            if (!algZ::IsValidRel(q_prod))
+                                continue;
+                            auto q_prod_reduced = ssS0_.pi_gb.ReduceV2(q_prod);
+                            if (q_prod_reduced.UnknownFil() > algZ::FIL_MAX)
+                                continue;
+                            ExtendRelS0(d_q.stem(), q_prod_reduced);
+                            if (d_q.t + q_prod_reduced.UnknownFil() - d_q.s > ssS0_.t_max)
+                                continue;
 
-                    algZ::Mod1d indeterminancy;
-                    algZ::Poly1d q_m_by_ind;
-                    auto& basis_stem = basis_Cofs[iCof][d_g.stem()];
-                    for (auto& b : basis_stem)
-                        if (b.fil() > d_g.s)
-                            indeterminancy.push_back(b);
-                    if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
-                        ReduceIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
-                    for (auto& b : indeterminancy) {
-                        auto q = algZ::subsMod(ssCof.pi_gb.Reduce(algZ::Poly(m) * b), ssCof.pi_qt.back(), ssCof.pi_gb.v_degs());
-                        q = ssS0_.pi_gb.Reduce(std::move(q));
-                        q_m_by_ind.push_back(std::move(q));
-                    }
+                            algZ::Mod1d indeterminancy;
+                            algZ::Poly1d q_m_by_ind;
+                            auto& basis_stem = basis_Cofs[iCof][d_g.stem()];
+                            for (auto& b : basis_stem)
+                                if (b.fil() > d_g.s)
+                                    indeterminancy.push_back(b);
+                            if (ssCof.pi_gen_defs[v_id] == EnumDef::constraints)
+                                FilterIndeterminancy(indeterminancy, ssCof.pi_gen_def_mons[v_id], ssS0_.pi_gb, ssCof);
+                            for (auto& b : indeterminancy) {
+                                auto q = algZ::subsMod(ssCof.pi_gb.Reduce(algZ::Poly(m) * b), ssCof.pi_qt.back(), ssCof.pi_gb.v_degs());
+                                q = ssS0_.pi_gb.ReduceV2(std::move(q));
+                                q_m_by_ind.push_back(std::move(q));
+                            }
 
-                    ut::map_seq<int, 0> num_leads;
-                    GetImageLeads(indeterminancy, q_m_by_ind, ssCof.pi_gb, ssS0_.pi_gb, num_leads);
-                    algZ::Poly q_prod_extended = q_prod_reduced;
-                    if (ExtendRelS0V2(d_q.stem(), q_prod_extended, num_leads)) {
-                        if (m) {
-                            std::string qm = fmt::format("q*{}", algZ::Poly(m));
-                            Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, qm, v_id, q_prod_reduced, q_prod_extended);
-                            q_prod_extended.isubP(q_prod, tmp, pi_gb.gen_2tor_degs());
-                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
-                            ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
-                            new_rels_S0.push_back(std::move(q_prod_extended));
-                        }
-                        else {
-                            Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
-                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
-                            ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
-                            ssCof.pi_qt.back()[v_id] = std::move(q_prod_extended);
-                            v_ids_changed.push_back((int)v_id);
+                            ut::map_seq<int, 0> num_leads;
+                            GetImageLeads(indeterminancy, q_m_by_ind, ssCof.pi_gb, ssS0_.pi_gb, num_leads);
+                            algZ::Poly q_prod_extended = q_prod_reduced;
+                            if (ExtendRelS0V2(d_q.stem(), q_prod_extended, num_leads)) {
+                                Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
+                                ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
+                                ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
+                                ssCof.pi_qt.back()[v_id] = std::move(q_prod_extended);
+                                v_ids_changed.push_back((int)v_id);
+                            }
                         }
                     }
                 }
+                AddPiRelsS0(std::move(new_rels_S0));
+                if (!v_ids_changed.empty())
+                    AddPiRelsCof2S0(iCof);
             }
-            AddPiRelsS0(std::move(new_rels_S0));
-            if (!v_ids_changed.empty())
-                AddPiRelsCof2S0(iCof);
         }
     }
 
@@ -551,12 +508,13 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_max_mult, int depth)
 
 int main_deduce_ext_def(int argc, char** argv, int index)
 {
+    int stem_min = 0, stem_max = 100;
     std::string selector = "default";
     DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce ext_def [selector]\n\n";
+        std::cout << "Usage:\n  ss deduce ext_def [stem_min] [stem_max] [selector]\n\n";
 
         std::cout << "Default values:\n";
         std::cout << "  selector = " << selector << "\n\n";
@@ -564,6 +522,10 @@ int main_deduce_ext_def(int argc, char** argv, int index)
         std::cout << VERSION << std::endl;
         return 0;
     }
+    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
+        return index;
     if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
         return index;
     auto dbnames = GetDbNames(selector);
@@ -572,12 +534,12 @@ int main_deduce_ext_def(int argc, char** argv, int index)
     try {
         try {
             diagram.DeduceTrivialExtensions(0);
-            diagram.DefineDependenceInExtensions(0);
+            diagram.DefineDependenceInExtensions(stem_min, stem_max, 0);
+            diagram.SimplifyPiRels();
+            diagram.save(dbnames, flag);
         }
         catch (TerminationException&) {
         }
-        diagram.SimplifyPiRels();
-        diagram.save(dbnames, flag);
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {
@@ -597,13 +559,14 @@ int main_deduce_ext_def(int argc, char** argv, int index)
 
 int main_deduce_ext_def2(int argc, char** argv, int index)
 {
+    int stem_min = 0, stem_max = 100;
     int stem_max_mult = 9;
     std::string selector = "default";
     DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce ext_def2 [stem_max_mult] [selector]\n\n";
+        std::cout << "Usage:\n  ss deduce ext_def2 [stem_min] [stem_max] [stem_max_mult] [selector]\n\n";
 
         std::cout << "Default values:\n";
         std::cout << "  stem_max_mult = " << stem_max_mult << "\n\n";
@@ -612,6 +575,10 @@ int main_deduce_ext_def2(int argc, char** argv, int index)
         std::cout << VERSION << std::endl;
         return 0;
     }
+    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
+        return index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max_mult", stem_max_mult))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "selector", selector))
@@ -623,12 +590,12 @@ int main_deduce_ext_def2(int argc, char** argv, int index)
         try {
             int count_ss = 0, count_homotopy = 0;
             diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
-            diagram.DefineDependenceInExtensionsV2(stem_max_mult, 0);
+            diagram.DefineDependenceInExtensionsV2(stem_min, stem_max, stem_max_mult, 0);
+            diagram.SimplifyPiRels();
+            diagram.save(dbnames, flag);
         }
         catch (TerminationException&) {
         }
-        diagram.SimplifyPiRels();
-        diagram.save(dbnames, flag);
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {

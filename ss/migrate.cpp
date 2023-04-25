@@ -92,24 +92,49 @@ void Migrate_htpy(const Diagram& diagram1, Diagram& diagram2)
     for (size_t iSS = 0; iSS < diagram1.GetAllBasisSs().size(); ++iSS) {
         if (iSS == 0) {
             auto& pi_gb1 = diagram1.GetS0().pi_gb;
-            auto& pi_gen_Einf1 = diagram1.GetS0().pi_gen_Einf;
             auto& pi_gb2 = diagram2.GetS0().pi_gb;
-            auto& pi_gen_Einf2 = diagram2.GetS0().pi_gen_Einf;
             int t_max2 = diagram2.GetS0().nodes_ss.front().rbegin()->first.t;
-            if (pi_gb2.gen_degs().size() > 0) {  //// TODO: Support merge of homotopy information
+            if (pi_gb2.gen_degs().size() > 1) {  //// TODO: Support merge of homotopy information
                 Logger::LogException(0, 0x43dbbfcaU, "Diagram2 should be reset first.\n");
                 throw MyException(0x43dbbfcaU, "Diagram2 should be reset first.");
             }
-            for (auto& deg : pi_gb1.gen_degs())
-                if (deg.t <= t_max2)
+            algZ::Poly1d rels = pi_gb1.data();
+            uint32_t i = 0;
+            for (auto& deg : pi_gb1.gen_degs()) {
+                if (deg.t <= t_max2) {
                     pi_gb2.AddGen(deg);
-            pi_gen_Einf2 = pi_gen_Einf1;
-            diagram2.AddPiRelsS0(pi_gb1.data());
+                    if (deg.stem() % 2 == 1)
+                        rels.push_back(algZ::Mon::two_x_square(i, deg.s));
+                }
+                ++i;
+            }
+            diagram2.GetS0().pi_gen_Einf = diagram1.GetS0().pi_gen_Einf;
+            diagram2.GetS0().pi_gen_defs = diagram1.GetS0().pi_gen_defs;
+            diagram2.GetS0().pi_gen_def_mons = diagram1.GetS0().pi_gen_def_mons;
+            diagram2.AddPiRelsS0(std::move(rels));
         }
         else {
-            ;
+            auto& ssCof1 = diagram1.GetCofs()[iSS - 1];
+            auto& ssCof2 = diagram2.GetCofs()[iSS - 1];
+            auto& pi_gb1 = ssCof1.pi_gb;
+            auto& pi_gb2 = ssCof2.pi_gb;
+            int t_max2 = ssCof2.nodes_ss.front().rbegin()->first.t;
+            if (pi_gb2.v_degs().size() > 1) {  //// TODO: Support merge of homotopy information
+                Logger::LogException(0, 0x92cb2691, "Diagram2 should be reset first.\n");
+                throw MyException(0x92cb2691, "Diagram2 should be reset first.");
+            }
+            for (auto& deg : pi_gb1.v_degs())
+                if (deg.t <= t_max2)
+                    pi_gb2.AddGen(deg);
+            ssCof2.pi_gen_Einf = ssCof1.pi_gen_Einf;
+            ssCof2.pi_gen_defs = ssCof1.pi_gen_defs;
+            ssCof2.pi_gen_def_mons = ssCof1.pi_gen_def_mons;
+            ssCof2.pi_qt = ssCof1.pi_qt;
+            diagram2.AddPiRelsCof(iSS - 1, pi_gb1.data());
         }
     }
+    int count_ss = 0, count_htpy = 0;
+    diagram2.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, 0);
 }
 
 int main_migrate_ss(int argc, char** argv, int index)
@@ -136,15 +161,57 @@ int main_migrate_ss(int argc, char** argv, int index)
 
     try {
         Migrate_ss(diagram1, diagram2);
+        diagram2.save(dbnames2, flag_no_op);
     }
-    catch (SSException& e) {
+    /*catch (SSException& e) {
         std::cerr << "SSException " << std::hex << e.id() << ": " << e.what() << '\n';
     }
     catch (MyException& e) {
         std::cerr << "MyException " << std::hex << e.id() << ": " << e.what() << '\n';
+    }*/
+    catch (NoException&) {
+        ;
     }
 
-    diagram2.save(dbnames2, flag_no_op);
+
+    return 0;
+}
+
+int main_migrate_htpy(int argc, char** argv, int index)
+{
+    std::string group1, group2;
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        std::cout << "Debugging\n";
+        std::cout << "Usage:\n  ss migrate_hpty <diagram1> <diagram2>\n\n";
+
+        std::cout << VERSION << std::endl;
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "diagram1", group1))
+        return index;
+    if (myio::load_arg(argc, argv, ++index, "diagram2", group2))
+        return index;
+    auto dbnames1 = GetDbNames(group1, false);
+    auto dbnames2 = GetDbNames(group2);
+
+    DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
+    Diagram diagram1(dbnames1, flag);
+    Diagram diagram2(dbnames2, flag);
+
+    try {
+        Migrate_htpy(diagram1, diagram2);
+        diagram2.save(dbnames2, flag);
+    }
+    /*catch (SSException& e) {
+        std::cerr << "SSException " << std::hex << e.id() << ": " << e.what() << '\n';
+    }
+    catch (MyException& e) {
+        std::cerr << "MyException " << std::hex << e.id() << ": " << e.what() << '\n';
+    }*/
+    catch (NoException&) {
+        ;
+    }
 
     return 0;
 }
@@ -207,7 +274,7 @@ int main_truncate(int argc, char** argv, int index)
 
         for (auto& [d, sc] : nodes_ss) {
             for (size_t i = 0; i < sc.levels.size(); ++i) {
-                if (sc.levels[i] > kLevelPC) {
+                if (sc.levels[i] > LEVEL_PERM) {
                     int r = LEVEL_MAX - sc.levels[i];
                     if (d.t + r - 1 > t_max && sc.diffs[i] != NULL_DIFF)
                         sc.diffs[i] = NULL_DIFF;

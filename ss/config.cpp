@@ -17,22 +17,25 @@ std::vector<std::string> GetDbNames(const std::string& selector, bool log)
         std::ifstream ifs("ss.json");
         if (ifs.is_open())
             ifs >> js;
-        else
+        else {
+            Logger::LogException(0, 0xb8525e9bU, "File ss.json found\n");
             throw MyException(0xb8525e9bU, "File ss.json found");
+        }
     }
     try {
-        json& databases = js["databases"][selector];
-        for (auto& db : databases) {
-            if (db["name"] == "log") {
-                if (log)
-                    Logger::SetOutDeduce(db["path"].get<std::string>().c_str());
-            }
-            else
-                result.push_back(db["path"].get<std::string>());
+        json& diagram = js["diagrams"][selector];
+        if (log) {
+            auto path_log = fmt::format("{}/{}", diagram["dir"].get<std::string>(), diagram["log"].get<std::string>());
+            Logger::SetOutDeduce(path_log.c_str());
+        }
+        std::vector<std::string> names = {"S0", "C2", "Ceta", "Cnu", "Csigma"};
+        for (auto& name : names) {
+            auto path = fmt::format("{}/{}", diagram["dir"].get<std::string>(), diagram["spectra"][name].get<std::string>());
+            result.push_back(path);
         }
     }
     catch (nlohmann::detail::exception e) {
-        std::cout << "Error:" << e.what() << '\n';
+        Logger::LogException(0, e.id, "{}\n", e.what());
         throw e;
     }
     return result;

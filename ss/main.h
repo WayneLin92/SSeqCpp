@@ -10,9 +10,9 @@ inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
-constexpr int kLevelMin = 2;
-constexpr int kRPC = 200;
-constexpr int kLevelPC = LEVEL_MAX - kRPC; /* Level of Permanant cycles */
+constexpr int LEVEL_MIN = 2;
+constexpr int R_PERM = 200;
+constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 
@@ -271,8 +271,15 @@ private: /* Staircase */
     static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
 
 private: /* ss */
-    /* Return if it is possibly a new dr target for r<=r_max */
+    /* Return if it is possibly a new dr target for r<=r_max 
+     * Warning: This does check if ss[deg] is trivial
+     */
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
+
+    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
+    {
+        return IsPossTgt(nodes_ss, deg, R_PERM);
+    }
 
     /* Return if it is possibly a new dr source for r>=r_min */
     static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
@@ -418,8 +425,8 @@ public: /* homotopy groups */
     unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
     unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag);
     void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag flag);
-    int DefineDependenceInExtensions(int depth);
-    int DefineDependenceInExtensionsV2(int stem_max_mult, int depth);
+    int DefineDependenceInExtensions(int stem_min, int stem_max, int depth);
+    int DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth);
 };
 
 class DBSS : public myio::DbAdamsSS

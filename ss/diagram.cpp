@@ -173,13 +173,13 @@ int Diagram::SetS0DiffGlobal(AdamsDeg deg_x, const int1d& x, const int1d& dx, in
             result += SetS0ImageLeibniz(deg_dx, dx, r - 1);
     }
     else if (IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
-        int r_min = kLevelMin;
+        int r_min = LEVEL_MIN;
         while (r_min < r && !IsNewDiff(nodes_ss, deg_x, x, {}, r_min))  // TODO: improve this
             ++r_min;
         if (dx.empty()) {
             int r_max = NextRTgt(nodes_ss, t_max, deg_x, r + 1);
             if (r_max == -1)
-                r = kRPC - 1;
+                r = R_PERM - 1;
             else
                 r = r_max - 1;
         }
@@ -211,13 +211,13 @@ int Diagram::SetCofDiffGlobal(size_t iCof, AdamsDeg deg_x, const int1d& x, const
         }
     }
     else if (IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
-        int r_min = kLevelMin;
+        int r_min = LEVEL_MIN;
         while (r_min < r && !IsNewDiff(nodes_ss, deg_x, x, {}, r_min))  // TODO: improve this
             ++r_min;
         if (dx.empty()) {
             int r_max = NextRTgt(nodes_ss, t_max, deg_x, r + 1);
             if (r_max == -1)
-                r = kRPC - 1;
+                r = R_PERM - 1;
             else
                 r = r_max - 1;
         }

@@ -42,7 +42,7 @@ void Logger::SetOutDeduce(const char* filename)
 
 std::string Logger::GetCmd(int argc, char** argv)
 {
-    return fmt::format("\nLogging start at {}\n{}\n", ut::get_time(), fmt::join(argv, argv + argc, " "));
+    return fmt::format("\nLogging start at {}\ncmd: {}\n", ut::get_time(), fmt::join(argv, argv + argc, " "));
 }
 
 void Logger::LogCmd(int argc, char** argv)
@@ -57,6 +57,8 @@ void Logger::LogSummary(std::string_view category, int count)
     fmt::format_to(std::back_inserter(line_), "Summary - {}: {}\n", category, count);
     fmt::print("{}", line_);
     fmt::print(fout_main_, "{}", line_);
+    if (fout_deduce_)
+        fmt::print(fout_deduce_, "{}\n", line_);
 }
 
 void Logger::LogTime(std::string_view time)
@@ -219,7 +221,7 @@ void Logger::LogHtpyMap(int depth, enumReason reason, std::string_view name, alg
 {
     std::string_view indent(INDENT, depth * 2);
     line_.clear();
-    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}(v_{})={} --> {}\n", indent, GetReason(reason), name, deg_x, f, gen_id, fx1, fx2);
+    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}(v_{}) = {} --> {}\n", indent, GetReason(reason), name, deg_x, f, gen_id, fx1, fx2);
     if (depth == 0) {
         fmt::print(fmt::fg(fx1.data.size() == fx2.data.size() ? fmt::color::white_smoke : fmt::color::light_blue), "{}", line_);
         fmt::print(fout_deduce_, "{}", line_);
@@ -232,7 +234,7 @@ void Logger::LogHtpyProd(int depth, enumReason reason, std::string_view name, al
 {
     std::string_view indent(INDENT, depth * 2);
     line_.clear();
-    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{}={} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
+    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{} = {} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
     if (depth == 0) {
         fmt::print(fmt::fg(hm1.data.size() == hm2.data.size() ? fmt::color::white_smoke : fmt::color::light_blue), "{}", line_);
         fmt::print(fout_deduce_, "{}", line_);
@@ -245,7 +247,7 @@ void Logger::LogHtpyProd(int depth, enumReason reason, std::string_view name, al
 {
     std::string_view indent(INDENT, depth * 2);
     line_.clear();
-    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{}={} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
+    fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{} = {} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
     if (depth == 0) {
         fmt::print(fmt::fg(hm1.data.size() == hm2.data.size() ? fmt::color::white_smoke : fmt::color::light_blue), "{}", line_);
         fmt::print(fout_deduce_, "{}", line_);

@@ -1,4 +1,9 @@
+"""Plot spectra sequences"""
+import argparse
+import subprocess
+
 import sqlite3
+import json
 import math
 from collections import defaultdict
 import os
@@ -13,9 +18,12 @@ class Config:
 cosA = math.cos(Config.bullets_tilt_angle)
 sinA = math.sin(Config.bullets_tilt_angle)
 
-path_tpl = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\index_tpl.html"
-path_html_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
-path_js_tmp = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
+PATH_SS_JSON = "C:/Users/lwnpk/OneDrive/Projects/algtop_cpp/ss/ss.json"
+PATH_HTML_TPL = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\index_tpl.html"
+PATH_TMP_HTML = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
+PATH_TMP_JS = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
+
+R_PERM = 200
 
 
 ########################### Read #################################
@@ -528,13 +536,13 @@ def export_ss_bullets(data, radius, is_ring: bool):
                 if diff:
                     page = 10000 - level
                 else:
-                    page = 200
+                    page = R_PERM
             elif level >= 5000:
-                page = 200
+                page = R_PERM
             elif diff:
                 page = level
             else:
-                page = 200
+                page = R_PERM
 
             str_class = "b"
             tpl_bullets += (
@@ -882,8 +890,8 @@ def export_pi_prod_to_js(data1d):
 
 
 def export_ss_ring(data_ring, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Adams Spectral Sequence of {data_ring['name']}"
 
@@ -900,7 +908,7 @@ def export_ss_ring(data_ring, path_html=None, path_js=None):
     tpl_lines = export_h_lines(index2xyrp, lines)
     tpl_diff_lines = export_diffs(data_ring, index2xyrp)
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -923,8 +931,8 @@ def export_ss_ring(data_ring, path_html=None, path_js=None):
 
 
 def export_ss_mod(data_ring, data_mod, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Adams Spectral Sequence of {data_mod['name']}"
 
@@ -941,7 +949,7 @@ def export_ss_mod(data_ring, data_mod, path_html=None, path_js=None):
     tpl_lines = export_h_lines(index2xyrp, lines)
     tpl_diff_lines = export_diffs(data_mod, index2xyrp)
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -964,8 +972,8 @@ def export_ss_mod(data_ring, data_mod, path_html=None, path_js=None):
 
 
 def export_ss_from_res(data, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Adams Spectral Sequence of {data['name']}"
 
@@ -981,7 +989,7 @@ def export_ss_from_res(data, path_html=None, path_js=None):
     lines = export_basis_ss_prod(data)
     tpl_lines = export_h_lines(index2xyrp, lines)
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -998,8 +1006,8 @@ def export_ss_from_res(data, path_html=None, path_js=None):
 
 
 def export_pi_ring(data, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Homotopy of {data['name']}"
 
@@ -1015,7 +1023,7 @@ def export_pi_ring(data, path_html=None, path_js=None):
     lines, dashed_lines = export_pi_basis_prod(data, index2xyrp, 0)
     tpl_lines = export_pi_h_lines(index2xyrp, lines, dashed_lines)
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -1032,8 +1040,8 @@ def export_pi_ring(data, path_html=None, path_js=None):
 
 
 def export_pi_mod(data_ring, data_mod, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Homotopy of {data_mod['name']}"
 
@@ -1069,7 +1077,7 @@ def export_pi_mod(data_ring, data_mod, path_html=None, path_js=None):
     for i in range(3):
         tpl_lines[i] += tpl_lines1[i]
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -1089,8 +1097,8 @@ def export_pi_mod(data_ring, data_mod, path_html=None, path_js=None):
 
 
 def export_pi_exact(data_ring, data_mod, path_html=None, path_js=None):
-    path_html = path_html or path_html_tmp
-    path_js = path_js or path_js_tmp
+    path_html = path_html or PATH_TMP_HTML
+    path_js = path_js or PATH_TMP_JS
 
     tpl_title = f"Exact sequence for {data_mod['name']}"
     T = data_mod["t"]
@@ -1161,7 +1169,7 @@ def export_pi_exact(data_ring, data_mod, path_html=None, path_js=None):
     tpl_lines_bc = export_pi_lines(index2xyrp, lines_bc, dashed_lines_bc, "lbc")
     tpl_lines_tc = export_pi_lines(index2xyrp, lines_tc, dashed_lines_tc, "ltc")
 
-    with open(path_tpl, encoding="utf-8") as fp:
+    with open(PATH_HTML_TPL, encoding="utf-8") as fp:
         content_tpl = fp.read()
 
     content = content_tpl.replace("title:13dd3d15", tpl_title)
@@ -1179,3 +1187,58 @@ def export_pi_exact(data_ring, data_mod, path_html=None, path_js=None):
         file.write(content_js)
     with open(path_html, "w", encoding="utf-8") as file:
         file.write(content)
+
+
+if __name__ == "__main__":
+    # parser
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--edit", action="store_true", help="open the script in vscode")
+    parser.add_argument("diagram", help="Name of the diagram")
+    args = parser.parse_args()
+    if args.edit:
+        subprocess.Popen(f"code {__file__}", shell=True)
+        os.sys.exit()
+
+    # actions
+    with open(PATH_SS_JSON) as file_ss_json:
+        ss_json = json.load(file_ss_json)
+
+    dir_website = (
+        "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d/mix100"
+    )
+
+    spectra = ss_json["diagrams"][args.diagram]["spectra"]
+    dir_db = ss_json["diagrams"][args.diagram]["dir"]
+    dir_website = os.path.join(
+        ss_json["dir_website_ss"],
+        ss_json["diagrams"][args.diagram]["dir_html"],
+    )
+
+    path_S0 = os.path.join(dir_db, spectra["S0"])
+    for i, name in enumerate(spectra):
+        path_mod = os.path.join(dir_db, spectra[name])
+        if name == "S0":
+            path_html = os.path.join(dir_website, "S0_ss/index.html")
+            path_js = os.path.join(dir_website, "S0_ss/data.js")
+            data_ring = load_ss_ring(path_S0)
+            export_ss_ring(data_ring, path_html, path_js)
+
+            path_html = os.path.join(dir_website, "S0_pi/index.html")
+            path_js = os.path.join(dir_website, "S0_pi/data.js")
+            data = load_pi_ring(path_S0)
+            export_pi_ring(data, path_html, path_js)
+        else:
+            path_html = os.path.join(dir_website, f"{name}_ss/index.html")
+            path_js = os.path.join(dir_website, f"{name}_ss/data.js")
+            data_ring, data_mod = load_ss_mod(path_S0, path_mod)
+            export_ss_mod(data_ring, data_mod, path_html, path_js)
+
+            path_html = os.path.join(dir_website, f"{name}_pi/index.html")
+            path_js = os.path.join(dir_website, f"{name}_pi/data.js")
+            data_ring, data_mod = load_pi_mod(path_S0, path_mod)
+            export_pi_mod(data_ring, data_mod, path_html, path_js)
+
+            path_html = os.path.join(dir_website, f"{name}_exact/index.html")
+            path_js = os.path.join(dir_website, f"{name}_exact/data.js")
+            data_ring, data_mod = load_pi_mod(path_S0, path_mod)
+            export_pi_exact(data_ring, data_mod, path_html, path_js)
