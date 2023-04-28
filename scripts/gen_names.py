@@ -4,6 +4,8 @@ import sqlite3
 import os
 from collections import defaultdict
 
+PATH_JSON = "gen_names.json"
+
 
 def get_complex_name(path):
     path = os.path.basename(path)
@@ -52,47 +54,44 @@ def get_poly_name(p, gen_names):
     return "(" + coeff + R"i_1)"
 
 
-def set_E2_name(paths):
-    with open("E2_gen_names.json") as fp:
+def set_AdamsE2_name(cw: str, path: str):
+    with open(PATH_JSON) as fp:
         gen_names = json.load(fp)
-    gen_names = {int(k): v for k, v in gen_names.items()}
+    gen_names = {int(k): v for k, v in gen_names[cw].items()}
 
-    for i, path in enumerate(paths):
-        conn = sqlite3.connect(
-            os.path.join(
-                R"C:\Users\lwnpk\Documents\Projects\algtop_cpp_build\bin\Release", path
-            )
-        )
-        c = conn.cursor()
-        if i == 0:
-            sql = f"select id, s, t from S0_AdamsE2_generators"
-            name_i = defaultdict(int)
-            for id, s, t in c.execute(sql):
-                if id not in gen_names:
-                    if name_i[(t - s, s)] == 0:
-                        gen_names[id] = f"x_{{{t-s}, {s}}}"
-                    else:
-                        gen_names[id] = f"x_{{{t-s}, {s}, {name_i[(t-s, s)]}}}"
-                name_i[(t - s, s)] += 1
+    conn = sqlite3.connect(path)
+    c = conn.cursor()
 
-            sql = f"Update S0_AdamsE2_generators SET name=?2 where id=?1"
-            c.executemany(sql, gen_names.items())
+    sql = f"select id, s, t from {cw}_AdamsE2_generators"
+    names = defaultdict(int)
+    for id, s, t in c.execute(sql):
+        if id not in gen_names:
+            if names[(t - s, s)] == 0:
+                gen_names[id] = f"x_{{{t-s}, {s}}}"
+            else:
+                gen_names[id] = f"x_{{{t-s}, {s}, {names[(t-s, s)]}}}"
+        names[(t - s, s)] += 1
+
+    sql = f"Update {cw}_AdamsE2_generators SET name=?2 where id=?1"
+    c.executemany(sql, gen_names.items())
+
+    c.close()
+    conn.commit()
+    conn.close()
+
+
+def set_E2_name_two_cell(path):
+    gen_names_C = {}
+    complex = get_complex_name(path)
+    sql = f"select id, to_S0 from {complex}_AdamsE2_generators"
+    for id, toS0 in c.execute(sql):
+        if id == 0:
+            gen_names_C[id] = R"i_0"
         else:
-            gen_names_C = {}
-            complex = get_complex_name(path)
-            sql = f"select id, to_S0 from {complex}_AdamsE2_generators"
-            for id, toS0 in c.execute(sql):
-                if id == 0:
-                    gen_names_C[id] = R"i_0"
-                else:
-                    gen_names_C[id] = get_poly_name(toS0, gen_names)
+            gen_names_C[id] = get_poly_name(toS0, gen_names)
 
-            sql = f"Update {complex}_AdamsE2_generators SET name=?2 where id=?1"
-            c.executemany(sql, gen_names_C.items())
-
-        c.close()
-        conn.commit()
-        conn.close()
+    sql = f"Update {complex}_AdamsE2_generators SET name=?2 where id=?1"
+    c.executemany(sql, gen_names_C.items())
 
 
 def set_pi_name(path_S0):

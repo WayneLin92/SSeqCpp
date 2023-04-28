@@ -5,8 +5,11 @@
 
 namespace bench {
 
-std::vector<double> AccTimer::counts_;
-std::vector<int> MaxGetter::max_;
+std::array<int, 4> Counter::counts_ = {0, 0, 0, 0};
+std::array<double, 4> AccTimer::counts_ = {0, 0, 0, 0};
+std::array<int, 4> MaxGetter::max_ = {0, 0, 0, 0};
+
+//const Counter a; /* Print when destructs. */
 
 Timer::Timer() : bPrinted_(false)
 {

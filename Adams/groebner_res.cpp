@@ -4,9 +4,9 @@
 #include "main.h"
 #include <atomic>
 #include <cstring>
-#include <mutex>
-#include <fstream>
 #include <fmt/os.h>
+#include <fstream>
+#include <mutex>
 
 /********************************************************
  *                    class GroebnerX2m
@@ -17,7 +17,7 @@
  * Return -1 if not found.
  * @param indices indices[v_raw] stores the indices of elements of leads with the given v_raw.
  */
-int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, int1d>& indices, MMod mon)
+inline int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, int1d>& indices, MMod mon)
 {
     auto key = mon.v_raw();
     auto p = indices.find(key);
@@ -477,7 +477,6 @@ public:
                     stmt.step_and_reset();
                 }
             }
-
         }
     }
 
@@ -543,15 +542,14 @@ public:
 
     void generators_to_csv(const std::string& table_prefix) const
     {
-        Statement stmt(*this, "SELECT s, t, diff, id FROM " + table_prefix + "_generators WHERE t<=261 ORDER BY id;");
-        auto fout = fmt::output_file("E:/S0_Adams_res.csv");
+        Statement stmt(*this, "SELECT id, s, t, diff FROM " + table_prefix + "_generators WHERE t<=100 ORDER BY id;");
+        auto fout = fmt::output_file("E:/S0_Adams_res_t100.csv");
         fout.print("id,s,t,index,diff\n");
         ut::map_seq<int, 0> indices;
         while (stmt.step() == MYSQLITE_ROW) {
-            int s = stmt.column_int(0), t = stmt.column_int(1);
+            int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             Mod diff;
-            diff.data = stmt.column_blob_tpl<MMod>(2);
-            int id = t = stmt.column_int(3);
+            diff.data = stmt.column_blob_tpl<MMod>(3);
             fout.print("{},{},{},{},", id, s, t, indices[s]++);
             if (diff) {
                 fout.print("\"{}\"", myio::TplStrCont("", "+", "", "", diff.data.begin(), diff.data.end(), [](MMod m) {
@@ -563,6 +561,8 @@ public:
                            }));
             }
             fout.print("\n");
+            if (id % 100 == 0)
+                fmt::print("{}     \r", id);
         }
     }
 

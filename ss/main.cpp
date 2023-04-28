@@ -4,10 +4,6 @@
 #include "mylog.h"
 #include <iostream>
 
-#ifndef MYDEPLOY
-std::vector<int> bench::Counter::counts_ = {0, 0, 0};
-#endif
-
 int main_basis_prod(int argc, char** argv, int index);
 int main_plot(int argc, char** argv, int index);
 int main_plotpi(int argc, char** argv, int index);

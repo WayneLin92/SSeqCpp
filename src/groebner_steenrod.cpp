@@ -202,7 +202,7 @@ CriMilnor1d Groebner::Criticals(int t)
     return criticals_.Criticals(t);
 }
 
-int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, int1d>& indices, MMod mon)
+inline int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map<uint64_t, int1d>& indices, MMod mon)
 {
     auto key = mon.v_raw();
     auto p = indices.find(key);

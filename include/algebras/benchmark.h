@@ -1,8 +1,8 @@
 #ifndef BENCHMARK_INCLUDED
 #define BENCHMARK_INCLUDED
-#include <vector>
 #include <chrono>
 #include <string>
+#include <array>
 
 namespace bench {
 /**
@@ -45,7 +45,7 @@ private:
     int n_;
 
 public:
-    static std::vector<double> counts_;
+    static std::array<double, 4> counts_;
 
 public:
     AccTimer(int n) : ended_(false), n_(n)
@@ -84,10 +84,16 @@ public:
 class Counter
 {
 public:
-    static std::vector<int> counts_;
+    static std::array<int, 4> counts_;
 
 public:
-    Counter(int n)
+    Counter() {}
+    ~Counter()
+    {
+        if (counts_[0] + counts_[1] + counts_[2] + counts_[3])
+            print();
+    }
+    static void reg(int n)
     {
         ++counts_[n];
     }
@@ -101,7 +107,7 @@ public:
 class MaxGetter
 {
 public:
-    static std::vector<int> max_;
+    static std::array<int, 4> max_;
 
 public:
     MaxGetter(int n, int value)

@@ -2,10 +2,11 @@
 #include "algebras/dbAdamsSS.h"
 #include "algebras/groebner.h"
 #include "algebras/linalg.h"
+#include "main.h"
 #include <cstring>
 #include <map>
 
-//#define MYDEPLOY
+// #define MYDEPLOY
 
 class MyDB : public myio::DbAdamsSS
 {
@@ -38,8 +39,6 @@ public:
             stmt.bind_int(4, gen_degs[i].t);
             stmt.step_and_reset();
         }
-
-        std::cout << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
     }
 
     void load_indecomposables(const std::string& table, alg2::int1d& ids, alg2::AdamsDeg1d& gen_degs, int t_trunc) const
@@ -75,30 +74,27 @@ public:
         Statement stmt(*this, "SELECT id, s FROM " + table + " WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1);
-            if (loc2glo.size() <= (size_t)s)
-                loc2glo.resize(size_t(s + 1));
-            loc2glo[s].push_back(id);
-            glo2loc.push_back(std::make_pair(s, (int)(loc2glo[s].size() - 1)));
+            size_t v = ut::get(loc2glo, (size_t)s).size();
+            ut::get(loc2glo[s], v) = id;
+            ut::get(glo2loc, id) = std::make_pair(s, (int)v);
         }
     }
 
-    /** id_ind * id = prod
-     */
+    /* id_ind * id = prod */
     std::map<std::pair<int, int>, alg2::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
     {
         std::map<std::pair<int, int>, alg2::int1d> result;
         Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_products LEFT JOIN " + table_prefix + "_generators USING(id) WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
-            int id_ind = stmt.column_int(1);
+            int g = stmt.column_int(1);
             alg2::int1d prod_h = stmt.column_blob_tpl<int>(2);
-            result[std::make_pair(id_ind, id)] = std::move(prod_h);
+            result[std::make_pair(g, id)] = std::move(prod_h);
         }
         return result;
     }
 
-    /** id_ind * id = prod
-     */
+    /** id_ind * id = prod */
     std::map<std::pair<int, int>, alg2::int1d> load_cell_products_h(const std::string& table_prefix, int t_trunc) const
     {
         std::map<std::pair<int, int>, alg2::int1d> result;
@@ -122,7 +118,7 @@ public:
             alg2::AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
             result[deg].push_back(myio::Deserialize<alg2::int1d>(stmt.column_str(2)));
         }
-        //myio::Logger::out() << "repr loaded from " << table_prefix << "_basis, size=" << count << '\n';
+        // myio::Logger::out() << "repr loaded from " << table_prefix << "_basis, size=" << count << '\n';
         return result;
     }
 };
@@ -138,16 +134,15 @@ alg2::int1d mul(const std::map<std::pair<int, int>, alg2::int1d>& map_h, int id_
     return result;
 }
 
-void ExportS0(const std::string& db_in, const std::string& table_in, const std::string& db_out, int t_trunc)
+void ExportRingAdamsE2(const std::string& db_in, const std::string& table_in, const std::string& db_out, const std::string& table_out, int t_trunc, int stem_trunc)
 {
-    bench::Timer timer;
     using namespace alg2;
     MyDB dbProd(db_in);
 
     AdamsDeg1d gen_degs;
     int1d gen_reprs;
     dbProd.load_indecomposables(table_in + "_generators", gen_reprs, gen_degs, t_trunc);
-    auto map_h_dual = dbProd.load_products_h(table_in, t_trunc);
+    auto map_h_dual = dbProd.load_products_h(table_in, t_trunc); /* (g, gx) -> x */
 
     int2d loc2glo;
     pairii1d glo2loc;
@@ -181,13 +176,15 @@ void ExportS0(const std::string& db_in, const std::string& table_in, const std::
                 auto p1 = basis.lower_bound(AdamsDeg{0, t1});
                 auto p2 = basis.lower_bound(AdamsDeg{0, t1 + 1});
                 for (auto p = p1; p != p2; ++p) {
+                    auto deg_mon = p->first + gen_degs[gen_id];
+                    if (deg_mon.stem() > stem_trunc)
+                        continue;
                     for (size_t i = 0; i < p->second.size(); ++i) {
                         Mon& m = p->second[i];
                         auto& repr_m = repr.at(p->first)[i];
                         if (!m || (int)gen_id <= m[0].g()) {
                             Mon mon = m * Mon::Gen((uint32_t)gen_id);
                             auto repr_mon = mul(map_h, repr_g, repr_m);
-                            auto deg_mon = p->first + gen_degs[gen_id];
                             if (gen_id >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&mon](const Mon& _m) { return divisible(_m, mon); })) {
                                 basis_new[deg_mon].push_back(std::move(mon));
                                 repr_new[deg_mon].push_back(std::move(repr_mon));
@@ -238,15 +235,16 @@ void ExportS0(const std::string& db_in, const std::string& table_in, const std::
     size_t size_basis = 0;
     for (auto it = basis.begin(); it != basis.end(); ++it)
         size_basis += it->second.size();
-    if (size_basis != glo2loc.size()) {
-        std::cout << "size_basis=" << size_basis << '\n';
-        std::cout << "glo2loc.size()=" << glo2loc.size() << '\n';
+    int size_E2_res = dbProd.get_int(fmt::format("SELECT count(*) from {}_generators WHERE t<={} and t-s<={}", table_in, t_trunc, stem_trunc));
+    if (size_basis != size_E2_res) {
+        fmt::print("size_basis={}\n", size_basis);
+        fmt::print("size_E2_res={}\n", size_E2_res);
+        fmt::print("Error: sizes of bases do not match.");
         throw MyException(0x8334a2c1U, "Error: sizes of bases do not match.");
     }
 
     /* Save the results */
     MyDB dbE2(db_out);
-    const std::string table_out = "S0_AdamsE2";
     dbE2.drop_and_create_generators(table_out);
     dbE2.drop_and_create_relations(table_out);
     dbE2.drop_and_create_basis(table_out);
@@ -260,28 +258,41 @@ void ExportS0(const std::string& db_in, const std::string& table_in, const std::
     dbE2.end_transaction();
 }
 
-void Export2Cell(const std::string& complex_name, int t_trunc)
+void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int stem_trunc)
 {
-    int t_cell = 0;
-    if (complex_name == "C2")
-        t_cell = 1;
-    else if (complex_name == "Ceta")
-        t_cell = 2;
-    else if (complex_name == "Cnu")
-        t_cell = 4;
-    else if (complex_name == "Csigma")
-        t_cell = 8;
-    else
-        throw MyException(0x7ffc598U, complex_name + " is not supported");
-
-    bench::Timer timer;
     using namespace alg2;
-    const std::string db_in = complex_name + "_Adams_chain.db";
-    const std::string table_in = complex_name + "_Adams";
-    const std::string db_S0 = "S0_AdamsSS.db";
-    const std::string table_S0 = "S0_AdamsE2";
-    const std::string db_out = complex_name + "_AdamsSS.db";
-    const std::string table_out = complex_name + "_AdamsE2";
+
+    int t_cell = 0;
+    if (cw == "C2")
+        t_cell = 1;
+    else if (cw == "Ceta")
+        t_cell = 2;
+    else if (cw == "Cnu")
+        t_cell = 4;
+    else if (cw == "Csigma")
+        t_cell = 8;
+    else {
+        fmt::print("cw={} is not supported.\n", cw);
+        return;
+    }
+
+    std::string db_in = fmt::format("{}_Adams_chain.db", cw);
+    std::string table_in = fmt::format("{}_Adams", cw);
+    if (ring != "S0") {
+        db_in = fmt::format("{}_{}", ring, db_in);
+        table_in = fmt::format("{}_{}", ring, table_in);
+    }
+    const std::string db_S0 = fmt::format("{}_AdamsSS.db", ring);
+    const std::string table_S0 = fmt::format("{}_AdamsE2", ring);
+    myio::AssertFileExists(db_in);
+    myio::AssertFileExists(db_S0);
+
+    std::string db_out = fmt::format("{}_AdamsSS.db", cw);
+    std::string table_out = fmt::format("{}_AdamsE2", cw);
+    if (ring != "S0") {
+        db_out = fmt::format("{}_{}", ring, db_out);
+        table_out = fmt::format("{}_{}", ring, table_out);
+    }
 
     MyDB dbProd(db_in);
     AdamsDeg1d v_degs;
@@ -330,8 +341,10 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
                 auto p1 = S0_basis.lower_bound(AdamsDeg{0, t1});
                 auto p2 = S0_basis.lower_bound(AdamsDeg{0, t1 + 1});
                 for (auto p = p1; p != p2; ++p) {
+                    auto deg_mon = p->first + v_degs[gen_id];
+                    if (deg_mon.stem() > stem_trunc)
+                        continue;
                     for (size_t i = 0; i < p->second.size(); ++i) {
-                        auto deg_mon = p->first + v_degs[gen_id];
                         MMod m = MMod(p->second[i], (uint32_t)gen_id);
                         if (size_t(gen_id) >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&m](const Mon& _m) { return divisible(_m, m.m); })) {
                             basis_new[deg_mon].push_back(m);
@@ -383,7 +396,7 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
     for (auto it = basis.begin(); it != basis.end(); ++it) {
         size_basis += it->second.size();
     }
-    int size_E2 = dbProd.get_int("SELECT count(*) from " + table_in + "_E2 WHERE t<=" + std::to_string(t_trunc));
+    int size_E2 = dbProd.get_int(fmt::format("SELECT count(*) FROM {}_E2 WHERE t<={} AND t-s<={}", table_in, t_trunc, stem_trunc));
     if (size_basis != size_t(size_E2)) {
         std::cout << "size_basis=" << size_basis << '\n';
         std::cout << "size_E2=" << size_E2 << '\n';
@@ -398,7 +411,7 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
 
     dbE2.begin_transaction();
 
-    dbE2.save_generators_cell(table_out, v_degs, toS0); 
+    dbE2.save_generators_cell(table_out, v_degs, toS0);
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
 
@@ -407,53 +420,59 @@ void Export2Cell(const std::string& complex_name, int t_trunc)
 
 int main_export(int argc, char** argv, int index)
 {
-    int t_max = 0;
-    std::string db_in = "S0_Adams_res_prod.db";
-    std::string table_in = "S0_Adams_res";
-    std::string db_out = "S0_AdamsSS.db";
+    std::string cw = "S0";
+    int t_max = 100, stem_max = 500;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams export <t_max> [db_in] [table_in] [db_out]\n\n";
+        fmt::print("Usage:\n  Adams export <cw> [t_max] [stem_max]\n\n");
 
-        std::cout << "Default values:\n";
-        std::cout << "  db_in = " << db_in << "\n";
-        std::cout << "  table_in = " << table_in << "\n";
-        std::cout << "  db_out = " << db_out << "\n";
+        fmt::print("Default values:\n");
+        fmt::print("  cw = {}\n", cw);
+        fmt::print("  t_max = {}\n", t_max);
+
+        fmt::print("{}\n", VERSION);
         return 0;
     }
-
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_arg(argc, argv, ++index, "cw", cw))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_in", db_in))
+    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "table_in", table_in))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
         return index;
 
-    ExportS0(db_in, table_in, db_out, t_max);
+    std::string db_in = cw + "_Adams_res_prod.db";
+    std::string table_in = cw + "_Adams_res";
+    std::string db_out = cw + "_AdamsSS.db";
+    std::string table_out = cw + "_AdamsE2";
+
+    myio::AssertFileExists(db_in);
+    ExportRingAdamsE2(db_in, table_in, db_out, table_out, t_max, stem_max);
     return 0;
 }
 
 int main_2cell_export(int argc, char** argv, int index)
 {
     int t_trunc = 100;
-    std::string complex_name;
-    int t_max = 0;
+    std::string cw;
+    int t_max = 0, stem_max = 0;
+    std::string ring = "S0";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams 2cell export <complex_name> <t_max>\n\n";
-        std::cout << "complex_name=C2/Ceta/Cnu/Csigma\n\n";
+        fmt::print("Usage:\n  Adams 2cell export <cw:C2/Ceta/Cnu/Csigma> <t_max> <stem_max> [ring]\n\n");
 
-        std::cout << "Version:\n  2.0 (2022-09-13)" << std::endl;
+        fmt::print("{}\n", VERSION);
         return 0;
     }
 
-    if (myio::load_arg(argc, argv, ++index, "complex_name", complex_name))
+    if (myio::load_arg(argc, argv, ++index, "cw", cw))
         return index;
     if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
         return index;
+    if (myio::load_arg(argc, argv, ++index, "stem_max", stem_max))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "ring", ring))
+        return index;
 
-    Export2Cell(complex_name, t_max);
+    Export2Cell(cw, ring, t_max, stem_max);
     return 0;
 }

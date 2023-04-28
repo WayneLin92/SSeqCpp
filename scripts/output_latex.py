@@ -107,16 +107,14 @@ name & stem & s & alias \\\hline
     return result
 
 
-def str_gen_names_from_db(path_ring):
+def str_gen_names_from_db(cw, path_ring):
     conn_ring = sqlite3.connect(path_ring)
     c_ring = conn_ring.cursor()
 
-    complex = get_complex_name(path_ring)
-
     result = R"\subsection{Indecomposables}" + "\n"
-    result += str_gen_names(c_ring, complex + "_AdamsE2_generators", "x")
+    result += str_gen_names(c_ring, cw + "_AdamsE2_generators", "x")
     result += R"\subsection{Other names of some of the indecomposables}" + "\n"
-    result += str_gen_alias(c_ring, complex + "_AdamsE2_generators", "x")
+    result += str_gen_alias(c_ring, cw + "_AdamsE2_generators", "x")
 
     c_ring.close()
     conn_ring.close()
@@ -170,7 +168,7 @@ def str_basis(c, table, gen_names):
     table_head = R"""\begin{tabular}{lrrr}\hline
 mon & stem & s & i\\\hline
 """
-    sql = f"SELECT mon, s, t FROM {table} where t-s>0 order by t-s, s, id"
+    sql = f"SELECT mon, s, t FROM {table} where t-s>0 and s<=(t-s)/2+1 order by t-s, s, id"
     result = ""
     indices = {"row": 1, "table": 1, "no": 1}
     prev_s, prev_t = -1, -1
@@ -201,14 +199,12 @@ mon & stem & s & i\\\hline
     return result
 
 
-def str_basis_from_db(path_ring):
+def str_basis_from_db(cw, path_ring):
     conn_ring = sqlite3.connect(path_ring)
     c_ring = conn_ring.cursor()
 
-    complex = get_complex_name(path_ring)
-
-    gen_names = load_gen_names(c_ring, complex + "_AdamsE2_generators", "x")
-    result = str_basis(c_ring, complex + "_AdamsE2_basis", gen_names)
+    gen_names = load_gen_names(c_ring, cw + "_AdamsE2_generators", "x")
+    result = str_basis(c_ring, cw + "_AdamsE2_basis", gen_names)
 
     c_ring.close()
     conn_ring.close()
@@ -227,8 +223,8 @@ def load_basis(c, table, gen_names):
     return result
 
 
-def latex_poly(str_mon_s: list[str], gen_names, basis):
-    if len(str_mon_s) <= 1:
+def latex_poly(str_mon_s: list[str], gen_names, basis, abbreviate_min=2):
+    if len(str_mon_s) < abbreviate_min:
         result = "+".join(latex_mon(mon, gen_names) for mon in str_mon_s)
     else:
         result = "+".join(
@@ -239,7 +235,7 @@ def latex_poly(str_mon_s: list[str], gen_names, basis):
     return result
 
 
-def str_relations(c, table, gen_names, basis):
+def str_relations(c, table, gen_names, basis, remove_single=True, abbreviate_min=2):
     nRows = 52
     nColumns = 5
     nTables = 10
@@ -253,7 +249,7 @@ LM & = & basis & stem & s \\\hline
     color = 0
     for str_rel, s, t in c.execute(sql):
         str_mons = str_rel.split(";")
-        if len(str_mons) == 1:
+        if remove_single and len(str_mons) == 1:
             continue
         str_stem = str(t - s)
         str_s = str(s)
@@ -261,7 +257,7 @@ LM & = & basis & stem & s \\\hline
             color = 1 - color
             str_stem = f"\\hypertarget{{rel:{s}:{t}}}{{{t-s}}}"
             str_s = f"\\hyperlink{{basis:{s}:{t}}}{{{s}}}"
-        row = f"${latex_mon(str_mons[0], gen_names)}$ & = & ${latex_poly(str_mons[1:], gen_names, basis)}$ & {str_stem} & {str_s} \\\\\n"
+        row = f"${latex_mon(str_mons[0], gen_names)}$ & = & ${latex_poly(str_mons[1:], gen_names, basis, abbreviate_min)}$ & {str_stem} & {str_s} \\\\\n"
         result += new_row(
             indices,
             table_head,
@@ -311,18 +307,23 @@ LM & stem & s \\\hline
     return result
 
 
-def str_relations_from_db(path_ring):
+def str_relations_from_db(cw, path_ring, remove_single=True, abbreviate_min=2):
     conn_ring = sqlite3.connect(path_ring)
     c_ring = conn_ring.cursor()
 
-    complex = get_complex_name(path_ring)
-
-    gen_names = load_gen_names(c_ring, complex + "_AdamsE2_generators", "x")
-    basis = load_basis(c_ring, complex + "_AdamsE2_basis", gen_names)
+    gen_names = load_gen_names(c_ring, cw + "_AdamsE2_generators", "x")
+    basis = load_basis(c_ring, cw + "_AdamsE2_basis", gen_names)
     result = "\\subsection{Relations with multiple summands}\n"
-    result += str_relations(c_ring, complex + "_AdamsE2_relations", gen_names, basis)
+    result += str_relations(
+        c_ring,
+        cw + "_AdamsE2_relations",
+        gen_names,
+        basis,
+        remove_single,
+        abbreviate_min,
+    )
     result += "\\subsection{Monomials that equal to zero}\n"
-    result += str_relations_monomials(c_ring, complex + "_AdamsE2_relations", gen_names)
+    result += str_relations_monomials(c_ring, cw + "_AdamsE2_relations", gen_names)
 
     c_ring.close()
     conn_ring.close()

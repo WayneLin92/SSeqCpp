@@ -57,7 +57,21 @@ def str2array(str_array: str):
 
 def get_complex_name(path):
     path = os.path.basename(path)
-    names = ["S0", "C2", "Ceta", "Cnu", "Csigma", "RP10", "RPinf", "X2"]
+    names = [
+        "S0",
+        "C2",
+        "Ceta",
+        "Cnu",
+        "Csigma",
+        "RP10",
+        "RPinf",
+        "X2",
+        "tmf_C2",
+        "tmf_Ceta",
+        "tmf_Cnu",
+        "tmf",
+        "j",
+    ]
     for name in names:
         if path.startswith(name):
             return name

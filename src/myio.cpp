@@ -1,6 +1,8 @@
 #include "myio.h"
+#include "myexception.h"
 #include "utility.h"
 #include <iostream>
+#include <fstream>
 
 /*********** FUNCTIONS **********/
 
@@ -31,6 +33,15 @@ bool UserConfirm()
             return false;
         else
             fmt::print("Invalid input!\n");
+    }
+}
+
+void AssertFileExists(const std::string& filename)
+{
+    std::ifstream f(filename);
+    if (!f.good()) {
+        fmt::print("Error: File {} does not exist.\n", filename);
+        throw MyException(0x821119ec, "File does not exists.");
     }
 }
 

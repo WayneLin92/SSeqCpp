@@ -6,6 +6,7 @@
 #include "main.h"
 #include <cstring>
 #include <set>
+#include <fmt/core.h>
 
 class DbAdamsResProdLoader : public myio::Database
 {
@@ -66,10 +67,10 @@ public:
     }
 
     /* result[id_ind][index] = image(v_index) in degree s */
-    std::map<int, Mod1d> load_products(const std::string& table_prefix, int cell, int s, const std::vector<std::pair<int, int>>& glo2loc) const
+    std::map<int, Mod1d> load_products(const std::string& table_prefix, int cell, int s, const LocId1d& glo2loc) const
     {
         std::map<int, Mod1d> result;
-        Statement stmt(*this, "SELECT S0_id, id_ind, prod FROM " + table_prefix + "_products_whole WHERE cell=" + std::to_string(cell) + " AND s=" + std::to_string(s) + " ORDER BY S0_id;");
+        Statement stmt(*this, fmt::format("SELECT S0_id, id_ind, prod FROM {}_products_whole WHERE cell={} AND s={} ORDER BY S0_id;", table_prefix, cell, s));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             if (id >= (int)glo2loc.size())
@@ -78,7 +79,7 @@ public:
             Mod prod;
             prod.data = stmt.column_blob_tpl<MMod>(2);
 
-            int index = glo2loc[id].second;
+            int index = glo2loc[id].v;
             if (result[id_ind].size() <= index)
                 result.at(id_ind).resize(size_t(index + 1));
             result[id_ind][index] = std::move(prod);
@@ -100,7 +101,7 @@ public:
     }
 };
 
-int1d HomToKCell(const Mod& x, int t_cell)
+int1d HomToMSq(const Mod& x, int t_cell)
 {
     int1d result;
     for (MMod m : x.data)
@@ -129,34 +130,44 @@ void add_prod_h(int1d& x, const int1d& y, int1d& tmp)
 {
     tmp.clear();
     std::set_symmetric_difference(x.begin(), x.end(), y.begin(), y.end(), std::back_inserter(tmp), std::greater<int>());
-    std::swap(x, tmp);
+    ut::copy(tmp, x);
 };
 
-void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, const std::string& db_in, const std::string& table_in)
+void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_view ring)
 {
     int t_cell = 0;
-    if (complex_name == "C2")
+    if (cw == "C2")
         t_cell = 1;
-    else if (complex_name == "Ceta")
+    else if (cw == "Ceta")
         t_cell = 2;
-    else if (complex_name == "Cnu")
+    else if (cw == "Cnu")
         t_cell = 4;
-    else if (complex_name == "Csigma")
+    else if (cw == "Csigma")
         t_cell = 8;
-    else
-        throw MyException(0xd2e1e176U, complex_name + " is not supported");
+    else {
+        fmt::print("cw={} is not supported.\n", cw);
+        return;
+    }
 
-    const std::string db_out = complex_name + "_Adams_chain.db";
-    const std::string table_out = complex_name + "_Adams";
+    std::string db_in = fmt::format("{}_Adams_res.db", ring);
+    std::string table_in = fmt::format("{}_Adams_res", ring);
+    myio::AssertFileExists(db_in);
+
+    std::string db_out = fmt::format("{}_Adams_chain.db", cw);
+    std::string table_out = fmt::format("{}_Adams", cw);
+    if (ring != "S0"){
+        db_out = fmt::format("{}_{}", ring, db_out);
+        table_out = fmt::format("{}_{}", ring, table_out);
+    }
 
     DbAdamsResLoader dbRes(db_in);
     auto gb = AdamsResConst::load(dbRes, table_in, t_trunc);
     std::map<int, AdamsDegV2> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
-    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc);
+    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc, t_trunc);////
     int2d loc2glo;
-    std::vector<std::pair<int, int>> glo2loc;
+    LocId1d glo2loc;
     dbRes.load_id_converter(table_in, loc2glo, glo2loc);
 
     DbAdamsResCell dbProd(db_out);
@@ -226,7 +237,7 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
                 prod_hi_dual[vid] = int1d{};
         }
         for (size_t i = 0; i < diffs_d_size; ++i) {
-            prod_hi.push_back(HomToKCell(diffs_d[i], t_cell));
+            prod_hi.push_back(HomToMSq(diffs_d[i], t_cell));
             for (int j : prod_hi.back())
                 prod_hi_dual[j].push_back((int)i);
 
@@ -503,52 +514,47 @@ void compute_2cell_products_by_t(int t_trunc, const std::string& complex_name, c
     }
 }
 
-// std::vector<int> bench::Counter::counts_ = {0, 0, 0, 0};
 int main_2cell_prod(int argc, char** argv, int index)
 {
+    std::string cw = "C2";
+    std::string ring = "S0";
     int t_max = 100;
-    std::string complex_name = "C2";
-    std::string db_in = "AdamsE2.db";
-    std::string table_in = "SteenrodMRes";
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams 2cell prod <complex_name> <t_max> [db_in] [table_in]\n\n";
+        fmt::print("Usage:\n  Adams 2cell prod <cw:C2/Ceta/Cnu/Csigma> [t_max] [ring]\n\n");
 
-        std::cout << "complex_name=C2/Ceta/Cnu/Csigma\n\n";
+        fmt::print("Default values:\n");
+        fmt::print("  t_max = {}\n", t_max);
+        fmt::print("  ring = {}\n", ring);
 
-        std::cout << "Default values:\n";
-        std::cout << "  db_in = " << db_in << "\n";
-        std::cout << "  table_in = " << table_in << "\n\n";
-
-        std::cout << "Version:\n  2.0 (2022-08-17)" << std::endl;
+        fmt::print("{}\n", VERSION);
         return 0;
     }
-    if (myio::load_arg(argc, argv, ++index, "complex_name", complex_name))
+    if (myio::load_arg(argc, argv, ++index, "cw", cw))
         return index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_in", db_in))
+    if (myio::load_op_arg(argc, argv, ++index, "ring", ring))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "table_in", table_in))
-        return index;
-    bench::Timer timer;
 
-    compute_2cell_products_by_t(t_max, complex_name, db_in, table_in);
-
+    compute_2cell_products_by_t(t_max, cw, ring);
     return 0;
 }
+
+int main_2cell_export(int argc, char** argv, int index);
 
 int main_2cell(int argc, char** argv, int index)
 {
     std::string cmd;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams 2cell <cmd> [-h] ...\n\n";
+        fmt::print("Usage:\n  Adams 2cell <cmd> [-h] ...\n\n");
 
-        std::cout << "<cmd> can be one of the following:\n";
-        std::cout << "  prod: Compute the multiplications\n\n";
+        fmt::print("<cmd> can be one of the following:\n");
+        fmt::print("  prod: Compute the multiplications\n");
+        fmt::print("  export: Export the Adams E2 page\n\n");
 
-        std::cout << "Version:\n  2.0 (2022-08-07)" << std::endl;
+        fmt::print("{}\n", VERSION);
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
@@ -559,7 +565,7 @@ int main_2cell(int argc, char** argv, int index)
     if (cmd == "export")
         return main_2cell_export(argc, argv, index);
     else
-        std::cerr << "Invalid cmd: " << cmd << '\n';
+        fmt::print("Invalid cmd: {}\n", cmd);
 
     return 0;
 }

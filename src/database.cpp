@@ -14,12 +14,6 @@
 
 namespace myio {
 
-bool file_exists(const std::string& filename)
-{
-    std::ifstream f(filename);
-    return f.good();
-}
-
 template <>
 int1d Deserialize<int1d>(const std::string& str)
 {
@@ -46,7 +40,15 @@ Database::Database(const std::string& filename)
 Database::~Database()
 {
     end_transaction();
-    sqlite3_close(conn_);
+    if (conn_)
+        sqlite3_close(conn_);
+}
+
+void Database::disconnect()
+{
+    end_transaction();
+    if (conn_)
+        sqlite3_close(conn_);
 }
 
 void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const

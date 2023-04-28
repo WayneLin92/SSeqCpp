@@ -38,6 +38,12 @@ namespace myio {
 
 using int1d = std::vector<int>;
 
+struct SQL_NULL
+{
+    constexpr SQL_NULL() {}
+};
+
+
 inline std::string Serialize(const int1d& arr)
 {
     return StrCont("", ",", "", "", arr, [](int i) { return std::to_string(i); });
@@ -83,6 +89,7 @@ public:
         else
             bind_blob(iCol, this, 0);
     }
+
     std::string column_str(int iCol) const;
     int column_int(int iCol) const;
     int column_type(int iCol) const;
@@ -102,6 +109,36 @@ public:
     int step() const;
     int reset() const;
     void step_and_reset() const;
+
+private:
+    /***** suger template bind functions *****/
+    template <typename T>
+    void bind_tpl(int iCol, const T& data) const
+    {
+        if constexpr (std::is_convertible<T, int>::value)
+            bind_int(iCol, data);
+        else if constexpr (std::is_same<T, int64_t>::value)
+            bind_int64(iCol, data);
+        else if constexpr (std::is_same<T, double>::value)
+            bind_double(iCol, data);
+        else if constexpr (std::is_same<T, SQL_NULL>::value)
+            bind_null(iCol);
+        else
+            bind_blob(iCol, data);
+    }
+    template <typename T0, typename... T>
+    void bind_tpl(int iCol, const T0& data, const T&... args) const
+    {
+        bind_tpl(iCol, data);
+        bind_tpl(iCol + 1, args...);
+    }
+
+public:
+    template <typename... T>
+    void bind(T&&... args) const
+    {
+        bind_tpl(1, args...);
+    }
 };
 
 /**
@@ -117,6 +154,7 @@ public:
     Database() = default;
     explicit Database(const std::string& filename);
     ~Database();
+    void disconnect();
 
 public:
     void sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const;
