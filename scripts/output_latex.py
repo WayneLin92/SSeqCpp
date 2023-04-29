@@ -13,7 +13,7 @@ def get_complex_name(path):
 
 
 def use_name(name) -> bool:
-    return len(name) <= 16 and "+" not in name
+    return len(name) <= 100 and "+" not in name  # TODO: improve
 
 
 def new_row(
@@ -239,7 +239,7 @@ def str_relations(c, table, gen_names, basis, remove_single=True, abbreviate_min
     nRows = 52
     nColumns = 5
     nTables = 10
-    table_head = R"""\begin{tabular}{r@{\hspace{3.2pt}}c@{\hspace{3.2pt}}lrr}\hline
+    table_head = R"""\begin{tabular}{r@{\hspace{3.3pt}}c@{\hspace{3.3pt}}lrr}\hline
 LM & = & basis & stem & s \\\hline
 """
     sql = f"SELECT rel, s, t FROM {table} order by t-s, s"

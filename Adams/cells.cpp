@@ -45,37 +45,31 @@ void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   RPn
  ***************************************************/
-Mod XTo(unsigned m)
+void Coh_RP(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
 {
-    unsigned k = 1;
-    while ((1U << k) <= m + 1)
-        ++k;
-    --k;
-    m -= (1U << k) - 1;
-    Mod result = MMod(MMilnor(), k - 1);
-    result = MMilnor::Sq(m) * result;
-    return result;
-}
+    int1d v_degs2;
+    for (int n = n1; n <= n2 && n <= t_max; ++n)
+        v_degs2.push_back(n);
 
-void Coh_RPn(int1d& v_degs, Mod1d& rels, int n, int t_max)
-{
-    v_degs.clear();
-    for (int i = 1; (1 << i) - 1 <= n; ++i)
-        v_degs.push_back((1 << i) - 1);
-
-    rels.clear();
+    Mod1d rels2;
     Mod tmp;
-    /* Sq^{2^i} * x^m = (2^i, m - 2^i) x^{m + 2^i} */
-    for (int i = 0; (1 << i) <= t_max; ++i) {
-        int k = 1 << i;
-        for (int m = 1; m + k <= t_max && m <= n; ++m) {
-            Mod xm = XTo((unsigned)m);
-            Mod rel = MMilnor::Sq(k) * xm;
-            if (m + k <= n && k <= m && !(k & (m - k)))
-                rel.iaddP(XTo(unsigned(m + k)), tmp);
-            rels.push_back(std::move(rel));
+    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+        for (int n = n1; n <= n2 && n + k <= t_max; ++n) {
+            Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), n - n1);
+            if (k <= n && !(k & (n - k)) && n + k <= n2)
+                rel.iaddP(MMod(MMilnor(), n + k - n1), tmp);
+            rels2.push_back(std::move(rel));
         }
     }
+
+    Groebner gb(t_max, {}, v_degs2);
+    gb.AddRels(rels2, t_max);
+    gb.MinimizeOrderedGens();
+
+    v_degs = gb.v_degs();
+    rels = gb.data();
 }
 
 /****************************************************
@@ -95,9 +89,9 @@ void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max)
             bc2v[bc] = pairs_bc.size() - 1;
         }
     }
+
     Mod1d rels2;
     Mod tmp;
-
     for (size_t i = 0; (1 << i) <= t_max; ++i) {
         size_t a = (size_t)1 << i;
         for (size_t j = 0; j < pairs_bc.size(); ++j) {

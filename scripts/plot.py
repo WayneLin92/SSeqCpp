@@ -63,6 +63,7 @@ def get_complex_name(path):
         "Ceta",
         "Cnu",
         "Csigma",
+        "RP1_10",
         "RP10",
         "RPinf",
         "X2",

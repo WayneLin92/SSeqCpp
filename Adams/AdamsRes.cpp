@@ -35,49 +35,43 @@ void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max);
 int main_res(int argc, char** argv, int index)
 {
     std::string cw = "S0";
-    int t_max = 100, stem_max = 261;
-    std::string db_filename = "<cw>_Adams_res.db";
-    std::string tablename = "<cw>_Adams_res";
+    int t_max = 100, stem_max = DEG_MAX;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
         fmt::print("Calculate the minimal resolution for the Adams spectral sequence\n");
-        fmt::print("Usage:\n  Adams res <cw:S0/tmf/X2> [t_max] [stem_max] [db_filename] [tablename]\n\n");
+        fmt::print("Usage:\n  Adams res <cw:S0/tmf/X2> <t_max> [stem_max]\n\n");
 
         fmt::print("Default values:\n");
-        fmt::print("  t_max = {}\n", t_max);
         fmt::print("  stem_max = {}\n", stem_max);
-        fmt::print("  db_filename = {}\n", db_filename);
-        fmt::print("  tablename = {}\n\n", tablename);
 
         fmt::print("{}\n", VERSION);
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cw", cw))
         return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
         return -index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
         return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
-        return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "tablename", tablename))
-        return -index;
 
-    if (db_filename == "<cw>_Adams_res.db")
-        db_filename = cw + "_Adams_res.db";
-    if (tablename == "<cw>_Adams_res")
-        tablename = cw + "_Adams_res";
+    if (stem_max > DEG_MAX) {
+        stem_max = DEG_MAX;
+        fmt::print("stem_max is truncated to {}.", stem_max);
+    }
+    std::string db_filename = cw + "_Adams_res.db";
+    std::string tablename = cw + "_Adams_res";
 
+    int d_max = std::min(t_max, stem_max);
     int1d v_degs;
     Mod1d rels;
     if (cw == "S0")
-        Coh_S0(v_degs, rels, t_max);
+        Coh_S0(v_degs, rels, d_max);
     else if (cw == "X2")
-        Coh_X2(v_degs, rels, t_max);
+        Coh_X2(v_degs, rels, d_max);
     else if (cw == "tmf")
-        Coh_tmf(v_degs, rels, t_max);
+        Coh_tmf(v_degs, rels, d_max);
     else if (cw == "j")
-        Coh_j(v_degs, rels, t_max);
+        Coh_j(v_degs, rels, d_max);
     else {
         fmt::print("Unsupported arugment cw:{}\n", cw);
         return 0;
@@ -87,58 +81,45 @@ int main_res(int argc, char** argv, int index)
     return 0;
 }
 
-void Coh_RPn(int1d& v_degs, Mod1d& rels, int n, int t_max);
+void Coh_RP(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int index)
 {
-    int t_max = 100, stem_max = 261;
-    int n = -1;
-    std::string db_filename = "RPn_Adams_res.db";
-    std::string tablename = "RPn_Adams_res";
+    int t_max = 100, stem_max = DEG_MAX;
+    int n1 = 0, n2 = 0;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Calculate the minimal resolution of RP^n for the Adams spectral sequence\n";
-        std::cout << "Usage:\n  Adams res_RP [n] [t_max] [stem_max] [db_filename] [tablename]\n\n";
+        fmt::print("Calculate the minimal resolution of P_{n1}^{n2} for the Adams spectral sequence");
+        fmt::print("Usage:\n  Adams res_RP <n1> <n2> <t_max> [stem_max]\n\n");
 
-        std::cout << "Default values:\n";
-        std::cout << "  n = inf\n";
-        std::cout << "  t_max = " << t_max << "\n";
-        std::cout << "  stem_max = " << stem_max << "\n";
-        std::cout << "  db_filename = " << db_filename << "\n";
-        std::cout << "  tablename = " << tablename << "\n\n";
+        fmt::print("Default values:\n");
+        fmt::print("  stem_max = {}\n", stem_max);
 
         std::cout << VERSION << std::endl;
         return 0;
     }
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "inf") == 0) {
-        n = -1;
-        ++index;
-    }
-    else if (myio::load_op_arg(argc, argv, ++index, "n", n))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
+    if (myio::load_arg(argc, argv, ++index, "n1", n1))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "n2", n2))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+        return -index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_filename", db_filename))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "tablename", tablename))
-        return index;
-    std::string strN = n == -1 ? "inf" : std::to_string(n);
-    if (n == -1)
-        n = t_max;
-    if (db_filename == "RPn_Adams_res.db")
-        db_filename = "RP" + strN + "_Adams_res.db";
-    if (tablename == "RPn_Adams_res")
-        tablename = "RP" + strN + "_Adams_res";
+        return -index;
+    if (stem_max > DEG_MAX) {
+        stem_max = DEG_MAX;
+        fmt::print("stem_max is truncated to {}.", stem_max);
+    }
+    if (n1 < 1 || n1 > n2) {
+        fmt::print("Inappropriate n1, n2 argument");
+        return -(++index);
+    }
+    std::string db_filename = fmt::format("RP{}_{}_Adams_res.db", n1, n2);
+    std::string tablename = fmt::format("RP{}_{}_Adams_res", n1, n2);
 
     int1d v_degs;
     Mod1d rels;
-    Coh_RPn(v_degs, rels, n, t_max);
+    Coh_RP(v_degs, rels, n1, n2, t_max);
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
-
-#ifndef MYDEPLOY
-    bench::Counter::print();
-#endif
     return 0;
 }

@@ -27,3 +27,8 @@ This computation takes 25 seconds on my AMD Ryzen 9 3900X CPU.
 This generates the cohomology of the Steenrod algebra up to total degree of 100 according to the input file `S0_Adams_res_prod.db`. It outputs another database file `S0_AdamsSS.db`.
 
 This computation takes 0.1 seconds on my AMD Ryzen 9 3900X CPU.
+
+## Implementation limits of the program
+- The maximum Adams filtration is $s_{max}=2^{12}-1=4095$.
+- The maximum degree of the Steenrod algebra is $n_{max}=383$.
+- The maximum dimension of a free module over the Steenrod algebra is $v_{max}=2^{19}=524288$

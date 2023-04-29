@@ -5,6 +5,7 @@
 #include <iostream>
 
 int main_res(int argc, char** argv, int index);
+int main_res_RP(int argc, char** argv, int index);
 int main_prod(int argc, char** argv, int index);
 int main_prod_mod(int argc, char** argv, int index);
 int main_prod_hi(int argc, char** argv, int index);
@@ -40,6 +41,8 @@ int main(int argc, char** argv)
 
     if (cmd == "res")
         return main_res(argc, argv, index);
+    else if (cmd == "res_RP")
+        return main_res_RP(argc, argv, index);
     else if (cmd == "prod")
         return main_prod(argc, argv, index);
     else if (cmd == "prod_mod")
