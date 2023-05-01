@@ -5,8 +5,8 @@
 #include "groebner_res_const.h"
 #include "main.h"
 #include <cstring>
-#include <set>
 #include <fmt/core.h>
+#include <set>
 
 class DbAdamsResProdLoader : public myio::Database
 {
@@ -59,30 +59,24 @@ public:
     void save_time(const std::string& table_prefix, int s, int t, double time)
     {
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_products_time (s, t, time) VALUES (?1, ?2, ?3);");
-
-        stmt.bind_int(1, s);
-        stmt.bind_int(2, t);
-        stmt.bind_double(3, time);
-        stmt.step_and_reset();
+        stmt.bind_and_step(s, t, time);
     }
 
-    /* result[id_ind][index] = image(v_index) in degree s */
-    std::map<int, Mod1d> load_products(const std::string& table_prefix, int cell, int s, const LocId1d& glo2loc) const
+    /* result[g][index] = image(v_index) in degree s */
+    std::map<int, Mod1d> load_products(const std::string& table_prefix, int cell, int s) const
     {
         std::map<int, Mod1d> result;
         Statement stmt(*this, fmt::format("SELECT S0_id, id_ind, prod FROM {}_products_whole WHERE cell={} AND s={} ORDER BY S0_id;", table_prefix, cell, s));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
-            if (id >= (int)glo2loc.size())
-                break;
-            int id_ind = stmt.column_int(1);
+            int g = stmt.column_int(1);
             Mod prod;
             prod.data = stmt.column_blob_tpl<MMod>(2);
 
-            int index = glo2loc[id].v;
-            if (result[id_ind].size() <= index)
-                result.at(id_ind).resize(size_t(index + 1));
-            result[id_ind][index] = std::move(prod);
+            int v = LocId(id).v;
+            if (result[g].size() <= v)
+                result.at(g).resize(size_t(v + 1));
+            result[g][v] = std::move(prod);
         }
         return result;
     }
@@ -155,20 +149,17 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
     std::string db_out = fmt::format("{}_Adams_chain.db", cw);
     std::string table_out = fmt::format("{}_Adams", cw);
-    if (ring != "S0"){
+    if (ring != "S0") {
         db_out = fmt::format("{}_{}", ring, db_out);
         table_out = fmt::format("{}_{}", ring, table_out);
     }
 
     DbAdamsResLoader dbRes(db_in);
     auto gb = AdamsResConst::load(dbRes, table_in, t_trunc);
-    std::map<int, AdamsDegV2> id_deg;
+    std::vector<std::pair<int, AdamsDegV2>> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
-    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc, t_trunc);////
-    int2d loc2glo;
-    LocId1d glo2loc;
-    dbRes.load_id_converter(table_in, loc2glo, glo2loc);
+    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc, t_trunc);  ////
 
     DbAdamsResCell dbProd(db_out);
     dbProd.create_products(table_out);
@@ -240,13 +231,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
             prod_hi.push_back(HomToMSq(diffs_d[i], t_cell));
             for (int j : prod_hi.back())
                 prod_hi_dual[j].push_back((int)i);
-
-            stmt_hi_prod.bind_int(1, id + (int)i);
-            stmt_hi_prod.bind_str(2, myio::Serialize(prod_hi.back()));
-            stmt_hi_prod.bind_int(3, deg.s);
-            stmt_hi_prod.bind_int(4, deg.t);
-            stmt_hi_prod.step_and_reset();
-            dbProd.reg_transaction();
+            stmt_hi_prod.bind_and_step(id + (int)i, myio::Serialize(prod_hi.back()), deg.s, deg.t);
         }
 
         /* Compute the kernel of the map (cell 0) and the kernel of the dual map (cell 1) */
@@ -256,7 +241,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
         int1d x_prod_hi_dual;
         int2d fx_prod_hi_dual;
         for (auto& [xi, f] : prod_hi_dual) {
-            x_prod_hi_dual.push_back(loc2glo[size_t(deg.s - 1)][xi]);
+            x_prod_hi_dual.push_back(LocId(deg.s - 1, xi).id());
             fx_prod_hi_dual.push_back(std::move(f));
         }
         _x1.clear();
@@ -271,41 +256,19 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
             for (size_t j = 0; j < kernel_ht[i].size(); ++j)
                 kernel_offset.push_back(id + kernel_ht[i][j]);
 
-            stmt_gen.bind_int(1, gen_id++);
-            stmt_gen.bind_int(2, 0);
-            stmt_gen.bind_int(3, 0);
-            stmt_gen.bind_str(4, myio::Serialize(kernel_offset));
-            stmt_gen.bind_str(5, myio::Serialize(int1d{kernel_offset.front()}));
-            stmt_gen.bind_int(6, deg.s);
-            stmt_gen.bind_int(7, deg.t);
-            stmt_gen.step_and_reset();
-            dbProd.reg_transaction();
+            stmt_gen.bind_and_step(gen_id++, 0, 0, myio::Serialize(kernel_offset), myio::Serialize(int1d{kernel_offset.front()}), deg.s, deg.t);
         }
         int gen_id_cell1_start = gen_id;
         for (size_t i = 0; i < kernel_ht_dual.size(); ++i) {
-            stmt_gen.bind_int(1, gen_id++);
-            stmt_gen.bind_int(2, 1);
-            stmt_gen.bind_int(3, 0);
-            stmt_gen.bind_str(4, myio::Serialize(int1d{kernel_ht_dual[i].front()}));
-            stmt_gen.bind_str(5, myio::Serialize(kernel_ht_dual[i]));
-            stmt_gen.bind_int(6, deg.s - 1);
-            stmt_gen.bind_int(7, deg.t);
-            stmt_gen.step_and_reset();
-            dbProd.reg_transaction();
+            stmt_gen.bind_and_step(gen_id++, 1, 0, myio::Serialize(int1d{kernel_ht_dual[i].front()}), myio::Serialize(kernel_ht_dual[i]), deg.s - 1, deg.t);
         }
         if (deg.t == 0) {
-            stmt_ind.bind_int(1, 0);
-            stmt_ind.step_and_reset();
-
-            stmt_prod.bind_int(1, 0);
-            stmt_prod.bind_int(2, 0);
-            stmt_prod.bind_str(3, myio::Serialize(one_h));
-            stmt_prod.step_and_reset();
-            dbProd.reg_transaction();
+            stmt_ind.bind_and_step(0);
+            stmt_prod.bind_and_step(0, 0, myio::Serialize(one_h));
         }
         else {
             if (deg1.t > 0 && diffs_d1_size) {
-                std::map<int, Mod1d> f_cell1_sm2 = dbProd.load_products(table_out, 1, deg.s - 2, glo2loc);
+                std::map<int, Mod1d> f_cell1_sm2 = dbProd.load_products(table_out, 1, deg.s - 2);
 
                 /* compute fd */
                 std::map<int, Mod1d> fd;
@@ -343,18 +306,11 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
                 /* save products to database */
                 int vid_d1 = deg1.stem() > 0 ? vid_num[deg1.s][size_t(deg1.stem() - 1)] : 0;
-                int id_d1 = loc2glo[deg1.s][vid_d1];
+                int id_d1 = LocId(deg1.s, vid_d1).id();
                 for (auto& [id_ind, f_id_ind] : f) {
                     for (size_t i = 0; i < diffs_d1_size; ++i) {
                         if (f_id_ind[i]) {
-                            stmt_prod_whole.bind_int(1, id_d1 + (int)i);
-                            stmt_prod_whole.bind_int(2, 1);
-                            stmt_prod_whole.bind_int(3, id_ind);
-                            stmt_prod_whole.bind_blob(4, f_id_ind[i].data);
-                            stmt_prod_whole.bind_str(5, myio::Serialize(fh.at(id_ind)[i]));
-                            stmt_prod_whole.bind_int(6, deg1.s);
-                            stmt_prod_whole.step_and_reset();
-                            dbProd.reg_transaction();
+                            stmt_prod_whole.bind_and_step(id_d1 + (int)i, 1, id_ind, f_id_ind[i].data, myio::Serialize(fh.at(id_ind)[i]), deg1.s);
                         }
                     }
                 }
@@ -365,14 +321,10 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                     for (size_t i = 0; i < kernel_ht_dual.size(); ++i) {
                         int index = kernel_ht_dual[i].front() - id_d1;
                         if (!fh_id_ind[index].empty()) {
-                            stmt_prod.bind_int(1, gen_id_cell1_start + (int)i);
-                            stmt_prod.bind_int(2, id_ind);
                             int1d prod_h_g;
                             for (int i : fh_id_ind[index])
-                                prod_h_g.push_back(loc2glo[size_t(deg1.s - id_ind_to_s.at(id_ind))][i]);
-                            stmt_prod.bind_str(3, myio::Serialize(prod_h_g));
-                            stmt_prod.step_and_reset();
-                            dbProd.reg_transaction();
+                                prod_h_g.push_back(LocId(deg1.s - id_ind_to_s.at(id_ind), i).id());
+                            stmt_prod.bind_and_step(gen_id_cell1_start + (int)i, id_ind, myio::Serialize(prod_h_g));
 
                             for (int k : fh_id_ind[index]) {
                                 if (fx.size() <= offset + (size_t)k)
@@ -389,35 +341,22 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
                 /* mark indicomposables in database */
                 for (int i : indices) {
-                    stmt_ind.bind_int(1, gen_id_cell1_start + i);
-                    stmt_ind.step_and_reset();
+                    stmt_ind.bind_and_step(gen_id_cell1_start + i);
 
                     id_ind_to_s[gen_id_cell1_start + i] = deg1.s;
                 }
 
                 /* cell1 id_ind comultiplies with itself */
                 for (int i : indices) {
-                    for (int j : kernel_ht_dual[i]) {
-                        stmt_prod_whole.bind_int(1, j);
-                        stmt_prod_whole.bind_int(2, 1);
-                        stmt_prod_whole.bind_int(3, gen_id_cell1_start + (int)i);
-                        stmt_prod_whole.bind_blob(4, one.data);
-                        stmt_prod_whole.bind_str(5, myio::Serialize(one_h));
-                        stmt_prod_whole.bind_int(6, deg1.s);
-                        stmt_prod_whole.step_and_reset();
-                    }
-
-                    stmt_prod.bind_int(1, gen_id_cell1_start + (int)i);
-                    stmt_prod.bind_int(2, gen_id_cell1_start + (int)i);
-                    stmt_prod.bind_str(3, myio::Serialize(one_h));
-                    stmt_prod.step_and_reset();
-                    dbProd.reg_transaction();
+                    for (int j : kernel_ht_dual[i])
+                        stmt_prod_whole.bind_and_step(j, 1, gen_id_cell1_start + (int)i, one.data, myio::Serialize(one_h), deg1.s);
+                    stmt_prod.bind_and_step(gen_id_cell1_start + (int)i, gen_id_cell1_start + (int)i, myio::Serialize(one_h));
                 }
             }
 
             if (diffs_d_size) {
-                std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, 0, deg.s - 1, glo2loc);
-                std::map<int, Mod1d> f_cell1_sm1 = dbProd.load_products(table_out, 1, deg.s - 1, glo2loc);
+                std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, 0, deg.s - 1);
+                std::map<int, Mod1d> f_cell1_sm1 = dbProd.load_products(table_out, 1, deg.s - 1);
 
                 std::set<int> set_id_inds;
                 for (auto& [id_ind, _] : f_sm1)
@@ -463,14 +402,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                 for (auto& [id_ind, f_id_ind] : f) {
                     for (size_t i = 0; i < diffs_d_size; ++i) {
                         if (f_id_ind[i]) {
-                            stmt_prod_whole.bind_int(1, id + (int)i);
-                            stmt_prod_whole.bind_int(2, 0);
-                            stmt_prod_whole.bind_int(3, id_ind);
-                            stmt_prod_whole.bind_blob(4, f_id_ind[i].data);
-                            stmt_prod_whole.bind_str(5, myio::Serialize(fh.at(id_ind)[i]));
-                            stmt_prod_whole.bind_int(6, deg.s);
-                            stmt_prod_whole.step_and_reset();
-                            dbProd.reg_transaction();
+                            stmt_prod_whole.bind_and_step(id + (int)i, 0, id_ind, f_id_ind[i].data, myio::Serialize(fh.at(id_ind)[i]), deg.s);
                         }
                     }
                 }
@@ -481,13 +413,9 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                         for (int j : kernel_ht[i])
                             add_prod_h(prod_h, fh.at(id_ind)[j], tmp_prod_h);
                         for (int i : prod_h)
-                            prod_h_g.push_back(loc2glo[size_t(deg.s - id_ind_to_s.at(id_ind))][i]);
+                            prod_h_g.push_back(LocId(deg.s - id_ind_to_s.at(id_ind), i).id());
                         if (!prod_h.empty()) {
-                            stmt_prod.bind_int(1, gen_id_cell0_start + (int)i);
-                            stmt_prod.bind_int(2, id_ind);
-                            stmt_prod.bind_str(3, myio::Serialize(prod_h_g));
-                            stmt_prod.step_and_reset();
-                            dbProd.reg_transaction();
+                            stmt_prod.bind_and_step(gen_id_cell0_start + (int)i, id_ind, myio::Serialize(prod_h_g));
                         }
                     }
                 }
@@ -495,11 +423,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                     int1d kernel_offset;
                     for (size_t j = 0; j < kernel_ht[i].size(); ++j)
                         kernel_offset.push_back(id + kernel_ht[i][j]);
-                    stmt_prod.bind_int(1, gen_id_cell0_start + (int)i);
-                    stmt_prod.bind_int(2, 0);
-                    stmt_prod.bind_str(3, myio::Serialize(kernel_offset));
-                    stmt_prod.step_and_reset();
-                    dbProd.reg_transaction();
+                    stmt_prod.bind_and_step(gen_id_cell0_start + (int)i, 0, myio::Serialize(kernel_offset));
                 }
             }
         }

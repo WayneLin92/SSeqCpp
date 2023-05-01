@@ -1,8 +1,8 @@
 #include "database.h"
-#include <sqlite3.h>
 #include <cstring>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <sqlite3.h>
 #include <sstream>
 
 #if SQLITE_ROW != MYSQLITE_ROW
@@ -33,22 +33,30 @@ int1d Deserialize<int1d>(const std::string& str)
 
 Database::Database(const std::string& filename)
 {
-    if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK)
-        throw MyException(0x8de81e80, "Cannot open database " + filename);
+    if (myio::FileExists(filename))
+        newFile_ = false;
+    if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK) {
+        fmt::print("Cannot open database {}\n", filename);
+        throw MyException(0x8de81e80, "Cannot open database");
+    }
 }
 
 Database::~Database()
 {
     end_transaction();
-    if (conn_)
+    if (conn_) {
         sqlite3_close(conn_);
+        conn_ = nullptr;
+    }
 }
 
 void Database::disconnect()
 {
     end_transaction();
-    if (conn_)
+    if (conn_) {
         sqlite3_close(conn_);
+        conn_ = nullptr;
+    }
 }
 
 void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const
@@ -104,7 +112,7 @@ std::string Database::get_str(const std::string& sql) const
     if (stmt.step() == SQLITE_ROW)
         if (stmt.column_type(0) == SQLITE_TEXT)
             return stmt.column_str(0);
-    throw MyException(0xeffbf28c, "Failed to get_str using: " + sql); 
+    throw MyException(0xeffbf28c, "Failed to get_str using: " + sql);
 }
 
 std::vector<int> Database::get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const
@@ -123,12 +131,6 @@ Statement::~Statement()
 Statement::Statement(const Database& db, const std::string& sql)
 {
     db.sqlite3_prepare(sql, &stmt_);
-}
-
-void Statement::bind_str(int iCol, const std::string& str) const
-{
-    if (sqlite3_bind_text(stmt_, iCol, str.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) /* SQLITE_TRANSIENT is important here */
-        throw MyException(0x29cc3b21, "Sqlite bind_str fail");
 }
 
 void Statement::bind_int(int iCol, int i) const
@@ -155,9 +157,17 @@ void Statement::bind_null(int iCol) const
         throw MyException(0xe22b11c4, "Sqlite bind_null fail");
 }
 
+ /* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
+void Statement::bind_str(int iCol, const std::string& str) const
+{
+    if (sqlite3_bind_text(stmt_, iCol, str.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
+        throw MyException(0x29cc3b21, "Sqlite bind_str fail");
+}
+
+ /* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
 void Statement::bind_blob(int iCol, const void* data, int nBytes) const
 {
-    if (sqlite3_bind_blob(stmt_, iCol, data, nBytes, SQLITE_TRANSIENT) != SQLITE_OK)
+    if (sqlite3_bind_blob(stmt_, iCol, data, nBytes, SQLITE_STATIC) != SQLITE_OK)
         throw MyException(0x79d80302, "Sqlite bind_blob fail");
 }
 
@@ -184,20 +194,15 @@ int Statement::column_blob_size(int iCol) const
     return sqlite3_column_bytes(stmt_, iCol);
 }
 
+void Statement::step_and_reset() const
+{
+    step();
+    sqlite3_reset(stmt_);
+}
+
 int Statement::step() const
 {
     return sqlite3_step(stmt_);
 }
 
-int Statement::reset() const
-{
-    return sqlite3_reset(stmt_);
-}
-
-void Statement::step_and_reset() const
-{
-    step();
-    reset();
-}
 }  // namespace myio
-

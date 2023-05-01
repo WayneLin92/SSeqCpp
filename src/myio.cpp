@@ -36,10 +36,15 @@ bool UserConfirm()
     }
 }
 
-void AssertFileExists(const std::string& filename)
+bool FileExists(const std::string& filename)
 {
     std::ifstream f(filename);
-    if (!f.good()) {
+    return f.good();
+}
+
+void AssertFileExists(const std::string& filename)
+{
+    if (!FileExists(filename)) {
         fmt::print("Error: File {} does not exist.\n", filename);
         throw MyException(0x821119ec, "File does not exists.");
     }

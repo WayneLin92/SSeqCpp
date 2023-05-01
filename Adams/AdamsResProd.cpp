@@ -22,17 +22,112 @@ class DbAdamsResProd : public myio::Database
     using Statement = myio::Statement;
 
 public:
-    explicit DbAdamsResProd(const std::string& filename) : Database(filename) {}
-
-public:
-    void create_products(const std::string& table_prefix)
+    explicit DbAdamsResProd(const std::string& filename, int version = DB_RES_VERSION) : Database(filename)
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, indecomposable TINYINT, s SMALLINT, t SMALLINT);");
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h BLOB, prod_h_glo TEXT, PRIMARY KEY (id, id_ind));");
+        if (newFile_)
+            SetVersion(version);
     }
 
-    void create_time(const std::string& table_prefix) const
+    void SetVersion(int version)
     {
+        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0, std::string("version"), 1);
+        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+    }
+
+    int GetVersion()
+    {
+        if (has_table("version"))
+            return get_int("select value from version where id=0");
+        return -1;
+    }
+
+    bool ConvertVersion(const DbAdamsResLoader& dbRes)
+    {
+        if (GetVersion() < 1) { /* to version=1 */
+            try {
+                begin_transaction();
+                std::string table_prefix = "S0_Adams_res";
+                /*# Rename old SteenrodMRes prefix */
+                if (!has_table(table_prefix + "_generators")) {
+                    std::string table_prefix_old = "SteenrodMRes";
+                    std::array<std::string, 5> tables = {"_generators", "_products", "_products_time"};
+                    for (auto& t : tables)
+                        rename_table(table_prefix_old + t, table_prefix + t);
+                }
+                /*# change generator id */
+                /*## load change table */
+                std::unordered_map<int, int> id_to_newid;
+                {
+                    Statement stmt(dbRes, "SELECT oldid, id FROM S0_Adams_res_generators;");
+                    while (stmt.step() == MYSQLITE_ROW) {
+                        int oldid = stmt.column_int(0), id = stmt.column_int(1);
+                        id_to_newid[oldid] = id;
+                    }
+                }
+                /*## change id in S0_Adams_res_generators */
+                {
+                    std::map<int, int> ids;
+                    {
+                        Statement stmt(*this, "SELECT rowid, id FROM S0_Adams_res_generators;");
+                        while (stmt.step() == MYSQLITE_ROW) {
+                            int rowid = stmt.column_int(0);
+                            ids[rowid] = id_to_newid.at(stmt.column_int(1));
+                        }
+                    }
+                    {
+                        Statement stmt(*this, "UPDATE S0_Adams_res_generators SET id=?1 WHERE rowid=?2;");
+                        for (auto& [rowid, id] : ids) {
+                            stmt.bind_and_step(-id, rowid);
+                        }
+                    }
+                    execute_cmd("UPDATE S0_Adams_res_generators SET id=-id");
+                }
+                /*## change id, id_ind in S0_Adams_res_products */
+                {
+                    std::map<int, int> ids;
+                    std::map<int, int> ids_ind;
+                    std::map<int, int1d> prod_h_s;
+                    {
+                        Statement stmt(*this, "SELECT rowid, id, id_ind, prod_h FROM S0_Adams_res_products;");
+                        while (stmt.step() == MYSQLITE_ROW) {
+                            int rowid = stmt.column_int(0);
+                            ids[rowid] = id_to_newid.at(stmt.column_int(1));
+                            ids_ind[rowid] = id_to_newid.at(stmt.column_int(2));
+                            prod_h_s[rowid] = stmt.column_blob_tpl<int>(3);
+                        }
+                    }
+                    const std::string table_prod = "S0_Adams_res_products";
+                    drop_column(table_prod, "prod_h");
+                    if (has_column(table_prod, "prod_h_glo"))
+                        drop_column(table_prod, "prod_h_glo");
+                    add_column(table_prod, "prod_h TEXT");
+                    {
+                        Statement stmt(*this, "UPDATE S0_Adams_res_products SET id=?1, id_ind=?2, prod_h=?3 WHERE rowid=?4;");
+                        for (auto& [rowid, _] : ids) {
+                            stmt.bind_and_step(-ids.at(rowid), -ids_ind.at(rowid), myio::Serialize(prod_h_s.at(rowid)), rowid);
+                        }
+                    }
+                    execute_cmd("UPDATE S0_Adams_res_products SET id=-id, id_ind=-id_ind");
+                }
+
+                SetVersion(1);
+                end_transaction();
+                fmt::print("DbResProd Converted to version=1\n");
+            }
+            catch (MyException&) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+public:
+    void create_tables(const std::string& table_prefix)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, indecomposable TINYINT, s SMALLINT, t SMALLINT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products (id INTEGER, id_ind INTEGER, prod BLOB, prod_h TEXT, PRIMARY KEY (id, id_ind));");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_products_time (s SMALLINT, t SMALLINT, time REAL, PRIMARY KEY (s, t));");
     }
 
@@ -40,10 +135,7 @@ public:
     {
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_products_time (s, t, time) VALUES (?1, ?2, ?3);");
 
-        stmt.bind_int(1, s);
-        stmt.bind_int(2, t);
-        stmt.bind_double(3, time);
-        stmt.step_and_reset();
+        stmt.bind_and_step(s, t, time);
     }
 
     int1d load_old_ids(std::string_view table_prefix) const
@@ -58,7 +150,7 @@ public:
     }
 
     /* result[g][index] = image(v_index) in degree s */
-    std::map<int, Mod1d> load_products(std::string_view table_prefix, int s, const LocId1d& glo2loc, const int1d& gs_exclude) const
+    std::map<int, Mod1d> load_products(std::string_view table_prefix, int s, const int1d& gs_exclude) const
     {
         std::map<int, Mod1d> result;
         Statement stmt(*this, fmt::format("SELECT id, id_ind, prod FROM {}_products LEFT JOIN {}_generators USING(id) WHERE s={} ORDER BY id;", table_prefix, table_prefix, s));
@@ -69,10 +161,10 @@ public:
                 Mod prod;
                 prod.data = stmt.column_blob_tpl<MMod>(2);
 
-                int index = glo2loc[id].v;
-                if (result[g].size() <= index)
-                    result.at(g).resize(size_t(index + 1));
-                result[g][index] = std::move(prod);
+                int v = LocId(id).v;
+                if (result[g].size() <= v)
+                    result.at(g).resize(size_t(v + 1));
+                result[g][v] = std::move(prod);
             }
         }
         return result;
@@ -93,46 +185,39 @@ AdamsResConst AdamsResConst::load(const DbAdamsResLoader& db, const std::string&
  *   V                V
  *  F_{s-1} --f--> F_{s-1-g}
  */
-void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_res, const std::string& table_res, const std::string& db_out, const std::string& table_out)
+void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_res, const std::string& table_res, const std::string& db_out, const std::string& table_out) ////TODO: abstract and avoid repeating code
 {
-    DbAdamsResProd dbProd(db_out);
-    dbProd.create_products(table_out);
-    dbProd.create_time(table_out);
-    myio::Statement stmt_gen(dbProd, fmt::format("INSERT INTO {}_generators (id, indecomposable, s, t) values (?1, ?2, ?3, ?4);", table_out));   /* (id, is_indecomposable, s, t) */
-    myio::Statement stmt_set_ind(dbProd, fmt::format("UPDATE {}_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;", table_out)); /* id */
-    myio::Statement stmt_prod(dbProd, fmt::format("INSERT INTO {}_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);", table_out));    /* (id, id_ind, prod, prod_h) */
-
+    DbResVersionConvert(db_res.c_str()); /*Version convertion */
     DbAdamsResLoader dbRes(db_res);
     auto gb = AdamsResConst::load(dbRes, table_res, t_trunc);
-    std::map<int, AdamsDegV2> id_deg;  /* pairs (id, deg) where `id` is the first id in deg */
-    int2d vid_num;                     /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-    std::map<AdamsDegV2, Mod1d> diffs; /* diffs[deg] is the list of differentials of v in deg */
+    std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
+    int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
+    std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     dbRes.load_generators(table_res, id_deg, vid_num, diffs, t_trunc, stem_trunc);
-    int2d loc2glo; /* loc2glo[s][vid]=id */
-    LocId1d glo2loc; /* loc2glo[id]=(s, vid) */
-    dbRes.load_id_converter(table_res, loc2glo, glo2loc);
     int1d gs_hopf, t_gs_hopf;
     if (table_res == "S0_Adams_res" || table_res == "tmf_Adams_res") {
         gs_hopf = dbRes.get_column_int(fmt::format("{}_generators", table_res), "id", "WHERE s=1 ORDER BY id");
         t_gs_hopf = dbRes.get_column_int(fmt::format("{}_generators", table_res), "t", "WHERE s=1 ORDER BY id");
     }
+
+    DbAdamsResProd dbProd(db_out);
+    if (!dbProd.ConvertVersion(dbRes)) {
+        fmt::print("Version conversion failed.\n");
+        throw MyException(0xeb8fef62, "Version conversion failed.");
+    }
+    dbProd.create_tables(table_out);
+    myio::Statement stmt_gen(dbProd, fmt::format("INSERT INTO {}_generators (id, indecomposable, s, t) values (?1, ?2, ?3, ?4);", table_out));   /* (id, is_indecomposable, s, t) */
+    myio::Statement stmt_set_ind(dbProd, fmt::format("UPDATE {}_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;", table_out)); /* id */
+    myio::Statement stmt_prod(dbProd, fmt::format("INSERT INTO {}_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);", table_out));    /* (id, id_ind, prod, prod_h) */
+
     dbRes.disconnect();
 
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
 
     /* Remove computed range */
-    {
-        int1d ids_old = dbProd.load_old_ids(table_out);
-        for (auto p = id_deg.begin(); p != id_deg.end();) {
-            if (ut::has(ids_old, p->first)) {
-                diffs.erase(p->second);
-                id_deg.erase(p++);
-            }
-            else
-                ++p;
-        }
-    }
+    int1d ids_old = dbProd.load_old_ids(table_out);
+    ut::RemoveIf(id_deg, [&ids_old](const std::pair<int, AdamsDegV2>& p) { return ut::has(ids_old, p.first); });
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -145,8 +230,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
 
         /* save generators to database */
         for (size_t i = 0; i < diffs_d_size; ++i) {
-            stmt_gen.bind(id + (int)i, 0, deg.s, deg.t);
-            stmt_gen.step_and_reset();
+            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
         }
 
         if (deg.t == 0) {
@@ -155,7 +239,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
         }
 
         /* f_{s-1}[g] is the map F_{s-1} -> F_{s-1-deg(g)} dual to the multiplication of g */
-        std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, deg.s - 1, glo2loc, gs_hopf);
+        std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, deg.s - 1, gs_hopf);
         int1d gs = ut::get_keys(f_sm1); /* indecomposables id's */
 
         /*# compute fd */
@@ -175,7 +259,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
         std::map<int, Mod1d> f;
         int1d s1;
         for (auto& [g, _] : fd) {
-            s1.push_back(deg.s - 1 - glo2loc.at(g).s);
+            s1.push_back(deg.s - 1 - LocId(g).s);
             f[g].resize(diffs_d_size);
         }
         ut::for_each_par128(gs.size(), [&gs, &gb, &fd, &f, &s1](size_t i) { gb.DiffInvBatch(fd[gs[i]], f[gs[i]], s1[i]); });
@@ -198,8 +282,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
         for (auto& [g, f_g] : f) {
             for (size_t i = 0; i < diffs_d_size; ++i) {
                 if (f_g[i]) {
-                    stmt_prod.bind(id + (int)i, g, f_g[i].data, fh.at(g)[i]);
-                    stmt_prod.step_and_reset();
+                    stmt_prod.bind_and_step(id + (int)i, g, f_g[i].data, myio::Serialize(fh.at(g)[i]));
                 }
             }
         }
@@ -209,8 +292,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
                 int t = t_gs_hopf[i_g];
                 for (size_t i = 0; i < diffs_d_size; ++i) {
                     if (!fh.at(g)[i].empty()) {
-                        stmt_prod.bind(id + (int)i, g, myio::SQL_NULL(), fh.at(g)[i]);
-                        stmt_prod.step_and_reset();
+                        stmt_prod.bind_and_step(id + (int)i, g, myio::SQL_NULL(), myio::Serialize(fh.at(g)[i]));
                     }
                 }
             }
@@ -233,14 +315,12 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
 
         /*# mark indecomposables in database */
         for (int i : indices) {
-            stmt_set_ind.bind_int(1, id + i);
-            stmt_set_ind.step_and_reset();
+            stmt_set_ind.bind_and_step(id + i);
         }
 
         /*# indecomposable comultiply with itself */
         for (int i : indices) {
-            stmt_prod.bind(id + (int)i, id + (int)i, one.data, one_h);
-            stmt_prod.step_and_reset();
+            stmt_prod.bind_and_step(id + (int)i, id + (int)i, one.data, myio::Serialize(one_h));
         }
 
         double time = timer.Elapsed();
@@ -262,44 +342,35 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
  */
 void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& db_mod, const std::string& table_mod, const std::string& db_ring, const std::string& table_ring, const std::string& db_out, const std::string& table_out)
 {
-    DbAdamsResProd dbProd(db_out);
-    dbProd.create_products(table_out);
-    dbProd.create_time(table_out);
-    myio::Statement stmt_gen(dbProd, fmt::format("INSERT INTO {}_generators (id, indecomposable, s, t) values (?1, ?2, ?3, ?4);", table_out));   /* (id, is_indecomposable, s, t) */
-    myio::Statement stmt_set_ind(dbProd, fmt::format("UPDATE {}_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;", table_out)); /* id */
-    myio::Statement stmt_prod(dbProd, fmt::format("INSERT INTO {}_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);", table_out));    /* (id, id_ind, prod, prod_h) */
-    int1d ids_old = dbProd.load_old_ids(table_out);
-
+    DbResVersionConvert(db_ring.c_str()); /*Version convertion */
     DbAdamsResLoader dbResRing(db_ring);
     auto gbRing = AdamsResConst::load(dbResRing, table_ring, t_trunc);
-    dbResRing.disconnect();
-
-    std::map<int, AdamsDegV2> id_deg;  /* pairs (id, deg) where `id` is the first id in deg */
-    int2d vid_num;                     /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-    std::map<AdamsDegV2, Mod1d> diffs; /* diffs[deg] is the list of differentials of v in deg */
-    int2d loc2glo;               /* loc2glo[s][vid]=id */
-    LocId1d glo2loc;               /* loc2glo[id]=(s, vid) */
+    std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
+    int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
+    std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
         DbAdamsResLoader dbRes(db_mod);
         dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
-        dbRes.load_id_converter(table_mod, loc2glo, glo2loc);
     }
+
+    DbAdamsResProd dbProd(db_out);
+    if (!dbProd.ConvertVersion(dbResRing)) {
+        fmt::print("Version conversion failed.\n");
+        throw MyException(0xeb8fef62, "Version conversion failed.");
+    }
+    dbProd.create_tables(table_out);
+    myio::Statement stmt_gen(dbProd, fmt::format("INSERT INTO {}_generators (id, indecomposable, s, t) values (?1, ?2, ?3, ?4);", table_out));   /* (id, is_indecomposable, s, t) */
+    myio::Statement stmt_set_ind(dbProd, fmt::format("UPDATE {}_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;", table_out)); /* id */
+    myio::Statement stmt_prod(dbProd, fmt::format("INSERT INTO {}_products (id, id_ind, prod, prod_h) VALUES (?1, ?2, ?3, ?4);", table_out));    /* (id, id_ind, prod, prod_h) */
+
+    dbResRing.disconnect();
 
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
 
     /* Remove computed range */
-    {
-        int1d ids_old = dbProd.load_old_ids(table_out);
-        for (auto p = id_deg.begin(); p != id_deg.end();) {
-            if (ut::has(ids_old, p->first)) {
-                diffs.erase(p->second);
-                id_deg.erase(p++);
-            }
-            else
-                ++p;
-        }
-    }
+    int1d ids_old = dbProd.load_old_ids(table_out);
+    ut::RemoveIf(id_deg, [&ids_old](const std::pair<int, AdamsDegV2>& p) { return ut::has(ids_old, p.first); });
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -312,13 +383,12 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
 
         /* save generators to database */
         for (size_t i = 0; i < diffs_d_size; ++i) {
-            stmt_gen.bind(id + (int)i, 0, deg.s, deg.t);
-            stmt_gen.step_and_reset();
+            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
         }
 
         /* f_{s-1}[g] is the map F_{s-1} -> F_{s-1-deg(g)} dual to the multiplication of g */
         const int1d empty;
-        std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, deg.s - 1, glo2loc, empty);
+        std::map<int, Mod1d> f_sm1 = dbProd.load_products(table_out, deg.s - 1, empty);
         int1d gs = ut::get_keys(f_sm1); /* indecomposables id's */
 
         /*# compute fd */
@@ -338,7 +408,7 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
         std::map<int, Mod1d> f;
         int1d s1;
         for (auto& [g, _] : fd) {
-            s1.push_back(deg.s - 1 - glo2loc.at(g).s);
+            s1.push_back(deg.s - 1 - LocId(g).s);
             f[g].resize(diffs_d_size);
         }
         ut::for_each_par128(gs.size(), [&gs, &gbRing, &fd, &f, &s1](size_t i) { gbRing.DiffInvBatch(fd[gs[i]], f[gs[i]], s1[i]); });
@@ -353,8 +423,7 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
         for (auto& [g, f_g] : f) {
             for (size_t i = 0; i < diffs_d_size; ++i) {
                 if (f_g[i]) {
-                    stmt_prod.bind(id + (int)i, g, f_g[i].data, fh.at(g)[i]);
-                    stmt_prod.step_and_reset();
+                    stmt_prod.bind_and_step(id + (int)i, g, f_g[i].data, myio::Serialize(fh.at(g)[i]));
                 }
             }
         }
@@ -376,14 +445,12 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
 
         /*# mark indecomposables in database */
         for (int i : indices) {
-            stmt_set_ind.bind_int(1, id + i);
-            stmt_set_ind.step_and_reset();
+            stmt_set_ind.bind_and_step(id + i);
         }
 
         /*# indecomposable comultiply with itself */
         for (int i : indices) {
-            stmt_prod.bind(id + (int)i, id + (int)i, one.data, one_h);
-            stmt_prod.step_and_reset();
+            stmt_prod.bind_and_step(id + (int)i, id + (int)i, one.data, myio::Serialize(one_h));
         }
 
         double time = timer.Elapsed();
@@ -400,33 +467,25 @@ void compute_products_with_hi(const std::string& db_res_S0, const std::string& d
 {
     int1d ids_h;
     {
+        DbResVersionConvert(db_res_S0.c_str()); /*Version convertion */
         DbAdamsResLoader dbResS0(db_res_S0);
         ids_h = dbResS0.get_column_int("S0_Adams_res_generators", "id", "WHERE s=1 ORDER BY id");
     }
 
-    std::map<int, AdamsDegV2> id_deg;
-    int2d loc2glo;
+    std::vector<std::pair<int, AdamsDegV2>> id_deg;
     std::map<AdamsDegV2, Mod1d> diffs;
     {
         DbAdamsResLoader dbResMod(db_res_mod);
         int2d vid_num;
         dbResMod.load_generators(table_res_mod, id_deg, vid_num, diffs, 500, 500);
-        LocId1d glo2loc;
-        dbResMod.load_id_converter(table_res_mod, loc2glo, glo2loc);
     }
 
     DbAdamsResProd dbProd(db_out);
-    dbProd.create_products(table_res_mod);
-    int id_start = dbProd.get_int("SELECT COALESCE(MAX(id), -1) FROM " + table_res_mod + "_products") + 1;
+    dbProd.create_tables(table_res_mod);
 
     myio::Statement stmt_prod(dbProd, "INSERT INTO " + table_res_mod + "_products (id, id_ind, prod_h, prod_h_glo) VALUES (?1, ?2, ?3, ?4);");
 
     for (const auto& [id, deg] : id_deg) {
-        if (id < id_start) {
-            diffs.erase(deg);
-            continue;
-        }
-
         auto& diffs_d = diffs.at(deg);
 
         dbProd.begin_transaction();
@@ -438,13 +497,9 @@ void compute_products_with_hi(const std::string& db_res_S0, const std::string& d
                 if (!prod_hi.empty()) {
                     int1d prod_hi_glo;
                     for (int k : prod_hi)
-                        prod_hi_glo.push_back(loc2glo[size_t(deg.s - 1)][k]);
+                        prod_hi_glo.push_back(LocId(deg.s - 1, k).id());
 
-                    stmt_prod.bind_int(1, id + (int)i);
-                    stmt_prod.bind_int(2, ids_h[j]);
-                    stmt_prod.bind_blob(3, prod_hi);
-                    stmt_prod.bind_str(4, myio::Serialize(prod_hi_glo));
-                    stmt_prod.step_and_reset();
+                    stmt_prod.bind_and_step(id + (int)i, ids_h[j], myio::Serialize(prod_hi), myio::Serialize(prod_hi_glo));
                 }
             }
         }

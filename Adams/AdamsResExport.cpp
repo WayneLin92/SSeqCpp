@@ -33,11 +33,7 @@ public:
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, to_S0, s, t) VALUES (?1, ?2, ?3, ?4);");
 
         for (size_t i = 0; i < gen_degs.size(); ++i) {
-            stmt.bind_int(1, (int)i);
-            stmt.bind_str(2, myio::Serialize(toS0[i]));
-            stmt.bind_int(3, gen_degs[i].s);
-            stmt.bind_int(4, gen_degs[i].t);
-            stmt.step_and_reset();
+            stmt.bind_and_step((int)i, myio::Serialize(toS0[i]), gen_degs[i].s, gen_degs[i].t);
         }
     }
 
@@ -65,30 +61,15 @@ public:
         }
     }
 
-    /**
-     * loc2glo[s][i] = id
-     * glo2loc[id] = (s, i)
-     */
-    void load_id_converter(const std::string& table, alg2::int2d& loc2glo, alg2::pairii1d& glo2loc, int t_trunc) const
-    {
-        Statement stmt(*this, "SELECT id, s FROM " + table + " WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
-        while (stmt.step() == MYSQLITE_ROW) {
-            int id = stmt.column_int(0), s = stmt.column_int(1);
-            size_t v = ut::get(loc2glo, (size_t)s).size();
-            ut::get(loc2glo[s], v) = id;
-            ut::get(glo2loc, id) = std::make_pair(s, (int)v);
-        }
-    }
-
     /* id_ind * id = prod */
     std::map<std::pair<int, int>, alg2::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
     {
         std::map<std::pair<int, int>, alg2::int1d> result;
-        Statement stmt(*this, "SELECT id, id_ind, prod_h FROM " + table_prefix + "_products LEFT JOIN " + table_prefix + "_generators USING(id) WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
+        Statement stmt(*this, fmt::format("SELECT id, id_ind, prod_h FROM {}_products LEFT JOIN {}_generators USING(id) WHERE t<={} ORDER BY id;", table_prefix, table_prefix, t_trunc));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int g = stmt.column_int(1);
-            alg2::int1d prod_h = stmt.column_blob_tpl<int>(2);
+            alg2::int1d prod_h = myio::Deserialize<alg2::int1d>(stmt.column_str(2));
             result[std::make_pair(g, id)] = std::move(prod_h);
         }
         return result;
@@ -144,14 +125,11 @@ void ExportRingAdamsE2(const std::string& db_in, const std::string& table_in, co
     dbProd.load_indecomposables(table_in + "_generators", gen_reprs, gen_degs, t_trunc);
     auto map_h_dual = dbProd.load_products_h(table_in, t_trunc); /* (g, gx) -> x */
 
-    int2d loc2glo;
-    pairii1d glo2loc;
-    dbProd.load_id_converter(table_in + "_generators", loc2glo, glo2loc, t_trunc);
     std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
-        int s_i = glo2loc[p.second].first - glo2loc[p.first].first;
+        int s_i = LocId(p.second).s - LocId(p.first).s;
         for (int i : arr)
-            map_h[std::make_pair(p.first, loc2glo[s_i][i])].push_back(p.second);
+            map_h[std::make_pair(p.first, LocId(s_i, i).id())].push_back(p.second);
     }
 
     std::map<AdamsDeg, Poly1d> gb;

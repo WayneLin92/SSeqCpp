@@ -394,87 +394,130 @@ Mod AdamsRes::ReduceX2m(const CriMilnor& cp, size_t s) const
     return gb_x2m_.Reduce(result, s);
 }
 
-class DbSteenrod : public myio::Database
+/********************************************************
+ *                    class DbAdamsRes
+ ********************************************************/
+
+class DbAdamsRes : public myio::Database
 {
     using Statement = myio::Statement;
 
 public:
-    DbSteenrod() = default;
-    explicit DbSteenrod(const std::string& filename) : Database(filename) {}
+    DbAdamsRes() = default;
+    explicit DbAdamsRes(const std::string& filename, int version = DB_RES_VERSION) : Database(filename)
+    {
+        if (newFile_)
+            SetVersion(version);
+    }
+
+    void SetVersion(int version)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0, std::string("version"), 1);
+        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+    }
+
+    int GetVersion()
+    {
+        if (has_table("version"))
+            return get_int("select value from version where id=0");
+        return -1;
+    }
+
+    bool ConvertVersion()
+    {
+        if (GetVersion() < 1) { /* to version=1 */
+            try {
+                begin_transaction();
+                std::string table_prefix = "S0_Adams_res";
+                /*# Rename old SteenrodMRes prefix */
+                if (!has_table(table_prefix + "_generators")) {
+                    std::string table_prefix_old = "SteenrodMRes";
+                    std::array<std::string, 5> tables = {"_generators", "_X2m_generators", "_relations", "_X2m_relations", "_time"};
+                    for (auto& t : tables)
+                        rename_table(table_prefix_old + t, table_prefix + t);
+                }
+                /*# change id in S0_Adams_res_generators */
+                {
+                    std::map<int, int> ids_old;
+                    std::map<int, int> ids_new;
+                    {
+                        Statement stmt(*this, "SELECT rowid, id, s FROM S0_Adams_res_generators ORDER BY rowid;");
+                        int1d vid;
+                        while (stmt.step() == MYSQLITE_ROW) {
+                            int rowid = stmt.column_int(0), id = stmt.column_int(1), s = stmt.column_int(2);
+                            ids_old[rowid] = id;
+                            ids_new[rowid] = LocId(s, ut::get(vid, s)).id();
+                            ++vid[s];
+                        }
+                    }
+                    add_column("S0_Adams_res_generators", "oldid INTEGER");
+                    try {
+                        drop_column("S0_Adams_res_generators", "id");
+                        add_column("S0_Adams_res_generators", "id INTEGER");
+                    }
+                    catch (MyException&) {
+                    }
+                    {
+                        Statement stmt(*this, "UPDATE S0_Adams_res_generators SET id=?1, oldid=?2 WHERE rowid=?3;");
+                        for (auto& [rowid, _] : ids_old) {
+                            stmt.bind_and_step(-ids_new.at(rowid), ids_old[rowid], rowid);
+                        }
+                    }
+                    execute_cmd("UPDATE S0_Adams_res_generators SET id=-id");
+                }
+
+                SetVersion(1);
+                end_transaction();
+                fmt::print("DbRes Converted to version=1\n");
+            }
+            catch (MyException&) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 public:
-    void create_generators(const std::string& table_prefix) const
+    void create_tables(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (rowid INTEGER PRIMARY KEY, id integer generated always as (rowid-1) virtual, diff BLOB, s SMALLINT, t SMALLINT);");
-    }
-    void create_generators_x2m(const std::string& table_prefix) const
-    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_generators (id INTEGER PRIMARY KEY, vid INTEGER GENERATED ALWAYS AS (id%524288) VIRTUAL, s SMALLINT, t SMALLINT, diff BLOB);");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_X2m_generators (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT);");
-    }
-    void create_relations(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (id INTEGER PRIMARY KEY, x1 BLOB, x2 BLOB, x2m BLOB, s SMALLINT, t SMALLINT);");
-    }
-    void create_relations_x2m(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_X2m_relations (id INTEGER PRIMARY KEY, x2m BLOB, s SMALLINT, t SMALLINT);");
-    }
-    void create_time(const std::string& table_prefix) const
-    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_relations (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, x1 BLOB, x2 BLOB, x2m BLOB);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_X2m_relations (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, x2m BLOB);");
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (s SMALLINT, t SMALLINT, time REAL, UNIQUE(s, t));");
     }
 
-    void drop_and_create_generators(const std::string& table_prefix) const
+    void reset(const std::string& table_prefix) const
     {
         drop_table(table_prefix + "_generators");
-        create_generators(table_prefix);
-    }
-    void drop_and_create_relations(const std::string& table_prefix) const
-    {
         drop_table(table_prefix + "_relations");
-        create_relations(table_prefix);
-    }
-    void drop_and_create_generators_x2m(const std::string& table_prefix) const
-    {
         drop_table(table_prefix + "_X2m_generators");
-        create_generators_x2m(table_prefix);
-    }
-    void drop_and_create_relations_x2m(const std::string& table_prefix) const
-    {
         drop_table(table_prefix + "_X2m_relations");
-        create_relations_x2m(table_prefix);
-    }
-    void drop_and_create_time(const std::string& table_prefix) const
-    {
         drop_table(table_prefix + "_time");
-        create_time(table_prefix);
+        create_tables(table_prefix);
     }
 
     void save_generators(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
     {
-        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (diff, s, t) VALUES (?1, ?2, ?3);");
-
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
         for (auto& x : rels) {
             if (x.x2.data.size() == 1 && x.x2.GetLead().deg_m() == 0) {
-                stmt.bind_blob(1, x.x1.data);
-                stmt.bind_int(2, s + 1);
-                stmt.bind_int(3, t);
-                stmt.step_and_reset();
+                int v = (int)x.x2.GetLead().v();
+                stmt.bind_and_step(LocId(s + 1, v).id(), x.x1.data, s + 1, t);
             }
         }
     }
 
-    /* insert v_{0, i} */
+    /* insert v_{0, i} in degree t */
     void save_fil_0(const std::string& table_prefix, int t, int t_min, const int1d& v_degs) const
     {
         if (t >= t_min) {
-            for (int v : v_degs) {
-                if (v == t) {
-                    Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (diff, s, t) VALUES (?1, ?2, ?3);");
-                    stmt.bind_blob(1, Mod().data);
-                    stmt.bind_int(2, 0);
-                    stmt.bind_int(3, t);
-                    stmt.step_and_reset();
+            Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, diff, s, t) VALUES (?1, ?2, ?3, ?4);");
+            for (size_t i = 0; i < v_degs.size(); ++i) {
+                if (v_degs[i] == t) {
+                    stmt.bind_and_step(LocId(0, (int)i).id(), Mod().data, 0, t);
                 }
             }
         }
@@ -483,48 +526,31 @@ public:
     void save_relations(const std::string& table_prefix, const DataMRes1d& rels, int s, int t) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (x1, x2, x2m, s, t) VALUES (?1, ?2, ?3, ?4, ?5);");
-
         for (auto& rel : rels) {
-            stmt.bind_blob(1, rel.x1.data);
-            stmt.bind_blob(2, rel.x2.data);
-            stmt.bind_blob(3, rel.x2m.data);
-            stmt.bind_int(4, s);
-            stmt.bind_int(5, t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(rel.x1.data, rel.x2.data, rel.x2m.data, s, t);
         }
     }
 
     void save_generators_x2m(const std::string& table_prefix, int num, int s, int t) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_X2m_generators (s, t) VALUES (?1, ?2);");
-
         for (int k = 0; k < num; ++k) {
-            stmt.bind_int(1, s);
-            stmt.bind_int(2, t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(s, t);
         }
     }
 
     void save_relations_x2m(const std::string& table_prefix, const Mod1d& rels, int s, int t) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_X2m_relations (x2m, s, t) VALUES (?1, ?2, ?3);");
-
         for (auto& rel : rels) {
-            stmt.bind_blob(1, rel.data);
-            stmt.bind_int(2, s);
-            stmt.bind_int(3, t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(rel.data, s, t);
         }
     }
 
     void save_time(const std::string& table_prefix, int t, double time)
     {
         Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_time (s, t, time) VALUES (?1, ?2, ?3);");
-
-        stmt.bind_int(1, -1);
-        stmt.bind_int(2, t);
-        stmt.bind_double(3, time);
-        stmt.step_and_reset();
+        stmt.bind_and_step(-1, t, time);
     }
 
     int2d load_basis_degrees(const std::string& table_prefix) const
@@ -642,6 +668,15 @@ public:
     }
 };
 
+void DbResVersionConvert(const char* db_filename)
+{
+    DbAdamsRes db(db_filename);
+    if (!db.ConvertVersion()) {
+        fmt::print("Version conversion failed.\n");
+        throw MyException(0xeb8fef62, "Version conversion failed.");
+    }
+}
+
 void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, int stem_max, const std::string& db_filename, const std::string& tablename)
 {
     int t_trunc = gb.t_trunc();
@@ -649,13 +684,9 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         throw MyException(0xb2474e19U, "t_max is bigger than the truncation degree.");
     Mod tmp_Mod;
 
-    DbSteenrod db(db_filename);
-    db.create_generators(tablename);
-    db.create_relations(tablename);
-    db.create_generators_x2m(tablename);
-    db.create_relations_x2m(tablename);
-    db.create_time(tablename);
-    int old_t_max = db.get_int("SELECT COALESCE(MAX(t), -1) FROM " + tablename + "_generators WHERE s=0;");
+    DbResVersionConvert(db_filename.c_str());
+    DbAdamsRes db(db_filename);
+    db.create_tables(tablename);
     gb.set_v_degrees(v_degs);
 
     bench::Timer timer;
@@ -672,7 +703,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         }
     }
 
-    db.save_fil_0(tablename, 0, old_t_max + 1, v_degs);
+    int t_start_fil_0 = db.get_int("SELECT COALESCE(MAX(t), -1)+1 FROM " + tablename + "_generators WHERE s=0;");
+    db.save_fil_0(tablename, 0, t_start_fil_0, v_degs);
     for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
         size_t s_min = (size_t)std::max(0, t - stem_max - 2);
@@ -768,8 +800,9 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         for (size_t s = 0; s < tt; ++s)
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
         db.save(tablename, data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
-        db.save_fil_0(tablename, t, old_t_max + 1, v_degs);
-        std::cout << "    time=" << time << std::endl;
+        db.save_fil_0(tablename, t, t_start_fil_0, v_degs);
+        fmt::print("    time={}\n", time);
+        std::cout.flush();
         timer.Reset();
 
         for (size_t s = tt; s-- > s_min;)
@@ -783,11 +816,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
 
 AdamsRes AdamsRes::load(const std::string& db_filename, const std::string& tablename, int t_trunc, int stem_trunc)
 {
-    DbSteenrod db(db_filename);
-    db.create_generators(tablename);
-    db.create_relations(tablename);
-    db.create_generators_x2m(tablename);
-    db.create_relations_x2m(tablename);
+    DbAdamsRes db(db_filename);
+    db.create_tables(tablename);
     DataMRes2d data = db.load_data(tablename);
     int2d basis_degrees = db.load_basis_degrees(tablename);
     Mod2d data_x2m = db.load_data_x2m(tablename);
@@ -798,17 +828,13 @@ AdamsRes AdamsRes::load(const std::string& db_filename, const std::string& table
 
 void ResetDb(const std::string& filename, const std::string& tablename)
 {
-    DbSteenrod db(filename);
-    db.drop_and_create_generators(tablename);
-    db.drop_and_create_relations(tablename);
-    db.drop_and_create_generators_x2m(tablename);
-    db.drop_and_create_relations_x2m(tablename);
-    db.drop_and_create_time(tablename);
+    DbAdamsRes db(filename);
+    db.reset(tablename);
 }
 
 int main_generators_to_csv(const std::string& db_filename, const std::string& tablename)
 {
-    DbSteenrod db(db_filename);
+    DbAdamsRes db(db_filename);
     db.generators_to_csv(tablename);
     return 0;
 }

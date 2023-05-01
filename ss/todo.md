@@ -1,7 +1,4 @@
 # Adams
-* P(k1, k2)
-* change id to 12+19 bits representation
-* version control
 * Export module
 * Maps between spectra
 * Load to ss

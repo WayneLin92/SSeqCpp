@@ -212,11 +212,7 @@ void DbAdamsSS::save_generators(const std::string& table_prefix, const alg2::Ada
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, repr, s, t) VALUES (?1, ?2, ?3, ?4);");
 
     for (size_t i = 0; i < gen_degs.size(); ++i) {
-        stmt.bind_int(1, (int)i);
-        stmt.bind_int(2, gen_repr[i]);
-        stmt.bind_int(3, gen_degs[i].s);
-        stmt.bind_int(4, gen_degs[i].t);
-        stmt.step_and_reset();
+        stmt.bind_and_step((int)i, gen_repr[i], gen_degs[i].s, gen_degs[i].t);
     }
 
     // myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
@@ -228,10 +224,7 @@ void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg
     int count = 0;
     for (auto& [deg, polys] : gb) {
         for (auto& poly : polys) {
-            stmt.bind_str(1, Serialize(poly));
-            stmt.bind_int(2, deg.s);
-            stmt.bind_int(3, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(Serialize(poly), deg.s, deg.t);
             ++count;
         }
     }
@@ -246,10 +239,7 @@ void DbAdamsSS::save_gb_mod(const std::string& table_prefix, const std::map<Adam
     int count = 0;
     for (auto& [deg, xs] : gbm) {
         for (auto& x : xs) {
-            stmt.bind_str(1, Serialize(x));
-            stmt.bind_int(2, deg.s);
-            stmt.bind_int(3, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(Serialize(x), deg.s, deg.t);
             ++count;
         }
     }
@@ -277,12 +267,7 @@ void DbAdamsSS::save_basis(const std::string& table_prefix, const std::map<alg2:
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
-            stmt.bind_int(1, count);
-            stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, Serialize(repr.at(deg)[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(count, Serialize(basis_d[i]), Serialize(repr.at(deg)[i]), deg.s, deg.t);
             ++count;
         }
     }
@@ -299,12 +284,7 @@ void DbAdamsSS::save_basis_mod(const std::string& table_prefix, const std::map<a
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
-            stmt.bind_int(1, count);
-            stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, Serialize(repr.at(deg)[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(count, Serialize(basis_d[i]), Serialize(repr.at(deg)[i]), deg.s, deg.t);
             ++count;
         }
     }
@@ -379,11 +359,7 @@ void DbAdamsSS::save_pi_generators(const std::string& table_prefix, const AdamsD
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators (id, Einf, s, t) VALUES (?1, ?2, ?3, ?4);");
 
     for (size_t i = 0; i < gen_degs.size(); ++i) {
-        stmt.bind_int(1, (int)i);
-        stmt.bind_str(2, Serialize(gen_Einf[i]));
-        stmt.bind_int(3, gen_degs[i].s);
-        stmt.bind_int(4, gen_degs[i].t);
-        stmt.step_and_reset();
+        stmt.bind_and_step((int)i, Serialize(gen_Einf[i]), gen_degs[i].s, gen_degs[i].t);
     }
 
     // myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_pi_generators!\n";
@@ -396,12 +372,7 @@ void DbAdamsSS::save_pi_gb(const std::string& table_prefix, const std::map<Adams
     for (auto& [deg, polys] : gb) {
         auto& Einfs = gb_Einf.at(deg);
         for (size_t i = 0; i < polys.size(); ++i) {
-            stmt.bind_str(1, Serialize(polys[i]));
-            stmt.bind_str(2, polys[i].Str());
-            stmt.bind_str(3, Serialize(Einfs[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(Serialize(polys[i]), polys[i].Str(), Serialize(Einfs[i]), deg.s, deg.t);
             ++count;
         }
     }
@@ -416,12 +387,7 @@ void DbAdamsSS::save_pi_gb_mod(const std::string& table_prefix, const std::map<A
     for (auto& [deg, polys] : gbm) {
         auto& Einfs = gb_Einf.at(deg);
         for (size_t i = 0; i < polys.size(); ++i) {
-            stmt.bind_str(1, Serialize(polys[i]));
-            stmt.bind_str(2, polys[i].Str());
-            stmt.bind_str(3, Serialize(Einfs[i]));
-            stmt.bind_int(4, deg.s);
-            stmt.bind_int(5, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(Serialize(polys[i]), polys[i].Str(), Serialize(Einfs[i]), deg.s, deg.t);
             ++count;
         }
     }
@@ -438,13 +404,7 @@ void DbAdamsSS::save_pi_basis(const std::string& table_prefix, const std::map<Ad
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
-            stmt.bind_int(1, count);
-            stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, basis_d[i].Str());
-            stmt.bind_str(4, Serialize(basis_Einf.at(deg)[i]));
-            stmt.bind_int(5, deg.s);
-            stmt.bind_int(6, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(count, Serialize(basis_d[i]), basis_d[i].Str(), Serialize(basis_Einf.at(deg)[i]), deg.s, deg.t);
             ++count;
         }
     }
@@ -461,13 +421,7 @@ void DbAdamsSS::save_pi_basis_mod(const std::string& table_prefix, const std::ma
     for (AdamsDeg deg : degs) {
         auto& basis_d = basis.at(deg);
         for (size_t i = 0; i < basis_d.size(); ++i) {
-            stmt.bind_int(1, count);
-            stmt.bind_str(2, Serialize(basis_d[i]));
-            stmt.bind_str(3, basis_d[i].Str());
-            stmt.bind_str(4, Serialize(basis_Einf.at(deg)[i]));
-            stmt.bind_int(5, deg.s);
-            stmt.bind_int(6, deg.t);
-            stmt.step_and_reset();
+            stmt.bind_and_step(count, Serialize(basis_d[i]), basis_d[i].Str(), Serialize(basis_Einf.at(deg)[i]), deg.s, deg.t);
             ++count;
         }
     }

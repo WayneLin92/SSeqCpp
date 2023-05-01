@@ -19,7 +19,7 @@ This computes some chain maps in order to obtain the products in the cohomology 
 
 You can stop the program anytime and it can resume later from where it was stopped.
 
-This computation takes 25 seconds on my AMD Ryzen 9 3900X CPU.
+This computation takes 16 seconds on my AMD Ryzen 9 3900X CPU.
 
 ```bash
 ./Adams export 100

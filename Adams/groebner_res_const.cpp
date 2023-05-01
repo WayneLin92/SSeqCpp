@@ -187,32 +187,19 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
     }
 }
 
-void DbAdamsResLoader::load_id_converter(const std::string& table_in, int2d& loc2glo, LocId1d& glo2loc) const
-{
-    Statement stmt(*this, "SELECT id, s FROM " + table_in + "_generators ORDER BY id;");
-    while (stmt.step() == MYSQLITE_ROW) {
-        int id = stmt.column_int(0), s = stmt.column_int(1);
-        int v = ut::get(loc2glo, (size_t)s).size();
-        ut::get(loc2glo[s], v) = id;
-        ut::get(glo2loc, id) = LocId{s, v};
-    }
-}
-
 int2d DbAdamsResLoader::load_basis_degrees(const std::string& table_prefix, int t_trunc) const
 {
     int2d result;
     Statement stmt(*this, "SELECT s, t FROM " + table_prefix + "_generators WHERE t<=" + std::to_string(t_trunc) + " ORDER BY id;");
     while (stmt.step() == MYSQLITE_ROW) {
         int s = stmt.column_int(0), t = stmt.column_int(1);
-        if (result.size() <= (size_t)s)
-            result.resize(size_t(s + 1));
-        result[s].push_back(t);
+        ut::get(result, s).push_back(t);
     }
     return result;
 }
 
 /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::map<int, AdamsDegV2>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const
+void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const
 {
     Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} AND t-s<={} ORDER BY id;", table_prefix, t_trunc, stem_trunc));
     AdamsDegV2 d_prev = AdamsDegV2(-1, -1);
@@ -225,10 +212,12 @@ void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::map
         diffs[d].push_back(std::move(diff));
         ++gen_num(d.s, d.stem());
         if (d.s != d_prev.s || d.t != d_prev.t) {
-            id_st[id] = d;
+            id_st.push_back(std::make_pair(id, d));
             d_prev = d;
         }
     }
+    std::sort(id_st.begin(), id_st.end(), [](std::pair<int, AdamsDegV2> p1, std::pair<int, AdamsDegV2> p2) { return p1.second < p2.second; });
+
     vid_num.resize(size_t(t_trunc + 1));
     for (size_t s = 0; s <= t_trunc; ++s) {
         vid_num[s].resize(t_trunc - s + 1);

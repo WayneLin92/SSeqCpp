@@ -65,31 +65,15 @@ class Database;
  */
 class Statement
 {
+private:
+    sqlite3_stmt* stmt_ = nullptr;
+
 public:
     Statement() = default;
     Statement(const Database& db, const std::string& sql);
     ~Statement();
 
-private:
-    sqlite3_stmt* stmt_ = nullptr;
-
 public:
-    void bind_str(int iCol, const std::string& str) const;
-    void bind_int(int iCol, int i) const;
-    void bind_int64(int iCol, int64_t i) const;
-    void bind_double(int iCol, double d) const;
-    void bind_null(int iCol) const;
-    void bind_blob(int iCol, const void* data, int nBytes) const;
-    template <typename T>
-    void bind_blob(int iCol, const std::vector<T>& data) const
-    {
-        static_assert(!ut::is_vector<T>::value, "T must not be a vector.");  // TODO: complete the bind_blob for vector of vectors
-        if (data.data())
-            bind_blob(iCol, data.data(), int(data.size() * sizeof(T)));
-        else
-            bind_blob(iCol, this, 0);
-    }
-
     std::string column_str(int iCol) const;
     int column_int(int iCol) const;
     int column_type(int iCol) const;
@@ -106,17 +90,34 @@ public:
         std::memcpy(result.data(), data, bytes);
         return result;
     }
+
     int step() const;
-    int reset() const;
-    void step_and_reset() const;
 
 private:
     /***** suger template bind functions *****/
+    void bind_int(int iCol, int i) const;
+    void bind_int64(int iCol, int64_t i) const;
+    void bind_double(int iCol, double d) const;
+    void bind_null(int iCol) const;
+    void bind_str(int iCol, const std::string& str) const;
+    void bind_blob(int iCol, const void* data, int nBytes) const;
+    template <typename T>
+    void bind_blob(int iCol, const std::vector<T>& data) const
+    {
+        static_assert(!ut::is_vector<T>::value, "T must not be a vector.");  // TODO: complete the bind_blob for vector of vectors
+        if (data.data())
+            bind_blob(iCol, data.data(), int(data.size() * sizeof(T)));
+        else
+            bind_blob(iCol, this, 0);
+    }
+
     template <typename T>
     void bind_tpl(int iCol, const T& data) const
     {
-        if constexpr (std::is_convertible<T, int>::value)
+        if constexpr (std::is_same<T, int>::value)
             bind_int(iCol, data);
+        else if constexpr (std::is_same<T, std::string>::value)
+            bind_str(iCol, data);
         else if constexpr (std::is_same<T, int64_t>::value)
             bind_int64(iCol, data);
         else if constexpr (std::is_same<T, double>::value)
@@ -133,11 +134,14 @@ private:
         bind_tpl(iCol + 1, args...);
     }
 
+    void step_and_reset() const;
+
 public:
     template <typename... T>
-    void bind(T&&... args) const
+    void bind_and_step(T&&... args) const
     {
         bind_tpl(1, args...);
+        step_and_reset();
     }
 };
 
@@ -149,6 +153,9 @@ class Database
 private:
     sqlite3* conn_ = nullptr;
     int numInTransaction_ = -1;
+
+protected:
+    bool newFile_ = true;
 
 public:
     Database() = default;
@@ -185,13 +192,29 @@ public:
     {
         return get_int("SELECT count(*) FROM sqlite_master WHERE name='" + table_name + "'");
     }
+    void drop_table(const std::string& table_name) const
+    {
+        execute_cmd("DROP TABLE IF EXISTS " + table_name);
+    }
+    void rename_table(const std::string& table_name, const std::string& table_new) const
+    {
+        execute_cmd(fmt::format("ALTER TABLE {} RENAME to {}", table_name, table_new));
+    }
     bool has_column(const std::string& table_name, const std::string& column_name) const
     {
         return get_int("select count(*) from pragma_table_info('" + table_name + "') where name='" + column_name + "'");
     }
-    void drop_table(const std::string& table_name) const
+    void drop_column(const std::string& table_name, const std::string& column_name) const
     {
-        execute_cmd("DROP TABLE IF EXISTS " + table_name);
+        execute_cmd(fmt::format("ALTER TABLE {} DROP COLUMN {}", table_name, column_name));
+    }
+    void add_column(const std::string& table_name, const std::string& column_def) const
+    {
+        execute_cmd(fmt::format("ALTER TABLE {} ADD COLUMN {}", table_name, column_def));
+    }
+    void rename_column(const std::string& table_name, const std::string& column, const std::string& column_new) const
+    {
+        execute_cmd(fmt::format("ALTER TABLE {} RENAME COLUMN {} to {}", table_name, column, column_new));
     }
 
 public:

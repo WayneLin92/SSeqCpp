@@ -63,12 +63,6 @@ inline void Reduce(Mod& x, const DataMResConst1d& y, Mod& tmp)
             x.iaddP(y[i].x1, tmp);
 }
 
-struct LocId
-{
-    int s, v;
-};
-using LocId1d = std::vector<LocId>;
-
 class DbAdamsResLoader : public myio::Database
 {
     using Statement = myio::Statement;
@@ -77,13 +71,8 @@ public:
     explicit DbAdamsResLoader(const std::string& filename) : Database(filename) {}
 
 public:
-    /**
-     * loc2glo[s][i] = id
-     * glo2loc[id] = (s, i)
-     */
-    void load_id_converter(const std::string& table_in, int2d& loc2glo, LocId1d& glo2loc) const;
     int2d load_basis_degrees(const std::string& table_prefix, int t_trunc) const;
-    void load_generators(const std::string& table_prefix, std::map<int, AdamsDegV2>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const;
+    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const;
     DataMResConst2d load_data(const std::string& table_prefix, int t_trunc) const;
 };
 

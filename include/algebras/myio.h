@@ -157,6 +157,7 @@ int load_args(int argc, char** argv, int index, const char* name, std::vector<T>
 
 /* Return true if user inputs Y; Return false if user inputs N */
 bool UserConfirm();
+bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
 
 }  // namespace myio
