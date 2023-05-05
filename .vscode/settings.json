@@ -33,6 +33,8 @@
         "xyrp"
     ],
     "files.associations": {
+        "*.excalidraw": "json",
+        "*.excalidrawlib": "json",
         "__bit_reference": "cpp",
         "__config": "cpp",
         "__debug": "cpp",
@@ -133,10 +135,12 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "execution": "cpp",
-        "unordered_set": "cpp"
-    },
-    
-    "cmake.buildDirectory": "${env:userprofile}/Documents/Projects/${workspaceFolderBasename}_build",
-    "cmake.configureOnOpen": false,
-    "cmake.configureOnEdit": false
+        "unordered_set": "cpp",
+        "any": "cpp",
+        "filesystem": "cpp",
+        "ranges": "cpp",
+        "span": "cpp",
+        "typeindex": "cpp",
+        "valarray": "cpp"
+    }
 }

@@ -6,8 +6,6 @@
 #include <cstring>
 #include <map>
 
-// #define MYDEPLOY
-
 class MyDB : public myio::DbAdamsSS
 {
     using Statement = myio::Statement;
@@ -37,9 +35,9 @@ public:
         }
     }
 
-    void load_indecomposables(const std::string& table, alg2::int1d& ids, alg2::AdamsDeg1d& gen_degs, int t_trunc) const
+    void load_indecomposables(const std::string& table, alg2::int1d& ids, alg2::AdamsDeg1d& gen_degs, int t_trunc, int stem_trunc) const
     {
-        Statement stmt(*this, "SELECT id, s, t FROM " + table + " WHERE indecomposable=1 AND t<=" + std::to_string(t_trunc) + " ORDER BY id;");
+        Statement stmt(*this, fmt::format("SELECT id, s, t FROM {} WHERE indecomposable=1 AND t<={} AND t-s<={} ORDER BY id;", table, t_trunc, stem_trunc));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             ids.push_back(id);
@@ -62,10 +60,10 @@ public:
     }
 
     /* id_ind * id = prod */
-    std::map<std::pair<int, int>, alg2::int1d> load_products_h(const std::string& table_prefix, int t_trunc) const
+    std::map<std::pair<int, int>, alg2::int1d> load_products_h(const std::string& table_prefix, int t_trunc, int stem_trunc) const
     {
         std::map<std::pair<int, int>, alg2::int1d> result;
-        Statement stmt(*this, fmt::format("SELECT id, id_ind, prod_h FROM {}_products LEFT JOIN {}_generators USING(id) WHERE t<={} ORDER BY id;", table_prefix, table_prefix, t_trunc));
+        Statement stmt(*this, fmt::format("SELECT id, id_ind, prod_h FROM {}_products LEFT JOIN {}_generators USING(id) WHERE length(prod_h)>0 AND t<={} AND t-s<={} ORDER BY id;", table_prefix, table_prefix, t_trunc, stem_trunc));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int g = stmt.column_int(1);
@@ -122,9 +120,8 @@ void ExportRingAdamsE2(const std::string& db_in, const std::string& table_in, co
 
     AdamsDeg1d gen_degs;
     int1d gen_reprs;
-    dbProd.load_indecomposables(table_in + "_generators", gen_reprs, gen_degs, t_trunc);
-    auto map_h_dual = dbProd.load_products_h(table_in, t_trunc); /* (g, gx) -> x */
-
+    dbProd.load_indecomposables(table_in + "_generators", gen_reprs, gen_degs, t_trunc, stem_trunc);
+    auto map_h_dual = dbProd.load_products_h(table_in, t_trunc, stem_trunc); /* (g, gx) -> x */
     std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
         int s_i = LocId(p.second).s - LocId(p.first).s;
@@ -232,6 +229,132 @@ void ExportRingAdamsE2(const std::string& db_in, const std::string& table_in, co
     dbE2.save_generators(table_out, gen_degs, gen_reprs);
     dbE2.save_gb(table_out, gb);
     dbE2.save_basis(table_out, basis, repr);
+
+    dbE2.end_transaction();
+}
+
+void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, int stem_trunc)
+{
+    using namespace alg2;
+
+    std::string db_cw = fmt::format("{}_Adams_res_prod.db", cw);
+    std::string table_cw = fmt::format("{}_Adams_res", cw);
+    const std::string db_ring = fmt::format("{}_AdamsSS.db", ring);
+    const std::string table_ring = fmt::format("{}_AdamsE2", ring);
+    myio::AssertFileExists(db_cw);
+    myio::AssertFileExists(db_ring);
+
+    std::string db_out = fmt::format("{}_AdamsSS.db", cw);
+    std::string table_out = fmt::format("{}_AdamsE2", cw);
+
+    MyDB dbProd(db_cw);
+    AdamsDeg1d v_degs;
+    int1d gen_reprs;
+    dbProd.load_indecomposables(table_cw + "_generators", gen_reprs, v_degs, t_trunc, stem_trunc);
+    auto map_h_dual = dbProd.load_products_h(table_cw, t_trunc, stem_trunc);
+    std::map<std::pair<int, int>, int1d> map_h;
+    for (auto& [p, arr] : map_h_dual) {
+        int s_i = LocId(p.second).s - LocId(p.first).s;
+        for (int i : arr)
+            map_h[std::make_pair(p.first, LocId(s_i, i).id())].push_back(p.second);
+    }
+    
+
+    MyDB dbS0(db_ring);
+    auto S0_basis = dbS0.load_basis(table_ring);
+    auto S0_basis_repr = dbS0.load_basis_repr(table_ring);
+
+    std::map<AdamsDeg, Mod1d> gbm;
+    Mon2d leads;
+    std::map<AdamsDeg, MMod1d> basis;
+    std::map<AdamsDeg, int2d> repr;
+
+    /* Add new basis */
+    for (int t = 0; t <= t_trunc; ++t) {
+        std::map<AdamsDeg, MMod1d> basis_new;
+        std::map<AdamsDeg, int2d> repr_new;
+
+        /* Consider all possible basis in degree t */
+        for (size_t gen_id = v_degs.size(); gen_id-- > 0;) {
+            auto repr_g = gen_reprs[gen_id];
+            int t1 = t - v_degs[gen_id].t;
+            if (t1 >= 0) {
+                auto p1 = S0_basis.lower_bound(AdamsDeg{0, t1});
+                auto p2 = S0_basis.lower_bound(AdamsDeg{0, t1 + 1});
+                for (auto p = p1; p != p2; ++p) {
+                    auto deg_mon = p->first + v_degs[gen_id];
+                    if (deg_mon.stem() > stem_trunc)
+                        continue;
+                    for (size_t i = 0; i < p->second.size(); ++i) {
+                        MMod m = MMod(p->second[i], (uint32_t)gen_id);
+                        if (size_t(gen_id) >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&m](const Mon& _m) { return divisible(_m, m.m); })) {
+                            basis_new[deg_mon].push_back(m);
+                            auto repr_mon = mul(map_h, repr_g, S0_basis_repr.at(p->first)[i]);
+                            repr_new[deg_mon].push_back(std::move(repr_mon));
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Compute groebner and basis in degree t */
+        for (auto it = basis_new.begin(); it != basis_new.end(); ++it) {
+            auto indices = ut::size_t_range(it->second.size());
+            std::sort(indices.begin(), indices.end(), [&it](size_t a, size_t b) { return it->second[a] < it->second[b]; });
+            MMod1d basis_new_d;
+            int2d repr_new_d;
+            for (size_t i = 0; i < indices.size(); ++i) {
+                basis_new_d.push_back(it->second[indices[i]]);
+                repr_new_d.push_back(repr_new.at(it->first)[indices[i]]);
+            }
+
+            int2d image, kernel, g;
+            lina::SetLinearMap(repr_new_d, image, kernel, g);
+            int1d lead_kernel;
+
+            /* Add to groebner */
+            for (const int1d& k : kernel) {
+                lead_kernel.push_back(k[0]);
+                gbm[it->first].push_back(Indices2Mod(k, basis_new_d));
+                auto& x = gbm.at(it->first).back();
+                size_t index = (size_t)x.GetLead().v;
+                if (leads.size() <= index)
+                    leads.resize(index + 1);
+                leads[index].push_back(x.GetLead().m);
+            }
+
+            /* Add to basis_H */
+            std::sort(lead_kernel.begin(), lead_kernel.end());
+            int1d index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
+            for (int i : index_basis) {
+                basis[it->first].push_back(std::move(basis_new_d[i]));
+                repr[it->first].push_back(std::move(repr_new_d[i]));
+            }
+        }
+    }
+
+    size_t size_basis = 0;
+    for (auto it = basis.begin(); it != basis.end(); ++it) {
+        size_basis += it->second.size();
+    }
+    int size_E2 = dbProd.get_int(fmt::format("SELECT count(*) FROM {}_generators WHERE t<={} AND t-s<={}", table_cw, t_trunc, stem_trunc));
+    if (size_basis != size_t(size_E2)) {
+        std::cout << "size_basis=" << size_basis << '\n';
+        std::cout << "size_E2=" << size_E2 << '\n';
+        throw MyException(0x571c8119U, "Error: sizes of bases do not match.");
+    }
+
+    /* Save the results */
+    MyDB dbE2(db_out);
+    dbE2.begin_transaction();
+
+    dbE2.drop_and_create_generators(table_out);
+    dbE2.drop_and_create_relations(table_out);
+    dbE2.drop_and_create_basis(table_out);
+
+    dbE2.save_generators(table_out, v_degs, gen_reprs);
+    dbE2.save_gb_mod(table_out, gbm);
+    dbE2.save_basis_mod(table_out, basis, repr);
 
     dbE2.end_transaction();
 }
@@ -425,6 +548,39 @@ int main_export(int argc, char** argv, int index)
 
     myio::AssertFileExists(db_in);
     ExportRingAdamsE2(db_in, table_in, db_out, table_out, t_max, stem_max);
+    return 0;
+}
+
+int main_export_mod(int argc, char** argv, int index)
+{
+    std::string cw, ring;
+    int t_max = 100, stem_max = 383;
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        fmt::print("Usage:\n  Adams export_mod <cw> <ring> <t_max> [stem_max]\n\n");
+
+        fmt::print("Default values:\n");
+        fmt::print("  stem_max = {}\n", stem_max);
+
+        fmt::print("{}\n", VERSION);
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "cw", cw))
+        return index;
+    if (myio::load_arg(argc, argv, ++index, "ring", ring))
+        return index;
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
+        return index;
+
+    std::string db_in = cw + "_Adams_res_prod.db";
+    std::string table_in = cw + "_Adams_res";
+    std::string db_out = cw + "_AdamsSS.db";
+    std::string table_out = cw + "_AdamsE2";
+
+    myio::AssertFileExists(db_in);
+    ExportModAdamsE2(cw, ring, t_max, stem_max);
     return 0;
 }
 

@@ -89,7 +89,7 @@ int main_res_RP(int argc, char** argv, int index)
     int n1 = 0, n2 = 0;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Calculate the minimal resolution of P_{n1}^{n2} for the Adams spectral sequence");
+        fmt::print("Calculate the minimal resolution of P_{{n1}}^{{n2}} for the Adams spectral sequence\n");
         fmt::print("Usage:\n  Adams res_RP <n1> <n2> <t_max> [stem_max]\n\n");
 
         fmt::print("Default values:\n");

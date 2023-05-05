@@ -4,7 +4,7 @@ project(
     AlgTop
     VERSION 3.0
     DESCRIPTION "Algebraic Topology based on Groebner Bases"
-    LANGUAGES CXX
+    LANGUAGES C CXX
 )
 
 set(BUILD_DOXYGEN OFF)
@@ -41,6 +41,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_subdirectory(Adams)
     add_subdirectory(tests)
     add_subdirectory(thirdparty/fmt)
+    add_subdirectory(thirdparty/sqlite3)
 
     # Docs only available if this is the main app
     find_package(Doxygen)

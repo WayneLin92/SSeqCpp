@@ -1,8 +1,3 @@
-if (WIN32)
-    find_package(unofficial-sqlite3 CONFIG REQUIRED)
-else()
-    find_package(sqlite3 REQUIRED)
-endif()
 if(MSVC)
     add_compile_options(/permissive-)
 endif()
@@ -29,12 +24,7 @@ if(MSVC)
     # message(STATUS ${CMAKE_CXX_FLAGS_RELEASE})
 endif()
 
-target_include_directories(algebras PRIVATE ../include/algebras ../thirdparty/fmt)
-
-if (WIN32)
-    target_link_libraries(algebras PRIVATE unofficial::sqlite3::sqlite3 fmt)
-else()
-    target_link_libraries(algebras PRIVATE sqlite3 fmt)
-endif()
+target_include_directories(algebras PRIVATE ../include/algebras ../thirdparty/fmt ../thirdparty/sqlite3)
+target_link_libraries(algebras PRIVATE sqlite3 fmt)
 
 target_compile_features(algebras PRIVATE cxx_std_17)
