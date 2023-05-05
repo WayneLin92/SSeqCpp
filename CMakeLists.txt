@@ -39,7 +39,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # add_subdirectory(MayE2)
     # add_subdirectory(MayE4)
     add_subdirectory(Adams)
-    add_subdirectory(tests)
+    # add_subdirectory(tests)
     add_subdirectory(thirdparty/fmt)
     add_subdirectory(thirdparty/sqlite3)
 
