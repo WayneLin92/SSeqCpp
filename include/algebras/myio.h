@@ -1,8 +1,8 @@
 #ifndef MYIO_H
 #define MYIO_H
 
-#include <fmt/core.h>
 #include <cstring>
+#include <fmt/core.h>
 #include <sstream>
 #include <vector>
 
@@ -112,6 +112,9 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
     return sin;
 }
 
+/*********************************************************
+                 Command line utilities
+ *********************************************************/
 template <typename T>
 int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
 {
@@ -160,6 +163,28 @@ bool UserConfirm();
 bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
 
+struct COUT_FLUSH
+{
+    constexpr COUT_FLUSH() {}
+};
+
 }  // namespace myio
+
+template <>
+struct fmt::formatter<myio::COUT_FLUSH>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const myio::COUT_FLUSH reason, FormatContext& ctx)
+    {
+        fflush(stdout);
+        return fmt::format_to(ctx.out(), "");
+    }
+};
 
 #endif /* MYIO_H */

@@ -45,6 +45,19 @@ void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   RPn
  ***************************************************/
+int Period_RP(int n)
+{
+    MyException::Assert(n >= 1, "n >= 1 in phi(n)");
+    int phi = (n / 8) * 4, residue = n % 8;
+    if (residue <= 1)
+        phi += residue;
+    else if (residue <= 3)
+        phi += 2;
+    else if (residue <= 7)
+        phi += 3;
+    return 1 << phi;
+}
+
 void Coh_RP(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
 {
     int1d v_degs2;
@@ -119,4 +132,19 @@ void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max)
 
     v_degs = gb.v_degs();
     rels = gb.data();
+}
+
+/****************************************************
+                     # Maps
+ ***************************************************/
+void SetCohMapImages(std::string_view cw1, std::string_view cw2, Mod1d& images, int& sus)
+{
+    if (cw1 == "S0") {
+        if (cw2 == "tmf" || cw2 == "X2") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+    }
+    throw MyException(0x8636b4b2, "map not supported.");
 }

@@ -102,6 +102,45 @@ public:
     }
 };
 
+class DbMapAdamsE2 : public myio::DbAdamsSS
+{
+    using Statement = myio::Statement;
+
+public:
+    DbMapAdamsE2() = default;
+    explicit DbMapAdamsE2(const std::string& filename, int version = DB_RES_VERSION) : DbAdamsSS(filename)
+    {
+        if (newFile_)
+            SetVersion(version);
+    }
+
+    void SetVersion(int version)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0, std::string("version"), 1);
+        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+    }
+
+public:
+    void create_tables(const std::string& table_prefix)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + " (id INTEGER PRIMARY KEY, map TEXT);");
+    }
+    void save_map(const std::string& table_prefix, const alg2::Poly1d& map)
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + " (id, map) VALUES (?1, ?2);");
+        for (size_t i = 0; i < map.size(); ++i)
+            stmt.bind_and_step((int)i, myio::Serialize(map[i]));
+    }
+    void save_map(const std::string& table_prefix, const alg2::Mod1d& map)
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + " (id, map) VALUES (?1, ?2);");
+        for (size_t i = 0; i < map.size(); ++i)
+            stmt.bind_and_step((int)i, myio::Serialize(map[i]));
+    }
+};
+
 alg2::int1d mul(const std::map<std::pair<int, int>, alg2::int1d>& map_h, int id_ind, const alg2::int1d& repr)
 {
     alg2::int1d result;
@@ -113,9 +152,16 @@ alg2::int1d mul(const std::map<std::pair<int, int>, alg2::int1d>& map_h, int id_
     return result;
 }
 
-void ExportRingAdamsE2(const std::string& db_in, const std::string& table_in, const std::string& db_out, const std::string& table_out, int t_trunc, int stem_trunc)
+void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
+
+    std::string db_in = fmt::format("{}_Adams_res_prod.db", ring);
+    std::string table_in = fmt::format("{}_Adams_res", ring);
+    std::string db_out = fmt::format("{}_AdamsSS.db", ring);
+    std::string table_out = fmt::format("{}_AdamsE2", ring);
+    
+    myio::AssertFileExists(db_in);
     MyDB dbProd(db_in);
 
     AdamsDeg1d gen_degs;
@@ -258,7 +304,6 @@ void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, i
         for (int i : arr)
             map_h[std::make_pair(p.first, LocId(s_i, i).id())].push_back(p.second);
     }
-    
 
     MyDB dbS0(db_ring);
     auto S0_basis = dbS0.load_basis(table_ring);
@@ -357,6 +402,113 @@ void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, i
     dbE2.save_basis_mod(table_out, basis, repr);
 
     dbE2.end_transaction();
+}
+
+void load_map(const myio::Database& db, std::string_view table_prefix, std::map<int, alg2::int1d>& map_h)
+{
+    using namespace alg2;
+    std::map<int, alg2::int1d> map_h_dual;
+    myio::Statement stmt(db, fmt::format("SELECT id, map_h FROM {} ORDER BY id", table_prefix));
+    while (stmt.step() == MYSQLITE_ROW) {
+        int id = stmt.column_int(0);
+        int1d map_ = myio::Deserialize<int1d>(stmt.column_str(1));
+        map_h_dual[id] = std::move(map_);
+    }
+    for (auto& [i, arr] : map_h_dual) {
+        int s = LocId(i).s;
+        for (int v : arr)
+            map_h[LocId(s, v).id()].push_back(i);
+    }
+}
+
+/* A sorted list of ring spectra */
+const std::vector<std::string_view> RING_SPECTRA = {"S0", "X2", "bo", "tmf"};
+
+void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
+{
+    using namespace alg2;
+
+    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
+    const std::string table_cw1 = fmt::format("{}_AdamsE2", cw1);
+    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", cw2);
+    const std::string table_cw2 = fmt::format("{}_AdamsE2", cw2);
+    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    myio::AssertFileExists(db_cw1);
+    myio::AssertFileExists(db_cw2);
+    myio::AssertFileExists(db_map);
+
+    std::string db_out = fmt::format("map_AdamsE2_{}_to_{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+
+    MyDB dbCw1(db_cw1);
+    auto gen_degs = dbCw1.load_gen_adamsdegs(table_cw1);
+    auto gen_reprs1 = dbCw1.get_column_int(table_cw1 + "_generators", "repr", "");
+    int1d out_of_region;
+    for (size_t i = 0; i < gen_degs.size(); ++i)
+        if (gen_degs[i].t > t_trunc || gen_degs[i].stem() > stem_trunc)
+            out_of_region.push_back((int)i);
+
+    MyDB dbCw2(db_cw2);
+
+    myio::Database dbResMap(db_map);
+    std::map<int, int1d> map_h;
+    load_map(dbResMap, table_map, map_h);
+    int sus = dbResMap.get_int(fmt::format("select value from version where id=0x5e876a59")); /* cw1->Sigma^sus cw2 */
+
+    DbMapAdamsE2 dbMapAdamsE2(db_out);
+    dbMapAdamsE2.create_tables(table_out);
+    dbMapAdamsE2.begin_transaction();
+
+    if (ut::has(RING_SPECTRA, cw2)) {
+        auto basis2 = dbCw2.load_basis(table_cw2);
+        auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
+        Poly1d images;
+        for (size_t i = 0; i < gen_reprs1.size(); ++i) {
+            if (ut::has(out_of_region, (int)i))
+                images.push_back(Poly::Gen(-1));
+            else {
+                AdamsDeg d = gen_degs[i] - AdamsDeg(0, sus);
+                if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
+                    images.push_back({});
+                    continue;
+                }
+                const auto& basis2_d = basis2.at(d);
+                const int2d& r = basis_repr2.at(d);
+                int2d image, _k, g;
+                lina::SetLinearMap(r, image, _k, g);
+                images.push_back(Indices2Poly(lina::GetImage(image, g, map_h.at(gen_reprs1[i])), basis2_d));
+            }
+        }
+        dbMapAdamsE2.save_map(table_out, images);
+    }
+    else {
+        auto basis2 = dbCw2.load_basis_mod(table_cw2);
+        auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
+        Mod1d images;
+        for (size_t i = 0; i < gen_reprs1.size(); ++i) {
+            if (ut::has(out_of_region, (int)i))
+                images.push_back(MMod(Mon(), -1));
+            else {
+                AdamsDeg d = gen_degs[i] - AdamsDeg(0, sus);
+                if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
+                    images.push_back({});
+                    continue;
+                }
+                const auto& basis2_d = basis2.at(d);
+                const int2d& r = basis_repr2.at(d);
+                int2d image, _k, g;
+                lina::SetLinearMap(r, image, _k, g);
+                images.push_back(Indices2Mod(lina::GetImage(image, g, map_h.at(gen_reprs1[i])), basis2_d));
+            }
+        }
+        dbMapAdamsE2.save_map(table_out, images);
+    }
+    {
+        myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0x5e876a59, std::string("suspension"), sus);
+    }
+    dbMapAdamsE2.end_transaction();
 }
 
 void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int stem_trunc)
@@ -521,33 +673,26 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
 
 int main_export(int argc, char** argv, int index)
 {
-    std::string cw = "S0";
+    std::string ring = "S0";
     int t_max = 100, stem_max = 500;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams export <cw> [t_max] [stem_max]\n\n");
+        fmt::print("Usage:\n  Adams export <ring> <t_max> [stem_max]\n\n");
 
         fmt::print("Default values:\n");
-        fmt::print("  cw = {}\n", cw);
-        fmt::print("  t_max = {}\n", t_max);
+        fmt::print("  stem_max = {}\n", stem_max);
 
         fmt::print("{}\n", VERSION);
         return 0;
     }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
+    if (myio::load_arg(argc, argv, ++index, "ring", ring))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+        return -index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
+        return -index;
 
-    std::string db_in = cw + "_Adams_res_prod.db";
-    std::string table_in = cw + "_Adams_res";
-    std::string db_out = cw + "_AdamsSS.db";
-    std::string table_out = cw + "_AdamsE2";
-
-    myio::AssertFileExists(db_in);
-    ExportRingAdamsE2(db_in, table_in, db_out, table_out, t_max, stem_max);
+    ExportRingAdamsE2(ring, t_max, stem_max);
     return 0;
 }
 
@@ -566,21 +711,47 @@ int main_export_mod(int argc, char** argv, int index)
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
+        return -index;
     if (myio::load_arg(argc, argv, ++index, "ring", ring))
-        return index;
+        return -index;
     if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
+        return -index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
+        return -index;
 
     std::string db_in = cw + "_Adams_res_prod.db";
     std::string table_in = cw + "_Adams_res";
     std::string db_out = cw + "_AdamsSS.db";
     std::string table_out = cw + "_AdamsE2";
 
-    myio::AssertFileExists(db_in);
     ExportModAdamsE2(cw, ring, t_max, stem_max);
+    return 0;
+}
+
+int main_export_map(int argc, char** argv, int index)
+{
+    std::string cw1, cw2;
+    int t_max = 100, stem_max = 383;
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        fmt::print("Usage:\n  Adams export_map <cw1> <cw2> <t_max> [stem_max]\n\n");
+
+        fmt::print("Default values:\n");
+        fmt::print("  stem_max = {}\n", stem_max);
+
+        fmt::print("{}\n", VERSION);
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "cw1", cw1))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "cw2", cw2))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+        return -index;
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
+        return -index;
+
+    ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;
 }
 
@@ -599,13 +770,13 @@ int main_2cell_export(int argc, char** argv, int index)
     }
 
     if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
+        return -index;
     if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
+        return -index;
     if (myio::load_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
+        return -index;
     if (myio::load_op_arg(argc, argv, ++index, "ring", ring))
-        return index;
+        return -index;
 
     Export2Cell(cw, ring, t_max, stem_max);
     return 0;

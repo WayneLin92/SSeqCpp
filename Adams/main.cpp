@@ -6,11 +6,14 @@
 
 int main_res(int argc, char** argv, int index);
 int main_res_RP(int argc, char** argv, int index);
+int main_map_coh(int argc, char** argv, int index);
+int main_map_res(int argc, char** argv, int index);
 int main_prod(int argc, char** argv, int index);
 int main_prod_mod(int argc, char** argv, int index);
 int main_prod_hi(int argc, char** argv, int index);
 int main_export(int argc, char** argv, int index);
 int main_export_mod(int argc, char** argv, int index);
+int main_export_map(int argc, char** argv, int index);
 int main_2cell(int argc, char** argv, int index);
 int main_2cell_export(int argc, char** argv, int index);
 int main_generators_to_csv(const std::string& db_filename, const std::string& tablename);
@@ -45,6 +48,10 @@ int main(int argc, char** argv)
         return main_res(argc, argv, index);
     else if (cmd == "res_RP")
         return main_res_RP(argc, argv, index);
+    else if (cmd == "map_coh")
+        return main_map_coh(argc, argv, index);
+    else if (cmd == "map_res")
+        return main_map_res(argc, argv, index);
     else if (cmd == "prod")
         return main_prod(argc, argv, index);
     else if (cmd == "prod_mod")
@@ -57,6 +64,8 @@ int main(int argc, char** argv)
         return main_export(argc, argv, index);
     else if (cmd == "export_mod")
         return main_export_mod(argc, argv, index);
+    else if (cmd == "export_map")
+        return main_export_map(argc, argv, index);
     else if (cmd == "res_csv")
         return main_generators_to_csv("X:/Nan/AdamsDB/res/S0_Adams_res_d261.db", "S0_Adams_res");
     else

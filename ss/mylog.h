@@ -1,7 +1,7 @@
 #include "algebras/myexception.h"
 #include "pigroebner.h"
-#include <fmt/core.h>
 #include <fmt/color.h>
+#include <fmt/core.h>
 #include <fmt/ostream.h>
 
 enum class enumReason : uint32_t
@@ -106,7 +106,7 @@ struct fmt::formatter<enumReason>
     auto format(const enumReason reason, FormatContext& ctx)
     {
 
-        return fmt::format_to(ctx.out(), "({}, {})", deg.stem(), deg.s);
+        return fmt::format_to(ctx.out(), "{}", REASONS[size_t(reason)]);
     }
 };
 

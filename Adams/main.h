@@ -1,6 +1,6 @@
 #ifndef MAIN_H
 #define MAIN_H
-inline const char* VERSION = "Version:\n  3.1 (2023-04-26)";
+inline const char* VERSION = "Version:\n  3.1 (2023-05-7)";
 inline constexpr int DB_RES_VERSION = 1;
 
 void DbResVersionConvert(const char* db_filename);

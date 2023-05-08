@@ -114,7 +114,7 @@ public:
 
                 SetVersion(1);
                 end_transaction();
-                fmt::print("DbResProd Converted to version=1\n");
+                fmt::print("DbResProd Converted to version=1\n{}", myio::COUT_FLUSH());
             }
             catch (MyException&) {
                 return false;
@@ -153,19 +153,86 @@ public:
     std::map<int, Mod1d> load_products(std::string_view table_prefix, int s, const int1d& gs_exclude) const
     {
         std::map<int, Mod1d> result;
-        Statement stmt(*this, fmt::format("SELECT id, id_ind, prod FROM {}_products LEFT JOIN {}_generators USING(id) WHERE s={} ORDER BY id;", table_prefix, table_prefix, s));
+        Statement stmt(*this, fmt::format("SELECT id, id_ind, prod FROM {}_products WHERE (id>>19)={} ORDER BY id;", table_prefix, s));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             int g = stmt.column_int(1);
             if (!ut::has(gs_exclude, g)) {
                 Mod prod;
                 prod.data = stmt.column_blob_tpl<MMod>(2);
-
-                int v = LocId(id).v;
-                if (result[g].size() <= v)
-                    result.at(g).resize(size_t(v + 1));
-                result[g][v] = std::move(prod);
+                ut::get(result[g], LocId(id).v) = std::move(prod);
             }
+        }
+        return result;
+    }
+};
+
+class DbAdamsResMap : public myio::Database
+{
+    using Statement = myio::Statement;
+
+public:
+    explicit DbAdamsResMap(const std::string& filename, int version = DB_RES_VERSION) : Database(filename)
+    {
+        if (newFile_)
+            SetVersion(version);
+    }
+
+    void SetVersion(int version)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0, std::string("version"), 1);
+        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+    }
+
+    int GetVersion()
+    {
+        if (has_table("version"))
+            return get_int("select value from version where id=0");
+        return -1;
+    }
+
+    bool ConvertVersion(const DbAdamsResLoader& dbRes)
+    {
+        return true;
+    }
+
+public:
+    void create_tables(const std::string& table_prefix)
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + " (id INTEGER PRIMARY KEY, map BLOB, map_h TEXT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_time (s SMALLINT, t SMALLINT, time REAL, PRIMARY KEY (s, t));");
+    }
+
+    void save_time(const std::string& table_prefix, int s, int t, double time)
+    {
+        Statement stmt(*this, "INSERT OR IGNORE INTO " + table_prefix + "_time (s, t, time) VALUES (?1, ?2, ?3);");
+        stmt.bind_and_step(s, t, time);
+    }
+
+    int1d load_old_ids(std::string_view table_prefix) const
+    {
+        int1d result;
+        Statement stmt(*this, fmt::format("SELECT DISTINCT id FROM {} ORDER BY id", table_prefix));
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            result.push_back(id);
+        }
+        return result;
+    }
+
+    /* result[index] = image(v_index) in degree s */
+    Mod1d load_map(std::string_view table_prefix, int s) const
+    {
+        Mod1d result;
+        Statement stmt(*this, fmt::format("SELECT id, map FROM {} WHERE (id>>19)={} ORDER BY id;", table_prefix, s));
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            Mod map_;
+            map_.data = stmt.column_blob_tpl<MMod>(1);
+            int v = LocId(id).v;
+            ut::get(result, v) = std::move(map_);
         }
         return result;
     }
@@ -185,7 +252,7 @@ AdamsResConst AdamsResConst::load(const DbAdamsResLoader& db, const std::string&
  *   V                V
  *  F_{s-1} --f--> F_{s-1-g}
  */
-void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_res, const std::string& table_res, const std::string& db_out, const std::string& table_out) ////TODO: abstract and avoid repeating code
+void compute_products(int t_trunc, int stem_trunc, const std::string& db_res, const std::string& table_res, const std::string& db_out, const std::string& table_out)  ////TODO: abstract and avoid repeating code
 {
     DbResVersionConvert(db_res.c_str()); /*Version convertion */
     DbAdamsResLoader dbRes(db_res);
@@ -225,13 +292,6 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
     for (const auto& [id, deg] : id_deg) {
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
-
-        dbProd.begin_transaction();
-
-        /* save generators to database */
-        for (size_t i = 0; i < diffs_d_size; ++i) {
-            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
-        }
 
         if (deg.t == 0) {
             diffs.erase(deg);
@@ -276,6 +336,12 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
                 for (size_t i = 0; i < diffs_d_size; ++i)
                     fh[g].push_back(HomToMSq(diffs_d[i], t));
             }
+        }
+
+        /* save generators to database */
+        dbProd.begin_transaction();
+        for (size_t i = 0; i < diffs_d_size; ++i) {
+            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
         }
 
         /*# save products to database */
@@ -325,7 +391,7 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n", deg.t, deg.s, time);
+        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction();
@@ -340,15 +406,17 @@ void compute_products_by_t(int t_trunc, int stem_trunc, const std::string& db_re
  *   V                V
  *  F_{s-1} --f--> F_{s-1-g}
  */
-void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& db_mod, const std::string& table_mod, const std::string& db_ring, const std::string& table_ring, const std::string& db_out, const std::string& table_out)
+void compute_mod_products(int t_trunc, int stem_trunc, const std::string& db_mod, const std::string& table_mod, const std::string& db_ring, const std::string& table_ring, const std::string& db_out, const std::string& table_out)
 {
     DbResVersionConvert(db_ring.c_str()); /*Version convertion */
     DbAdamsResLoader dbResRing(db_ring);
     auto gbRing = AdamsResConst::load(dbResRing, table_ring, t_trunc);
+
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
+        DbResVersionConvert(db_mod.c_str()); /*Version convertion */
         DbAdamsResLoader dbRes(db_mod);
         dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
     }
@@ -378,13 +446,6 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
     for (const auto& [id, deg] : id_deg) {
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
-
-        dbProd.begin_transaction();
-
-        /* save generators to database */
-        for (size_t i = 0; i < diffs_d_size; ++i) {
-            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
-        }
 
         /* f_{s-1}[g] is the map F_{s-1} -> F_{s-1-deg(g)} dual to the multiplication of g */
         const int1d empty;
@@ -418,6 +479,13 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
         for (auto& [g, f_g] : f)
             for (size_t i = 0; i < diffs_d_size; ++i)
                 fh[g].push_back(HomToK(f_g[i]));
+
+
+        /* save generators to database */
+        dbProd.begin_transaction();
+        for (size_t i = 0; i < diffs_d_size; ++i) {
+            stmt_gen.bind_and_step(id + (int)i, 0, deg.s, deg.t);
+        }
 
         /*# save products to database */
         for (auto& [g, f_g] : f) {
@@ -455,10 +523,110 @@ void compute_mod_products_by_t(int t_trunc, int stem_trunc, const std::string& d
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n", deg.t, deg.s, time);
+        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction();
+        diffs.erase(deg);
+    }
+}
+
+
+
+void SetCohMap(const std::string& db_map, const std::string& table_map, const Mod1d& images, int sus)
+{
+    DbAdamsResMap dbMap(db_map);
+    dbMap.create_tables(table_map);
+    dbMap.begin_transaction();
+    {
+        myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
+        for (size_t i = 0; i < images.size(); ++i)
+            stmt_map.bind_and_step((int)i, images[i].data, myio::Serialize(HomToK(images[i])));
+    }
+    {
+        myio::Statement stmt(dbMap, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0x5e876a59, std::string("suspension"), sus);
+    }
+    dbMap.end_transaction();
+}
+
+/* cw1 --> cw2
+ * H^*(cw2) --> H^*(cw1)
+ *
+ * F_s -----f-----> F_s
+ *   |                |
+ *   d                d
+ *   |                |
+ *   V                V
+ *  F_{s-1} --f--> F_{s-1}
+ */
+void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, const std::string& db_cw2, const std::string& table_cw2, const std::string& db_map, const std::string& table_map, int t_trunc, int stem_trunc)
+{
+    DbResVersionConvert(db_cw1.c_str()); /*Version convertion */
+    DbAdamsResLoader dbResCw1(db_cw1);
+    auto gbCw1 = AdamsResConst::load(dbResCw1, table_cw1, t_trunc);
+    dbResCw1.disconnect();
+
+    std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
+    int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
+    std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
+    {
+        DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
+        DbAdamsResLoader dbResCw2(db_cw2);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc, stem_trunc);
+    }
+
+    DbAdamsResMap dbMap(db_map);
+    dbMap.create_tables(table_map);
+    myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
+
+    const Mod one = MMod(MMilnor(), 0);
+    const int1d one_h = {0};
+
+    /* Remove computed range */
+    int1d ids_old = dbMap.load_old_ids(table_map);
+    ut::RemoveIf(id_deg, [&ids_old](const std::pair<int, AdamsDegV2>& p) { return ut::has(ids_old, p.first); });
+
+    bench::Timer timer;
+    timer.SuppressPrint();
+
+    for (const auto& [id, deg] : id_deg) {
+        const auto& diffs_d = diffs.at(deg);
+        const size_t diffs_d_size = diffs_d.size();
+
+
+        /* f_{s-1} is the map F_{s-1} -> F_{s-1} dual */
+        Mod1d f_sm1 = dbMap.load_map(table_map, deg.s - 1);
+        size_t vid_num_sm1 = deg.s > 0 ? (size_t)vid_num[size_t(deg.s - 1)][deg.stem()] : 0;
+        f_sm1.resize(vid_num_sm1);
+
+        /*# compute fd */
+        Mod1d fd;
+        fd.resize(diffs_d_size);
+        ut::for_each_par128(diffs_d_size, [&fd, &diffs_d, &f_sm1, diffs_d_size](size_t i) { fd[i] = subs(diffs_d[i], f_sm1); });
+
+        /*# compute f */
+        Mod1d f;
+        f.resize(diffs_d_size);
+        gbCw1.DiffInvBatch(fd, f, size_t(deg.s - 1));
+
+        /*# compute fh */
+        int2d fh;
+        for (size_t i = 0; i < diffs_d_size; ++i)
+            fh.push_back(HomToK(f[i]));
+
+        /*# save products to database */
+        dbMap.begin_transaction();
+        for (size_t i = 0; i < diffs_d_size; ++i)
+            if (f[i])
+                stmt_map.bind_and_step(id + (int)i, f[i].data, myio::Serialize(fh[i]));
+
+        double time = timer.Elapsed();
+        timer.Reset();
+        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
+        dbMap.save_time(table_map, deg.s, deg.t, time);
+
+        dbMap.end_transaction();
         diffs.erase(deg);
     }
 }
@@ -525,7 +693,7 @@ int main_prod_hi(int argc, char** argv, int index)
         std::cout << "  db_mod = " << db_mod << "\n";
         std::cout << "  db_out = " << db_out << "\n";
 
-        std::cout << VERSION << std::endl;
+        fmt::print("{}\n", VERSION);
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "complex", complex))
@@ -549,13 +717,12 @@ int main_prod_hi(int argc, char** argv, int index)
 int main_prod(int argc, char** argv, int index)
 {
     std::string cw = "S0";
-    int t_max = 152, stem_max = 100;
+    int t_max = 0, stem_max = DEG_MAX;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams prod <cw> [t_max] [stem_max]\n\n");
+        fmt::print("Usage:\n  Adams prod <cw> <t_max> [stem_max]\n\n");
 
         fmt::print("Default values:\n");
-        fmt::print("  t_max = {}\n", t_max);
         fmt::print("  stem_max = {}\n", stem_max);
 
         fmt::print("{}\n", VERSION);
@@ -563,7 +730,7 @@ int main_prod(int argc, char** argv, int index)
     }
     if (myio::load_arg(argc, argv, ++index, "cw", cw))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
         return index;
@@ -574,46 +741,83 @@ int main_prod(int argc, char** argv, int index)
     std::string table_out = cw + "_Adams_res";
 
     myio::AssertFileExists(db_res);
-    compute_products_by_t(t_max, stem_max, db_res, table_res, db_out, table_out);
+    compute_products(t_max, stem_max, db_res, table_res, db_out, table_out);
 
     return 0;
 }
 
 int main_prod_mod(int argc, char** argv, int index)
 {
-    std::string cw;
+    std::string mod;
     std::string ring;
-    int t_max = 152, stem_max = 100;
+    int t_max = 0, stem_max = DEG_MAX;
 
     if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams prod_mod <cw> <ring> [t_max] [stem_max]\n\n");
+        fmt::print("Usage:\n  Adams prod_mod <mod> <ring> <t_max> [stem_max]\n\n");
 
         fmt::print("Default values:\n");
-        fmt::print("  t_max = {}\n", t_max);
         fmt::print("  stem_max = {}\n", stem_max);
 
         fmt::print("{}\n", VERSION);
         return 0;
     }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
+    if (myio::load_arg(argc, argv, ++index, "mod", mod))
         return index;
     if (myio::load_arg(argc, argv, ++index, "ring", ring))
         return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
         return index;
     if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
         return index;
 
-    std::string db_mod = cw + "_Adams_res.db";
-    std::string table_mod = cw + "_Adams_res";
+    std::string db_mod = mod + "_Adams_res.db";
+    std::string table_mod = mod + "_Adams_res";
     std::string db_ring = ring + "_Adams_res.db";
     std::string table_ring = ring + "_Adams_res";
-    std::string db_out = cw + "_Adams_res_prod.db";
-    std::string table_out = cw + "_Adams_res";
+    std::string db_out = mod + "_Adams_res_prod.db";
+    std::string table_out = mod + "_Adams_res";
 
     myio::AssertFileExists(db_mod);
     myio::AssertFileExists(db_ring);
-    compute_mod_products_by_t(t_max, stem_max, db_mod, table_mod, db_ring, table_ring, db_out, table_out);
+    compute_mod_products(t_max, stem_max, db_mod, table_mod, db_ring, table_ring, db_out, table_out);
+
+    return 0;
+}
+
+int main_map_res(int argc, char** argv, int index)
+{
+    std::string cw1, cw2;
+    int t_max = 0, stem_max = DEG_MAX;
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        fmt::print("Usage:\n  Adams map_res <cw1> <cw2> <t_max> [stem_max]\n\n");
+
+        fmt::print("Default values:\n");
+        fmt::print("  stem_max = {}\n", stem_max);
+
+        fmt::print("{}\n", VERSION);
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "cw1", cw1))
+        return index;
+    if (myio::load_arg(argc, argv, ++index, "cw2", cw2))
+        return index;
+    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
+        return index;
+    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
+        return index;
+
+    std::string db_cw1 = cw1 + "_Adams_res.db";
+    std::string table_cw1 = cw1 + "_Adams_res";
+    std::string db_cw2 = cw2 + "_Adams_res.db";
+    std::string table_cw2 = cw2 + "_Adams_res";
+    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+
+    myio::AssertFileExists(db_cw1);
+    myio::AssertFileExists(db_cw2);
+    myio::AssertFileExists(db_map);
+    compute_map_res(db_cw1, table_cw1, db_cw2, table_cw2, db_map, table_map, t_max, stem_max);
 
     return 0;
 }

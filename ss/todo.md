@@ -1,6 +1,4 @@
 # Adams
-* Export module
-* Maps between spectra
 * Load to ss
 # SS
 * Support stem_trunc

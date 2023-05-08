@@ -81,6 +81,7 @@ int main_res(int argc, char** argv, int index)
     return 0;
 }
 
+int Period_RP(int n);
 void Coh_RP(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int index)
@@ -95,7 +96,7 @@ int main_res_RP(int argc, char** argv, int index)
         fmt::print("Default values:\n");
         fmt::print("  stem_max = {}\n", stem_max);
 
-        std::cout << VERSION << std::endl;
+        fmt::print("{}\n", VERSION);
         return 0;
     }
     if (myio::load_arg(argc, argv, ++index, "n1", n1))
@@ -110,16 +111,50 @@ int main_res_RP(int argc, char** argv, int index)
         stem_max = DEG_MAX;
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
-    if (n1 < 1 || n1 > n2) {
-        fmt::print("Inappropriate n1, n2 argument");
-        return -(++index);
+    if (!(n1 >= 1 && n1 < n2)) {
+        fmt::print("We need n1 >= 1 && n1 < n2");
+        return -index;
     }
-    std::string db_filename = fmt::format("RP{}_{}_Adams_res.db", n1, n2);
-    std::string tablename = fmt::format("RP{}_{}_Adams_res", n1, n2);
+    int T = Period_RP(n2 - n1);
+    int n1_ = 1 + ((n1 - 1) % T);
+    int n2_ = n2 - (n1 - n1_);
+    if (n1 != n1_)
+        fmt::print("We use n1={} n2={} instead because of James periodicity", n1_, n2_);
+    std::string db_filename = fmt::format("RP{}_{}_Adams_res.db", n1_, n2_);
+    std::string tablename = fmt::format("RP{}_{}_Adams_res", n1_, n2_);
 
     int1d v_degs;
     Mod1d rels;
-    Coh_RP(v_degs, rels, n1, n2, t_max);
+    Coh_RP(v_degs, rels, n1_, n2_, t_max);
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
+    return 0;
+}
+
+void SetCohMapImages(std::string_view cw1, std::string_view cw2, Mod1d& images, int& sus);
+void SetCohMap(const std::string& db_map, const std::string& table_map, const Mod1d& images, int sus);
+
+int main_map_coh(int argc, char** argv, int index)
+{
+    std::string cw1, cw2;
+
+    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
+        fmt::print("Set the map H^*(cw2) -> H^*(cw1) \n");
+        fmt::print("Usage:\n  Adams map_coh <cw1> <cw2>\n\n");
+
+        fmt::print("{}\n", VERSION);
+        return 0;
+    }
+    if (myio::load_arg(argc, argv, ++index, "cw1", cw1))
+        return -index;
+    if (myio::load_arg(argc, argv, ++index, "cw2", cw2))
+        return -index;
+
+    Mod1d images;
+    int sus = 0;
+    SetCohMapImages(cw1, cw2, images, sus);
+    std::string db_filename = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
+    std::string tablename = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    SetCohMap(db_filename, tablename, images, sus);
+
     return 0;
 }

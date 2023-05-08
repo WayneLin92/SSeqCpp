@@ -19,3 +19,6 @@ $$Sq^n x^m=(n,m-n)x^{m+n}$$
 
 ### Cohomology of $X\langle 2\rangle$
 $$Sq^{a}(\xi_1^b\xi_2^c)^*=\sum_{m+3n=a+b+3c}\binom{m}{a -2n+2c}\binom{n}{c}(\xi_1^m\xi_2^n)^*$$
+
+## James periodicity
+$P_k^{k+m}$ periodic in $k$ of period $\phi(m)$, where $\phi(m)$ is the number of integers $s$ such that $s\equiv 0,1,2,4\mod 8$ and $1\le s\le m$.

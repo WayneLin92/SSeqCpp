@@ -430,7 +430,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
         double time = timer.Elapsed();
         timer.Reset();
-        std::cout << "t=" << deg.t << " s=" << deg.s << " time=" << time << std::endl;
+        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction(2000);
