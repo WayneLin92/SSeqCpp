@@ -337,7 +337,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
                 /* find indecomposables */
                 int1d lead_image = lina::GetLeads(lina::GetSpace(fx));
-                int1d indices = lina::AddVectors(ut::int_range((int)kernel_ht_dual.size()), lead_image);
+                int1d indices = lina::add(ut::int_range((int)kernel_ht_dual.size()), lead_image);
 
                 /* mark indicomposables in database */
                 for (int i : indices) {

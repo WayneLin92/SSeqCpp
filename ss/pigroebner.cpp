@@ -255,13 +255,13 @@ void ExtendO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, Mod& re
     TplExtendO(possEinf, t_max, stem, rel);
 }
 
-Groebner::Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs))
+Groebner::Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)), nodes_gen_2tor_degs_({})
 {
     for (AdamsDeg deg : gen_degs_) {
         if (deg == AdamsDeg(1, 1))
-            gen_2tor_degs_.push_back(FIL_MAX + 1);
+            nodes_gen_2tor_degs_.back().push_back(FIL_MAX + 1);
         else
-            gen_2tor_degs_.push_back((deg.stem() + 5) / 2);
+            nodes_gen_2tor_degs_.back().push_back((deg.stem() + 5) / 2); ////TODO: fix
     }
     for (auto& p : polys) {
         AdamsDeg deg = GetDeg(p.GetLead(), gen_degs_);
@@ -275,23 +275,34 @@ void pop_indices_by_ub(int1d& indices, int ub)
     indices.erase(p, indices.end());
 }
 
-void Groebner::Pop(size_t gen_size, size_t rel_size)
+void Groebner::AddNode()
 {
-    gen_degs_.resize(gen_size);
-    gen_2tor_degs_.resize(gen_size);
+    nodes_gen_size_.push_back(gen_degs().size());
+    nodes_data_size_.push_back(data().size());
+    nodes_gen_2tor_degs_.push_back(gen_2tor_degs());
+}
 
-    data_.resize(rel_size);
-    leads_.resize(rel_size);
-    traces_.resize(rel_size);
-    data_O_.resize(rel_size);
+void Groebner::PopNode()
+{
+    gen_degs_.resize(nodes_gen_size_.back());
+
+    size_t old_data_size = nodes_data_size_.back();
+    data_.resize(old_data_size);
+    leads_.resize(old_data_size);
+    traces_.resize(old_data_size);
+    data_O_.resize(old_data_size);
     for (auto& [_, indices] : leads_group_by_key_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& [_, indices] : leads_group_by_deg_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& [_, indices] : leads_group_by_t_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& indices : leads_group_by_last_gen_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
+
+    nodes_gen_size_.pop_back();
+    nodes_data_size_.pop_back();
+    nodes_gen_2tor_degs_.pop_back();
 }
 
 void Groebner::debug_print() const
@@ -377,7 +388,7 @@ Poly Groebner::Reduce(Poly poly) const
     Poly tmp_prod, tmp;
     size_t index = 0;
     while (index < poly.data.size() && !poly.data[index].IsUnKnown()) {
-        if (poly.data[index].IsTrivial(gen_2tor_degs_)) {
+        if (poly.data[index].IsTrivial(gen_2tor_degs())) {
             poly.data.erase(poly.data.begin() + index);
             continue;
         }
@@ -389,9 +400,9 @@ Poly Groebner::Reduce(Poly poly) const
             if (sign == 0)
                 poly.data.erase(poly.data.begin() + index); /* Remove the monomial 2x^2 which is zero*/
             else if (sign == 1)
-                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs());
             else
-                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs());
         }
         else
             ++index;
@@ -404,7 +415,7 @@ Poly Groebner::ReduceForGbRel(Poly poly) const
     Poly tmp_prod, tmp;
     size_t index = 0;
     while (index < poly.data.size() && !poly.data[index].IsUnKnown()) {
-        if (poly.data[index].IsTrivial(gen_2tor_degs_)) {
+        if (poly.data[index].IsTrivial(gen_2tor_degs())) {
             poly.data.erase(poly.data.begin() + index);
             continue;
         }
@@ -416,15 +427,15 @@ Poly Groebner::ReduceForGbRel(Poly poly) const
             if (sign == 0)
                 poly.data.erase(poly.data.begin() + index); /* Remove the monomial 2x^2 which is zero*/
             else if (sign == 1)
-                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs());
             else
-                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs());
         }
         else {
             if (index > 0 && MultipleOf(poly.data[index], poly.data[0])) {
                 int c = poly.data[index].c() - poly.data[0].c();
                 Poly poly1 = poly;
-                poly.isubmulP(Mon::twoTo(c), poly1, tmp, gen_2tor_degs_);
+                poly.isubmulP(Mon::twoTo(c), poly1, tmp, gen_2tor_degs());
             }
             else
                 ++index;
@@ -438,7 +449,7 @@ Poly Groebner::ReduceV2(Poly poly) const
     Poly tmp_prod, tmp;
     size_t index = 0;
     while (index < poly.data.size() && !poly.data[index].IsUnKnown()) {
-        if (poly.data[index].IsTrivial(gen_2tor_degs_)) {
+        if (poly.data[index].IsTrivial(gen_2tor_degs())) {
             poly.data.erase(poly.data.begin() + index);
             continue;
         }
@@ -449,9 +460,9 @@ Poly Groebner::ReduceV2(Poly poly) const
             if (sign == 0)
                 poly.data.erase(poly.data.begin()); /* Remove the leading monomial which is zero*/
             else if (sign == 1)
-                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.isubmulP(q, data_[gb_index], tmp, gen_2tor_degs());
             else
-                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs_);
+                poly.iaddmulP(q, data_[gb_index], tmp, gen_2tor_degs());
         }
         else
             ++index;
@@ -656,7 +667,7 @@ void powP(const Poly& poly, int n, const Groebner& gb, Poly& result, Poly& tmp)
 
 /********************************* Modules ****************************************/
 
-GroebnerMod::GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size())
+GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size())
 {
     for (auto& p : polys) {
         AdamsDeg deg = GetDeg(p.GetLead(), pGb_->gen_degs(), v_degs_);
@@ -681,23 +692,33 @@ Mod1d GroebnerMod::RelsLF(AdamsDeg deg) const
     return result;
 }
 
-void GroebnerMod::Pop(size_t gen_size, size_t rel_size)
+void GroebnerMod::AddNode()
+{
+    nodes_gen_size_.push_back(v_degs().size());
+    nodes_data_size_.push_back(data().size());
+}
+
+void GroebnerMod::PopNode()
 {
     old_pGb_size_ = pGb_->leads_.size();
-    v_degs_.resize(gen_size);
+    v_degs_.resize(nodes_gen_size_.back());
 
-    data_.resize(rel_size);
-    leads_.resize(rel_size);
-    traces_.resize(rel_size);
-    data_O_.resize(rel_size);
+    size_t old_data_size = nodes_data_size_.back();
+    data_.resize(old_data_size);
+    leads_.resize(old_data_size);
+    traces_.resize(old_data_size);
+    data_O_.resize(old_data_size);
     for (auto& [_, indices] : leads_group_by_key_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& [_, indices] : leads_group_by_deg_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& [_, indices] : leads_group_by_t_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
     for (auto& indices : leads_group_by_v_)
-        pop_indices_by_ub(indices, (int)rel_size);
+        pop_indices_by_ub(indices, (int)old_data_size);
+
+    nodes_gen_size_.pop_back();
+    nodes_data_size_.pop_back();
 }
 
 void GroebnerMod::debug_print() const

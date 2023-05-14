@@ -671,7 +671,7 @@ inline Mod operator*(const Poly& p, const Mod& x)
  * @param poly The polynomial to be substituted.
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
-Poly subsMod(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs);
+Poly subs(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs);
 
 int1d Mod2Indices(const Mod& x, const MMod1d& basis);
 Mod Indices2Mod(const int1d& indices, const MMod1d& basis);

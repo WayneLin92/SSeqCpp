@@ -18,7 +18,7 @@ int2d GetSpace(const int2d& vectors)
     for (int1d v : vectors) { /* Create copy on purpose */
         for (const auto& vi : result)
             if (std::binary_search(v.begin(), v.end(), vi[0]))
-                v = AddVectors(v, vi);
+                v = add(v, vi);
         if (!v.empty())
             result.push_back(std::move(v));
     }
@@ -39,7 +39,7 @@ int2d& SimplifySpace(int2d& spaceV)
     for (size_t i = spaceV.size() - 1; i != -1; i--)
         for (size_t j = 0; j < i; j++)
             if (std::binary_search(spaceV[j].begin(), spaceV[j].end(), spaceV[i][0]))
-                spaceV[j] = AddVectors(spaceV[j], spaceV[i]);
+                spaceV[j] = add(spaceV[j], spaceV[i]);
     return spaceV;
 }
 
@@ -47,7 +47,7 @@ int1d Residue(int2dIt spaceV_first, int2dIt spaceV_last, int1d v)
 {
     for (auto p_vi = spaceV_first; p_vi != spaceV_last; ++p_vi)
         if (std::binary_search(v.begin(), v.end(), p_vi->front()))
-            v = AddVectors(v, *p_vi);
+            v = add(v, *p_vi);
     return v;
 }
 
@@ -65,8 +65,8 @@ void GetInvMap(const int2d& fx, int2d& image, int2d& g)
         int1d tgt = fx[i];
         for (size_t j = 0; j < image.size(); j++) {
             if (std::binary_search(tgt.begin(), tgt.end(), image[j][0])) {
-                tgt = AddVectors(tgt, image[j]);
-                src = AddVectors(src, g[j]);
+                tgt = add(tgt, image[j]);
+                src = add(src, g[j]);
             }
         }
         if (!tgt.empty()) {
@@ -88,8 +88,8 @@ void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g)
         int1d tgt = fx[i];
         for (size_t j = 0; j < image.size(); j++) {
             if (std::binary_search(tgt.begin(), tgt.end(), image[j][0])) {
-                tgt = AddVectors(tgt, image[j]);
-                src = AddVectors(src, g[j]);
+                tgt = add(tgt, image[j]);
+                src = add(src, g[j]);
             }
         }
         if (tgt.empty())
@@ -109,8 +109,8 @@ void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt f
         int1d tgt = *p_fx;
         for (size_t j = 0; j < image.size(); j++) {
             if (std::binary_search(tgt.begin(), tgt.end(), image[j][0])) {
-                tgt = AddVectors(tgt, image[j]);
-                src = AddVectors(src, g[j]);
+                tgt = add(tgt, image[j]);
+                src = add(src, g[j]);
             }
         }
         if (tgt.empty())
@@ -134,8 +134,8 @@ void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel
         int1d tgt = fx[i];
         for (size_t j = 0; j < image.size(); j++) {
             if (std::binary_search(tgt.begin(), tgt.end(), image[j][0])) {
-                tgt = AddVectors(tgt, image[j]);
-                src = AddVectors(src, g[j]);
+                tgt = add(tgt, image[j]);
+                src = add(src, g[j]);
             }
         }
         if (tgt.empty())
@@ -155,8 +155,8 @@ void SetLinearMapV3(const int2d& x, const int2d& fx, int2d& domain, int2d& f, in
         int1d tgt = fx[i];
         for (size_t k = 0; k < domain.size(); ++k) {
             if (std::binary_search(src.begin(), src.end(), domain[k][0])) {
-                src = AddVectors(src, domain[k]);
-                tgt = AddVectors(tgt, f[k]);
+                src = add(src, domain[k]);
+                tgt = add(tgt, f[k]);
             }
         }
         if (src.empty()) {
@@ -168,8 +168,8 @@ void SetLinearMapV3(const int2d& x, const int2d& fx, int2d& domain, int2d& f, in
             f.push_back(tgt);
             for (size_t j = 0; j < image.size(); j++) {
                 if (std::binary_search(tgt.begin(), tgt.end(), image[j][0])) {
-                    tgt = AddVectors(tgt, image[j]);
-                    src = AddVectors(src, g[j]);
+                    tgt = add(tgt, image[j]);
+                    src = add(src, g[j]);
                 }
             }
             if (tgt.empty())
@@ -187,8 +187,8 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int2d
     int1d result;
     for (auto p_Vi = spaceV_first, p_fi = f_first; p_Vi != spaceV_last && !v.empty(); ++p_Vi, ++p_fi)
         if (std::binary_search(v.begin(), v.end(), p_Vi->front())) {
-            v = AddVectors(v, *p_Vi);
-            result = AddVectors(result, *p_fi);
+            v = add(v, *p_Vi);
+            result = add(result, *p_fi);
         }
 #ifndef NDEBUG
     if (!v.empty()) {
@@ -203,7 +203,7 @@ int1d GetInvImage(const int2d& spaceV, int1d v)
     int1d result;
     for (size_t j = 0; j < spaceV.size(); j++) {
         if (std::binary_search(v.begin(), v.end(), spaceV[j][0])) {
-            v = AddVectors(v, spaceV[j]);
+            v = add(v, spaceV[j]);
             result.push_back((int)j);
         }
     }

@@ -517,7 +517,7 @@ void powP(const Poly& poly, int n, const Groebner& gb, Poly& result, Poly& tmp)
 }
 
 /********************************* Modules ****************************************/
-GroebnerMod::GroebnerMod(Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), data_(std::move(polys)), v_degs_(std::move(v_degs))
+GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), data_(std::move(polys)), v_degs_(std::move(v_degs))
 {
     for (int i = 0; i < (int)data_.size(); ++i) {
         leads_.push_back(data_[i].GetLead());

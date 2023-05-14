@@ -1,9 +1,7 @@
-# Adams
-* Load to ss
 # SS
+* Fix d_{199}=?
 * Support stem_trunc
-* Support multiple rings and modules
 * Smart deduce
-* Simplify generators and relations
+* Simplify pi generators and relations
 * Fast sync
 * Test differential monomial orderings for mod

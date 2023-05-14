@@ -37,7 +37,7 @@ public:
 
     void load_indecomposables(const std::string& table, alg2::int1d& ids, alg2::AdamsDeg1d& gen_degs, int t_trunc, int stem_trunc) const
     {
-        Statement stmt(*this, fmt::format("SELECT id, s, t FROM {} WHERE indecomposable=1 AND t<={} AND t-s<={} ORDER BY id;", table, t_trunc, stem_trunc));
+        Statement stmt(*this, fmt::format("SELECT id, s, t FROM {} WHERE indecomposable=1 AND t<={} AND t-s<={} ORDER BY t,-s;", table, t_trunc, stem_trunc));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0), s = stmt.column_int(1), t = stmt.column_int(2);
             ids.push_back(id);
@@ -123,8 +123,9 @@ public:
     }
 
 public:
-    void create_tables(const std::string& table_prefix)
+    void recreate_tables(const std::string& table_prefix)
     {
+        execute_cmd("DROP TABLE " + table_prefix);
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + " (id INTEGER PRIMARY KEY, map TEXT);");
     }
     void save_map(const std::string& table_prefix, const alg2::Poly1d& map)
@@ -147,7 +148,7 @@ alg2::int1d mul(const std::map<std::pair<int, int>, alg2::int1d>& map_h, int id_
     for (int id : repr) {
         auto it = map_h.find(std::make_pair(id_ind, id));
         if (it != map_h.end())
-            result = lina::AddVectors(result, it->second);
+            result = lina::add(result, it->second);
     }
     return result;
 }
@@ -244,7 +245,7 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
 
             /* Add to basis_H */
             std::sort(lead_kernel.begin(), lead_kernel.end());
-            int1d index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
+            int1d index_basis = lina::add(ut::int_range(int(basis_new_d.size())), lead_kernel);
             for (int i : index_basis) {
                 basis[it->first].push_back(std::move(basis_new_d[i]));
                 repr[it->first].push_back(std::move(repr_new_d[i]));
@@ -370,7 +371,7 @@ void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, i
 
             /* Add to basis_H */
             std::sort(lead_kernel.begin(), lead_kernel.end());
-            int1d index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
+            int1d index_basis = lina::add(ut::int_range(int(basis_new_d.size())), lead_kernel);
             for (int i : index_basis) {
                 basis[it->first].push_back(std::move(basis_new_d[i]));
                 repr[it->first].push_back(std::move(repr_new_d[i]));
@@ -438,7 +439,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     myio::AssertFileExists(db_cw2);
     myio::AssertFileExists(db_map);
 
-    std::string db_out = fmt::format("map_AdamsE2_{}_to_{}.db", cw1, cw2);
+    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
     std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
 
     MyDB dbCw1(db_cw1);
@@ -457,7 +458,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     int sus = dbResMap.get_int(fmt::format("select value from version where id=0x5e876a59")); /* cw1->Sigma^sus cw2 */
 
     DbMapAdamsE2 dbMapAdamsE2(db_out);
-    dbMapAdamsE2.create_tables(table_out);
+    dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
 
     if (ut::has(RING_SPECTRA, cw2)) {
@@ -523,7 +524,7 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
     else if (cw == "Cnu")
         t_cell = 4;
     else if (cw == "Csigma")
-        t_cell = 8;
+        t_cell = 8; 
     else {
         fmt::print("cw={} is not supported.\n", cw);
         return;
@@ -637,7 +638,7 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
 
             /* Add to basis_H */
             std::sort(lead_kernel.begin(), lead_kernel.end());
-            int1d index_basis = lina::AddVectors(ut::int_range(int(basis_new_d.size())), lead_kernel);
+            int1d index_basis = lina::add(ut::int_range(int(basis_new_d.size())), lead_kernel);
             for (int i : index_basis) {
                 basis[it->first].push_back(std::move(basis_new_d[i]));
                 repr[it->first].push_back(std::move(repr_new_d[i]));

@@ -377,7 +377,7 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& db_res, co
             }
         }
         int1d lead_image = lina::GetLeads(lina::GetSpace(fx));
-        int1d indices = lina::AddVectors(ut::int_range((int)diffs_d_size), lead_image);
+        int1d indices = lina::add(ut::int_range((int)diffs_d_size), lead_image);
 
         /*# mark indecomposables in database */
         for (int i : indices) {
@@ -509,7 +509,7 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& db_mod
             }
         }
         int1d lead_image = lina::GetLeads(lina::GetSpace(fx));
-        int1d indices = lina::AddVectors(ut::int_range((int)diffs_d_size), lead_image);
+        int1d indices = lina::add(ut::int_range((int)diffs_d_size), lead_image);
 
         /*# mark indecomposables in database */
         for (int i : indices) {

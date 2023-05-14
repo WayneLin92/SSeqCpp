@@ -5,6 +5,7 @@
 #include "algebras/dbAdamsSS.h"
 #include "pigroebner.h"
 #include <set>
+#include <variant>
 
 inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
 using namespace alg2;
@@ -14,6 +15,9 @@ constexpr int LEVEL_MIN = 2;
 constexpr int R_PERM = 200;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
+constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
+
+inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 
 enum class DeduceFlag : uint32_t
@@ -44,8 +48,6 @@ enum class EnumDef : int
     constraints = 2, /* The indeterminancies have some constraints */
 };
 
-inline const auto NULL_DIFF = int1d{-1};
-
 struct Staircase
 {
     int2d basis;
@@ -58,7 +60,7 @@ using Staircases1d = std::vector<Staircases>;
 
 struct PiBase
 {
-    algZ::Mon1d pi_basis;
+    algZ::Mon1d nodes_pi_basis;
     int2d Einf;
 };
 
@@ -67,7 +69,7 @@ using PiBasis1d = std::vector<PiBasis>;
 
 struct PiBaseMod
 {
-    algZ::MMod1d pi_basis;
+    algZ::MMod1d nodes_pi_basis;
     int2d Einf;
 };
 
@@ -105,23 +107,6 @@ public:
     TerminationException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
 };
 
-class Timer : private bench::Timer
-{
-private:
-    double stop_time_;
-
-public:
-    Timer(double stop_time) : stop_time_(stop_time)
-    {
-        SuppressPrint();
-    }
-
-    bool timeout() const
-    {
-        return Elapsed() > stop_time_;
-    }
-};
-
 struct NullDiff
 {
     int1d x;
@@ -134,130 +119,186 @@ using NullDiff1d = std::vector<NullDiff>;
 /* This constrains the choice of a generator g by requiring that Unknownfil(g*m)=O. */
 struct GenConstraint
 {
-    int map_id;
+    int map_index;
     algZ::Mon m;
     int O;
 };
 
-struct SS
+struct RingSp
 {
-    std::string name; /* Constant after initialization */
-    int t_max = -1;
+    /* #metadata */
+    std::string name;
+    int t_max = -1;  ////TODO: remove
+    std::vector<size_t> ind_mods, ind_maps;
+
+    /* #ss */
     Groebner gb;
     std::map<AdamsDeg, Mon1d> basis;
-    AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
-    Staircases1d nodes_ss;
-    ut::map_seq2d<int, 0> basis_ss_possEinf;
+    AdamsDeg1d degs_basis_order_by_stem;      /* Constant after initialization */
+    Staircases1d nodes_ss;                    /* size = depth + 2 */
+    ut::map_seq2d<int, 0> basis_ss_possEinf;  ////TODO: change to int2d
 
+    /* #pi */
     algZ::Groebner pi_gb;
-    Poly1d pi_gen_Einf = {Poly::Gen(0)}; /* Projection onto the E_infty page */
-    PiBasis1d pi_basis = {{{AdamsDeg(0, 0), {{algZ::Mon()}, {{0}}}}}};
-    std::vector<size_t> pi_nodes_gen;
-    std::vector<size_t> pi_nodes_rel;
-    int2d pi_nodes_gen_2tor_degs;
+    Poly1d pi_gen_Einf = {Poly::Gen(0)};
+    PiBasis1d nodes_pi_basis = {{{AdamsDeg(0, 0), {{algZ::Mon()}, {{0}}}}}}; /* size = depth + 1 */
 
     std::vector<EnumDef> pi_gen_defs;
     std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
+using RingSp1d = std::vector<RingSp>;
 
-struct SSMod
+struct ModSp
 {
-    std::string name; /* Constant after initialization */
-    int t_max = -1;
+    /* #metadata */
+    std::string name;
+    int t_max = -1;  ////TODO: remove
     AdamsDeg deg_qt;
+    size_t iRing;
+    std::vector<size_t> ind_maps;
+
+    /* #ss */
     GroebnerMod gb;
     std::map<AdamsDeg, MMod1d> basis;
-    AdamsDeg1d degs_basis_order_by_stem; /* Constant after initialization */
-    Poly1d qt;
-    Staircases1d nodes_ss;
-    ut::map_seq2d<int, 0> basis_ss_possEinf;
+    AdamsDeg1d degs_basis_order_by_stem;      /* Constant after initialization */
+    Staircases1d nodes_ss;                    /* size = depth + 2 */
+    ut::map_seq2d<int, 0> basis_ss_possEinf;  ////TODO: change to int2d
 
+    /* #pi */
     algZ::GroebnerMod pi_gb;
-    Mod1d pi_gen_Einf; /* Projection onto the E_infty page */
-    PiBasisMod1d pi_basis = {{}};
-    algZ::Poly2d pi_qt;
-    std::vector<size_t> pi_nodes_gen;
-    std::vector<size_t> pi_nodes_rel;
+    Mod1d pi_gen_Einf;
+    PiBasisMod1d nodes_pi_basis = {{}}; /* size = depth + 1 */
 
     std::vector<EnumDef> pi_gen_defs;
     std::vector<std::vector<GenConstraint>> pi_gen_def_mons;
 };
+using ModSp1d = std::vector<ModSp>;
 
-using SSMod1d = std::vector<SSMod>;
+struct MapRing2Ring  ////TODO: Add pi_images
+{
+    size_t from, to;
+    std::vector<Poly> images;
+    int1d map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings);
+};
 
-constexpr size_t MAX_NUM_NODES = 5;
+struct MapMod2Mod
+{
+    size_t from, to;
+    int sus;
+    std::vector<Mod> images;
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods);
+};
+
+struct MapMod2Ring
+{
+    size_t from, to;
+    int sus;
+    std::vector<Poly> images;
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings);
+};
+
+struct MapMulRing
+{
+    size_t index;
+    int sus;
+    Poly factor;
+};
+
+struct MapRing2Mod
+{
+    size_t from, to;
+    int sus;
+    Mod factor;
+};
+
+struct Map
+{
+    std::string name;
+    std::variant<MapRing2Ring, MapMod2Mod, MapMod2Ring, MapMulRing, MapRing2Mod> map;
+};
+
+using Map1d = std::vector<Map>;
 
 class Diagram
 {
 
 public: /* Settings */
-    int stem_max_exactness_ = 100;
-
 protected:
-    SS ssS0_;
-    SSMod1d ssCofs_;
-
-    std::vector<std::string> all_names_;
-    std::vector<Staircases1d*> all_basis_ss_;
-    int1d all_t_max_;
+    RingSp1d rings_;
+    ModSp1d modules_;
+    Map1d maps_;
 
 public:
-    Diagram(const std::vector<std::string>& dbnames, DeduceFlag flag);
+    Diagram(std::string diagram_name, DeduceFlag flag, bool log = true);
     void VersionConvertReorderRels()
     {
-        ssS0_.pi_gb.SimplifyRelsReorder(ssS0_.basis_ss_possEinf);
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            ssCofs_[iCof].pi_gb.SimplifyRelsReorder(ssCofs_[iCof].basis_ss_possEinf);
+        for (auto& ring : rings_)
+            ring.pi_gb.SimplifyRelsReorder(ring.basis_ss_possEinf);
+        for (auto& mod : modules_)
+            mod.pi_gb.SimplifyRelsReorder(mod.basis_ss_possEinf);
     }
-    void save(const std::vector<std::string>& dbnames, DeduceFlag flag);
+    void save(std::string diagram_name, DeduceFlag flag);
 
-public:
+public: /* Getters */
     /* Return the newest version of the staircase in history */
-    static auto GetRecentStaircase(const Staircases1d& nodes_ss, AdamsDeg deg) -> const Staircase&;
-    static auto GetRecentStaircase(Staircases1d& nodes_ss, AdamsDeg deg) -> Staircase&
+    static auto GetRecentSc(const Staircases1d& nodes_ss, AdamsDeg deg) -> const Staircase&;
+    static auto GetRecentSc(Staircases1d& nodes_ss, AdamsDeg deg) -> Staircase&
     {
-        return const_cast<Staircase&>(GetRecentStaircase((const Staircases1d&)(nodes_ss), deg));
+        return const_cast<Staircase&>(GetRecentSc((const Staircases1d&)(nodes_ss), deg));
     }
-    static auto GetRecentPiBasis(const PiBasis1d& pi_basis, AdamsDeg deg) -> const PiBase*;
-    static auto GetRecentPiBasis(const PiBasisMod1d& pi_basis, AdamsDeg deg) -> const PiBaseMod*;
+    static auto GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDeg deg) -> const PiBase*;
+    static auto GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, AdamsDeg deg) -> const PiBaseMod*;
 
-    auto& GetS0() const
+    auto& GetRings() const
     {
-        return ssS0_;
-    }
-
-    auto& GetCofs() const
-    {
-        return ssCofs_;
+        return rings_;
     }
 
-    auto& GetS0()
+    auto& GetRings()
     {
-        return ssS0_;
+        return rings_;
     }
 
-    auto& GetCofs()
+    auto& GetModules() const
     {
-        return ssCofs_;
+        return modules_;
     }
 
-    auto& GetAllBasisSs() const
+    auto& GetModules()
     {
-        return all_basis_ss_;
+        return modules_;
     }
 
-    auto& GetAllTMax() const
+    int GetRingIndexByName(const std::string& name) const
     {
-        return all_t_max_;
+        for (size_t i = 0; i < rings_.size(); ++i)
+            if (rings_[i].name == name)
+                return (int)i;
+        return -1;
     }
 
-    auto& GetBasisSSChanges(size_t iBasisSS) const
+    int GetModuleIndexByName(const std::string& name) const
     {
-        if ((*all_basis_ss_[iBasisSS]).size() != 2) {
-            std::cout << "0xc2fa755cU: Not on the change node\n" << '\n';
-            throw MyException(0xc2fa755cU, "Not on the change node");
-        }
-        return (*all_basis_ss_[iBasisSS])[1];
+        for (size_t i = 0; i < modules_.size(); ++i)
+            if (modules_[i].name == name)
+                return (int)i;
+        return -1;
+    }
+
+    auto& GetRingByName(const std::string& name) const
+    {
+        for (auto& ring : rings_)
+            if (ring.name == name)
+                return ring;
+        throw MyException(0xdb4dc253, "Incorrect name");
+    }
+
+    auto& GetModuleByName(const std::string& name) const
+    {
+        for (auto& mod : modules_)
+            if (mod.name == name)
+                return mod;
+        throw MyException(0x8d0358d4, "Incorrect name");
     }
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
@@ -271,7 +312,7 @@ private: /* Staircase */
     static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
 
 private: /* ss */
-    /* Return if it is possibly a new dr target for r<=r_max 
+    /* Return if it is possibly a new dr target for r<=r_max
      * Warning: This does check if ss[deg] is trivial
      */
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
@@ -297,7 +338,7 @@ private: /* ss */
      * Return the smallest r1>=r such that d_{r1} has a possible target
      *
      * Range >= t_max is deem unknown and thus possiple.
-     * Return -1 if not found
+     * Return R_PERM if not found
      */
     int NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const;
 
@@ -325,8 +366,8 @@ private:
      *
      * dx should not be null.
      */
-    int SetS0DiffLeibniz(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
-    int SetCofDiffLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
+    int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
+    int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
 
 public:
     /* Add a node */
@@ -339,7 +380,7 @@ public:
     void UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
-    void CacheNullDiffs(size_t iSS, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
+    void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
 
     /**
      * Check first if it is a new differential before adding it.
@@ -347,21 +388,21 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetS0DiffGlobal(AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetCofDiffGlobal(size_t iCof, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetDiffGlobal(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
 
     /* Add d_r(?)=x;
-     * Add d_r(?)=xy for d_ry=0 (y in level < LEVEL_MAX - r);
+     * Add d_r(?)=xy for d_r(y)=0 (y on level < LEVEL_MAX - r);
      */
-    int SetS0ImageLeibniz(AdamsDeg deg_x, const int1d& x, int r);
-    int SetCofImageLeibniz(size_t iCof, AdamsDeg deg_x, const int1d& x, int r);
+    int SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r);
+    int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r);
 
-public:
+public: /* Differentials */
     int DeduceTrivialDiffs();
     /* Return 0 if there is no exception */
-    int TryDiff(size_t iSS, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
-    int DeduceDiffs(size_t iSS, AdamsDeg deg, int depth, DeduceFlag flag);
+    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
+    int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
 
 public:
@@ -370,14 +411,15 @@ public:
     static void UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf);
     void UpdateAllPossEinf()
     {
-        UpdatePossEinf(ssS0_.nodes_ss, ssS0_.basis_ss_possEinf);
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            UpdatePossEinf(ssCofs_[iCof].nodes_ss, ssCofs_[iCof].basis_ss_possEinf);
+        for (auto& ring : rings_)
+            UpdatePossEinf(ring.nodes_ss, ring.basis_ss_possEinf);
+        for (auto& mod : modules_)
+            UpdatePossEinf(mod.nodes_ss, mod.basis_ss_possEinf);
     }
     /* Return if Einf at deg could have more nontrivial elements */
     static int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
-    void PossMoreEinfFirstS_S0(int1d& O1s, int1d& O2s, int1d& isSingle) const;
-    void PossMoreEinfFirstS_Cof(size_t iCof, int1d& O1s, int1d& O2s, int1d& isSingle) const;
+    void PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1d& isSingle) const;
+    void PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d& isSingle) const;
 
     /*
      * Return the smallest s1>=s such that extension has a possible target
@@ -385,36 +427,37 @@ public:
      * Range >= t_max is deem unknown and thus possiple.
      * Return FIL_MAX if not found
      */
-    int ExtendRelS0(int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const;
-    int ExtendRelCof(size_t iCof, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const;
-    int ExtendRelS0(int stem, algZ::Poly& rel) const;
-    int ExtendRelCof(size_t iCof, int stem, algZ::Mod& rel) const;
-    int ExtendRelS0V2(int stem, algZ::Poly& rel, ut::map_seq<int, 0>& num_leads) const;
+    int ExtendRelRing(size_t iRing, int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const;
+    int ExtendRelMod(size_t iCof, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const;
+    int ExtendRelRing(size_t iRing, int stem, algZ::Poly& rel) const;
+    int ExtendRelMod(size_t iCof, int stem, algZ::Mod& rel) const;
+    int ExtendRelRingV2(size_t iRing, int stem, algZ::Poly& rel, ut::map_seq<int, 0>& num_leads) const;
     int ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::map_seq<int, 0>& num_leads) const;
-    int2d GetS0GbEinf(AdamsDeg deg) const;
-    std::map<AdamsDeg, int2d> GetS0GbEinf() const;
-    int2d GetCofGbEinf(size_t iCof, AdamsDeg deg) const;
-    std::map<AdamsDeg, int2d> GetCofGbEinf(size_t iCof) const;
+    int2d GetRingGbEinf(size_t iRing, AdamsDeg deg) const;
+    std::map<AdamsDeg, int2d> GetRingGbEinf(size_t iRing) const;
+    int2d GetModuleGbEinf(size_t iMod, AdamsDeg deg) const;
+    std::map<AdamsDeg, int2d> GetModuleGbEinf(size_t iMod) const;
 
 public: /* homotopy groups */
     void SetPermanentCycle(int depth, size_t iCof, AdamsDeg deg_x);
-    void AddPiRelsS0(algZ::Poly1d rels);
-    void AddPiRelsCof(size_t iCof, algZ::Mod1d rels);
-    void AddPiRelsCof2S0(size_t iCof);
+    void AddPiRelsRing(size_t iRing, algZ::Poly1d rels);
+    void AddPiRelsCof(size_t iMod, algZ::Mod1d rels);
+    void AddPiRelsByNat(size_t iMod);
     void SimplifyPiRels()
     {
-        ssS0_.pi_gb.SimplifyRels(ssS0_.basis_ss_possEinf);
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
-            ssCofs_[iCof].pi_gb.SimplifyRels(ssCofs_[iCof].basis_ss_possEinf);
+        for (auto& ring : rings_)
+            ring.pi_gb.SimplifyRels(ring.basis_ss_possEinf);
+        for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
+            modules_[iCof].pi_gb.SimplifyRels(modules_[iCof].basis_ss_possEinf);
     }
-    static algZ::Mon1d GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& pi_basis);
+    static algZ::Mon1d GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis);
     static algZ::MMod1d GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& basis);
     void SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopyy, int depth);
     void SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth);
     void SyncHomotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
     {
         SyncS0Homotopy(deg_min, count_ss, count_homotopy, depth);
-        for (size_t iCof = 0; iCof < ssCofs_.size(); ++iCof)
+        for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
             SyncCofHomotopy((int)iCof, deg_min, count_ss, count_homotopy, depth);
     }
     int DeduceTrivialExtensions(int depth);
@@ -470,7 +513,7 @@ public:
         create_pi_def(table_prefix);
     }
 
-    void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf, const algZ::Poly1d& to_S0) const;
+    void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf) const;
     void save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
@@ -483,9 +526,6 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
-std::string GetComplexName(const std::string& db);
-std::string GetE2TablePrefix(const std::string& db);
-int GetTopCellT(const std::string& db);
 
 /* Order by (t, -s) */
 template <typename T>
@@ -532,14 +572,12 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 }
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
-
-std::vector<std::string> GetDbNames(const std::string& selector, bool log = true);
+void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log=false);
 
 int main_deduce(int argc, char** argv, int index);
 int main_deduce_ext(int argc, char** argv, int index);
 int main_deduce_ext_def(int argc, char** argv, int index);
 int main_deduce_ext_def2(int argc, char** argv, int index);
 int main_deduce_ext_2tor(int argc, char** argv, int index);
-int main_deduce_migrateV2(int argc, char** argv, int index);
 
 #endif

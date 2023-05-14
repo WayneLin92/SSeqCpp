@@ -17,9 +17,9 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
         ++i;
         for (size_t j = i_insert; j < i; ++j) {
             if (std::binary_search(x.begin(), x.end(), sc.basis[j][0])) {
-                x = lina::AddVectors(x, sc.basis[j]);
+                x = lina::add(x, sc.basis[j]);
                 if (level == sc.levels[j] && dx != int1d{-1})
-                    dx = lina::AddVectors(dx, sc.diffs[j]);
+                    dx = lina::add(dx, sc.diffs[j]);
             }
         }
     }
@@ -32,9 +32,9 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
     for (; i < sc.basis.size(); ++i) {
         for (size_t j = i_insert; j < i; ++j) {
             if (std::binary_search(sc.basis[i].begin(), sc.basis[i].end(), sc.basis[j][0])) {
-                sc.basis[i] = lina::AddVectors(sc.basis[i], sc.basis[j]);
+                sc.basis[i] = lina::add(sc.basis[i], sc.basis[j]);
                 if (sc.levels[i] == sc.levels[j] && sc.diffs[i] != int1d{-1})
-                    sc.diffs[i] = lina::AddVectors(sc.diffs[i], sc.diffs[j]);
+                    sc.diffs[i] = lina::add(sc.diffs[i], sc.diffs[j]);
             }
         }
 #ifndef NDEBUG
@@ -89,7 +89,7 @@ bool Diagram::IsZeroOnLevel(const Staircase& sc, const int1d& x, int level)
     return lina::Residue(sc.basis.begin(), sc.basis.begin() + first_l, x).empty();
 }
 
-const Staircase& Diagram::GetRecentStaircase(const Staircases1d& nodes_ss, AdamsDeg deg)
+const Staircase& Diagram::GetRecentSc(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
     for (auto p = nodes_ss.rbegin(); p != nodes_ss.rend(); ++p)
         if (p->find(deg) != p->end())

@@ -10,8 +10,6 @@ int main_plotpi(int argc, char** argv, int index);
 int main_add_diff(int argc, char** argv, int index);
 int main_add_ext(int argc, char** argv, int index);
 
-int main_mod(int argc, char** argv, int index);
-
 int main_reset(int argc, char** argv, int index);
 int main_resetpi(int argc, char** argv, int index);
 int main_resetfrom(int argc, char** argv, int index);
@@ -39,7 +37,6 @@ int main(int argc, char** argv)
         std::cout << "  add_diff: Manually input a differential into the ss table\n";
         std::cout << "  try_add_diff: Try to input a differential into the ss table and detect contradictions without changing the database\n";
         std::cout << "  deduce: Deduce differentials and extensions\n\n";
-        std::cout << "  mod: Deal with a complex where the its AdamsSS is a module over S0_AdamsSS\n\n";
 
         std::cout << VERSION << std::endl;
         return 0;
@@ -58,8 +55,6 @@ int main(int argc, char** argv)
         rt = main_migrate_ss(argc, argv, index);
     else if (cmd == "migrate_htpy")
         rt = main_migrate_htpy(argc, argv, index);
-    else if (cmd == "basis_prod")
-        rt = main_basis_prod(argc, argv, index);
     else if (cmd == "plot")
         rt = main_plot(argc, argv, index);
     else if (cmd == "plotpi")
@@ -70,8 +65,6 @@ int main(int argc, char** argv)
         rt = main_add_ext(argc, argv, index);
     else if (cmd == "deduce")
         rt = main_deduce(argc, argv, index);
-    else if (cmd == "mod")
-        rt = main_mod(argc, argv, index);
     else {
         std::cerr << "Invalid cmd: " << cmd << '\n';
         return -1;

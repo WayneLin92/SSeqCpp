@@ -237,7 +237,7 @@ using namespace alg;
 /********************************************************
  *                      Monomials
  ********************************************************/
-constexpr size_t MONSIZE = 10;
+constexpr size_t MONSIZE = 12;
 
 class Mon
 {
@@ -551,6 +551,11 @@ struct Poly
 using Poly1d = std::vector<Poly>;
 using Poly2d = std::vector<Poly1d>;
 
+inline Poly operator*(const Mon& m, const Poly& x)
+{
+    return x * m;
+}
+
 inline std::ostream& operator<<(std::ostream& sout, const Poly& x)
 {
     return sout << x.Str();
@@ -732,15 +737,21 @@ void mulP(const Mon& mon, const Mod& poly, Mod& result);
  * @param map `map[i]` is the polynomial that substitutes the generator of id `i`.
  */
 template <typename FnMap>
-Poly subsModTpl(const Mod& x, const FnMap& map)
+auto subsModTpl(const Mod& x, const FnMap& map)
 {
-    Poly result, tmp_prod, tmp;
+    using T = decltype(map(0));
+    T result{}, tmp_prod{}, tmp{};
     for (const MMod& m : x.data)
-        result.iaddP(map(m.v) * m.m, tmp);
+        result.iaddP(m.m * map(m.v), tmp);
     return result;
 }
 
-inline Poly subsMod(const Mod& x, const std::vector<Poly>& map)
+inline Poly subs(const Mod& x, const std::vector<Poly>& map)
+{
+    return subsModTpl(x, [&map](size_t i) { return map[i]; });
+}
+
+inline Mod subs(const Mod& x, const std::vector<Mod>& map)
 {
     return subsModTpl(x, [&map](size_t i) { return map[i]; });
 }

@@ -231,6 +231,14 @@ T& get(std::vector<T>& map, size_t k)
     return map[k];
 }
 
+template <typename T>
+const T get(std::vector<T>& map, size_t k, T default_)
+{
+    if (map.size() <= k)
+        return default_;
+    return map[k];
+}
+
 /* Obtain a vector of keys */
 template <typename T>
 auto get_keys(const T& map)

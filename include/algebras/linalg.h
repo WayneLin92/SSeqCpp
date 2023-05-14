@@ -19,7 +19,7 @@ using int2d = std::vector<int1d>;
 using int2dIt = int2d::const_iterator;
 
 /* Add two compressed vectors */
-inline int1d AddVectors(const int1d& v1, const int1d& v2)
+inline int1d add(const int1d& v1, const int1d& v2)
 {
     int1d result;
     std::set_symmetric_difference(v1.begin(), v1.end(), v2.begin(), v2.end(), std::back_inserter(result));

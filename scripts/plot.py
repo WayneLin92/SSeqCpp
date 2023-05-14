@@ -865,7 +865,7 @@ def export_basis_to_js(data1d):
     offset = 0
     for data in data1d:
         for mon in data["basis"]:
-            if data["name"] != "S0":
+            if data["name"] != "S0" and data["name"] != "tmf":
                 mon[-2] += offset
             content_js += f" {mon},\n"
         content_js += "\n"
@@ -1222,38 +1222,42 @@ if __name__ == "__main__":
         "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d/mix100"
     )
 
-    spectra = ss_json["diagrams"][args.diagram]["spectra"]
+    rings = ss_json["diagrams"][args.diagram]["rings"]
+    mods = ss_json["diagrams"][args.diagram]["modules"]
     dir_db = ss_json["diagrams"][args.diagram]["dir"]
     dir_website = os.path.join(
         ss_json["dir_website_ss"],
         ss_json["diagrams"][args.diagram]["dir_html"],
     )
 
-    path_S0 = os.path.join(dir_db, spectra["S0"])
-    for i, name in enumerate(spectra):
-        path_mod = os.path.join(dir_db, spectra[name])
-        if name == "S0":
-            path_html = os.path.join(dir_website, "S0_ss/index.html")
-            path_js = os.path.join(dir_website, "S0_ss/data.js")
-            data_ring = load_ss_ring(path_S0)
-            export_ss_ring(data_ring, path_html, path_js)
+    for i, ring in enumerate(rings):
+        path_ring = os.path.join(dir_db, ring["path"])
+        path_html = os.path.join(dir_website, f"{ring['name']}_ss/index.html")
+        path_js = os.path.join(dir_website, f"{ring['name']}_ss/data.js")
+        data_ring = load_ss_ring(path_ring)
+        export_ss_ring(data_ring, path_html, path_js)
 
-            path_html = os.path.join(dir_website, "S0_pi/index.html")
-            path_js = os.path.join(dir_website, "S0_pi/data.js")
-            data = load_pi_ring(path_S0)
-            export_pi_ring(data, path_html, path_js)
-        else:
-            path_html = os.path.join(dir_website, f"{name}_ss/index.html")
-            path_js = os.path.join(dir_website, f"{name}_ss/data.js")
-            data_ring, data_mod = load_ss_mod(path_S0, path_mod)
-            export_ss_mod(data_ring, data_mod, path_html, path_js)
+        # path_html = os.path.join(dir_website, f"{ring['name']}_pi/index.html")
+        # path_js = os.path.join(dir_website, f"{ring['name']}_pi/data.js")
+        # data = load_pi_ring(path_ring)
+        # export_pi_ring(data, path_html, path_js)
 
-            path_html = os.path.join(dir_website, f"{name}_pi/index.html")
-            path_js = os.path.join(dir_website, f"{name}_pi/data.js")
-            data_ring, data_mod = load_pi_mod(path_S0, path_mod)
-            export_pi_mod(data_ring, data_mod, path_html, path_js)
+    for i, mod in enumerate(mods):
+        for ring in rings:
+            if ring["name"] == mod["over"]:
+                break
+        path_mod = os.path.join(dir_db, mod["path"])
+        path_html = os.path.join(dir_website, f"{mod['name']}_ss/index.html")
+        path_js = os.path.join(dir_website, f"{mod['name']}_ss/data.js")
+        data_ring, data_mod = load_ss_mod(path_ring, path_mod)
+        export_ss_mod(data_ring, data_mod, path_html, path_js)
 
-            path_html = os.path.join(dir_website, f"{name}_exact/index.html")
-            path_js = os.path.join(dir_website, f"{name}_exact/data.js")
-            data_ring, data_mod = load_pi_mod(path_S0, path_mod)
-            export_pi_exact(data_ring, data_mod, path_html, path_js)
+        # path_html = os.path.join(dir_website, f"{mod['name']}_pi/index.html")
+        # path_js = os.path.join(dir_website, f"{mod['name']}_pi/data.js")
+        # data_ring, data_mod = load_pi_mod(path_ring, path_mod)
+        # export_pi_mod(data_ring, data_mod, path_html, path_js)
+
+        # path_html = os.path.join(dir_website, f"{mod['name']}_exact/index.html")
+        # path_js = os.path.join(dir_website, f"{mod['name']}_exact/data.js")
+        # data_ring, data_mod = load_pi_mod(path_ring, path_mod)
+        # export_pi_exact(data_ring, data_mod, path_html, path_js)

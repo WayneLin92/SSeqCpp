@@ -114,17 +114,19 @@ private:
     std::map<int, int1d> leads_group_by_t_;                      /* Cache for iteration */
 
     AdamsDeg1d gen_degs_; /* degree of generators */
-    int1d gen_2tor_degs_; /* 2 torsion degree of generators */
+    int2d nodes_gen_2tor_degs_; /* 2 torsion degree of generators */
+    std::vector<size_t> nodes_gen_size_;
+    std::vector<size_t> nodes_data_size_;
 
 public:
-    Groebner() : criticals_(DEG_MAX), gen_degs_({AdamsDeg(1, 1)}), gen_2tor_degs_({FIL_MAX + 1}) {}
-    Groebner(int t_trunc, AdamsDeg1d gen_degs) : criticals_(t_trunc), gen_degs_(std::move(gen_degs))
+    Groebner() : criticals_(DEG_MAX), gen_degs_({AdamsDeg(1, 1)}), nodes_gen_2tor_degs_({{FIL_MAX + 1}}) {}
+    Groebner(int t_trunc, AdamsDeg1d gen_degs) : criticals_(t_trunc), gen_degs_(std::move(gen_degs)), nodes_gen_2tor_degs_({})
     {
         for (AdamsDeg deg : gen_degs_) {
             if (deg == AdamsDeg(1, 1))
-                gen_2tor_degs_.push_back(FIL_MAX + 1);
+                nodes_gen_2tor_degs_.back().push_back(FIL_MAX + 1);
             else
-                gen_2tor_degs_.push_back((deg.stem() + 5) / 2);
+                nodes_gen_2tor_degs_.back().push_back((deg.stem() + 5) / 2);
         }
     }
 
@@ -174,12 +176,12 @@ public: /* Getters and Setters */
         leads_group_by_deg_[deg].push_back(index);
         leads_group_by_t_[deg.t].push_back(index);
         uint32_t backg = m.backg();
-        ut::push_back(leads_group_by_last_gen_, (size_t)backg, index);
+        ut::get(leads_group_by_last_gen_, backg).push_back(index);
 
         if (g.data.size() == 1) {
             if (m.frontg() == backg && backg > 0 && m.m().begin()->e_masked() == 1) {
                 size_t index = backg;
-                gen_2tor_degs_[index] = std::min(m.c(), gen_2tor_degs_[index]);
+                nodes_gen_2tor_degs_.back()[index] = std::min(m.c(), nodes_gen_2tor_degs_.back()[index]);
             }
         }
 
@@ -205,16 +207,12 @@ public: /* Getters and Setters */
         data_.clear();
 
         for (size_t i = 1; i < gen_degs_.size(); ++i)
-            gen_2tor_degs_[i] = (gen_degs_[i].stem() + 5) / 2;  //// TODO: modify
-    }
-
-    void set_gen_2tor_degs(int1d gen_2tor_degs__)
-    {
-        gen_2tor_degs_ = std::move(gen_2tor_degs__);
+            nodes_gen_2tor_degs_.back()[i] = (gen_degs_[i].stem() + 5) / 2;  //// TODO: modify
     }
 
     /* Restore the algebra to a previous status */
-    void Pop(size_t gen_size, size_t rel_size);
+    void AddNode();
+    void PopNode();
     void debug_print() const;
 
     bool operator==(const Groebner& rhs) const
@@ -239,7 +237,7 @@ public: /* Getters and Setters */
 
     const auto& gen_2tor_degs() const
     {
-        return gen_2tor_degs_;
+        return nodes_gen_2tor_degs_.back();
     }
 
     const auto& leads_group_by_deg() const
@@ -296,9 +294,9 @@ public:
     {
         gen_degs_.push_back(deg);
         if (deg == AdamsDeg(1, 1))
-            gen_2tor_degs_.push_back(FIL_MAX + 1);
+            nodes_gen_2tor_degs_.back().push_back(FIL_MAX + 1);
         else
-            gen_2tor_degs_.push_back((deg.stem() + 5) / 2);
+            nodes_gen_2tor_degs_.back().push_back((deg.stem() + 5) / 2); ////TODO: modify
     }
 
     /**
@@ -359,7 +357,7 @@ private:
     using TypeIndexKey = uint32_t;
 
 private:
-    Groebner* pGb_;
+    const Groebner* pGb_;
     size_t old_pGb_size_;
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
@@ -374,12 +372,15 @@ private:
 
     AdamsDeg1d v_degs_; /* degree of generators of modules */
 
+    std::vector<size_t> nodes_gen_size_;
+    std::vector<size_t> nodes_data_size_;
+
 public:
     GroebnerMod() : pGb_(nullptr), criticals_(DEG_MAX), old_pGb_size_(0) {}
-    GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size()) {}
+    GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size()) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    GroebnerMod(Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic = false);
+    GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic = false);
 
 private:
     static TypeIndexKey Key(const MMod& lead)
@@ -420,7 +421,7 @@ public: /* Getters and Setters */
         leads_group_by_key_[Key(m)].push_back(index);
         leads_group_by_deg_[deg].push_back(index);
         leads_group_by_t_[deg.t].push_back(index);
-        ut::push_back(leads_group_by_v_, (size_t)m.v, index);
+        ut::get(leads_group_by_v_, m.v).push_back(index);
         data_.push_back(std::move(g));
     }
     /* This is used for initialization */
@@ -444,7 +445,8 @@ public: /* Getters and Setters */
         data_.clear();
     }
 
-    void Pop(size_t gen_size, size_t rel_size);
+    void AddNode();
+    void PopNode();
     void debug_print() const;  ////
 
     bool operator==(const GroebnerMod& rhs) const
@@ -469,7 +471,7 @@ public: /* Getters and Setters */
 
     const auto& gen_2tor_degs() const
     {
-        return pGb_->gen_2tor_degs_;
+        return pGb_->gen_2tor_degs();
     }
 
     const auto& leads_group_by_deg() const

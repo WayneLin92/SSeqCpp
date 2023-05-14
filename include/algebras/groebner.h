@@ -269,7 +269,7 @@ private:
     using TypeIndices = std::unordered_map<TypeIndexKey, int1d>;
 
 private:
-    Groebner* pGb_;
+    const Groebner* pGb_;
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Mod1d data_;
@@ -281,10 +281,10 @@ private:
 
 public:
     GroebnerMod() : pGb_(nullptr), criticals_(DEG_MAX) {}
-    GroebnerMod(Groebner* pGb, int deg_trunc, int1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)) {}
+    GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    GroebnerMod(Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic = false);
+    GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic = false);
 
 private:
     static TypeIndexKey Key(const MMod& lead)

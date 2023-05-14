@@ -410,7 +410,7 @@ std::string Mod::Str() const
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](const MMod& m) { return m.Str(); });
 }
 
-Poly subsMod(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs)
+Poly subs(const Mod& x, const std::vector<Poly>& map, const AdamsDeg1d& v_degs)
 {
     Poly result, tmp;
     for (const MMod& m : x.data) {

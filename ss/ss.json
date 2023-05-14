@@ -1,137 +1,82 @@
 {
   "diagrams": {
-    "default": [
-      { "name": "S0", "path": "mix100/S0_AdamsSS_t100.db" },
-      { "name": "C2", "path": "mix100/C2_AdamsSS_t100.db" },
-      { "name": "Ceta", "path": "mix100/Ceta_AdamsSS_t100.db" },
-      { "name": "Cnu", "path": "mix100/Cnu_AdamsSS_t100.db" },
-      { "name": "Csigma", "path": "mix100/Csigma_AdamsSS_t100.db" },
-      { "name": "log", "path": "mix100/deduction.log" }
-    ],
-    "main": {
-      "dir": "main",
-      "spectra": {
-        "S0": "S0_AdamsSS_t261.db",
-        "C2": "C2_AdamsSS_t246.db",
-        "Ceta": "Ceta_AdamsSS_t200.db",
-        "Cnu": "Cnu_AdamsSS_t200.db",
-        "Csigma": "Csigma_AdamsSS_t200.db"
-      },
-      "log": "deduction.log"
-    },
+    "default": "mix",
     "mix": {
       "dir": "mix",
-      "spectra": {
-        "S0": "S0_AdamsSS_t261.db",
-        "C2": "C2_AdamsSS_t261.db",
-        "Ceta": "Ceta_AdamsSS_t200.db",
-        "Cnu": "Cnu_AdamsSS_t200.db",
-        "Csigma": "Csigma_AdamsSS_t200.db"
-      },
+      "rings": [
+        { "name": "S0", "path": "S0_AdamsSS_t261.db" },
+        { "name": "tmf", "path": "tmf_AdamsSS_t261.db" }
+      ],
+      "modules": [
+        { "name": "C2", "path": "C2_AdamsSS_t261.db", "over": "S0" },
+        { "name": "Ceta", "path": "Ceta_AdamsSS_t200.db", "over": "S0" },
+        { "name": "Cnu", "path": "Cnu_AdamsSS_t200.db", "over": "S0" },
+        { "name": "Csigma", "path": "Csigma_AdamsSS_t200.db", "over": "S0" },
+        { "name": "j", "path": "j_AdamsSS_t261.db", "over": "S0" }
+      ],
+      "maps": [
+        {
+          "name": "MapRS0_tmf",
+          "path": "map_AdamsSS_S0_to_tmf_t261.db",
+          "from": "S0",
+          "to": "tmf",
+          "sus": 0
+        },
+        {
+          "name": "MapQ2",
+          "path": "map_AdamsSS_C2_to_S0.db",
+          "from": "C2",
+          "to": "S0",
+          "sus": 1
+        },
+        {
+          "name": "MapQeta",
+          "path": "map_AdamsSS_Ceta_to_S0.db",
+          "from": "Ceta",
+          "to": "S0",
+          "sus": 2
+        },
+        {
+          "name": "MapQnu",
+          "path": "map_AdamsSS_Cnu_to_S0.db",
+          "from": "Cnu",
+          "to": "S0",
+          "sus": 4
+        },
+        {
+          "name": "MapQsigma",
+          "path": "map_AdamsSS_Csigma_to_S0.db",
+          "from": "Csigma",
+          "to": "S0",
+          "sus": 8
+        }
+      ],
+      "exact": [
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "C2" },
+          "q": { "type": "map", "name": "MapQ2" },
+          "delta": { "type": "mul", "factor": "h0", "from": "S0", "to": "S0"  }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Ceta"  },
+          "q": { "type": "map", "name": "MapQeta" },
+          "delta": { "type": "mul", "factor": "h1", "from": "S0", "to": "S0"  }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Cnu"  },
+          "q": { "type": "map", "name": "MapQnu" },
+          "delta": { "type": "mul", "factor": "h2", "from": "S0", "to": "S0"  }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Csigma"  },
+          "q": { "type": "map", "name": "MapQsigma" },
+          "delta": { "type": "mul", "factor": "h3", "from": "S0", "to": "S0"  }
+        }
+      ],
+      "commutativity": [{ "route1": [], "route2": [] }],
       "log": "deduction.log",
       "dir_html": "mix"
-    },
-    "mix100": {
-      "dir": "mix100",
-      "spectra": {
-        "S0": "S0_AdamsSS_t100.db",
-        "C2": "C2_AdamsSS_t100.db",
-        "Ceta": "Ceta_AdamsSS_t100.db",
-        "Cnu": "Cnu_AdamsSS_t100.db",
-        "Csigma": "Csigma_AdamsSS_t100.db"
-      },
-      "log": "deduction.log"
-    },
-    "mix130": {
-      "dir": "mix130",
-      "spectra": {
-        "S0": "S0_AdamsSS_t130.db",
-        "C2": "C2_AdamsSS_t130.db",
-        "Ceta": "Ceta_AdamsSS_t130.db",
-        "Cnu": "Cnu_AdamsSS_t130.db",
-        "Csigma": "Csigma_AdamsSS_t130.db"
-      },
-      "log": "deduction.log"
-    },
-    "mix160": {
-      "dir": "mix160",
-      "spectra": {
-        "S0": "S0_AdamsSS_t160.db",
-        "C2": "C2_AdamsSS_t160.db",
-        "Ceta": "Ceta_AdamsSS_t160.db",
-        "Cnu": "Cnu_AdamsSS_t160.db",
-        "Csigma": "Csigma_AdamsSS_t160.db"
-      },
-      "log": "deduction.log",
-      "dir_html": "mix2"
-    },
-    "mix130-202304171916": {
-      "dir": "mix130-202304171916",
-      "spectra": {
-        "S0": "S0_AdamsSS_t130.db",
-        "C2": "C2_AdamsSS_t130.db",
-        "Ceta": "Ceta_AdamsSS_t130.db",
-        "Cnu": "Cnu_AdamsSS_t130.db",
-        "Csigma": "Csigma_AdamsSS_t130.db"
-      },
-      "log": "deduction.log"
-    },
-    "auto": {
-      "dir": "auto",
-      "spectra": {
-        "S0": "S0_AdamsSS_t261.db",
-        "C2": "C2_AdamsSS_t261.db",
-        "Ceta": "Ceta_AdamsSS_t200.db",
-        "Cnu": "Cnu_AdamsSS_t200.db",
-        "Csigma": "Csigma_AdamsSS_t200.db"
-      },
-      "log": "deduction.log"
-    },
-    "auto100": {
-      "dir": "auto100",
-      "spectra": {
-        "S0": "S0_AdamsSS_t100.db",
-        "C2": "C2_AdamsSS_t100.db",
-        "Ceta": "Ceta_AdamsSS_t100.db",
-        "Cnu": "Cnu_AdamsSS_t100.db",
-        "Csigma": "Csigma_AdamsSS_t100.db"
-      },
-      "log": "deduction.log"
-    },
-    "benchmark": {
-      "dir": "benchmark",
-      "spectra": {
-        "S0": "S0_AdamsSS_t100.db",
-        "C2": "C2_AdamsSS_t100.db",
-        "Ceta": "Ceta_AdamsSS_t100.db",
-        "Cnu": "Cnu_AdamsSS_t100.db",
-        "Csigma": "Csigma_AdamsSS_t100.db"
-      },
-      "log": "deduction.log"
-    },
-    "debug": {
-      "dir": "debug",
-      "spectra": {
-        "S0": "S0_AdamsSS_t100.db",
-        "C2": "C2_AdamsSS_t100.db",
-        "Ceta": "Ceta_AdamsSS_t100.db",
-        "Cnu": "Cnu_AdamsSS_t100.db",
-        "Csigma": "Csigma_AdamsSS_t100.db"
-      },
-      "log": "deduction.log"
-    },
-    "debug2": {
-      "dir": "debug2",
-      "spectra": {
-        "S0": "S0_AdamsSS_t100.db",
-        "C2": "C2_AdamsSS_t100.db",
-        "Ceta": "Ceta_AdamsSS_t100.db",
-        "Cnu": "Cnu_AdamsSS_t100.db",
-        "Csigma": "Csigma_AdamsSS_t100.db"
-      },
-      "log": "deduction.log"
     }
   },
-  "dir_website_ss": "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d",
-  "CheckExactnessStemMax": 100
+  "dir_website_ss": "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d"
 }
