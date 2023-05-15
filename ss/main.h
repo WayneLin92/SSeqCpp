@@ -12,7 +12,7 @@ using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
 constexpr int LEVEL_MIN = 2;
-constexpr int R_PERM = 200;
+constexpr int R_PERM = 1000;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
 constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */

@@ -357,13 +357,14 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 Poly poly_xy = ring.gb.Reduce(poly_x * poly_y);
                 int1d xy = poly_xy ? Poly2Indices(poly_xy, basis.at(deg_xy)) : int1d{};
 
+                Poly poly_dy = (R == r_y) ? Indices2Poly(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1))) : Poly();
+                Poly poly_dxy = ring.gb.Reduce(poly_x * poly_dy + poly_dx * poly_y);
                 int1d dxy;
-                if (deg_dxy.t > t_max)
-                    dxy = NULL_DIFF;
-                else {
-                    Poly poly_dy = (R == r_y) ? Indices2Poly(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1))) : Poly();
-                    Poly poly_dxy = ring.gb.Reduce(poly_x * poly_dy + poly_dx * poly_y);
-                    dxy = poly_dxy ? Poly2Indices(poly_dxy, basis.at(deg_dxy)) : int1d{};
+                if (poly_dxy) {
+                    if (deg_dxy.t <= t_max)
+                        dxy = Poly2Indices(poly_dxy, basis.at(deg_dxy));
+                    else
+                        dxy = NULL_DIFF;
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
@@ -400,18 +401,19 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 }
 
                 Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();
-                int1d xy, dxy;
 
                 Mod poly_y = Indices2Mod(sc_y.basis[i], basis.at(deg_y));
                 Mod poly_xy = mod.gb.Reduce(poly_x * poly_y);
-                xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_x + deg_y)) : int1d{};
+                int1d xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_x + deg_y)) : int1d{};
 
-                if (deg_dxy.t > t_max)
-                    dxy = NULL_DIFF;
-                else {
-                    Mod poly_dy = (R == r_y) ? Indices2Mod(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1))) : Mod();
-                    Mod poly_dxy = mod.gb.Reduce(poly_x * poly_dy + poly_dx * poly_y);
-                    dxy = poly_dxy ? Mod2Indices(poly_dxy, basis.at(deg_dxy)) : int1d{};
+                Mod poly_dy = (R == r_y) ? Indices2Mod(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1))) : Mod();
+                Mod poly_dxy = mod.gb.Reduce(poly_x * poly_dy + poly_dx * poly_y);
+                int1d dxy;
+                if (poly_dxy) {
+                    if (deg_dxy.t <= t_max)
+                        dxy = Mod2Indices(poly_dxy, basis.at(deg_dxy));
+                    else
+                        dxy = NULL_DIFF;
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
@@ -463,13 +465,14 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
             Mod poly_xy = gb.Reduce(poly_y * poly_x);
             int1d xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_x + deg_y)) : int1d{};
 
+            Poly poly_dy = (R == r1) ? Indices2Poly(sc_y.diffs[i], ring.basis.at(deg_y + AdamsDeg(R, R - 1))) : Poly();
+            Mod poly_dxy = gb.Reduce(poly_dy * poly_x + poly_y * poly_dx);
             int1d dxy;
-            if (deg_dxy.t > t_max)
-                dxy = NULL_DIFF;
-            else {
-                Poly poly_dy = (R == r1) ? Indices2Poly(sc_y.diffs[i], ring.basis.at(deg_y + AdamsDeg(R, R - 1))) : Poly();
-                Mod poly_dxy = gb.Reduce(poly_dy * poly_x + poly_y * poly_dx);
-                dxy = poly_dxy ? Mod2Indices(poly_dxy, basis.at(deg_dxy)) : int1d{};
+            if (poly_dxy) {
+                if (deg_dxy.t <= t_max)
+                    dxy = Mod2Indices(poly_dxy, basis.at(deg_dxy));
+                else
+                    dxy = NULL_DIFF;
             }
 
             if (!xy.empty() || !dxy.empty()) {

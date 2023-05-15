@@ -141,8 +141,10 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
     }
 
     for (size_t i = 0; i < xs.size(); ++i)
-        if (xs[i])
+        if (xs[i]) {
+            fmt::print("Something is wrong: d_inv(x) not well defined. s={}\n", s);
             throw MyException(0x277dc39aU, "Something is wrong: d_inv(x) not well defined.");
+        }
 
     size_t sp1 = s + 1;
     heap.clear();

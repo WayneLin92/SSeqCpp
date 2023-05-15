@@ -553,7 +553,7 @@ void SetCohMap(const std::string& db_map, const std::string& table_map, const Mo
 /* cw1 --> cw2
  * H^*(cw2) --> H^*(cw1)
  *
- * F_s -----f-----> F_s
+ *  F_s -----f-----> F_s
  *   |                |
  *   d                d
  *   |                |
@@ -562,6 +562,11 @@ void SetCohMap(const std::string& db_map, const std::string& table_map, const Mo
  */
 void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, const std::string& db_cw2, const std::string& table_cw2, const std::string& db_map, const std::string& table_map, int t_trunc, int stem_trunc)
 {
+    DbAdamsResMap dbMap(db_map);
+    int sus = dbMap.get_int("select value from version where id=1585932889");
+    dbMap.create_tables(table_map);
+    myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
+
     DbResVersionConvert(db_cw1.c_str()); /*Version convertion */
     DbAdamsResLoader dbResCw1(db_cw1);
     auto gbCw1 = AdamsResConst::load(dbResCw1, table_cw1, t_trunc);
@@ -573,12 +578,8 @@ void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, co
     {
         DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
-        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc, stem_trunc);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc - sus, stem_trunc - sus);
     }
-
-    DbAdamsResMap dbMap(db_map);
-    dbMap.create_tables(table_map);
-    myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
 
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
@@ -649,9 +650,9 @@ void compute_products_with_hi(const std::string& db_res_S0, const std::string& d
     }
 
     DbAdamsResProd dbProd(db_out);
-    dbProd.create_tables(table_res_mod);
+    dbProd.execute_cmd("CREATE TABLE IF NOT EXISTS " + table_res_mod + "_products_hi (id INTEGER, id_ind INTEGER, prod_h_glo TEXT, PRIMARY KEY (id, id_ind));");
 
-    myio::Statement stmt_prod(dbProd, "INSERT INTO " + table_res_mod + "_products (id, id_ind, prod_h, prod_h_glo) VALUES (?1, ?2, ?3, ?4);");
+    myio::Statement stmt_prod(dbProd, "INSERT INTO " + table_res_mod + "_products_hi (id, id_ind, prod_h_glo) VALUES (?1, ?2, ?3);");
 
     for (const auto& [id, deg] : id_deg) {
         auto& diffs_d = diffs.at(deg);
@@ -667,7 +668,7 @@ void compute_products_with_hi(const std::string& db_res_S0, const std::string& d
                     for (int k : prod_hi)
                         prod_hi_glo.push_back(LocId(deg.s - 1, k).id());
 
-                    stmt_prod.bind_and_step(id + (int)i, ids_h[j], myio::Serialize(prod_hi), myio::Serialize(prod_hi_glo));
+                    stmt_prod.bind_and_step(id + (int)i, ids_h[j], myio::Serialize(prod_hi_glo));
                 }
             }
         }

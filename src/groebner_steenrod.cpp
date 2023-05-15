@@ -319,13 +319,15 @@ Mod subV(const Mod& x, const int1d& v_map)
     return result;
 }
 
-void Groebner::MinimizeOrderedGens()
+void Groebner::MinimizeOrderedGens(Mod1d& convert_vi)
 {
     std::vector<size_t> redundant_vs;
     Mod1d data;
     for (size_t i = 0; i < gb_.size(); ++i) {
-        if (not gb_[i].GetLead().m())
+        if (!gb_[i].GetLead().m()) {
             redundant_vs.push_back(gb_[i].GetLead().v());
+            ut::get(convert_vi, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
+        }
         else
             data.push_back(gb_[i]);
     }
@@ -335,12 +337,15 @@ void Groebner::MinimizeOrderedGens()
     std::set_symmetric_difference(redundant_vs.begin(), redundant_vs.end(), range.begin(), range.end(), std::back_inserter(remaining_v));
 
     int1d v_map(v_degs_.size(), -1);
-    for (size_t i = 0; i < remaining_v.size(); ++i)
+    for (size_t i = 0; i < remaining_v.size(); ++i) {
         v_map[remaining_v[i]] = (int)i;
-
-    for (auto& rel : data) {
-        rel = subV(rel, v_map);
+        ut::get(convert_vi, remaining_v[i]) = MMod(MMilnor(), remaining_v[i]);
     }
+
+    for (auto& rel : data)
+        rel = subV(rel, v_map);
+    for (auto& rel : convert_vi)
+        rel = subV(rel, v_map);
 
     int1d new_v_degs;
     for (auto& i : remaining_v)

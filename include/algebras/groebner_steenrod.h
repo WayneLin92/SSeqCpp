@@ -163,8 +163,10 @@ public:
     Mod Reduce(Mod x) const;
 
     void AddRels(const Mod1d& rels, int deg_max);
-    /* Assume that the v_degs is in increasing order and gb is reduced */
-    void MinimizeOrderedGens();
+    /* Assume that the v_degs is in increasing order and gb is reduced
+     * convert_v[i] is the new presentation of the old v_i
+     */
+    void MinimizeOrderedGens(Mod1d& convert_v);
 };
 
 }  // namespace steenrod

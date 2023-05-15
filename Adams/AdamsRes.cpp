@@ -29,8 +29,11 @@ Mod1d GetS0Rels(int t_trunc)
 
 void Coh_S0(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_tmf(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_ko(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_Chopf(int1d& v_degs, Mod1d& rels, int n, int t_max);
+void Coh_C2h4(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
 
 int main_res(int argc, char** argv, int index)
 {
@@ -70,6 +73,18 @@ int main_res(int argc, char** argv, int index)
         Coh_X2(v_degs, rels, d_max);
     else if (cw == "tmf")
         Coh_tmf(v_degs, rels, d_max);
+    else if (cw == "ko")
+        Coh_ko(v_degs, rels, d_max);
+    else if (cw == "C2")
+        Coh_Chopf(v_degs, rels, 0, d_max);
+    else if (cw == "Ceta")
+        Coh_Chopf(v_degs, rels, 1, d_max);
+    else if (cw == "Cnu")
+        Coh_Chopf(v_degs, rels, 2, d_max);
+    else if (cw == "Csigma")
+        Coh_Chopf(v_degs, rels, 3, d_max);
+    else if (cw == "C2h4")
+        Coh_C2h4(v_degs, rels, d_max);
     else if (cw == "j")
         Coh_j(v_degs, rels, d_max);
     else {
@@ -81,8 +96,8 @@ int main_res(int argc, char** argv, int index)
     return 0;
 }
 
-int Period_RP(int n);
-void Coh_RP(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
+void normalize_RP(int n1, int n2, int& n1_, int& n2_);
+void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int index)
 {
@@ -111,26 +126,25 @@ int main_res_RP(int argc, char** argv, int index)
         stem_max = DEG_MAX;
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
-    if (!(n1 >= 1 && n1 < n2)) {
-        fmt::print("We need n1 >= 1 && n1 < n2");
+    if (!(n1 % 2 == 1 && n1 >= 1 && n1 + 1 < n2)) {
+        fmt::print("We need n1 % 2 == 1 && n1 >= 1 && n1 + 1 < n2");
         return -index;
     }
-    int T = Period_RP(n2 - n1);
-    int n1_ = 1 + ((n1 - 1) % T);
-    int n2_ = n2 - (n1 - n1_);
+    int n1_ = -1, n2_ = -1;
+    normalize_RP(n1, n2, n1_, n2_);
     if (n1 != n1_)
         fmt::print("We use n1={} n2={} instead because of James periodicity", n1_, n2_);
     std::string db_filename = fmt::format("RP{}_{}_Adams_res.db", n1_, n2_);
     std::string tablename = fmt::format("RP{}_{}_Adams_res", n1_, n2_);
 
     int1d v_degs;
-    Mod1d rels;
-    Coh_RP(v_degs, rels, n1_, n2_, t_max);
+    Mod1d rels, convert_v;
+    Coh_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }
 
-void SetCohMapImages(std::string_view cw1, std::string_view cw2, Mod1d& images, int& sus);
+void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus);
 void SetCohMap(const std::string& db_map, const std::string& table_map, const Mod1d& images, int sus);
 
 int main_map_coh(int argc, char** argv, int index)

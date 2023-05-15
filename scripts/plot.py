@@ -23,7 +23,7 @@ PATH_HTML_TPL = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-
 PATH_TMP_HTML = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
 PATH_TMP_JS = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
 
-R_PERM = 200
+R_PERM = 1000
 
 
 ########################### Read #################################
@@ -59,6 +59,8 @@ def get_complex_name(path):
     path = os.path.basename(path)
     names = [
         "S0",
+        "ko",
+        "C2h4",
         "C2",
         "Ceta",
         "Cnu",
@@ -370,7 +372,7 @@ def load_ss_from_res(path):
         else:
             data["gen_names"].append(f"x_{{{i}}}")
     data["products"], data["products_factors"] = load_multiplications_from_res(
-        c_prod, complex + "_Adams_res_products"
+        c_prod, complex + "_Adams_res_products_hi"
     )
 
     c.close()
@@ -609,7 +611,7 @@ def export_bullets(data1d, radius1d, offsets_x):
 
 def export_basis_ss_prod(data):
     lines = [[], [], []]
-    b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
+    b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
     for id_gen, id1, prod in data["products"]:
         if id_gen not in b2g:
             continue

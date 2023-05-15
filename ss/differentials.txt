@@ -10,7 +10,6 @@ ss add_diff j 37 8 2 0 0
 ss add_diff j 45 12 2 0 0
 
 Added
-ss add_diff S0 30 6 3 0 0
 ss add_diff S0 38 2 4 0 0
 ss add_diff S0 38 4 3 0 0
 ss add_diff S0 57 7 3 0 1
