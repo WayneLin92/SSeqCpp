@@ -506,27 +506,17 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     return count_homotopy;
 }
 
-int main_deduce_ext_def(int argc, char** argv, int index)
+int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 100;
     std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  ss deduce ext_def [stem_min] [stem_max] [diagram]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  diagram = {}\n", diagram_name);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
     Diagram diagram(diagram_name, flag);
 
     try {
@@ -555,31 +545,18 @@ int main_deduce_ext_def(int argc, char** argv, int index)
     return 0;
 }
 
-int main_deduce_ext_def2(int argc, char** argv, int index)
+int main_deduce_ext_def2(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 100;
     int stem_max_mult = 9;
     std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"stem_max_mult", &stem_max_mult}, {"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  ss deduce ext_def2 [stem_min] [stem_max] [stem_max_mult] [diagram]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max_mult = {}\n", stem_max_mult);
-        fmt::print("  diagram = {}\n", diagram_name);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max_mult", stem_max_mult))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
     Diagram diagram(diagram_name, flag);
 
     try {

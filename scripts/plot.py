@@ -55,6 +55,9 @@ def str2array(str_array: str):
     return [int(i) for i in str_array.split(",")] if len(str_array) > 0 else []
 
 
+SET_RINGS = {"S0", "tmf", "ko", "X2"}
+
+
 def get_complex_name(path):
     path = os.path.basename(path)
     names = [
@@ -65,8 +68,11 @@ def get_complex_name(path):
         "Ceta",
         "Cnu",
         "Csigma",
+        "RP1_4",
+        "RP1_6",
+        "RP1_8",
         "RP1_10",
-        "RP10",
+        "RP1_383",
         "RPinf",
         "X2",
         "tmf_C2",
@@ -611,7 +617,8 @@ def export_bullets(data1d, radius1d, offsets_x):
 
 def export_basis_ss_prod(data):
     lines = [[], [], []]
-    b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
+    # b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
+    b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
     for id_gen, id1, prod in data["products"]:
         if id_gen not in b2g:
             continue
@@ -867,11 +874,11 @@ def export_basis_to_js(data1d):
     offset = 0
     for data in data1d:
         for mon in data["basis"]:
-            if data["name"] != "S0" and data["name"] != "tmf":
+            if data["name"] not in SET_RINGS:
                 mon[-2] += offset
             content_js += f" {mon},\n"
         content_js += "\n"
-        if data["name"] == "S0":
+        if data["name"] in SET_RINGS:
             offset = len(data["gen_names"])
     content_js += f"];\n\n"
     return content_js

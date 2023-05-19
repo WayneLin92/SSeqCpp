@@ -155,6 +155,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             std::string table = fmt::format("map_AdamsE2_{}_to_{}", from, to);
             Map map;
             map.name = name;
+            map.t_max = json_map["t_max"].get<int>();
             if (GetRingIndexByName(from) != -1) {
                 size_t index_from = (size_t)GetRingIndexByName(from);
                 size_t index_to = (size_t)GetRingIndexByName(to);

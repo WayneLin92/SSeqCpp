@@ -566,10 +566,10 @@ public:
         return basis_degrees;
     }
 
-    void generators_to_csv(const std::string& table_prefix) const
+    void generators_to_csv(const std::string& table_prefix, const std::string& out_csv) const
     {
         Statement stmt(*this, "SELECT id, s, t, diff FROM " + table_prefix + "_generators WHERE t<=100 ORDER BY id;");
-        auto fout = fmt::output_file("E:/S0_Adams_res_t100.csv");
+        auto fout = fmt::output_file(out_csv);
         fout.print("id,s,t,index,diff\n");
         ut::map_seq<int, 0> indices;
         while (stmt.step() == MYSQLITE_ROW) {
@@ -831,9 +831,18 @@ void ResetDb(const std::string& filename, const std::string& tablename)
     db.reset(tablename);
 }
 
-int main_generators_to_csv(const std::string& db_filename, const std::string& tablename)
+int main_res_csv(int argc, char** argv, int& index, const char* desc)
 {
+    std::string db_filename, table_name, out_csv;
+
+    const char* description = "Export the resolution to csv file.";
+    const char* cmd = "Adams export_map";
+    myio::CmdArg1d args = {{"db", &db_filename}, {"table", &table_name}, {"out_csv", &out_csv}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DbAdamsRes db(db_filename);
-    db.generators_to_csv(tablename);
+    db.generators_to_csv(table_name, out_csv);
     return 0;
 }

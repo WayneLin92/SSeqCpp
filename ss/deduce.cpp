@@ -241,35 +241,18 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
     return count;
 }
 
-int main_deduce_diff(int argc, char** argv, int index)
+int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 261;
     std::string diagram_name = "default";
     std::vector<std::string> strFlags;
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::no_op;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Deduce differentials by Leibniz rule\n";
-        std::cout << "Usage:\n  ss deduce diff [stem_min] [stem_max] [diagram] [flags...]\n\n";
-
-        std::cout << "Default values:\n";
-
-        std::cout << "  stem_min = " << stem_min << "\n";
-        std::cout << "  stem_max = " << stem_max << "\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
-    if (myio::load_args(argc, argv, ++index, "flags", strFlags))
-        return index;
-
     for (auto& f : strFlags) {
         if (f == "all_x")
             flag = flag | DeduceFlag::all_x;
@@ -317,24 +300,16 @@ int main_deduce_diff(int argc, char** argv, int index)
 }
 
 /* This is for debugging */
-int main_deduce_tmp(int argc, char** argv, int index)
+int main_deduce_tmp(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::no_op;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce tmp [diagram]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
-
     Diagram diagram(diagram_name, flag);
     int count = 0;
     try {
@@ -361,38 +336,18 @@ int main_deduce_tmp(int argc, char** argv, int index)
 }
 
 /* generate the table of the spectral sequence */
-int main_deduce(int argc, char** argv, int index)
+int main_deduce(int argc, char** argv, int& index, const char* desc)
 {
-    std::string cmd;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  ss deduce_diffs <cmd> [-h] ...\n\n";
-
-        std::cout << "<cmd> can be one of the following:\n";
-
-        std::cout << "  diff: deduce differentials\n";
-        std::cout << "  ext: deduce extensions\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "cmd", cmd))
-        return index;
-
-    if (cmd == "diff")
-        return main_deduce_diff(argc, argv, index);
-    else if (cmd == "ext")
-        return main_deduce_ext(argc, argv, index);
-    else if (cmd == "ext_def")
-        return main_deduce_ext_def(argc, argv, index);
-    else if (cmd == "ext_def2")
-        return main_deduce_ext_def2(argc, argv, index);
-    else if (cmd == "ext_2tor")
-        return main_deduce_ext_2tor(argc, argv, index);
-    else if (cmd == "tmp")
-        return main_deduce_tmp(argc, argv, index);
-    else
-        std::cerr << "Invalid cmd: " << cmd << '\n';
+    myio::SubCmdArg1d subcmds = {
+        {"diff", "Deduce differentials", main_deduce_diff},
+        {"ext", "Deduce extensions", main_deduce_ext},
+        {"ext_def", "Define decomposables", main_deduce_ext_def},
+        {"ext_def2", "Define indecomposables", main_deduce_ext_def2},
+        {"ext_2tor", "Compute 2-torsion degrees of generators of rings", main_deduce_ext_2tor},//// TODO: check all rings
+        {"tmp", "Generate tables: ss_prod,ss_diff,ss_nd,ss_stable_levels for plotting", main_deduce_tmp},
+    };
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Make deductions on ss or homotopy", VERSION, subcmds))
+        return error;
 
     return 0;
 }

@@ -125,7 +125,7 @@ public:
 public:
     void recreate_tables(const std::string& table_prefix)
     {
-        execute_cmd("DROP TABLE " + table_prefix);
+        drop_table(table_prefix);
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + " (id INTEGER PRIMARY KEY, map TEXT);");
     }
     void save_map(const std::string& table_prefix, const alg2::Poly1d& map)
@@ -161,7 +161,7 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
     std::string table_in = fmt::format("{}_Adams_res", ring);
     std::string db_out = fmt::format("{}_AdamsSS.db", ring);
     std::string table_out = fmt::format("{}_AdamsE2", ring);
-    
+
     myio::AssertFileExists(db_in);
     MyDB dbProd(db_in);
 
@@ -423,7 +423,7 @@ void load_map(const myio::Database& db, std::string_view table_prefix, std::map<
 }
 
 /* A sorted list of ring spectra */
-const std::vector<std::string_view> RING_SPECTRA = {"S0", "X2", "bo", "tmf"};
+const std::vector<std::string_view> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
 
 void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
 {
@@ -524,7 +524,7 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
     else if (cw == "Cnu")
         t_cell = 4;
     else if (cw == "Csigma")
-        t_cell = 8; 
+        t_cell = 8;
     else {
         fmt::print("cw={} is not supported.\n", cw);
         return;
@@ -672,113 +672,64 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
     dbE2.end_transaction();
 }
 
-int main_export(int argc, char** argv, int index)
+int main_export(int argc, char** argv, int& index, const char* desc)
 {
     std::string ring = "S0";
-    int t_max = 100, stem_max = 500;
+    int t_max = -1, stem_max = 383;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams export <ring> <t_max> [stem_max]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "ring", ring))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return -index;
+    myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     ExportRingAdamsE2(ring, t_max, stem_max);
     return 0;
 }
 
-int main_export_mod(int argc, char** argv, int index)
+int main_export_mod(int argc, char** argv, int& index, const char* desc)
 {
-    std::string cw, ring;
-    int t_max = 100, stem_max = 383;
+    std::string mod, ring;
+    int t_max = -1, stem_max = 383;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams export_mod <cw> <ring> <t_max> [stem_max]\n\n");
+    myio::CmdArg1d args = {{"mod", &mod}, {"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
+    std::string db_in = mod + "_Adams_res_prod.db";
+    std::string table_in = mod + "_Adams_res";
+    std::string db_out = mod + "_AdamsSS.db";
+    std::string table_out = mod + "_AdamsE2";
 
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "ring", ring))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return -index;
-
-    std::string db_in = cw + "_Adams_res_prod.db";
-    std::string table_in = cw + "_Adams_res";
-    std::string db_out = cw + "_AdamsSS.db";
-    std::string table_out = cw + "_AdamsE2";
-
-    ExportModAdamsE2(cw, ring, t_max, stem_max);
+    ExportModAdamsE2(mod, ring, t_max, stem_max);
     return 0;
 }
 
-int main_export_map(int argc, char** argv, int index)
+int main_export_map(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw1, cw2;
-    int t_max = 100, stem_max = 383;
+    int t_max = -1, stem_max = 383;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams export_map <cw1> <cw2> <t_max> [stem_max]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw1", cw1))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "cw2", cw2))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return -index;
+    myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;
 }
 
-int main_2cell_export(int argc, char** argv, int index)
+int main_2cell_export(int argc, char** argv, int& index, const char* desc)
 {
-    int t_trunc = 100;
-    std::string cw;
-    int t_max = 0, stem_max = 0;
+    std::string mod;
     std::string ring = "S0";
+    int t_max = -1, stem_max = 383;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams 2cell export <cw:C2/Ceta/Cnu/Csigma> <t_max> <stem_max> [ring]\n\n");
+    myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return -index;
-    if (myio::load_arg(argc, argv, ++index, "stem_max", stem_max))
-        return -index;
-    if (myio::load_op_arg(argc, argv, ++index, "ring", ring))
-        return -index;
-
-    Export2Cell(cw, ring, t_max, stem_max);
+    Export2Cell(mod, ring, t_max, stem_max);
     return 0;
 }

@@ -1,29 +1,15 @@
 #include "main.h"
 
-int main_add_ext(int argc, char** argv, int index)
+int main_add_ext(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "debug";
     std::string cw;
     std::string strRel, strExt;
+    std::string diagram_name = "debug";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Add extension\n";
-        std::cout << "Usage:\n  ss add_ext <cw> <rel> <ext> [diagram]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "rel", strRel))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "ext", strExt))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
+    myio::CmdArg1d args = {{"cw", &cw}, {"rel", &strRel}, {"ext", &strExt}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     Diagram diagram(diagram_name, DeduceFlag::homotopy);
 

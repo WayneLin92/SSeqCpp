@@ -4,6 +4,7 @@
 #include <cstring>
 #include <fmt/core.h>
 #include <sstream>
+#include <variant>
 #include <vector>
 
 namespace myio {
@@ -12,7 +13,9 @@ using int1d = std::vector<int>;
 using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 
-template <typename FwdIt, typename FnStr>
+
+
+template <typename FwdIt, typename FnStr> //// Deprecate
 std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str)  // TODO: make a performant version
 {
     std::string result;
@@ -112,54 +115,6 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
     return sin;
 }
 
-/*********************************************************
-                 Command line utilities
- *********************************************************/
-template <typename T>
-int load_op_arg(int argc, char** argv, int index, const char* name, T& x)
-{
-    if (index < argc) {
-        if constexpr (std::is_same<T, std::string>::value) {
-            if (strlen(argv[index]) == 0)
-                return 0;
-        }
-        std::istringstream ss(argv[index]);
-        if (!(ss >> x)) {
-            fmt::print("Invalid: {}: {}\n", name, argv[index]);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-template <typename T>
-int load_arg(int argc, char** argv, int index, const char* name, T& x)
-{
-    if (index < argc) {
-        return load_op_arg(argc, argv, index, name, x);
-    }
-    else {
-        fmt::print("Mising argument <{}>\n", name);
-        return 2;
-    }
-    return 0;
-}
-
-template <typename T>
-int load_args(int argc, char** argv, int index, const char* name, std::vector<T>& x)
-{
-    if (index < argc) {
-        x.resize(size_t(argc - index));
-        for (size_t i = index; i < (int)argc; ++i) {
-            if (int error = load_op_arg(argc, argv, (int)i, name, x[i - (size_t)index]))
-                return error;
-        }
-    }
-    return 0;
-}
-
-/* Return true if user inputs Y; Return false if user inputs N */
-bool UserConfirm();
 bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
 
@@ -168,7 +123,41 @@ struct COUT_FLUSH
     constexpr COUT_FLUSH() {}
 };
 
+/*********************************************************
+                 Command line utilities
+ *********************************************************/
+
+struct CmdArg
+{
+    const char* name;
+    std::variant<int*, double*, std::string*, std::vector<std::string>*> value;
+    std::string StrValue();
+};
+using CmdArg1d = std::vector<CmdArg>;
+
+int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args);
+
+/* Return true if user inputs Y; Return false if user inputs N */
+bool UserConfirm();
+
+using MainFnType = int(*)(int, char**, int&, const char*);
+
+struct SubCmdArg
+{
+    const char* name;
+    const char* description;
+    MainFnType f;
+};
+using SubCmdArg1d = std::vector<SubCmdArg>;
+
+int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
+
 }  // namespace myio
+
+
+/*********************************************************
+                    Formatters
+ *********************************************************/
 
 template <>
 struct fmt::formatter<myio::COUT_FLUSH>

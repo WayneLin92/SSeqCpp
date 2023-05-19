@@ -142,22 +142,14 @@ void serialize_ss(const Staircases& ss, int2d& seq_ss, AdamsDeg1d& seq_deg)
     }
 }
 
-int main_plot(int argc, char** argv, int index)
+int main_plot(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Generate tables: ss_prod, ss_diff, ss_nd, ss_stable_levels for plotting\n");
-        fmt::print("Usage:\n  ss plot [diagram]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  diagram = {}\n", diagram_name);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "selector", diagram_name))
-        return index;
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     Diagram diagram(diagram_name, DeduceFlag::no_op);
     diagram.DeduceTrivialDiffs();
@@ -365,22 +357,14 @@ void ToIndices(const algZ::Mod& x, const PiBasisMod& basis, const std::map<Adams
     }
 }
 
-int main_plotpi(int argc, char** argv, int index)
+int main_plotpi(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Generate tables: pi_basis_products pi_basis_maps for plotting\n";
-        std::cout << "Usage:\n  ss plotpi [diagram]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     Diagram diagram(diagram_name, DeduceFlag::homotopy);
     /* pi_basis_products */

@@ -49,9 +49,9 @@ void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max)
 
 /****************************************************
  *                    Ch
- *              Cofiber of h_n
+ *              Cofiber of h_n, n=0,1,2,3
  ***************************************************/
-void Coh_Chopf(int1d& v_degs, Mod1d& rels, int n, int t_max)
+void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max)
 {
     v_degs = {0};
     rels.clear();
@@ -63,16 +63,28 @@ void Coh_Chopf(int1d& v_degs, Mod1d& rels, int n, int t_max)
 }
 
 /****************************************************
- *                    C(2, h4)
+ *               C(2, h_n), n=4,5,6
  ***************************************************/
-void Coh_C2h4(int1d& v_degs, Mod1d& rels, int t_max)
+void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
 {
     v_degs = {0};
     rels.clear();
     for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0 && i != 4)
+        if (i != 0 && i != n)
             rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int n = 0; n <= 4; n += 4)
+    for (int j = 0; j <= n; j += n)
+        for (int i = 0; (1 << i) + (1 << j) <= t_max; ++i)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(j, j + 1), 0));
+}
+
+void Coh_C2h5(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 0 && i != 5)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int n = 0; n <= 5; n += 5)
         for (int i = 0; (1 << i) + (1 << n) <= t_max; ++i)
             rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n, n + 1), 0));
 }
@@ -157,16 +169,63 @@ void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus
     std::regex_search(cw1, match_RP, words_regex);
     std::ssub_match sub1 = match_RP[1], sub2 = match_RP[2];
     if (cw1 == "S0") {
-        if (cw2 == "tmf" || cw2 == "X2") {
+        if (cw2 == "tmf" || cw2 == "ko" || cw2 == "X2") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+    }
+    else if (cw1 == "C2") {
+        if (cw2 == "C2h4") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+        else if (cw2 == "C2h5") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+        else if (cw2 == "C2h6") {
             images = {MMod(MMilnor(), 0)};
             sus = 0;
             return;
         }
     }
     else if (cw2 == "S0") {
-        if (cw1 == "C2h4") {
+        if (cw1 == "C2") {
+            images = {MMod(MMilnor::P(0, 1), 0)};
+            sus = 1;
+            return;
+        }
+        else if (cw1 == "Ceta") {
+            images = {MMod(MMilnor::P(1, 2), 0)};
+            sus = 2;
+            return;
+        }
+        else if (cw1 == "Cnu") {
+            images = {MMod(MMilnor::P(2, 3), 0)};
+            sus = 4;
+            return;
+        }
+        else if (cw1 == "Csigma") {
+            images = {MMod(MMilnor::P(3, 4), 0)};
+            sus = 8;
+            return;
+        }
+        else if (cw1 == "C2h4") {
             images = {MMod(MMilnor::P(4, 5), 0)};
             sus = 16;
+            return;
+        }
+        else if (cw1 == "C2h5") {
+            images = {MMod(MMilnor::P(5, 6), 0)};
+            sus = 32;
+            return;
+        }
+        else if (cw1 == "C2h6") {
+            images = {MMod(MMilnor::P(6, 7), 0)};
+            sus = 64;
             return;
         }
     }

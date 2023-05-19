@@ -18,7 +18,7 @@ std::ostream& operator<<(std::ostream& sout, const Staircase& sc)
     return sout;
 }
 
-int main_add_diff(int argc, char** argv, int index)
+int main_add_diff(int argc, char** argv, int& index, const char* desc)
 {
     int stem = 0, s = 0, r = 0;
     std::string x_str, dx_str;
@@ -26,38 +26,10 @@ int main_add_diff(int argc, char** argv, int index)
     std::string diagram_name = "default";
     std::string mode = "add";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Manually input a differential into the ss table\n";
-        std::cout << "Usage:\n  ss add_diff <cw> <stem> <s> <r> <x> <dx> [diagram] [mode:add/deduce/try]\n\n";
-
-        std::cout << "mode:\n";
-        std::cout << "add: add differential and save\n";
-        std::cout << "deduce: add differential, deduce and save\n";
-        std::cout << "try: add differential, deduce and do not save\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  mode = " << mode << "\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "stem", stem))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "s", s))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "r", r))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "x", x_str))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "dx", dx_str))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "selector", diagram_name))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "mode", mode))
-        return index;
+    myio::CmdArg1d args = {{"cw", &cw}, {"stem", &stem}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}, {"mode:add/deduce/try", &mode}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     AdamsDeg deg_x(s, stem + s);
     AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);

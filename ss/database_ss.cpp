@@ -203,21 +203,14 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     db.end_transaction();
 }
 
-int main_reset(int argc, char** argv, int index)
+int main_reset(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  ss reset [diagram]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  diagram = {}\n", diagram_name);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "selector", diagram_name))
-        return index;
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     fmt::print("Confirm to reset {}\n", diagram_name);
     if (myio::UserConfirm()) {
@@ -235,21 +228,14 @@ int main_reset(int argc, char** argv, int index)
     return 0;
 }
 
-int main_resetpi(int argc, char** argv, int index)
+int main_resetpi(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  ss resetpi [diagram]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  diagram = {}\n", diagram_name);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     fmt::print("Confirm to resetpi {}\n", diagram_name);
     if (myio::UserConfirm()) {

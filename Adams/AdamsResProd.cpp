@@ -679,67 +679,43 @@ void compute_products_with_hi(const std::string& db_res_S0, const std::string& d
 }
 
 /* Compute the product with hi */
-int main_prod_hi(int argc, char** argv, int index)
+int main_prod_hi(int argc, char** argv, int& index, const char* desc)
 {
-    std::string complex = "S0";
+    std::string cw = "S0";
     std::string db_S0 = "S0_Adams_res.db";
     std::string db_mod = "<cw>_Adams_res.db";
     std::string db_out = "<cw>_Adams_res_prod.db";
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Usage:\n  Adams prod_hi <cw> [db_S0] [db_mod] [db_out]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  db_S0 = " << db_S0 << "\n";
-        std::cout << "  db_mod = " << db_mod << "\n";
-        std::cout << "  db_out = " << db_out << "\n";
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "complex", complex))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_mod", db_mod))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "db_out", db_out))
-        return index;
+    myio::CmdArg1d args = {{"cw", &cw}};
+    myio::CmdArg1d op_args = {{"db_S0", &db_S0}, {"db_mod", &db_mod}, {"db_out", &db_out}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     if (db_mod == "<cw>_Adams_res.db")
-        db_mod = complex + "_Adams_res.db";
-    std::string table_mod = complex + "_Adams_res";
+        db_mod = cw + "_Adams_res.db";
+    std::string table_mod = cw + "_Adams_res";
     if (db_out == "<cw>_Adams_res_prod.db")
-        db_out = complex + "_Adams_res_prod.db";
+        db_out = cw + "_Adams_res_prod.db";
 
     compute_products_with_hi(db_S0, db_mod, table_mod, db_out);
 
     return 0;
 }
 
-int main_prod(int argc, char** argv, int index)
+int main_prod(int argc, char** argv, int& index, const char* desc)
 {
-    std::string cw = "S0";
+    std::string ring = "S0";
     int t_max = 0, stem_max = DEG_MAX;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams prod <cw> <t_max> [stem_max]\n\n");
+    myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-
-    std::string db_res = cw + "_Adams_res.db";
-    std::string table_res = cw + "_Adams_res";
-    std::string db_out = cw + "_Adams_res_prod.db";
-    std::string table_out = cw + "_Adams_res";
+    std::string db_res = ring + "_Adams_res.db";
+    std::string table_res = ring + "_Adams_res";
+    std::string db_out = ring + "_Adams_res_prod.db";
+    std::string table_out = ring + "_Adams_res";
 
     myio::AssertFileExists(db_res);
     compute_products(t_max, stem_max, db_res, table_res, db_out, table_out);
@@ -747,29 +723,16 @@ int main_prod(int argc, char** argv, int index)
     return 0;
 }
 
-int main_prod_mod(int argc, char** argv, int index)
+int main_prod_mod(int argc, char** argv, int& index, const char* desc)
 {
     std::string mod;
     std::string ring;
     int t_max = 0, stem_max = DEG_MAX;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams prod_mod <mod> <ring> <t_max> [stem_max]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "mod", mod))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "ring", ring))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
+    myio::CmdArg1d args = {{"mod", &mod}, {"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     std::string db_mod = mod + "_Adams_res.db";
     std::string table_mod = mod + "_Adams_res";
@@ -785,28 +748,15 @@ int main_prod_mod(int argc, char** argv, int index)
     return 0;
 }
 
-int main_map_res(int argc, char** argv, int index)
+int main_map_res(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw1, cw2;
     int t_max = 0, stem_max = DEG_MAX;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams map_res <cw1> <cw2> <t_max> [stem_max]\n\n");
-
-        fmt::print("Default values:\n");
-        fmt::print("  stem_max = {}\n", stem_max);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw1", cw1))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "cw2", cw2))
-        return index;
-    if (myio::load_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
+    myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
     std::string db_cw1 = cw1 + "_Adams_res.db";
     std::string table_cw1 = cw1 + "_Adams_res";

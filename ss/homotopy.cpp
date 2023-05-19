@@ -1888,33 +1888,18 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //}
 }
 
-int main_deduce_ext(int argc, char** argv, int index)
+int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
     int stem_min = 0, stem_max = 30;
     std::vector<std::string> strFlags;
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::homotopy;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce ext [stem_min] [stem_max] [diagram] [flags...]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  stem_min = " << stem_min << "\n";
-        std::cout << "  stem_max = " << stem_max << "\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "stem_min", stem_min))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "stem_max", stem_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
-    if (myio::load_args(argc, argv, ++index, "flags", strFlags))
-        return index;
     for (auto& f : strFlags) {
         if (f == "exact")
             flag = flag | DeduceFlag::homotopy_exact;
@@ -1953,24 +1938,16 @@ int main_deduce_ext(int argc, char** argv, int index)
     return 0;
 }
 
-int main_deduce_ext_2tor(int argc, char** argv, int index)
+int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
     DeduceFlag flag = DeduceFlag::homotopy;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        std::cout << "Debugging\n";
-        std::cout << "Usage:\n  ss deduce ext_2tor [diagram]\n\n";
-
-        std::cout << "Default values:\n";
-        std::cout << "  diagram = " << diagram_name << "\n\n";
-
-        std::cout << VERSION << std::endl;
-        return 0;
-    }
-    if (myio::load_op_arg(argc, argv, ++index, "diagram", diagram_name))
-        return index;
-
     Diagram diagram(diagram_name, flag);
 
     try {

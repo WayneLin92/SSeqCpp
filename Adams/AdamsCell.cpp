@@ -438,58 +438,30 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
     }
 }
 
-int main_2cell_prod(int argc, char** argv, int index)
+int main_2cell_prod(int argc, char** argv, int& index, const char* desc)
 {
-    std::string cw = "C2";
+    std::string mod = "C2";
     std::string ring = "S0";
     int t_max = 100;
 
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams 2cell prod <cw:C2/Ceta/Cnu/Csigma> [t_max] [ring]\n\n");
+    myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
 
-        fmt::print("Default values:\n");
-        fmt::print("  t_max = {}\n", t_max);
-        fmt::print("  ring = {}\n", ring);
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cw", cw))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "t_max", t_max))
-        return index;
-    if (myio::load_op_arg(argc, argv, ++index, "ring", ring))
-        return index;
-
-    compute_2cell_products_by_t(t_max, cw, ring);
+    compute_2cell_products_by_t(t_max, mod, ring);
     return 0;
 }
 
-int main_2cell_export(int argc, char** argv, int index);
+int main_2cell_export(int argc, char** argv, int& index, const char* desc);
 
-int main_2cell(int argc, char** argv, int index)
+int main_2cell(int argc, char** argv, int& index, const char* desc)
 {
-    std::string cmd;
-
-    if (argc > index + 1 && strcmp(argv[size_t(index + 1)], "-h") == 0) {
-        fmt::print("Usage:\n  Adams 2cell <cmd> [-h] ...\n\n");
-
-        fmt::print("<cmd> can be one of the following:\n");
-        fmt::print("  prod: Compute the multiplications\n");
-        fmt::print("  export: Export the Adams E2 page\n\n");
-
-        fmt::print("{}\n", VERSION);
-        return 0;
-    }
-    if (myio::load_arg(argc, argv, ++index, "cmd", cmd))
-        return index;
-
-    if (cmd == "prod")
-        return main_2cell_prod(argc, argv, index);
-    if (cmd == "export")
-        return main_2cell_export(argc, argv, index);
-    else
-        fmt::print("Invalid cmd: {}\n", cmd);
-
+    myio::SubCmdArg1d subcmds = {
+        {"prod", "Compute the multiplications", main_2cell_prod},
+        {"export", "Export the Adams E2 page.", main_2cell_export},
+    };
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))
+        return error;
     return 0;
 }

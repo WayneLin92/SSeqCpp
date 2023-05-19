@@ -7,7 +7,8 @@
 #include <set>
 #include <variant>
 
-inline const char* VERSION = "Version:\n  3.1 (2023-01-11)";
+inline const char* PROGRAM = "Adams";
+inline const char* VERSION = "Version:\n  1.0 (2023-05-19)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -214,6 +215,7 @@ struct MapRing2Mod
 struct Map
 {
     std::string name;
+    int t_max;
     std::variant<MapRing2Ring, MapMod2Mod, MapMod2Ring, MapMulRing, MapRing2Mod> map;
 };
 
@@ -574,10 +576,10 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log=false);
 
-int main_deduce(int argc, char** argv, int index);
-int main_deduce_ext(int argc, char** argv, int index);
-int main_deduce_ext_def(int argc, char** argv, int index);
-int main_deduce_ext_def2(int argc, char** argv, int index);
-int main_deduce_ext_2tor(int argc, char** argv, int index);
+int main_deduce(int, char**, int&, const char*);
+int main_deduce_ext(int, char**, int&, const char*);
+int main_deduce_ext_def(int, char**, int&, const char*);
+int main_deduce_ext_def2(int, char**, int&, const char*);
+int main_deduce_ext_2tor(int, char**, int&, const char*);
 
 #endif
