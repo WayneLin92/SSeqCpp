@@ -404,18 +404,19 @@ class DbAdamsRes : public myio::Database
 
 public:
     DbAdamsRes() = default;
-    explicit DbAdamsRes(const std::string& filename, int version = DB_RES_VERSION) : Database(filename)
+    explicit DbAdamsRes(const std::string& filename) : Database(filename)
     {
         if (newFile_)
-            SetVersion(version);
+            SetVersion();
     }
 
-    void SetVersion(int version)
+    void SetVersion()
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(0, std::string("version"), 1);
-        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+        stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
+        stmt.bind_and_step(1, std::string("change notes"), std::string("Add t_max in version table"));
+        stmt.bind_and_step(817812698, std::string("t_max"), -1);
     }
 
     int GetVersion()
@@ -468,7 +469,7 @@ public:
                     execute_cmd("UPDATE S0_Adams_res_generators SET id=-id");
                 }
 
-                SetVersion(1);
+                SetVersion();
                 end_transaction();
                 fmt::print("DbRes Converted to version=1\n{}", myio::COUT_FLUSH());
             }
@@ -664,6 +665,12 @@ public:
             save_relations_x2m(tablename, rels_x2m[s], (int)s, t);
         }
         save_time(tablename, t, time);
+
+        Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt_t_max.bind_and_step(t);
+        myio::Statement stmt_time(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt_time.step_and_reset();
+
         end_transaction();
     }
 };

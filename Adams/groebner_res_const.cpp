@@ -241,9 +241,20 @@ DataMResConst2d DbAdamsResLoader::load_data(const std::string& table_prefix, int
         x.x2.data = stmt.column_blob_tpl<MMod>(1);
 
         size_t s = (size_t)stmt.column_int(2);
-        if (data.size() <= s)
-            data.resize(s + 1);
-        data[s].push_back(std::move(x));
+        ut::get(data, s).push_back(std::move(x));
+    }
+    return data;
+}
+
+DataMResConst1d DbAdamsResLoader::load_data_s(const std::string& table_prefix, int s, int t_trunc) const
+{
+    DataMResConst1d data;
+    Statement stmt(*this, fmt::format("SELECT x1, x2 FROM {}_relations WHERE s={} AND t<={} ORDER BY id;", table_prefix, s, t_trunc));
+    while (stmt.step() == MYSQLITE_ROW) {
+        DataMResConst x;
+        x.x1.data = stmt.column_blob_tpl<MMod>(0);
+        x.x2.data = stmt.column_blob_tpl<MMod>(1);
+        data.push_back(std::move(x));
     }
     return data;
 }

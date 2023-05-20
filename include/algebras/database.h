@@ -134,9 +134,9 @@ private:
         bind_tpl(iCol + 1, args...);
     }
 
+public:
     void step_and_reset() const;
 
-public:
     template <typename... T>
     void bind_and_step(T&&... args) const
     {

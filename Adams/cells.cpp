@@ -175,23 +175,6 @@ void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus
             return;
         }
     }
-    else if (cw1 == "C2") {
-        if (cw2 == "C2h4") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-        else if (cw2 == "C2h5") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-        else if (cw2 == "C2h6") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-    }
     else if (cw2 == "S0") {
         if (cw1 == "C2") {
             images = {MMod(MMilnor::P(0, 1), 0)};
@@ -226,6 +209,23 @@ void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus
         else if (cw1 == "C2h6") {
             images = {MMod(MMilnor::P(6, 7), 0)};
             sus = 64;
+            return;
+        }
+    }
+    else if (cw1 == "C2") {
+        if (cw2 == "C2h4") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+        else if (cw2 == "C2h5") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
+            return;
+        }
+        else if (cw2 == "C2h6") {
+            images = {MMod(MMilnor(), 0)};
+            sus = 0;
             return;
         }
     }

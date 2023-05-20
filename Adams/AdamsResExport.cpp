@@ -108,7 +108,7 @@ class DbMapAdamsE2 : public myio::DbAdamsSS
 
 public:
     DbMapAdamsE2() = default;
-    explicit DbMapAdamsE2(const std::string& filename, int version = DB_RES_VERSION) : DbAdamsSS(filename)
+    explicit DbMapAdamsE2(const std::string& filename, int version = DB_ADAMS_VERSION) : DbAdamsSS(filename)
     {
         if (newFile_)
             SetVersion(version);
@@ -280,25 +280,31 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
     dbE2.end_transaction();
 }
 
-void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, int stem_trunc)
+void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
 
-    std::string db_cw = fmt::format("{}_Adams_res_prod.db", cw);
-    std::string table_cw = fmt::format("{}_Adams_res", cw);
+    std::string db_mod = fmt::format("{}_Adams_res_prod.db", mod);
+    std::string table_mod = fmt::format("{}_over_{}_Adams_res", mod, ring);
     const std::string db_ring = fmt::format("{}_AdamsSS.db", ring);
     const std::string table_ring = fmt::format("{}_AdamsE2", ring);
-    myio::AssertFileExists(db_cw);
+    myio::AssertFileExists(db_mod);
     myio::AssertFileExists(db_ring);
 
-    std::string db_out = fmt::format("{}_AdamsSS.db", cw);
-    std::string table_out = fmt::format("{}_AdamsE2", cw);
+    std::string db_out = fmt::format("{}_AdamsSS.db", mod);
+    std::string table_out = fmt::format("{}_AdamsE2", mod);
 
-    MyDB dbProd(db_cw);
+    MyDB dbProd(db_mod);
+    if (!dbProd.has_table(table_mod + "_generators")) {
+        constexpr std::array<std::string_view, 3> postfixes = {"generators", "products", "products_time"};
+        for (auto& postfix : postfixes)
+            dbProd.rename_table(fmt::format("{}_Adams_res_{}", mod, postfix), fmt::format("{}_over_{}_Adams_res_{}", mod, ring, postfix));
+        fmt::print("Renamming success!\n");
+    }
     AdamsDeg1d v_degs;
     int1d gen_reprs;
-    dbProd.load_indecomposables(table_cw + "_generators", gen_reprs, v_degs, t_trunc, stem_trunc);
-    auto map_h_dual = dbProd.load_products_h(table_cw, t_trunc, stem_trunc);
+    dbProd.load_indecomposables(table_mod + "_generators", gen_reprs, v_degs, t_trunc, stem_trunc);
+    auto map_h_dual = dbProd.load_products_h(table_mod, t_trunc, stem_trunc);
     std::map<std::pair<int, int>, int1d> map_h;
     for (auto& [p, arr] : map_h_dual) {
         int s_i = LocId(p.second).s - LocId(p.first).s;
@@ -383,7 +389,7 @@ void ExportModAdamsE2(std::string_view cw, std::string_view ring, int t_trunc, i
     for (auto it = basis.begin(); it != basis.end(); ++it) {
         size_basis += it->second.size();
     }
-    int size_E2 = dbProd.get_int(fmt::format("SELECT count(*) FROM {}_generators WHERE t<={} AND t-s<={}", table_cw, t_trunc, stem_trunc));
+    int size_E2 = dbProd.get_int(fmt::format("SELECT count(*) FROM {}_generators WHERE t<={} AND t-s<={}", table_mod, t_trunc, stem_trunc));
     if (size_basis != size_t(size_E2)) {
         std::cout << "size_basis=" << size_basis << '\n';
         std::cout << "size_E2=" << size_E2 << '\n';
@@ -695,11 +701,6 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
-
-    std::string db_in = mod + "_Adams_res_prod.db";
-    std::string table_in = mod + "_Adams_res";
-    std::string db_out = mod + "_AdamsSS.db";
-    std::string table_out = mod + "_AdamsE2";
 
     ExportModAdamsE2(mod, ring, t_max, stem_max);
     return 0;
