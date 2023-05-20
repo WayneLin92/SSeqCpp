@@ -5,8 +5,8 @@
 #ifndef GROEBNER_STEENROD_CONST_H
 #define GROEBNER_STEENROD_CONST_H
 
-#include "algebras/steenrod.h"
 #include "algebras/database.h"
+#include "algebras/steenrod.h"
 #include <map>
 
 using namespace steenrod;
@@ -94,7 +94,7 @@ public:
     static AdamsResConst load(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
     static AdamsResConst load_gb_by_basis_degrees(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
     /* Add gb[s] and release gb[s-2] */
-    void rotate(const DbAdamsResLoader& db, const std::string& table, int s, int t_trunc);
+    void rotate(const DbAdamsResLoader& db, const std::string& table, int s, int t_trunc, AdamsDegV2& deg1, AdamsDegV2& deg2);
 
 public:
     const int1d& basis_degrees(size_t s) const

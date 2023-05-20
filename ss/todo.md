@@ -16,3 +16,4 @@
 # html
 * KaTeX
 * async load
+* multiplication by theta and g

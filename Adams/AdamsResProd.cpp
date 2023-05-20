@@ -255,36 +255,50 @@ AdamsResConst AdamsResConst::load_gb_by_basis_degrees(const DbAdamsResLoader& db
     return AdamsResConst(std::move(data), std::move(basis_degrees));
 }
 
-void AdamsResConst::rotate(const DbAdamsResLoader& db, const std::string& table, int s, int t_trunc)//// TODO: DEBUG
+void AdamsResConst::rotate(const DbAdamsResLoader& db, const std::string& table, int s, int t_trunc, AdamsDegV2& deg1, AdamsDegV2& deg2)  //// TODO: DEBUG
 {
+    if (deg2.s >= 0) {
+        gb_[deg2.s].clear();
+        leads_[deg2.s].clear();
+        indices_[deg2.s].clear();
+    }
+
+    ut::get(leads_, (size_t)s);
+    ut::get(indices_, (size_t)s);
+    ut::get(gb_, (size_t)s);
+    if (s >= 1 && !(deg1.s == s - 1 && deg1.t == t_trunc)) {
+        if (deg1.s >= 0) {
+            gb_[deg1.s].clear();
+            leads_[deg1.s].clear();
+            indices_[deg1.s].clear();
+        }
+
+        /* Load (s - 1, t_trunc) */
+        size_t sm1 = (size_t)(s - 1);
+        DataMResConst1d data_sm1 = db.load_data_s(table, s - 1, t_trunc);
+        leads_[sm1].clear();
+        indices_[sm1].clear();
+        ut::get(leads_, sm1).clear();
+        ut::get(indices_, sm1).clear();
+        for (int j = 0; j < (int)data_sm1.size(); ++j) {
+            leads_[sm1].push_back(data_sm1[j].x1.GetLead());
+            indices_[sm1][data_sm1[j].x1.GetLead().v_raw()].push_back(j);
+        }
+        gb_[sm1] = std::move(data_sm1);
+    }
+
+    /* Load (s, t_trunc) */
     DataMResConst1d data_s = db.load_data_s(table, s, t_trunc);
-    ut::get(leads_, (size_t)s).clear();
-    ut::get(indices_, (size_t)s).clear();
+    leads_[s].clear();
+    indices_[s].clear();
     for (int j = 0; j < (int)data_s.size(); ++j) {
         leads_[s].push_back(data_s[j].x1.GetLead());
         indices_[s][data_s[j].x1.GetLead().v_raw()].push_back(j);
     }
-    ut::get(gb_, (size_t)s) = std::move(data_s);
-    if (s >= 1) {
-        size_t sm1 = (size_t)(s - 1);
-        if (gb_[sm1].empty()) {
-            DataMResConst1d data_sm1 = db.load_data_s(table, s - 1, t_trunc);
-            leads_[sm1].clear();
-            indices_[sm1].clear();
-            for (int j = 0; j < (int)data_sm1.size(); ++j) {
-                leads_[sm1].push_back(data_sm1[j].x1.GetLead());
-                indices_[sm1][data_sm1[j].x1.GetLead().v_raw()].push_back(j);
-            }
-            gb_[sm1] = std::move(data_sm1);
-        }
-    }
+    gb_[s] = std::move(data_s);
 
-    if (s >= 2) {
-        size_t sm2 = (size_t)(s - 2);
-        gb_[sm2].clear();
-        leads_[sm2].clear();
-        indices_[sm2].clear();
-    }
+    deg1 = AdamsDegV2(s, t_trunc);
+    deg2 = AdamsDegV2(s - 1, t_trunc);
 }
 
 /*  F_s ----f----> F_{s-g}
@@ -484,7 +498,7 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
-        DbResVersionConvert(db_mod.c_str()); /*Version convertion */
+        DbResVersionConvert(db_mod.c_str());        /*Version convertion */
         DbAdamsResLoader dbRes(db_mod);
         dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
     }
@@ -641,8 +655,18 @@ void SetCohMap(const std::string& db_map, const std::string& table_map, const Mo
  *   V                V
  *  F_{s-1} --f--> F_{s-1}
  */
-void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, const std::string& db_cw2, const std::string& table_cw2, const std::string& db_map, const std::string& table_map, int t_trunc, int stem_trunc)
+void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc, int stem_trunc)
 {
+    std::string db_cw1 = cw1 + "_Adams_res.db";
+    std::string table_cw1 = cw1 + "_Adams_res";
+    std::string db_cw2 = cw2 + "_Adams_res.db";
+    std::string table_cw2 = cw2 + "_Adams_res";
+    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    myio::AssertFileExists(db_cw1);
+    myio::AssertFileExists(db_cw2);
+    myio::AssertFileExists(db_map);
+
     DbAdamsResMap dbMap(db_map);
     int sus = dbMap.get_int("select value from version where id=1585932889");
     dbMap.create_tables(table_map);
@@ -658,7 +682,7 @@ void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, co
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
-        DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
+        DbResVersionConvert(db_cw2.c_str());        /*Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
         dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc - sus, stem_trunc - sus);
     }
@@ -674,11 +698,12 @@ void compute_map_res(const std::string& db_cw1, const std::string& table_cw1, co
     timer.SuppressPrint();
 
     int t_old = -1;
-    int s_old = 0;
+    AdamsDegV2 deg1_old(-1, -1);
+    AdamsDegV2 deg2_old(-1, -1);
     for (const auto& [id, deg] : id_deg) {
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
-        gbCw1.rotate(dbResCw1, table_cw1, deg.s, deg.t + sus);
+        gbCw1.rotate(dbResCw1, table_cw1, deg.s, deg.t + sus, deg1_old, deg2_old);
 
         /* f_{s-1} is the map F_{s-1} -> F_{s-1} dual */
         Mod1d f_sm1 = dbMap.load_map(table_map, deg.s - 1);
@@ -832,17 +857,6 @@ int main_map_res(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    std::string db_cw1 = cw1 + "_Adams_res.db";
-    std::string table_cw1 = cw1 + "_Adams_res";
-    std::string db_cw2 = cw2 + "_Adams_res.db";
-    std::string table_cw2 = cw2 + "_Adams_res";
-    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
-
-    myio::AssertFileExists(db_cw1);
-    myio::AssertFileExists(db_cw2);
-    myio::AssertFileExists(db_map);
-    compute_map_res(db_cw1, table_cw1, db_cw2, table_cw2, db_map, table_map, t_max, stem_max);
-
+    compute_map_res(cw1, cw2, t_max, stem_max);
     return 0;
 }
