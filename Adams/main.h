@@ -2,6 +2,7 @@
 #define MAIN_H
 inline const char* PROGRAM = "Adams";
 inline const char* VERSION = "Version:\n  3.1 (2023-05-07)";
+inline const char* VERSION_NOTES = "Add t_max in version table. Change products table.";
 inline constexpr int DB_ADAMS_VERSION = 2;
 
 void DbResVersionConvert(const char* db_filename);
@@ -21,7 +22,6 @@ struct LocId
         return (s << LOC_V_BITS) | v;
     }
 };
-
 
 
 #endif

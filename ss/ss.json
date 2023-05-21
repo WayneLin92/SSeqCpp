@@ -308,6 +308,24 @@
       "commutativity": [{ "route1": [], "route2": [] }],
       "log": "deduction.log",
       "dir_html": "mix"
+    },
+    "tmp": {
+      "dir": "tmp",
+      "rings": [
+        { "name": "tmf", "path": "tmf_AdamsSS.db" },
+        { "name": "X2", "path": "X2_AdamsSS.db" }
+      ],
+      "modules": [
+        { "name": "tmf_C2", "path": "tmf_C2_AdamsSS.db", "over": "tmf" },
+        { "name": "X2_RP1_261", "path": "X2_RP1_261_AdamsSS.db", "over": "X2" }
+      ],
+      "maps": [
+      ],
+      "exact": [
+      ],
+      "commutativity": [{ "route1": [], "route2": [] }],
+      "log": "deduction.log",
+      "dir_html": "tmp"
     }
   },
   "dir_website_ss": "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d"

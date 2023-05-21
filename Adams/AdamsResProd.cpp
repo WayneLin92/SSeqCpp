@@ -35,7 +35,7 @@ public:
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string("Add t_max in version table. Change products table."));
         stmt.bind_and_step(817812698, std::string("t_max"), -1);
-        Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, timestamp, unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt2.step_and_reset();
     }
 

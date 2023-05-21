@@ -74,12 +74,13 @@ def get_complex_name(path):
         "RP1_10",
         "RP1_383",
         "RPinf",
-        "X2",
         "tmf_C2",
         "tmf_Ceta",
         "tmf_Cnu",
         "tmf",
         "j",
+        "X2_RP1_261",
+        "X2",
     ]
     for name in names:
         if path.startswith(name):
@@ -617,8 +618,9 @@ def export_bullets(data1d, radius1d, offsets_x):
 
 def export_basis_ss_prod(data):
     lines = [[], [], []]
-    # b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
-    b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
+    b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
+    # b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
+    # b2g = {}
     for id_gen, id1, prod in data["products"]:
         if id_gen not in b2g:
             continue

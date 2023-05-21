@@ -32,6 +32,7 @@ void Coh_tmf(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_ko(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
+void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
 
@@ -79,6 +80,12 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Coh_C2hn(v_degs, rels, 6, d_max);
     else if (ring == "j")
         Coh_j(v_degs, rels, d_max);
+    else if (ring == "tmf_C2")
+        Coh_tmf_Chn(v_degs, rels, 0, d_max);
+    else if (ring == "tmf_Ceta")
+        Coh_tmf_Chn(v_degs, rels, 1, d_max);
+    else if (ring == "tmf_Cnu")
+        Coh_tmf_Chn(v_degs, rels, 2, d_max);
     else {
         fmt::print("Unsupported arugment ring:{}\n", ring);
         return 0;
@@ -90,14 +97,16 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 
 void normalize_RP(int n1, int n2, int& n1_, int& n2_);
 void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max);
+void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int& index, const char* desc)
 {
     int n1 = 0, n2 = 0;
     int t_max = 100, stem_max = DEG_MAX;
+    std::string ring = "S0";
 
     myio::CmdArg1d args = {{"n1", &n1}, {"n2", &n2}, {"t_max", &t_max}};
-    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
+    myio::CmdArg1d op_args = {{"stem_max", &stem_max}, {"ring", &ring}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -113,12 +122,22 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
     normalize_RP(n1, n2, n1_, n2_);
     if (n1 != n1_)
         fmt::print("We use n1={} n2={} instead because of James periodicity", n1_, n2_);
-    std::string db_filename = fmt::format("RP{}_{}_Adams_res.db", n1_, n2_);
-    std::string tablename = fmt::format("RP{}_{}_Adams_res", n1_, n2_);
 
     int1d v_degs;
     Mod1d rels, convert_v;
-    Coh_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
+    if (ring == "S0")
+        Coh_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
+    else if (ring == "X2")
+        Coh_X2_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
+    else {
+        fmt::print("ring={} not supported\n", ring);
+        return 1;
+    }
+    std::string db_filename, tablename;
+    if (ring != "S0") {
+        db_filename = fmt::format("{}_RP{}_{}_Adams_res.db", ring, n1_, n2_);
+        tablename = fmt::format("{}_RP{}_{}_Adams_res", ring, n1_, n2_);
+    }
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }

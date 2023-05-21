@@ -1,6 +1,6 @@
 #include "groebner_res.h"
-#include <regex>
 #include <fmt/core.h>
+#include <regex>
 
 /****************************************************
  *                   S0
@@ -63,6 +63,21 @@ void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max)
 }
 
 /****************************************************
+ *                    tmf smash Ch
+ *              Cofiber of h_n, n=0,1,2
+ ***************************************************/
+void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max && i <= 2; ++i)
+        if (i != n)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n) <= t_max && i <= 2; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n, n + 1), 0));
+}
+
+/****************************************************
  *               C(2, h_n), n=4,5,6
  ***************************************************/
 void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
@@ -75,18 +90,6 @@ void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
     for (int j = 0; j <= n; j += n)
         for (int i = 0; (1 << i) + (1 << j) <= t_max; ++i)
             rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(j, j + 1), 0));
-}
-
-void Coh_C2h5(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0 && i != 5)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int n = 0; n <= 5; n += 5)
-        for (int i = 0; (1 << i) + (1 << n) <= t_max; ++i)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n, n + 1), 0));
 }
 
 /****************************************************
@@ -157,6 +160,48 @@ void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_
 
     v_degs = gb.v_degs();
     rels = gb.data();
+}
+
+void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max)
+{
+    int1d v_degs2;
+    for (int n = n1; n <= n2 && n <= t_max; ++n)
+        v_degs2.push_back(n);
+
+    Mod1d rels2;
+    Mod tmp;
+    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+        for (int n = n1; n <= n2 && n + k <= t_max; ++n) {
+            Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), n - n1);
+            if (k <= n && !(k & (n - k)) && n + k <= n2)
+                rel.iaddP(MMod(MMilnor(), n + k - n1), tmp);
+            rels2.push_back(std::move(rel));
+        }
+    }
+    Groebner gb2(t_max, {}, v_degs2);
+    gb2.AddRels(rels2, t_max);
+
+    Mod1d rels3;
+    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
+    for (int j = 3; j <= 5; ++j) {
+        for (int i = 0; (((1 << j) - 1) << i) <= t_max; ++i) {
+            size_t k = (((size_t)1 << j) - 1) << i;
+            for (int n = n1; n <= n2 && n + k <= t_max; ++n) {
+                Mod rel = MMilnor::P(i, i + j) * MMod(MMilnor(), n - n1);
+                if (n + k <= n2 && !gb2.Reduce(rel + MMod(MMilnor(), n + k - n1)))
+                    rel.iaddP(MMod(MMilnor(), n + k - n1), tmp);
+                rels3.push_back(std::move(rel));
+            }
+        }
+    }
+    Groebner gb3(t_max, {}, v_degs2);
+    gb3.AddRels(rels3, t_max);
+    gb3.MinimizeOrderedGens(convert_v);
+
+    v_degs = gb3.v_degs();
+    rels = gb3.data();
 }
 
 /****************************************************
@@ -241,7 +286,7 @@ void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus
                 n1_ = 0;
                 n2_ = 1;
             }
-            else 
+            else
                 cw1 = fmt::format("RP{}_{}", n1_, n2_);
             fmt::print("We use {} instead of {} because of James periodicity\n", cw1, cw1_old);
         }
@@ -302,6 +347,6 @@ void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus
             }
         }
     }
-    
+
     throw MyException(0x8636b4b2, "map not supported.");
 }

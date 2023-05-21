@@ -12,7 +12,25 @@ class MyDB : public myio::DbAdamsSS
 
 public:
     MyDB() = default;
-    explicit MyDB(const std::string& filename) : DbAdamsSS(filename) {}
+    explicit MyDB(const std::string& filename) : DbAdamsSS(filename)
+    {
+        // if (newFile_)
+        SetVersion();
+    }
+
+    void SetVersion()
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
+        stmt.bind_and_step(1, std::string("change notes"), std::string(VERSION_NOTES));
+    }
+
+    void save_t_max(int t_max)
+    {
+        myio::Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt_t_max.bind_and_step(t_max);
+    }
 
 public:
     void create_generators_cell(const std::string& table_prefix) const
@@ -108,18 +126,24 @@ class DbMapAdamsE2 : public myio::DbAdamsSS
 
 public:
     DbMapAdamsE2() = default;
-    explicit DbMapAdamsE2(const std::string& filename, int version = DB_ADAMS_VERSION) : DbAdamsSS(filename)
+    explicit DbMapAdamsE2(const std::string& filename) : DbAdamsSS(filename)
     {
         if (newFile_)
-            SetVersion(version);
+            SetVersion();
     }
 
-    void SetVersion(int version)
+    void SetVersion()
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(0, std::string("version"), 1);
-        stmt.bind_and_step(1, std::string("change notes"), std::string("Change resolution id=(s<<19)+v"));
+        stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
+        stmt.bind_and_step(1, std::string("change notes"), std::string(VERSION_NOTES));
+    }
+
+    void save_t_max(int t_max)
+    {
+        myio::Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt_t_max.bind_and_step(t_max);
     }
 
 public:
@@ -276,6 +300,7 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
     dbE2.save_generators(table_out, gen_degs, gen_reprs);
     dbE2.save_gb(table_out, gb);
     dbE2.save_basis(table_out, basis, repr);
+    dbE2.save_t_max(t_trunc);
 
     dbE2.end_transaction();
 }
@@ -407,6 +432,7 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.save_generators(table_out, v_degs, gen_reprs);
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
+    dbE2.save_t_max(t_trunc);
 
     dbE2.end_transaction();
 }
@@ -515,6 +541,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0x5e876a59, std::string("suspension"), sus);
     }
+    dbMapAdamsE2.save_t_max(t_trunc);
     dbMapAdamsE2.end_transaction();
 }
 

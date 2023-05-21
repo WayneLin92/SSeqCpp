@@ -23,5 +23,7 @@ $$Sq^{a}(\xi_1^b\xi_2^c)^*=\sum_{m+3n=a+b+3c}\binom{m}{a -2n+2c}\binom{n}{c}(\xi
 ## James periodicity
 $P_k^{k+m}$ periodic in $k$ of period $\phi(m)$, where $\phi(m)$ is the number of integers $s$ such that $s\equiv 0,1,2,4\mod 8$ and $1\le s\le m$.
 
+$P_k^{k+m}$ is the Thom space of $k\lambda_m$ over $RP^m$.
+
 ## Massey products
 $g=\langle h_0h_3^2,h_0,h_1,h_2\rangle$
