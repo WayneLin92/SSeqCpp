@@ -490,7 +490,8 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
 
     std::map<int, int1d> map_h;
     load_map(dbResMap, table_map, map_h);
-    int sus = dbResMap.get_int(fmt::format("select value from version where id=1585932889")); /* cw1->Sigma^sus cw2 */
+    int fil = dbResMap.get_int("select value from version where id=651971502");
+    int sus = dbResMap.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
 
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
@@ -504,7 +505,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
             if (ut::has(out_of_region, (int)i))
                 images.push_back(Poly::Gen(-1));
             else {
-                AdamsDeg d = gen_degs[i] - AdamsDeg(0, sus);
+                AdamsDeg d = gen_degs[i] - AdamsDeg(fil, sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;
@@ -526,7 +527,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
             if (ut::has(out_of_region, (int)i))
                 images.push_back(MMod(Mon(), -1));
             else {
-                AdamsDeg d = gen_degs[i] - AdamsDeg(0, sus);
+                AdamsDeg d = gen_degs[i] - AdamsDeg(fil, sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;
@@ -542,7 +543,10 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     }
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(651971502, std::string("filtration"), fil);
         stmt.bind_and_step(1585932889, std::string("suspension"), sus);
+        stmt.bind_and_step(446174262, std::string("from"), from);
+        stmt.bind_and_step(1713085477, std::string("to"), to);
     }
     dbMapAdamsE2.save_t_max(t_trunc);
     dbMapAdamsE2.end_transaction();

@@ -11,6 +11,7 @@
 
 # SS
 * Deduce by knowledge
+* Deduce only on a spectrum
 * Cache contradictions
 * Smart deduce
 * Simplify pi generators and relations

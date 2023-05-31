@@ -640,8 +640,8 @@ void SetDbCohMap(const std::string& db_map, const std::string& table_map, const 
     }
     {
         myio::Statement stmt(dbMap, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(1585932889, std::string("suspension"), sus); /* db_key: suspension */
         stmt.bind_and_step(651971502, std::string("filtration"), fil);  /* db_key: filtration */
+        stmt.bind_and_step(1585932889, std::string("suspension"), sus); /* db_key: suspension */
         stmt.bind_and_step(446174262, std::string("from"), from);       /* db_key: from */
         stmt.bind_and_step(1713085477, std::string("to"), to);          /* db_key: to */
     }
