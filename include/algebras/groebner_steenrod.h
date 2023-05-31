@@ -162,11 +162,15 @@ public:
     Mod Reduce(const CriMilnor& cp) const;
     Mod Reduce(Mod x) const;
 
+    void AddRels(const Mod1d& rels, int deg_max, int1d& min_rels);
     void AddRels(const Mod1d& rels, int deg_max);
-    /* Assume that the v_degs is in increasing order and gb is reduced
-     * convert_v[i] is the new presentation of the old v_i
+
+    /* Assume that the v_degs is in increasing order.
+     * Simplify generators and relations.
+     * output: cell_reduced[i] is the new presentation of the old v_i.
+     * min_rels: set of indices of indecomposable relations
      */
-    void MinimizeOrderedGens(Mod1d& convert_v);
+    void MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels);
 };
 
 }  // namespace steenrod

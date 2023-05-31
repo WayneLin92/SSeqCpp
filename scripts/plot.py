@@ -81,6 +81,7 @@ def get_complex_name(path):
         "j",
         "X2_RP1_261",
         "X2",
+        "Fphi",
     ]
     for name in names:
         if path.startswith(name):

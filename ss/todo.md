@@ -1,9 +1,13 @@
 # All
 
 # Adams
+* Connecting map
+* RP negative cell
 * Smash products
 * Add CP
+* Monitor computation status
 * Auto adjust t_max in command-line
+* Brown-Gitler
 
 # SS
 * Deduce by knowledge

@@ -18,15 +18,6 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }
 
-Mod1d GetS0Rels(int t_trunc)
-{
-    using namespace steenrod;
-    Mod1d rels;
-    for (int i = 0; (1 << i) <= t_trunc; ++i)
-        rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    return rels;
-}
-
 void Coh_S0(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_tmf(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_ko(int1d& v_degs, Mod1d& rels, int t_max);
@@ -35,6 +26,7 @@ void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
@@ -86,6 +78,11 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Coh_tmf_Chn(v_degs, rels, 1, d_max);
     else if (ring == "tmf_Cnu")
         Coh_tmf_Chn(v_degs, rels, 2, d_max);
+    else if (ring == "Fphi") {
+        Mod1d tmp;
+        int1d tmp_int1d;
+        Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
+    }
     else {
         fmt::print("Unsupported arugment ring:{}\n", ring);
         return 0;
@@ -96,8 +93,8 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 }
 
 void normalize_RP(int n1, int n2, int& n1_, int& n2_);
-void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max);
-void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max);
+void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
+void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int& index, const char* desc)
 {
@@ -124,11 +121,12 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
         fmt::print("We use n1={} n2={} instead because of James periodicity", n1_, n2_);
 
     int1d v_degs;
-    Mod1d rels, convert_v;
+    Mod1d rels, tmp_Mod1d;
+    int1d tmp_ind1d;
     if (ring == "S0")
-        Coh_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
+        Coh_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);
     else if (ring == "X2")
-        Coh_X2_RP(v_degs, rels, convert_v, n1_, n2_, t_max);
+        Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);
     else {
         fmt::print("ring={} not supported\n", ring);
         return 1;
@@ -138,12 +136,16 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
         db_filename = fmt::format("{}_RP{}_{}_Adams_res.db", ring, n1_, n2_);
         tablename = fmt::format("{}_RP{}_{}_Adams_res", ring, n1_, n2_);
     }
+    else {
+        db_filename = fmt::format("RP{}_{}_Adams_res.db", n1_, n2_);
+        tablename = fmt::format("RP{}_{}_Adams_res", n1_, n2_);
+    }
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }
 
-void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus);
-void SetCohMap(const std::string& db_map, const std::string& table_map, const Mod1d& images, int sus);
+void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil);
+void SetDbCohMap(const std::string& db_map, const std::string& table_map, const std::string& from, const std::string& to, const Mod1d& images, int sus, int fil);
 
 int main_map_coh(int argc, char** argv, int& index, const char* desc)
 {
@@ -155,11 +157,12 @@ int main_map_coh(int argc, char** argv, int& index, const char* desc)
         return error;
 
     Mod1d images;
-    int sus = 0;
-    SetCohMapImages(cw1, cw2, images, sus);
+    int sus = 0, fil = 0;
+    std::string from, to;
+    SetCohMap(cw1, cw2, from, to, images, sus, fil);
     std::string db_filename = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
     std::string tablename = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
-    SetCohMap(db_filename, tablename, images, sus);
+    SetDbCohMap(db_filename, tablename, from, to, images, sus, fil);
 
     return 0;
 }

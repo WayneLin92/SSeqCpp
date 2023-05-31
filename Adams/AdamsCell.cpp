@@ -215,9 +215,6 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
         for (size_t i = 0; i < diffs_d_size; ++i)
             diffs_d_cell1.push_back(Comult(diffs_d[i], t_cell));
 
-        if (deg == AdamsDegV2(3, 6))
-            std::cout << '\n';
-
         /* Save the hi (co)products */
         int2d prod_hi;
         std::map<int, int1d> prod_hi_dual;

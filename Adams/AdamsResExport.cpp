@@ -23,7 +23,7 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
-        stmt.bind_and_step(1, std::string("change notes"), std::string(VERSION_NOTES));
+        stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
     }
 
     void save_t_max(int t_max)
@@ -137,7 +137,7 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
-        stmt.bind_and_step(1, std::string("change notes"), std::string(VERSION_NOTES));
+        stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
     }
 
     void save_t_max(int t_max)
@@ -460,16 +460,20 @@ const std::vector<std::string_view> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
 void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
-
-    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
-    const std::string table_cw1 = fmt::format("{}_AdamsE2", cw1);
-    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", cw2);
-    const std::string table_cw2 = fmt::format("{}_AdamsE2", cw2);
     std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    myio::AssertFileExists(db_map);
+    myio::Database dbResMap(db_map);
+
+    auto from = dbResMap.get_str("select value from version where id=446174262");
+    auto to = dbResMap.get_str("select value from version where id=1713085477");
+
+    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", from);
+    const std::string table_cw1 = fmt::format("{}_AdamsE2", from);
+    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", to);
+    const std::string table_cw2 = fmt::format("{}_AdamsE2", to);
     myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
-    myio::AssertFileExists(db_map);
 
     std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
     std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
@@ -484,10 +488,9 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
 
     MyDB dbCw2(db_cw2);
 
-    myio::Database dbResMap(db_map);
     std::map<int, int1d> map_h;
     load_map(dbResMap, table_map, map_h);
-    int sus = dbResMap.get_int(fmt::format("select value from version where id=0x5e876a59")); /* cw1->Sigma^sus cw2 */
+    int sus = dbResMap.get_int(fmt::format("select value from version where id=1585932889")); /* cw1->Sigma^sus cw2 */
 
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
@@ -539,7 +542,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     }
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(0x5e876a59, std::string("suspension"), sus);
+        stmt.bind_and_step(1585932889, std::string("suspension"), sus);
     }
     dbMapAdamsE2.save_t_max(t_trunc);
     dbMapAdamsE2.end_transaction();

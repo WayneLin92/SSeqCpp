@@ -33,7 +33,7 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
-        stmt.bind_and_step(1, std::string("change notes"), std::string("Add t_max in version table. Change products table."));
+        stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
         stmt.bind_and_step(817812698, std::string("t_max"), -1);
         Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt2.step_and_reset();
@@ -185,7 +185,7 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
-        stmt.bind_and_step(1, std::string("change notes"), std::string("Add t_max in version table"));
+        stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
         stmt.bind_and_step(817812698, std::string("t_max"), -1);
     }
 
@@ -498,7 +498,7 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
-        DbResVersionConvert(db_mod.c_str());        /*Version convertion */
+        DbResVersionConvert(db_mod.c_str()); /*Version convertion */
         DbAdamsResLoader dbRes(db_mod);
         dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
     }
@@ -628,7 +628,7 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
     stmt_time.step_and_reset();
 }
 
-void SetCohMap(const std::string& db_map, const std::string& table_map, const Mod1d& images, int sus)
+void SetDbCohMap(const std::string& db_map, const std::string& table_map, const std::string& from, const std::string& to, const Mod1d& images, int sus, int fil)
 {
     DbAdamsResMap dbMap(db_map);
     dbMap.create_tables(table_map);
@@ -636,38 +636,49 @@ void SetCohMap(const std::string& db_map, const std::string& table_map, const Mo
     {
         myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
         for (size_t i = 0; i < images.size(); ++i)
-            stmt_map.bind_and_step((int)i, images[i].data, myio::Serialize(HomToK(images[i])));
+            stmt_map.bind_and_step((int)i + (fil << LOC_V_BITS), images[i].data, myio::Serialize(HomToK(images[i])));
     }
     {
         myio::Statement stmt(dbMap, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(0x5e876a59, std::string("suspension"), sus);
+        stmt.bind_and_step(1585932889, std::string("suspension"), sus); /* db_key: suspension */
+        stmt.bind_and_step(651971502, std::string("filtration"), fil);  /* db_key: filtration */
+        stmt.bind_and_step(446174262, std::string("from"), from);       /* db_key: from */
+        stmt.bind_and_step(1713085477, std::string("to"), to);          /* db_key: to */
     }
     dbMap.end_transaction();
 }
 
 /* cw1 --> cw2
- * H^*(cw2) --> H^*(cw1)
+ * Ext^fil(cw2) --> H^*(cw1)
  *
- *  F_s -----f-----> F_s
+ *  F_s -----f-----> F_{s-fil}
  *   |                |
  *   d                d
  *   |                |
  *   V                V
- *  F_{s-1} --f--> F_{s-1}
+ *  F_{s-1} --f--> F_{s-1-fil}
  */
 void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc, int stem_trunc)
 {
-    std::string db_cw1 = cw1 + "_Adams_res.db";
-    std::string table_cw1 = cw1 + "_Adams_res";
-    std::string db_cw2 = cw2 + "_Adams_res.db";
-    std::string table_cw2 = cw2 + "_Adams_res";
     std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    myio::AssertFileExists(db_map);
+    DbAdamsResMap dbMap(db_map);
+    if (dbMap.GetVersion() < 3) {
+        fmt::print("Map version should be >= 3");
+        throw MyException(0x7102b177U, "Map version should be >= 3");
+    }
+    auto from = dbMap.get_str("select value from version where id=446174262");
+    auto to = dbMap.get_str("select value from version where id=1713085477");
+
+    std::string db_cw1 = from + "_Adams_res.db";
+    std::string table_cw1 = from + "_Adams_res";
+    std::string db_cw2 = to + "_Adams_res.db";
+    std::string table_cw2 = to + "_Adams_res";
     myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
-    myio::AssertFileExists(db_map);
 
-    DbAdamsResMap dbMap(db_map);
+    auto fil = dbMap.get_int("select value from version where id=651971502");
     int sus = dbMap.get_int("select value from version where id=1585932889");
     dbMap.create_tables(table_map);
     myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
@@ -682,7 +693,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
     {
-        DbResVersionConvert(db_cw2.c_str());        /*Version convertion */
+        DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
         dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc - sus, stem_trunc - sus);
     }
@@ -701,11 +712,13 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     AdamsDegV2 deg1_old(-1, -1);
     AdamsDegV2 deg2_old(-1, -1);
     for (const auto& [id, deg] : id_deg) {
+        if (deg.s < fil)
+            continue;
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
-        gbCw1.rotate(dbResCw1, table_cw1, deg.s, deg.t + sus, deg1_old, deg2_old);
+        gbCw1.rotate(dbResCw1, table_cw1, deg.s - fil, deg.t + sus, deg1_old, deg2_old);
 
-        /* f_{s-1} is the map F_{s-1} -> F_{s-1} dual */
+        /* f_{s-1} is the map F_{s-1} -> F_{s-1-fil} dual */
         Mod1d f_sm1 = dbMap.load_map(table_map, deg.s - 1);
         size_t vid_num_sm1 = deg.s > 0 ? (size_t)vid_num[size_t(deg.s - 1)][deg.stem()] : 0;
         f_sm1.resize(vid_num_sm1);
@@ -718,7 +731,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         /*# compute f */
         Mod1d f;
         f.resize(diffs_d_size);
-        gbCw1.DiffInvBatch(fd, f, size_t(deg.s - 1));
+        gbCw1.DiffInvBatch(fd, f, size_t(deg.s - 1 - fil));
 
         /*# compute fh */
         int2d fh;

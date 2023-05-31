@@ -1,9 +1,12 @@
 #ifndef MAIN_H
 #define MAIN_H
+#include <string>
+
 inline const char* PROGRAM = "Adams";
-inline const char* VERSION = "Version:\n  3.1 (2023-05-07)";
-inline const char* VERSION_NOTES = "Add t_max in version table. Change products table.";
-inline constexpr int DB_ADAMS_VERSION = 2;
+inline const char* VERSION = "Version:\n  3.1.1 (2023-05-29)";
+inline constexpr int DB_ADAMS_VERSION = 3;
+inline constexpr std::string_view DB_VERSION_NOTES_2 = "Add t_max in version table. Change products table.";
+inline constexpr std::string_view DB_VERSION_NOTES = "Add fil,from,to in version table of maps.";
 
 void DbResVersionConvert(const char* db_filename);
 

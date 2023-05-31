@@ -115,6 +115,8 @@ void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   RPn
  ***************************************************/
+constexpr inline int N_MAX_RP = 261;
+
 int Period_RP(int n)
 {
     MyException::Assert(n >= 0, "n >= 0 in phi(n)");
@@ -135,7 +137,7 @@ void normalize_RP(int n1, int n2, int& n1_, int& n2_)
     n2_ = n2 - (n1 - n1_);
 }
 
-void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max)
+void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max)
 {
     int1d v_degs2;
     for (int n = n1; n <= n2 && n <= t_max; ++n)
@@ -143,7 +145,7 @@ void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_
 
     Mod1d rels2;
     Mod tmp;
-    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
+    /* Sq^k * x^n = (k, n - k) x^{n + k} */
     for (size_t i = 0; (1 << i) <= t_max; ++i) {
         size_t k = (size_t)1 << i;
         for (int n = n1; n <= n2 && n + k <= t_max; ++n) {
@@ -155,14 +157,17 @@ void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_
     }
 
     Groebner gb(t_max, {}, v_degs2);
-    gb.AddRels(rels2, t_max);
-    gb.MinimizeOrderedGens(convert_v);
+    min_rels.clear();
+    gb.AddRels(rels2, t_max, min_rels);
+    gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
 
     v_degs = gb.v_degs();
-    rels = gb.data();
+    rels.clear();
+    for (int i : min_rels)
+        rels.push_back(gb.data()[i]);
 }
 
-void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int t_max)
+void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max)
 {
     int1d v_degs2;
     for (int n = n1; n <= n2 && n <= t_max; ++n)
@@ -170,7 +175,7 @@ void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int
 
     Mod1d rels2;
     Mod tmp;
-    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
+    /* Sq^k * x^n = (k, n - k) x^{n + k} */
     for (size_t i = 0; (1 << i) <= t_max; ++i) {
         size_t k = (size_t)1 << i;
         for (int n = n1; n <= n2 && n + k <= t_max; ++n) {
@@ -184,7 +189,6 @@ void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int
     gb2.AddRels(rels2, t_max);
 
     Mod1d rels3;
-    /* Sq^{k} * x^n = (k, n - k) x^{n + k} */
     for (int j = 3; j <= 5; ++j) {
         for (int i = 0; (((1 << j) - 1) << i) <= t_max; ++i) {
             size_t k = (((size_t)1 << j) - 1) << i;
@@ -197,156 +201,243 @@ void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& convert_v, int n1, int n2, int
         }
     }
     Groebner gb3(t_max, {}, v_degs2);
-    gb3.AddRels(rels3, t_max);
-    gb3.MinimizeOrderedGens(convert_v);
+    min_rels.clear();
+    gb3.AddRels(rels3, t_max, min_rels);
+    gb3.MinimizeOrderedGensRels(cell_reduced, min_rels);
 
     v_degs = gb3.v_degs();
-    rels = gb3.data();
+    rels.clear();
+    for (int i : min_rels)
+        rels.push_back(gb3.data()[i]);
+}
+
+void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max)
+{
+    int1d v_degs2 = {0};
+    for (int n = 1; n <= N_MAX_RP && n <= t_max; ++n)
+        v_degs2.push_back(n + 1);
+
+    Mod1d rels2;
+    Mod tmp;
+    /* Sq^k * x^n = (k, n - k) x^{n + k} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+        for (int n = 1; n <= N_MAX_RP && n + k <= t_max; ++n) {
+            Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), n);
+            if (k <= n && !(k & (n - k)) && n + k <= N_MAX_RP)
+                rel.iaddP(MMod(MMilnor(), n + k), tmp);
+            rels2.push_back(std::move(rel));
+        }
+    }
+    /* Sq^k * x^{-1} = (k, 1) x^{k-1} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+
+        Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), 0);
+        if (k > 1)
+            rel.iaddP(MMod(MMilnor(), k - 1), tmp);
+        rels2.push_back(std::move(rel));
+    }
+
+    Groebner gb(t_max, {}, v_degs2);
+    min_rels.clear();
+    gb.AddRels(rels2, t_max, min_rels);
+    gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+
+    v_degs = gb.v_degs();
+    rels.clear();
+    for (int i : min_rels)
+        rels.push_back(gb.data()[i]);
 }
 
 /****************************************************
                      # Maps
  ***************************************************/
-void SetCohMapImages(std::string& cw1, std::string& cw2, Mod1d& images, int& sus)
+bool IsRP(const std::string& cw)
 {
-    std::regex words_regex("^RP(\\d+)_(\\d+)$"); /* match example: RP1_4 */
+    std::regex words_regex("^RPm{0,1}\\d+_\\d+$"); /* match example: RP1_4, RPm10_4 */
     std::smatch match_RP;
-    std::regex_search(cw1, match_RP, words_regex);
-    std::ssub_match sub1 = match_RP[1], sub2 = match_RP[2];
+    std::regex_search(cw, match_RP, words_regex);
+    return match_RP[0].matched;
+}
+
+void GetRPNums(const std::string& cw, int& n1, int& n2)
+{
+    std::regex words_regex("^RP(m{0,1})(\\d+)_(\\d+)$"); /* match example: RP1_4, RPm10_4 */
+    std::smatch match_RP;
+    std::regex_search(cw, match_RP, words_regex);
+
+    n1 = std::stoi(match_RP[2].str());
+    n2 = std::stoi(match_RP[3].str());
+    if (!match_RP[1].str().empty())
+        n1 = -n1;
+}
+
+void SetCohMapRP2RP(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
+{
+    int n1, n2, m1, m2;
+    GetRPNums(cw1, n1, n2);
+    GetRPNums(cw2, m1, m2);
+    MyException::Assert(n1 <= n2 && m1 <= m2, "n1 < n2 && m1 < m2");
+
+    /*# Normalize cw1 */
+
+    int n1_ = 0, n2_ = 0;
+    normalize_RP(n1, n2, n1_, n2_);
+    if (n1 != n1_) {
+        if (n2 - n1 == 1) {
+            from = "C2";
+            n1_ = 0;
+            n2_ = 1;
+        }
+        else if (n2 - n1 == 0) {
+            from = "S0";
+            n1_ = 0;
+            n2_ = 0;
+        }
+        else
+            from = fmt::format("RP{}_{}", n1_, n2_);
+        fmt::print("We use {} instead of {} because of James periodicity\n", from, cw1);
+    }
+
+    /*# Normalize cw2 */
+
+    int m1_ = 0, m2_ = 0;
+    normalize_RP(m1, m2, m1_, m2_);
+    if (m1 != m1_) {
+        std::string cw2_old = cw2;
+        if (m2 - m1 == 1) {
+            to = "C2";
+            m1_ = 0;
+            m2_ = 1;
+        }
+        else if (m2 - m1 == 0) {
+            to = "S0";
+            m1_ = 0;
+            m2_ = 0;
+        }
+        else
+            to = fmt::format("RP{}_{}", m1_, m2_);
+        fmt::print("We use {} instead of {} because of James periodicity\n", to, cw2);
+    }
+
+    /*# Compute map */
+
+    if (n1 == m1) { /*## subcomplex */
+        MyException::Assert(n2 < m2, "n2 < m2");
+
+        int1d v_degs_n, tmp_ind1d;
+        Mod1d tmp, tmp1;
+        Coh_RP(v_degs_n, tmp, tmp1, tmp_ind1d, n1, n2, n2);
+        int1d v_degs_m;
+        Coh_RP(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, m2);
+
+        images.clear();
+        for (size_t i = 0; i < v_degs_n.size(); ++i)
+            images.push_back(MMod(MMilnor(), i));
+        for (size_t i = v_degs_n.size(); i < v_degs_m.size(); ++i)
+            images.push_back({});
+        sus = n1_ - m1_;
+        return;
+    }
+    else if (n2 == m2) { /*## quotient complex */
+        MyException::Assert(n1 < m1, "n1 < m1");
+
+        int1d v_degs_n, tmp_ind1d;
+        Mod1d cell_reduced_n, tmp, tmp1;
+        Coh_RP(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, n2);
+        int1d v_degs_m;
+        Coh_RP(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, m2);
+
+        images.clear();
+        for (size_t i = 0; i < v_degs_m.size(); ++i)
+            images.push_back(cell_reduced_n[size_t(v_degs_m[i] - n1)]);
+        sus = n2_ - m2_;
+        return;
+    }
+    else if (n1 == m2 + 1) { /*## connecting map */
+        int1d v_degs_n, tmp_ind1d;
+        Mod1d cell_reduced_n, tmp, tmp1;
+        Coh_RP(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, n2);
+        int1d v_degs_m;
+        Mod1d rels_m;
+        Coh_RP(v_degs_m, rels_m, tmp1, tmp_ind1d, m1, m2, n2);
+        int1d v_degs_l;
+        Mod1d rels_l;
+        Coh_RP(v_degs_l, rels_l, tmp1, tmp_ind1d, m1, n2, n2);
+        Groebner gb(n2, rels_l, v_degs_l);
+
+        images.clear();
+        for (size_t i = 0; i < rels_m.size(); ++i) {
+            if (gb.Reduce(rels_m[i])) {
+                int cell = rels_m[i].GetLead().deg_m() + v_degs_m[rels_m[i].GetLead().v()];
+                images.push_back(cell_reduced_n[size_t(cell - n1)]);
+            }
+            else {
+                images.push_back({});
+            }
+        }
+        sus = n1_ - m2_;
+        fil = 1;
+        return;
+    }
+    else {
+        fmt::print("The map between RP is not supported\n");
+        throw MyException(0x31dd0ad6, "The map between RP is not supported");
+    }
+}
+
+void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
+{
+    sus = 0;
+    fil = 0;
     if (cw1 == "S0") {
+        from = "S0";
         if (cw2 == "tmf" || cw2 == "ko" || cw2 == "X2") {
+            to = cw2;
             images = {MMod(MMilnor(), 0)};
-            sus = 0;
             return;
         }
     }
-    else if (cw2 == "S0") {
-        if (cw1 == "C2") {
-            images = {MMod(MMilnor::P(0, 1), 0)};
-            sus = 1;
-            return;
-        }
-        else if (cw1 == "Ceta") {
-            images = {MMod(MMilnor::P(1, 2), 0)};
-            sus = 2;
-            return;
-        }
-        else if (cw1 == "Cnu") {
-            images = {MMod(MMilnor::P(2, 3), 0)};
-            sus = 4;
-            return;
-        }
-        else if (cw1 == "Csigma") {
-            images = {MMod(MMilnor::P(3, 4), 0)};
-            sus = 8;
-            return;
-        }
-        else if (cw1 == "C2h4") {
-            images = {MMod(MMilnor::P(4, 5), 0)};
-            sus = 16;
-            return;
-        }
-        else if (cw1 == "C2h5") {
-            images = {MMod(MMilnor::P(5, 6), 0)};
-            sus = 32;
-            return;
-        }
-        else if (cw1 == "C2h6") {
-            images = {MMod(MMilnor::P(6, 7), 0)};
-            sus = 64;
-            return;
-        }
-    }
-    else if (cw1 == "C2") {
-        if (cw2 == "C2h4") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-        else if (cw2 == "C2h5") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-        else if (cw2 == "C2h6") {
-            images = {MMod(MMilnor(), 0)};
-            sus = 0;
-            return;
-        }
-    }
-    else if (match_RP[0].matched) {
-        int n1 = std::stoi(match_RP[1].str()), n2 = std::stoi(match_RP[2].str());
-        MyException::Assert(n1 % 2 == 1 && n1 >= 1 && n1 < n2, "We need n1 % 2 == 1 && n1 >= 1 && n1 < n2");
-        int n1_ = -1, n2_ = -1;
-        normalize_RP(n1, n2, n1_, n2_);
-        if (n1 != n1_) {
-            std::string cw1_old = cw1;
-            if (n2 - n1 == 1) {
-                cw1 = "C2";
-                n1_ = 0;
-                n2_ = 1;
+    if (cw2 == "S0") {
+        to = "S0";
+        {
+            from = cw1;
+            constexpr std::array<std::string_view, 7> Cs = {"C2", "Ceta", "Cnu", "Csigma", "C2h4", "C2h5", "C2h6"};
+            int i = 0;
+            while (i < (int)Cs.size()) {
+                if (cw1 == Cs[i])
+                    break;
+                ++i;
             }
-            else
-                cw1 = fmt::format("RP{}_{}", n1_, n2_);
-            fmt::print("We use {} instead of {} because of James periodicity\n", cw1, cw1_old);
-        }
-
-        std::regex_search(cw2, match_RP, words_regex);
-        if (match_RP[0].matched) {
-            int m1 = std::stoi(match_RP[1].str()), m2 = std::stoi(match_RP[2].str());
-            MyException::Assert(n1 == m1 || n2 == m2, "n1 == m1 || n2 == m2");
-            int m1_ = -1, m2_ = -1;
-            normalize_RP(m1, m2, m1_, m2_);
-            if (m1 != m1_) {
-                std::string cw2_old = cw2;
-                if (m2 - m1 == 1) {
-                    cw2 = "C2";
-                    m1_ = 0;
-                    m2_ = 1;
-                }
-                else if (m2 - m1 == 0) {
-                    cw2 = "S0";
-                    m1_ = 0;
-                    m2_ = 0;
-                }
-                else
-                    cw2 = fmt::format("RP{}_{}", m1_, m2_);
-                fmt::print("We use {} instead of {} because of James periodicity\n", cw2, cw2_old);
-            }
-            if (n1 == m1) {
-                MyException::Assert(n2 < m2, "n2 < m2");
-
-                int1d v_degs_n;
-                Mod1d tmp, tmp1;
-                Coh_RP(v_degs_n, tmp, tmp1, n1, n2, n2);
-                int1d v_degs_m;
-                Coh_RP(v_degs_m, tmp, tmp1, m1, m2, m2);
-                images.clear();
-
-                for (size_t i = 0; i < v_degs_n.size(); ++i)
-                    images.push_back(MMod(MMilnor(), i));
-                for (size_t i = v_degs_n.size(); i < v_degs_m.size(); ++i)
-                    images.push_back({});
-                sus = n1_ - m1_;
-                return;
-            }
-            else if (n2 == m2) {
-                MyException::Assert(n1 < m1, "n1 < m1");
-
-                int1d v_degs_n;
-                Mod1d tmp, tmp1, convert_v_n;
-                Coh_RP(v_degs_n, tmp, convert_v_n, n1, n2, n2);
-                int1d v_degs_m;
-                Coh_RP(v_degs_m, tmp, tmp1, m1, m2, m2);
-                images.clear();
-
-                for (size_t i = 0; i < v_degs_m.size(); ++i)
-                    images.push_back(convert_v_n[size_t(v_degs_m[i] - n1)]);
-                sus = n2_ - m2_;
+            if (i < (int)Cs.size()) {
+                images = {MMod(MMilnor::P(i, i + 1), 0)};
+                sus = 1 << i;
                 return;
             }
         }
+        if (cw1 == "RP1_383") {
+            from = cw1;
+            images = {{}};
+            for (int i = 1; i <= 8; ++i) {
+                images.push_back(MMod(MMilnor(), i - 1));
+            }
+            sus = 0;
+            fil = 1;
+            return;
+        }
+    }
+    if (cw1 == "C2") {
+        if (cw2 == "C2h4" || cw2 == "C2h5" || cw2 == "C2h6") {
+            images = {MMod(MMilnor(), 0)};
+            return;
+        }
+    }
+    if (IsRP(cw1) && IsRP(cw2)) {
+        SetCohMapRP2RP(cw1, cw2, from, to, images, sus, fil);
+        return;
     }
 
+    fmt::print("map not supported.\n");
     throw MyException(0x8636b4b2, "map not supported.");
 }

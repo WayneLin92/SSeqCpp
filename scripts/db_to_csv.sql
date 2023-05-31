@@ -1,3 +1,3 @@
 .headers on
 .mode csv
-select id, s, t, name, repr from S0_AdamsE2_generators;
+select id,mon,repr as res_id,s,t from S0_AdamsE2_basis;
