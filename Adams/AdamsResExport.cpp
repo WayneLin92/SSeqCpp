@@ -437,7 +437,7 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.end_transaction();
 }
 
-void load_map(const myio::Database& db, std::string_view table_prefix, std::map<int, alg2::int1d>& map_h)
+void load_map(const myio::Database& db, std::string_view table_prefix, std::map<int, alg2::int1d>& map_h, int fil)
 {
     using namespace alg2;
     std::map<int, alg2::int1d> map_h_dual;
@@ -448,7 +448,7 @@ void load_map(const myio::Database& db, std::string_view table_prefix, std::map<
         map_h_dual[id] = std::move(map_);
     }
     for (auto& [i, arr] : map_h_dual) {
-        int s = LocId(i).s;
+        int s = LocId(i).s - fil;
         for (int v : arr)
             map_h[LocId(s, v).id()].push_back(i);
     }
@@ -467,6 +467,8 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
 
     auto from = dbResMap.get_str("select value from version where id=446174262");
     auto to = dbResMap.get_str("select value from version where id=1713085477");
+    int fil = dbResMap.get_int("select value from version where id=651971502");
+    int sus = dbResMap.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
 
     const std::string db_cw1 = fmt::format("{}_AdamsSS.db", from);
     const std::string table_cw1 = fmt::format("{}_AdamsE2", from);
@@ -489,9 +491,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     MyDB dbCw2(db_cw2);
 
     std::map<int, int1d> map_h;
-    load_map(dbResMap, table_map, map_h);
-    int fil = dbResMap.get_int("select value from version where id=651971502");
-    int sus = dbResMap.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
+    load_map(dbResMap, table_map, map_h, fil);
 
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
