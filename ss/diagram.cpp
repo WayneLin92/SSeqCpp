@@ -158,7 +158,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_, rings_);
-                    AdamsDeg deg_fx = deg_x - AdamsDeg(f.fil, f.sus);
+                    AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
                     if (!fx.empty() || !fdx.empty())
                         count += SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
                 }
@@ -170,7 +170,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_);
-                    AdamsDeg deg_fx = deg_x - AdamsDeg(f.fil, f.sus);
+                    AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
                     if (!fx.empty() || !fdx.empty())
                         count += SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
                 }
