@@ -505,7 +505,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
             if (ut::has(out_of_region, (int)i))
                 images.push_back(Poly::Gen(-1));
             else {
-                AdamsDeg d = gen_degs[i] - AdamsDeg(fil, sus);
+                AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;
@@ -527,7 +527,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
             if (ut::has(out_of_region, (int)i))
                 images.push_back(MMod(Mon(), -1));
             else {
-                AdamsDeg d = gen_degs[i] - AdamsDeg(fil, sus);
+                AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;

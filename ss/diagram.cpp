@@ -66,7 +66,7 @@ int1d MapMod2Mod::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods)
         auto x_alg = Indices2Mod(x, mods[from].basis.at(deg_x));
         auto fx_alg = mods[to].gb.Reduce(subs(x_alg, images));
         if (fx_alg) {
-            AdamsDeg deg_fx = deg_x - AdamsDeg(0, sus);
+            AdamsDeg deg_fx = deg_x + AdamsDeg(fil, fil - sus);
             result = Mod2Indices(fx_alg, mods[to].basis.at(deg_fx));
         }
     }
@@ -80,7 +80,7 @@ int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, cons
         auto x_alg = Indices2Mod(x, mods[from].basis.at(deg_x));
         auto fx_alg = rings[to].gb.Reduce(subs(x_alg, images));
         if (fx_alg) {
-            AdamsDeg deg_fx = deg_x - AdamsDeg(0, sus);
+            AdamsDeg deg_fx = deg_x + AdamsDeg(fil, fil - sus);
             result = Poly2Indices(fx_alg, rings[to].basis.at(deg_fx));
         }
     }
@@ -158,7 +158,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_, rings_);
-                    AdamsDeg deg_fx = deg_x - AdamsDeg(0, f.sus);
+                    AdamsDeg deg_fx = deg_x - AdamsDeg(f.fil, f.sus);
                     if (!fx.empty() || !fdx.empty())
                         count += SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
                 }
@@ -170,7 +170,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_);
-                    AdamsDeg deg_fx = deg_x - AdamsDeg(0, f.sus);
+                    AdamsDeg deg_fx = deg_x - AdamsDeg(f.fil, f.sus);
                     if (!fx.empty() || !fdx.empty())
                         count += SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
                 }

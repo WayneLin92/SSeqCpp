@@ -357,7 +357,7 @@ void ToIndices(const algZ::Mod& x, const PiBasisMod& basis, const std::map<Adams
     }
 }
 
-int main_plotpi(int argc, char** argv, int& index, const char* desc)
+int main_plot_htpy(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 

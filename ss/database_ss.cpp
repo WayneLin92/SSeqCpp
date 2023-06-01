@@ -203,7 +203,7 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     db.end_transaction();
 }
 
-int main_reset(int argc, char** argv, int& index, const char* desc)
+int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
@@ -228,7 +228,7 @@ int main_reset(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_resetpi(int argc, char** argv, int& index, const char* desc)
+int main_reset_pi(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 

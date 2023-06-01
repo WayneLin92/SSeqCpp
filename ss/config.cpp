@@ -22,17 +22,17 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
     }
 
     try {
-        json& diagram = js["diagrams"][diagram_name];
-        std::string dir = diagram["dir"].get<std::string>();
+        json& diagram = js.at("diagrams").at(diagram_name);
+        std::string dir = diagram.at("dir").get<std::string>();
         if (log) {
-            auto path_log = fmt::format("{}/{}", dir, diagram["log"].get<std::string>());
+            auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
         }
 
         /* #Load rings */
-        json& json_rings = diagram["rings"];
+        json& json_rings = diagram.at("rings");
         for (auto& json_ring : json_rings) {
-            std::string name = json_ring["name"].get<std::string>(), path = json_ring["path"].get<std::string>();
+            std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
             std::string abs_path = fmt::format("{}/{}", dir, path);
             names.push_back(name);
             paths.push_back(abs_path);
@@ -40,9 +40,9 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
         }
 
         /* #Load modules */
-        json& json_mods = diagram["modules"];
+        json& json_mods = diagram.at("modules");
         for (auto& json_mod : json_mods) {
-            std::string name = json_mod["name"].get<std::string>(), path = json_mod["path"].get<std::string>();
+            std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
             std::string abs_path = fmt::format("{}/{}", dir, path);
             names.push_back(name);
             paths.push_back(abs_path);
@@ -71,19 +71,20 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 
     try {
         if (diagram_name == "default")
-            diagram_name = js["diagrams"]["default"].get<std::string>();
-        json& diagram = js["diagrams"][diagram_name];
-        std::string dir = diagram["dir"].get<std::string>();
+            diagram_name = js.at("diagrams").at("default").get<std::string>();
+        json& diagram = js.at("diagrams").at(diagram_name);
+        std::string dir = diagram.at("dir").get<std::string>();
         if (log) {
-            auto path_log = fmt::format("{}/{}", dir, diagram["log"].get<std::string>());
+            auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
         }
 
-        /* #Load rings */
-        json& json_rings = diagram["rings"];
+        /*# Load rings */
+
+        json& json_rings = diagram.at("rings");
         rings_.reserve(json_rings.size());
         for (auto& json_ring : json_rings) {
-            std::string name = json_ring["name"].get<std::string>(), path = json_ring["path"].get<std::string>();
+            std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
@@ -108,12 +109,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             rings_.push_back(std::move(ring));
         }
 
-        /* #Load modules */
-        json& json_mods = diagram["modules"];
+        /*# Load modules */
+
+        json& json_mods = diagram.at("modules");
         modules_.reserve(json_mods.size());
         for (auto& json_mod : json_mods) {
-            std::string name = json_mod["name"].get<std::string>(), path = json_mod["path"].get<std::string>();
-            std::string over = json_mod["over"].get<std::string>();
+            std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
+            std::string over = json_mod.at("over").get<std::string>();
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
@@ -143,15 +145,17 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             ring.ind_mods.push_back(modules_.size() - 1);
         }
 
-        /* #Load maps */
-        json& json_maps = diagram["maps"];
+        /*# Load maps */
+
+        json& json_maps = diagram.at("maps");
         maps_.reserve(json_maps.size());
         for (auto& json_map : json_maps) {
-            std::string name = json_map["name"].get<std::string>(), path = json_map["path"].get<std::string>();
-            int sus = json_map["sus"].get<int>();
+            std::string name = json_map.at("name").get<std::string>(), path = json_map.at("path").get<std::string>();
+            int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
+            int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
             std::string abs_path = fmt::format("{}/{}", dir, path);
             DBSS db(abs_path);
-            std::string from = json_map["from"].get<std::string>(), to = json_map["to"].get<std::string>();
+            std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
             std::string table = fmt::format("map_AdamsE2_{}_to_{}", from, to);
             Map map;
             map.name = name;
@@ -171,13 +175,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     size_t index_to = (size_t)GetRingIndexByName(to);
                     MyException::Assert(index_to != -1, "index_to != -1");
                     auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
-                    map.map = MapMod2Ring{index_from, index_to, sus, std::move(images)};
+                    map.map = MapMod2Ring{index_from, index_to, fil, sus, std::move(images)};
                 }
                 else {
                     size_t index_to = (size_t)GetModuleIndexByName(to);
                     MyException::Assert(index_to != -1, "index_to != -1");
                     auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
-                    map.map = MapMod2Mod{index_from, index_to, sus, std::move(images)};
+                    map.map = MapMod2Mod{index_from, index_to, fil, sus, std::move(images)};
                 }
                 modules_[index_from].ind_maps.push_back(maps_.size());
             }

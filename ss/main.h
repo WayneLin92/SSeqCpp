@@ -185,7 +185,7 @@ struct MapRing2Ring  ////TODO: Add pi_images
 struct MapMod2Mod
 {
     size_t from, to;
-    int sus;
+    int fil, sus;
     std::vector<Mod> images;
     int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods);
 };
@@ -193,7 +193,7 @@ struct MapMod2Mod
 struct MapMod2Ring
 {
     size_t from, to;
-    int sus;
+    int fil, sus;
     std::vector<Poly> images;
     int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings);
 };

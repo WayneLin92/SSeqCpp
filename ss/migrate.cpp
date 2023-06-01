@@ -176,7 +176,7 @@ int main_migrate_ss(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_migrate_htpy(int argc, char** argv, int& index, const char* desc)
+int main_migrate_pi(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name1, diagram_name2;
 

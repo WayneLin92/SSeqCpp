@@ -1,6 +1,6 @@
 #include "main.h"
 
-int main_add_ext(int argc, char** argv, int& index, const char* desc)
+int main_add_pi(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw;
     std::string strRel, strExt;

@@ -9,7 +9,208 @@
         { "name": "X2", "path": "X2_AdamsSS_t383.db" }
       ],
       "modules": [
-        { "name": "C2", "path": "C2_AdamsSS_t261.db", "over": "S0" },
+        { "name": "C2", "path": "C2_AdamsSS_t200.db", "over": "S0" },
+        { "name": "Ceta", "path": "Ceta_AdamsSS_t200.db", "over": "S0" },
+        { "name": "Cnu", "path": "Cnu_AdamsSS_t200.db", "over": "S0" },
+        { "name": "Csigma", "path": "Csigma_AdamsSS_t200.db", "over": "S0" },
+        { "name": "j", "path": "j_AdamsSS_t261.db", "over": "S0" },
+        { "name": "RP1_4", "path": "RP1_4_AdamsSS_t174.db", "over": "S0" },
+        { "name": "RP1_6", "path": "RP1_6_AdamsSS_t165.db", "over": "S0" },
+        { "name": "RP1_8", "path": "RP1_8_AdamsSS_t160.db", "over": "S0" },
+        { "name": "RP1_10", "path": "RP1_10_AdamsSS_t155.db", "over": "S0" },
+        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t186.db", "over": "S0" },
+        { "name": "C2h4", "path": "C2h4_AdamsSS_t200.db", "over": "S0" },
+        { "name": "C2h5", "path": "C2h5_AdamsSS_t200.db", "over": "S0" },
+        { "name": "C2h6", "path": "C2h6_AdamsSS_t200.db", "over": "S0" }
+      ],
+      "maps": [
+        {
+          "name": "MapRS0_tmf",
+          "path": "map_AdamsSS_S0_to_tmf_t261.db",
+          "from": "S0",
+          "to": "tmf",
+          "t_max": 261
+        },
+        {
+          "name": "MapQ2",
+          "path": "map_AdamsSS_C2_to_S0_t158.db",
+          "from": "C2",
+          "to": "S0",
+          "sus": 1,
+          "t_max": 158
+        },
+        {
+          "name": "MapQeta",
+          "path": "map_AdamsSS_Ceta_to_S0.db",
+          "from": "Ceta",
+          "to": "S0",
+          "sus": 2,
+          "t_max": 200
+        },
+        {
+          "name": "MapQnu",
+          "path": "map_AdamsSS_Cnu_to_S0.db",
+          "from": "Cnu",
+          "to": "S0",
+          "sus": 4,
+          "t_max": 200
+        },
+        {
+          "name": "MapQsigma",
+          "path": "map_AdamsSS_Csigma_to_S0.db",
+          "from": "Csigma",
+          "to": "S0",
+          "sus": 8,
+          "t_max": 200
+        },
+        {
+          "name": "MapQRP1_4",
+          "path": "map_AdamsSS_RP1_4_to_S0_t170.db",
+          "from": "RP1_4",
+          "to": "S0",
+          "sus": 4,
+          "t_max": 170
+        },
+        {
+          "name": "MapQRP1_6",
+          "path": "map_AdamsSS_RP1_6_to_S0_t159.db",
+          "from": "RP1_6",
+          "to": "S0",
+          "sus": 6,
+          "t_max": 159
+        },
+        {
+          "name": "MapQRP1_8",
+          "path": "map_AdamsSS_RP1_8_to_S0_t152.db",
+          "from": "RP1_8",
+          "to": "S0",
+          "sus": 8,
+          "t_max": 152
+        },
+        {
+          "name": "MapQC2h4",
+          "path": "map_AdamsSS_C2h4_to_S0_t200.db",
+          "from": "C2h4",
+          "to": "S0",
+          "sus": 16,
+          "t_max": 200
+        },
+        {
+          "name": "MapQC2h5",
+          "path": "map_AdamsSS_C2h5_to_S0_t200.db",
+          "from": "C2h5",
+          "to": "S0",
+          "sus": 32,
+          "t_max": 200
+        },
+        {
+          "name": "MapQC2h6",
+          "path": "map_AdamsSS_C2h6_to_S0_t200.db",
+          "from": "C2h6",
+          "to": "S0",
+          "sus": 64,
+          "t_max": 200
+        },
+        {
+          "name": "MapQRP1_10",
+          "path": "map_AdamsSS_RP1_10_to_S0_t145.db",
+          "from": "RP1_10",
+          "to": "S0",
+          "sus": 10,
+          "t_max": 145
+        },
+        {
+          "name": "MapIRP1_4RP1_6",
+          "path": "map_AdamsSS_RP1_4_to_RP1_6_t165.db",
+          "from": "RP1_4",
+          "to": "RP1_6",
+          "t_max": 165
+        },
+        {
+          "name": "MapIRP1_6RP1_8",
+          "path": "map_AdamsSS_RP1_6_to_RP1_8_t160.db",
+          "from": "RP1_6",
+          "to": "RP1_8",
+          "t_max": 160
+        },
+        {
+          "name": "MapIRP1_8RP1_10",
+          "path": "map_AdamsSS_RP1_8_to_RP1_10_t155.db",
+          "from": "RP1_8",
+          "to": "RP1_10",
+          "t_max": 155
+        },
+        {
+          "name": "MapIRP1_10RP1_383",
+          "path": "map_AdamsSS_RP1_10_to_RP1_383_t155.db",
+          "from": "RP1_10",
+          "to": "RP1_383",
+          "t_max": 155
+        },
+        {
+          "name": "MapIC2_C2h4",
+          "path": "map_AdamsSS_C2_to_C2h4_t200.db",
+          "from": "C2",
+          "to": "C2h4",
+          "t_max": 200
+        },
+        {
+          "name": "MapIC2_C2h5",
+          "path": "map_AdamsSS_C2_to_C2h5_t200.db",
+          "from": "C2",
+          "to": "C2h5",
+          "t_max": 200
+        },
+        {
+          "name": "MapIC2_C2h6",
+          "path": "map_AdamsSS_C2_to_C2h6_t200.db",
+          "from": "C2",
+          "to": "C2h6",
+          "t_max": 200
+        },
+        {
+          "name": "MapKahnPriddy",
+          "path": "map_AdamsSS_RP1_383_to_S0_t175.db",
+          "from": "RP1_383",
+          "to": "S0",
+          "fil": 1,
+          "t_max": 175
+        }
+      ],
+      "exact": [
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "C2" },
+          "q": { "type": "map", "name": "MapQ2" },
+          "delta": { "type": "mul", "factor": "h0", "from": "S0", "to": "S0" }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Ceta" },
+          "q": { "type": "map", "name": "MapQeta" },
+          "delta": { "type": "mul", "factor": "h1", "from": "S0", "to": "S0" }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Cnu" },
+          "q": { "type": "map", "name": "MapQnu" },
+          "delta": { "type": "mul", "factor": "h2", "from": "S0", "to": "S0" }
+        },
+        {
+          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Csigma" },
+          "q": { "type": "map", "name": "MapQsigma" },
+          "delta": { "type": "mul", "factor": "h3", "from": "S0", "to": "S0" }
+        }
+      ],
+      "commutativity": [{ "route1": [], "route2": [] }],
+      "log": "deduction.log",
+      "dir_html": "mix"
+    },
+    "mix-old": {
+      "dir": "mix-202305312324",
+      "rings": [
+        { "name": "S0", "path": "S0_AdamsSS_t261.db" },
+        { "name": "tmf", "path": "tmf_AdamsSS_t261.db" },
+        { "name": "X2", "path": "X2_AdamsSS_t383.db" }
+      ],
+      "modules": [
         { "name": "Ceta", "path": "Ceta_AdamsSS_t200.db", "over": "S0" },
         { "name": "Cnu", "path": "Cnu_AdamsSS_t200.db", "over": "S0" },
         { "name": "Csigma", "path": "Csigma_AdamsSS_t200.db", "over": "S0" },
@@ -26,15 +227,6 @@
           "path": "map_AdamsSS_S0_to_tmf_t261.db",
           "from": "S0",
           "to": "tmf",
-          "sus": 0,
-          "t_max": 261
-        },
-        {
-          "name": "MapQ2",
-          "path": "map_AdamsSS_C2_to_S0.db",
-          "from": "C2",
-          "to": "S0",
-          "sus": 1,
           "t_max": 261
         },
         {
@@ -98,7 +290,6 @@
           "path": "map_AdamsSS_RP1_4_to_RP1_6_t165.db",
           "from": "RP1_4",
           "to": "RP1_6",
-          "sus": 0,
           "t_max": 165
         },
         {
@@ -106,7 +297,6 @@
           "path": "map_AdamsSS_RP1_6_to_RP1_8_t160.db",
           "from": "RP1_6",
           "to": "RP1_8",
-          "sus": 0,
           "t_max": 160
         },
         {
@@ -114,7 +304,6 @@
           "path": "map_AdamsSS_RP1_8_to_RP1_10_t155.db",
           "from": "RP1_8",
           "to": "RP1_10",
-          "sus": 0,
           "t_max": 155
         },
         {
@@ -122,89 +311,7 @@
           "path": "map_AdamsSS_RP1_10_to_RP1_383_t155.db",
           "from": "RP1_10",
           "to": "RP1_383",
-          "sus": 0,
           "t_max": 155
-        }
-      ],
-      "exact": [
-        {
-          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "C2" },
-          "q": { "type": "map", "name": "MapQ2" },
-          "delta": { "type": "mul", "factor": "h0", "from": "S0", "to": "S0" }
-        },
-        {
-          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Ceta" },
-          "q": { "type": "map", "name": "MapQeta" },
-          "delta": { "type": "mul", "factor": "h1", "from": "S0", "to": "S0" }
-        },
-        {
-          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Cnu" },
-          "q": { "type": "map", "name": "MapQnu" },
-          "delta": { "type": "mul", "factor": "h2", "from": "S0", "to": "S0" }
-        },
-        {
-          "i": { "type": "mul", "factor": "v_0", "from": "S0", "to": "Csigma" },
-          "q": { "type": "map", "name": "MapQsigma" },
-          "delta": { "type": "mul", "factor": "h3", "from": "S0", "to": "S0" }
-        }
-      ],
-      "commutativity": [{ "route1": [], "route2": [] }],
-      "log": "deduction.log",
-      "dir_html": "mix"
-    },
-    "mix-old": {
-      "dir": "mix-2023-05-16-14-15",
-      "rings": [
-        { "name": "S0", "path": "S0_AdamsSS_t261.db" },
-        { "name": "tmf", "path": "tmf_AdamsSS_t261.db" }
-      ],
-      "modules": [
-        { "name": "C2", "path": "C2_AdamsSS_t261.db", "over": "S0" },
-        { "name": "Ceta", "path": "Ceta_AdamsSS_t200.db", "over": "S0" },
-        { "name": "Cnu", "path": "Cnu_AdamsSS_t200.db", "over": "S0" },
-        { "name": "Csigma", "path": "Csigma_AdamsSS_t200.db", "over": "S0" },
-        { "name": "j", "path": "j_AdamsSS_t261.db", "over": "S0" }
-      ],
-      "maps": [
-        {
-          "name": "MapRS0_tmf",
-          "path": "map_AdamsSS_S0_to_tmf_t261.db",
-          "from": "S0",
-          "to": "tmf",
-          "sus": 0,
-          "t_max": 261
-        },
-        {
-          "name": "MapQ2",
-          "path": "map_AdamsSS_C2_to_S0.db",
-          "from": "C2",
-          "to": "S0",
-          "sus": 1,
-          "t_max": 261
-        },
-        {
-          "name": "MapQeta",
-          "path": "map_AdamsSS_Ceta_to_S0.db",
-          "from": "Ceta",
-          "to": "S0",
-          "sus": 2,
-          "t_max": 200
-        },
-        {
-          "name": "MapQnu",
-          "path": "map_AdamsSS_Cnu_to_S0.db",
-          "from": "Cnu",
-          "to": "S0",
-          "sus": 4,
-          "t_max": 200
-        },
-        {
-          "name": "MapQsigma",
-          "path": "map_AdamsSS_Csigma_to_S0.db",
-          "from": "Csigma",
-          "to": "S0",
-          "sus": 8,
-          "t_max": 200
         }
       ],
       "exact": [
@@ -251,8 +358,7 @@
           "name": "MapRS0_tmf",
           "path": "map_AdamsSS_S0_to_tmf_t261.db",
           "from": "S0",
-          "to": "tmf",
-          "sus": 0
+          "to": "tmf"
         },
         {
           "name": "MapQ2",

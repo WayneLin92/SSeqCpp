@@ -20,6 +20,7 @@
 * Support stem_trunc
 
 # html
+* Change title
 * KaTeX
 * async load
 * multiplication by theta and g
