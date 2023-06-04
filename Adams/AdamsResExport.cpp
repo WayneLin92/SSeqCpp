@@ -467,7 +467,12 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
 
     auto from = dbResMap.get_str("select value from version where id=446174262");
     auto to = dbResMap.get_str("select value from version where id=1713085477");
-    int fil = dbResMap.get_int("select value from version where id=651971502");
+    int fil = 0;
+    try { /* For compatibility */
+        fil = dbResMap.get_int("select value from version where id=651971502");
+    }
+    catch (MyException&) {
+    }
     int sus = dbResMap.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
 
     const std::string db_cw1 = fmt::format("{}_AdamsSS.db", from);
