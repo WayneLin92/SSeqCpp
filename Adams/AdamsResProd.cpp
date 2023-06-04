@@ -34,7 +34,7 @@ public:
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
-        stmt.bind_and_step(817812698, std::string("t_max"), -1); /* db_key: t_max */
+        stmt.bind_and_step(817812698, std::string("t_max"), -1);                                                                                                             /* db_key: t_max */
         Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;"); /* db_key: timestamp */
         stmt2.step_and_reset();
     }
@@ -664,10 +664,14 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     DbAdamsResMap dbMap(db_map);
-    if (dbMap.GetVersion() < 3) {
+    try {
+        dbMap.get_str("select value from version where id=446174262"); /* from */
+    }
+    catch (MyException&) {
         fmt::print("Map version should be >= 3");
         throw MyException(0x7102b177U, "Map version should be >= 3");
     }
+
     auto from = dbMap.get_str("select value from version where id=446174262");
     auto to = dbMap.get_str("select value from version where id=1713085477");
 
@@ -678,7 +682,13 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
 
-    auto fil = dbMap.get_int("select value from version where id=651971502");
+    int fil = 0;
+    try { /* For compatibility */
+        fil = dbMap.get_int("select value from version where id=651971502");
+    }
+    catch (MyException&) {
+    }
+
     int sus = dbMap.get_int("select value from version where id=1585932889");
     dbMap.create_tables(table_map);
     myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */

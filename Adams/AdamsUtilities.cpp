@@ -200,7 +200,7 @@ void UtAddFromTo()
             DbAdamsUt db(filename);
             if (db.has_table("version")) {
                 try {
-                    db.get_str("select value from version where id=446174262");
+                    db.get_str("select value from version where id=446174262"); /* from */
                 }
                 catch (MyException&) {
                     myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");

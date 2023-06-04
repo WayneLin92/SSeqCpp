@@ -18,7 +18,7 @@
         { "name": "RP1_6", "path": "RP1_6_AdamsSS_t165.db", "over": "S0" },
         { "name": "RP1_8", "path": "RP1_8_AdamsSS_t160.db", "over": "S0" },
         { "name": "RP1_10", "path": "RP1_10_AdamsSS_t155.db", "over": "S0" },
-        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t196.db", "over": "S0" },
+        { "name": "RP1_261", "path": "RP1_383_AdamsSS_t196.db", "over": "S0" },
         { "name": "C2h4", "path": "C2h4_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h5", "path": "C2h5_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h6", "path": "C2h6_AdamsSS_t200.db", "over": "S0" }
@@ -144,7 +144,7 @@
           "name": "MapIRP1_10RP1_383",
           "path": "map_AdamsSS_RP1_10_to_RP1_383_t155.db",
           "from": "RP1_10",
-          "to": "RP1_383",
+          "to": "RP1_261",
           "t_max": 155
         },
         {
@@ -171,7 +171,7 @@
         {
           "name": "MapKahnPriddy",
           "path": "map_AdamsSS_RP1_383_to_S0_t191.db",
-          "from": "RP1_383",
+          "from": "RP1_261",
           "to": "S0",
           "fil": 1,
           "t_max": 191
@@ -220,7 +220,7 @@
         { "name": "RP1_6", "path": "RP1_6_AdamsSS_t165.db", "over": "S0" },
         { "name": "RP1_8", "path": "RP1_8_AdamsSS_t160.db", "over": "S0" },
         { "name": "RP1_10", "path": "RP1_10_AdamsSS_t155.db", "over": "S0" },
-        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t186.db", "over": "S0" },
+        { "name": "RP1_261", "path": "RP1_383_AdamsSS_t186.db", "over": "S0" },
         { "name": "C2h4", "path": "C2h4_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h5", "path": "C2h5_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h6", "path": "C2h6_AdamsSS_t200.db", "over": "S0" }
@@ -346,7 +346,7 @@
           "name": "MapIRP1_10RP1_383",
           "path": "map_AdamsSS_RP1_10_to_RP1_383_t155.db",
           "from": "RP1_10",
-          "to": "RP1_383",
+          "to": "RP1_261",
           "t_max": 155
         },
         {
@@ -373,7 +373,7 @@
         {
           "name": "MapKahnPriddy",
           "path": "map_AdamsSS_RP1_383_to_S0_t175.db",
-          "from": "RP1_383",
+          "from": "RP1_261",
           "to": "S0",
           "fil": 1,
           "t_max": 175
@@ -421,7 +421,7 @@
         { "name": "RP1_6", "path": "RP1_6_AdamsSS_t165.db", "over": "S0" },
         { "name": "RP1_8", "path": "RP1_8_AdamsSS_t160.db", "over": "S0" },
         { "name": "RP1_10", "path": "RP1_10_AdamsSS_t155.db", "over": "S0" },
-        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t171.db", "over": "S0" }
+        { "name": "RP1_261", "path": "RP1_383_AdamsSS_t171.db", "over": "S0" }
       ],
       "maps": [
         {
@@ -512,7 +512,7 @@
           "name": "MapIRP1_10RP1_383",
           "path": "map_AdamsSS_RP1_10_to_RP1_383_t155.db",
           "from": "RP1_10",
-          "to": "RP1_383",
+          "to": "RP1_261",
           "t_max": 155
         }
       ],

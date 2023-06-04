@@ -1,7 +1,6 @@
 # All
 
 # Adams
-* Monitor computation status
 * Add CP, HP
 * Smash products
 * Auto adjust t_max in command-line
