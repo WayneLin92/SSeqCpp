@@ -42,12 +42,13 @@ public:
 
 void UtStatus(const std::string& dir)
 {
-    std::regex is_Adams_regex("^(?:\\w+_Adams(?:_res(?:_prod|)|SS).db|)$");   /* match example: C2h4_Adams_res.db, C2h4_Adams_res_prod.db */
-    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                   /* match example: C2h4_Adams_res.db */
-    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");         /* match example: C2h4_Adams_res_prod.db */
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                       /* match example: C2h4_AdamsSS.db */
+    std::regex is_Adams_regex("^(?:\\w+_Adams(?:_res(?:_prod|)|SS).db|)$");     /* match example: C2h4_Adams_res.db, C2h4_Adams_res_prod.db */
+    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                     /* match example: C2h4_Adams_res.db */
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
     std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
     std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::smatch match;
 
     std::map<std::string, std::array<std::string, 3>> table_spectra;
     std::map<std::string, std::array<std::string, 3>> table_color_spectra;
@@ -66,7 +67,6 @@ void UtStatus(const std::string& dir)
     constexpr std::string_view white = "";
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
         std::string filename = entry.path().filename().string();
-        std::smatch match;
 
         if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
             DbAdamsUt db(filename);
@@ -144,6 +144,9 @@ void UtStatus(const std::string& dir)
 
 void UtRename(const std::string& old, const std::string& new_)
 {
+    std::regex is_db_regex(".db$"); /* match example: *.db */
+    std::smatch match;
+
     std::vector<std::string> matched_filenames;
     std::string path = ".";
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -154,10 +157,12 @@ void UtRename(const std::string& old, const std::string& new_)
     fmt::print("Affected items:\n");
     for (const auto& fn : matched_filenames) {
         fmt::print("{}\n", fn);
-        DbAdamsUt db(fn);
-        auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
-        for (const auto& table : tables)
-            fmt::print("  {}\n", table);
+        if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
+            DbAdamsUt db(fn);
+            auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
+            for (const auto& table : tables)
+                fmt::print("  {}\n", table);
+        }
     }
     if (myio::UserConfirm()) {
         for (const auto& fn : matched_filenames) {
@@ -168,12 +173,14 @@ void UtRename(const std::string& old, const std::string& new_)
             }
             fmt::print("{} --> {}\n", fn, fn_new);
 
-            DbAdamsUt db(fn_new);
-            auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
-            for (const auto& table : tables) {
-                std::string table_new = std::regex_replace(table, std::regex(old), new_);
-                db.rename_table(table, table_new);
-                fmt::print("  {} --> {}\n", table, table_new);
+            if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
+                DbAdamsUt db(fn_new);
+                auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
+                for (const auto& table : tables) {
+                    std::string table_new = std::regex_replace(table, std::regex(old), new_);
+                    db.rename_table(table, table_new);
+                    fmt::print("  {} --> {}\n", table, table_new);
+                }
             }
         }
     }
