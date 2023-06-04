@@ -20,6 +20,10 @@ int main_export_map(int, char**, int&, const char*);
 int main_2cell(int, char**, int&, const char*);
 int main_res_csv(int, char**, int&, const char*);
 
+int main_status(int, char**, int&, const char*);
+int main_rename(int, char**, int&, const char*);
+int main_add_from_to(int, char**, int&, const char*);
+
 int main(int argc, char** argv)
 {
     bench::Timer timer;
@@ -36,6 +40,9 @@ int main(int argc, char** argv)
         {"export_map", "Export the map between Adams E2 pages", main_export_map},
         {"2cell", "Functions for Cofibers of Hopf elements", main_2cell},
         {"res_csv", "Export the resolution data to a csv file", main_res_csv},
+        {"status", "Display the computation status in the current directory", main_status},
+        {"rename", "For compatibility: rename files", main_rename},
+        {"add_from_to", "For compatibility: add from to info to databases of maps", main_add_from_to},
     };
     int index = 1;
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))

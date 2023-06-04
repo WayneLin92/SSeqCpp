@@ -34,8 +34,8 @@ public:
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
-        stmt.bind_and_step(817812698, std::string("t_max"), -1);
-        Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(817812698, std::string("t_max"), -1); /* db_key: t_max */
+        Statement stmt2(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;"); /* db_key: timestamp */
         stmt2.step_and_reset();
     }
 
@@ -695,7 +695,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     {
         DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
-        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc - sus, stem_trunc - sus);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc + fil - sus, stem_trunc - sus);
     }
 
     const Mod one = MMod(MMilnor(), 0);
@@ -740,7 +740,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
         dbMap.begin_transaction();
         if (t_old != deg.t) {
-            stmt_t_max.bind_and_step(t_old);
+            stmt_t_max.bind_and_step(t_old - fil + sus);
             stmt_time.step_and_reset();
             t_old = deg.t;
         }
@@ -751,13 +751,13 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
+        fmt::print("t={} s={} time={}\n{}", deg.t - fil + sus, deg.s - fil, time, myio::COUT_FLUSH());
         dbMap.save_time(table_map, deg.s, deg.t, time);
 
         dbMap.end_transaction();
         diffs.erase(deg);
     }
-    stmt_t_max.bind_and_step(t_old);
+    stmt_t_max.bind_and_step(t_old - fil + sus);
     stmt_time.step_and_reset();
 }
 

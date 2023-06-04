@@ -93,7 +93,7 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 }
 
 void normalize_RP(int n1, int n2, int& n1_, int& n2_);
-void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
+void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over);
 void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
 
 int main_res_RP(int argc, char** argv, int& index, const char* desc)
@@ -111,8 +111,8 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
         stem_max = DEG_MAX;
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
-    if (!(n1 % 2 == 1 && n1 >= 1 && n1 + 1 < n2)) {
-        fmt::print("We need n1 % 2 == 1 && n1 >= 1 && n1 + 1 < n2");
+    if (!(n1 + 1 < n2)) {
+        fmt::print("We need n1 + 1 < n2");
         return -index;
     }
     int n1_ = -1, n2_ = -1;
@@ -123,8 +123,8 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
     int1d v_degs;
     Mod1d rels, tmp_Mod1d;
     int1d tmp_ind1d;
-    if (ring == "S0")
-        Coh_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);
+    if (ring == "S0" || ring == "tmf")
+        Coh_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, ring);
     else if (ring == "X2")
         Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);
     else {
@@ -132,13 +132,16 @@ int main_res_RP(int argc, char** argv, int& index, const char* desc)
         return 1;
     }
     std::string db_filename, tablename;
+    std::string str_n1 = std::to_string(abs(n1_));
+    if (n1_ < 0)
+        str_n1 = "m" + str_n1;
     if (ring != "S0") {
-        db_filename = fmt::format("{}_RP{}_{}_Adams_res.db", ring, n1_, n2_);
-        tablename = fmt::format("{}_RP{}_{}_Adams_res", ring, n1_, n2_);
+        db_filename = fmt::format("{}_RP{}_{}_Adams_res.db", ring, str_n1, n2_);
+        tablename = fmt::format("{}_RP{}_{}_Adams_res", ring, str_n1, n2_);
     }
     else {
-        db_filename = fmt::format("RP{}_{}_Adams_res.db", n1_, n2_);
-        tablename = fmt::format("RP{}_{}_Adams_res", n1_, n2_);
+        db_filename = fmt::format("RP{}_{}_Adams_res.db", str_n1, n2_);
+        tablename = fmt::format("RP{}_{}_Adams_res", str_n1, n2_);
     }
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;

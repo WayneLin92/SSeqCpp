@@ -1,18 +1,17 @@
 # All
 
 # Adams
-* Connecting map
-* RP negative cell
-* Smash products
-* Add CP
 * Monitor computation status
+* Add CP, HP
+* Smash products
 * Auto adjust t_max in command-line
 * Brown-Gitler
+* merge res/res_RP in command line
 
 # SS
 * Deduce by knowledge
 * Deduce only on a spectrum
-* Cache contradictions
+* Cache contradictions and remember differentials that cannot be zero
 * Smart deduce
 * Simplify pi generators and relations
 * Fast sync

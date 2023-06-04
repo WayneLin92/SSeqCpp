@@ -18,7 +18,7 @@
         { "name": "RP1_6", "path": "RP1_6_AdamsSS_t165.db", "over": "S0" },
         { "name": "RP1_8", "path": "RP1_8_AdamsSS_t160.db", "over": "S0" },
         { "name": "RP1_10", "path": "RP1_10_AdamsSS_t155.db", "over": "S0" },
-        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t186.db", "over": "S0" },
+        { "name": "RP1_383", "path": "RP1_383_AdamsSS_t196.db", "over": "S0" },
         { "name": "C2h4", "path": "C2h4_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h5", "path": "C2h5_AdamsSS_t200.db", "over": "S0" },
         { "name": "C2h6", "path": "C2h6_AdamsSS_t200.db", "over": "S0" }
@@ -33,11 +33,11 @@
         },
         {
           "name": "MapQ2",
-          "path": "map_AdamsSS_C2_to_S0_t158.db",
+          "path": "map_AdamsSS_C2_to_S0_t195.db",
           "from": "C2",
           "to": "S0",
           "sus": 1,
-          "t_max": 158
+          "t_max": 195
         },
         {
           "name": "MapQeta",
@@ -170,11 +170,11 @@
         },
         {
           "name": "MapKahnPriddy",
-          "path": "map_AdamsSS_RP1_383_to_S0_t175.db",
+          "path": "map_AdamsSS_RP1_383_to_S0_t191.db",
           "from": "RP1_383",
           "to": "S0",
           "fil": 1,
-          "t_max": 175
+          "t_max": 191
         }
       ],
       "exact": [
@@ -204,7 +204,7 @@
       "dir_html": "mix"
     },
     "mix-old": {
-      "dir": "mix",
+      "dir": "mix-202306012335",
       "rings": [
         { "name": "S0", "path": "S0_AdamsSS_t261.db" },
         { "name": "tmf", "path": "tmf_AdamsSS_t261.db" },

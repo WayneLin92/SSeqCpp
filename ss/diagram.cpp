@@ -113,7 +113,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
                 int1d fdx;
                 if (deg_dx.t <= map.t_max)
                     fdx = f.map(dx, deg_dx, rings_);
-                if (!dx.empty())
+                else if (!dx.empty())
                     continue;
                 auto fx = f.map(x, deg_x, rings_);
                 if (!fx.empty() || !fdx.empty())
@@ -155,7 +155,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     int1d fdx;
                     if (deg_dx.t <= map.t_max)
                         fdx = f.map(dx, deg_dx, modules_, rings_);
-                    if (!dx.empty())
+                    else if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_, rings_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
@@ -167,7 +167,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     int1d fdx;
                     if (deg_dx.t <= map.t_max)
                         fdx = f.map(dx, deg_dx, modules_);
-                    if (!dx.empty())
+                    else if (!dx.empty())
                         continue;
                     auto fx = f.map(x, deg_x, modules_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);

@@ -11,7 +11,7 @@ int Diagram::DeduceTrivialDiffs()
     const size_t num_cw = rings_.size() + modules_.size();
     while (true) {
         for (size_t iCw = 0; iCw < num_cw; ++iCw) {
-            auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw-rings_.size()].nodes_ss;
+            auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
             int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
             for (auto& [d, basis_ss_d] : nodes_ss.front()) {
                 const Staircase& sc = GetRecentSc(nodes_ss, d);
@@ -225,6 +225,8 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
     const size_t num_cw = rings_.size() + modules_.size();
     for (size_t iCw = 0; iCw < num_cw; ++iCw) {
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
+        if (name == "j")
+            continue;
         auto& degs = iCw < rings_.size() ? rings_[iCw].degs_basis_order_by_stem : modules_[iCw - rings_.size()].degs_basis_order_by_stem;
 
         for (AdamsDeg deg : degs) {
@@ -269,32 +271,19 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     Diagram diagram(diagram_name, flag);
 
     int count = 0;
-    try {
-        if (flag & DeduceFlag::homotopy) {
-            int count_homotopy1 = 0;
-            diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
-            diagram.DeduceTrivialExtensions(0);
-            if (flag & DeduceFlag::homotopy_exact)
-                diagram.DeduceExtensionsByExactness(0, 100, 0);
-        }
-        count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
-        if (flag & DeduceFlag::homotopy) {
-            diagram.SimplifyPiRels();
-        }
-        diagram.save(diagram_name, flag);
-        Logger::LogSummary("Changed differentials", count);
+    if (flag & DeduceFlag::homotopy) {
+        int count_homotopy1 = 0;
+        diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
+        diagram.DeduceTrivialExtensions(0);
+        if (flag & DeduceFlag::homotopy_exact)
+            diagram.DeduceExtensionsByExactness(0, 100, 0);
     }
-#ifdef MYDEPLOY
-    catch (SSException& e) {
-        std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
+    count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
+    if (flag & DeduceFlag::homotopy) {
+        diagram.SimplifyPiRels();
     }
-    catch (MyException& e) {
-        std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
-    }
-#endif
-    catch (NoException&) {
-        ;
-    }
+    diagram.save(diagram_name, flag);
+    Logger::LogSummary("Changed differentials", count);
 
     return 0;
 }
@@ -312,30 +301,16 @@ int main_deduce_tmp(int argc, char** argv, int& index, const char* desc)
     DeduceFlag flag = DeduceFlag::no_op;
     Diagram diagram(diagram_name, flag);
     int count = 0;
-    try {
-        int count_ss = 0, count_homotopy = 0;
-        diagram.DeduceExtensions(0, 30, count_ss, count_homotopy, 0, flag);
-        diagram.SimplifyPiRels();
-        diagram.save(diagram_name, flag);
-        std::cout << "Changed differentials: " << count << '\n';
-    }
-#ifdef MYDEPLOY
-    catch (SSException& e) {
-        std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
-    }
-    catch (MyException& e) {
-        std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
-    }
-#endif
-    catch (NoException&) {
-        ;
-    }
+    int count_ss = 0, count_homotopy = 0;
+    diagram.DeduceExtensions(0, 30, count_ss, count_homotopy, 0, flag);
+    diagram.SimplifyPiRels();
+    diagram.save(diagram_name, flag);
+    std::cout << "Changed differentials: " << count << '\n';
 
-    // bench::Counter::print();
     return 0;
 }
 
-/* generate the table of the spectral sequence */
+/* Generate the table of the spectral sequence */
 int main_deduce(int argc, char** argv, int& index, const char* desc)
 {
     myio::SubCmdArg1d subcmds = {
@@ -343,7 +318,7 @@ int main_deduce(int argc, char** argv, int& index, const char* desc)
         {"ext", "Deduce extensions", main_deduce_ext},
         {"ext_def", "Define decomposables", main_deduce_ext_def},
         {"ext_def2", "Define indecomposables", main_deduce_ext_def2},
-        {"ext_2tor", "Compute 2-torsion degrees of generators of rings", main_deduce_ext_2tor},//// TODO: check all rings
+        {"ext_2tor", "Compute 2-torsion degrees of generators of rings", main_deduce_ext_2tor},  //// TODO: check all rings
         {"tmp", "Generate tables: ss_prod,ss_diff,ss_nd,ss_stable_levels for plotting", main_deduce_tmp},
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Make deductions on ss or homotopy", VERSION, subcmds))

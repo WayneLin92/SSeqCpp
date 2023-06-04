@@ -60,35 +60,10 @@ SET_RINGS = {"S0", "tmf", "ko", "X2"}
 
 def get_complex_name(path):
     path = os.path.basename(path)
-    names = [
-        "S0",
-        "ko",
-        "C2h4",
-        "C2h5",
-        "C2h6",
-        "C2",
-        "Ceta",
-        "Cnu",
-        "Csigma",
-        "RP1_4",
-        "RP1_6",
-        "RP1_8",
-        "RP1_10",
-        "RP1_383",
-        "RPinf",
-        "tmf_C2",
-        "tmf_Ceta",
-        "tmf_Cnu",
-        "tmf",
-        "j",
-        "X2_RP1_261",
-        "X2",
-        "Fphi",
-    ]
-    for name in names:
-        if path.startswith(name):
-            return name
-    raise ValueError(f"{path=} is not recognized")
+    if path.endswith("Adams_res.db"):
+        return path[:-13]
+    else:
+        raise ValueError(f"{path=} is not supported")
 
 
 def get_complex_t(path_mod):
@@ -619,10 +594,16 @@ def export_bullets(data1d, radius1d, offsets_x):
     return tpl_bullets, index2xyrp
 
 
-def export_basis_ss_prod(data):
+def export_basis_ss_prod(data, from_prod_hi=False):
     lines = [[], [], []]
-    # b2g = {(1 << 19) + 0: 0, (1 << 19) + 1: 1, (1 << 19) + 2: 2}  # basis_id to gen_id
-    b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
+    if from_prod_hi:
+        b2g = {
+            (1 << 19) + 0: 0,
+            (1 << 19) + 1: 1,
+            (1 << 19) + 2: 2,
+        }  # basis_id to gen_id
+    else:
+        b2g = {1: 0, 3: 1, 7: 2}  # basis_id to gen_id
     # b2g = {}
     for id_gen, id1, prod in data["products"]:
         if id_gen not in b2g:
@@ -1015,7 +996,7 @@ def export_ss_from_res(data, path_html=None, path_js=None):
     # html
     radius = get_radius(data)
     tpl_bullets, index2xyrp = export_bullets([data], [radius], [0])
-    lines = export_basis_ss_prod(data)
+    lines = export_basis_ss_prod(data, True)
     tpl_lines = export_h_lines(index2xyrp, lines)
 
     with open(PATH_HTML_TPL, encoding="utf-8") as fp:

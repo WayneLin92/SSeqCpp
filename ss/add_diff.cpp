@@ -26,7 +26,7 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     std::string diagram_name = "default";
     std::string mode = "add";
 
-    myio::CmdArg1d args = {{"cw", &cw}, {"stem", &stem}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}};
+    myio::CmdArg1d args = {{"cw", &cw}, {"stem", &stem}, {"s", &s}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}};
     myio::CmdArg1d op_args = {{"diagram", &diagram_name}, {"mode:add/deduce/try", &mode}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
