@@ -141,7 +141,7 @@ void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, in
 {
     int i_max = 0;
     if (over == "S0")
-        i_max = INT_MAX;
+        i_max = 1 << 31;
     else if (over == "tmf")
         i_max = 2;
     else {

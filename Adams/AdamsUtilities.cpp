@@ -124,7 +124,6 @@ void UtStatus(const std::string& dir)
         const auto& colors = table_color_spectra[cw];
         fmt::print(fs, white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2]);
     }
-
     fmt::print("------------------------------------------------\n");
 
     std::array<size_t, 3> maps_widths = {3, 3, 6};
@@ -140,6 +139,7 @@ void UtStatus(const std::string& dir)
         const auto& colors = table_color_maps[name];
         fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
     }
+    fmt::print("------------------------------------------------\n");
 }
 
 void UtRename(const std::string& old, const std::string& new_)
@@ -208,10 +208,10 @@ void UtAddFromTo()
 
 int main_status(int argc, char** argv, int& index, const char* desc)
 {
-    std::string dir;
+    std::string dir = ".";
 
-    myio::CmdArg1d args = {{"dir", &dir}};
-    myio::CmdArg1d op_args = {};
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
