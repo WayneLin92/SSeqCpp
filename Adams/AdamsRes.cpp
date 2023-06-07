@@ -5,6 +5,7 @@
 #include "main.h"
 
 #include <cstring>
+#include <regex>
 #include <sstream>
 
 void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_trunc, const std::string& db_filename, const std::string& tablename)
@@ -25,15 +26,18 @@ void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
+void Coh_DC2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max);
+int res_P(const std::string& cw, int t_max, int stem_max);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
-    std::string ring = "S0";
+    std::string cw = "S0";
     int t_max = 100, stem_max = DEG_MAX;
 
-    myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
+    myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
@@ -42,107 +46,120 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         stem_max = DEG_MAX;
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
-    std::string db_filename = ring + "_Adams_res.db";
-    std::string tablename = ring + "_Adams_res";
+
+    std::regex is_P_regex("^(?:tmf_|X2_|)(?:R|C|H)P(?:m|)\\d+_(?:m|)\\d+$"); /* match example: RP1_4, CPm1_10 */
+    std::smatch match;
+    if (std::regex_search(cw, match, is_P_regex); match[0].matched)
+        return res_P(cw, t_max, stem_max);
 
     int d_max = std::min(t_max, stem_max);
     int1d v_degs;
     Mod1d rels;
-    if (ring == "S0")
+    if (cw == "S0")
         Coh_S0(v_degs, rels, d_max);
-    else if (ring == "X2")
+    else if (cw == "X2")
         Coh_X2(v_degs, rels, d_max);
-    else if (ring == "tmf")
+    else if (cw == "tmf")
         Coh_tmf(v_degs, rels, d_max);
-    else if (ring == "ko")
+    else if (cw == "ko")
         Coh_ko(v_degs, rels, d_max);
-    else if (ring == "C2")
+    else if (cw == "C2")
         Coh_Chn(v_degs, rels, 0, d_max);
-    else if (ring == "Ceta")
+    else if (cw == "Ceta")
         Coh_Chn(v_degs, rels, 1, d_max);
-    else if (ring == "Cnu")
+    else if (cw == "Cnu")
         Coh_Chn(v_degs, rels, 2, d_max);
-    else if (ring == "Csigma")
+    else if (cw == "Csigma")
         Coh_Chn(v_degs, rels, 3, d_max);
-    else if (ring == "C2h4")
+    else if (cw == "C2h4")
         Coh_C2hn(v_degs, rels, 4, d_max);
-    else if (ring == "C2h5")
+    else if (cw == "C2h5")
         Coh_C2hn(v_degs, rels, 5, d_max);
-    else if (ring == "C2h6")
+    else if (cw == "C2h6")
         Coh_C2hn(v_degs, rels, 6, d_max);
-    else if (ring == "j")
+    else if (cw == "DC2h4")
+        Coh_DC2hn(v_degs, rels, 4, d_max);
+    else if (cw == "DC2h5")
+        Coh_DC2hn(v_degs, rels, 5, d_max);
+    else if (cw == "DC2h6")
+        Coh_DC2hn(v_degs, rels, 6, d_max);
+    else if (cw == "j")
         Coh_j(v_degs, rels, d_max);
-    else if (ring == "tmf_C2")
+    else if (cw == "j_C2")
+        Coh_j_C2(v_degs, rels, d_max);
+    else if (cw == "tmf_C2")
         Coh_tmf_Chn(v_degs, rels, 0, d_max);
-    else if (ring == "tmf_Ceta")
+    else if (cw == "tmf_Ceta")
         Coh_tmf_Chn(v_degs, rels, 1, d_max);
-    else if (ring == "tmf_Cnu")
+    else if (cw == "tmf_Cnu")
         Coh_tmf_Chn(v_degs, rels, 2, d_max);
-    else if (ring == "Fphi") {
+    else if (cw == "Fphi") {
         Mod1d tmp;
         int1d tmp_int1d;
         Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
     }
     else {
-        fmt::print("Unsupported arugment ring:{}\n", ring);
-        return 0;
+        fmt::print("Unsupported arugment cw={}\n", cw);
+        return -1;
     }
 
+    std::string db_filename = cw + "_Adams_res.db";
+    std::string tablename = cw + "_Adams_res";
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }
 
+void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2);
 void normalize_RP(int n1, int n2, int& n1_, int& n2_);
-void Coh_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over);
+void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over, int hopf);
 void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
 
-int main_res_RP(int argc, char** argv, int& index, const char* desc)
+int res_P(const std::string& cw, int t_max, int stem_max)
 {
-    int n1 = 0, n2 = 0;
-    int t_max = 100, stem_max = DEG_MAX;
-    std::string ring = "S0";
+    std::regex is_P_regex("^(tmf_|X2_|)((R|C|H)P(?:m|)\\d+_(?:m|)\\d+)$"); /* match example: RP1_4, CPm1_10 */
+    std::smatch match;
+    std::regex_search(cw, match, is_P_regex);
 
-    myio::CmdArg1d args = {{"n1", &n1}, {"n2", &n2}, {"t_max", &t_max}};
-    myio::CmdArg1d op_args = {{"stem_max", &stem_max}, {"ring", &ring}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
-        return error;
+    std::string ring = match[1].str();
+    int hopf, n1, n2;
+    ParseFP(match[2].str(), hopf, n1, n2);
+    std::string field = match[3].str();
 
-    if (stem_max > DEG_MAX) {
-        stem_max = DEG_MAX;
-        fmt::print("stem_max is truncated to {}.", stem_max);
-    }
     if (!(n1 + 1 < n2)) {
         fmt::print("We need n1 + 1 < n2");
-        return -index;
+        return -1;
     }
-    int n1_ = -1, n2_ = -1;
-    normalize_RP(n1, n2, n1_, n2_);
-    if (n1 != n1_)
-        fmt::print("We use n1={} n2={} instead because of James periodicity", n1_, n2_);
+    int n1_ = n1, n2_ = n2;
+
+    if (field == "R") {
+        normalize_RP(n1, n2, n1_, n2_);
+        if (n1 != n1_)
+            fmt::print("We use n1={} n2={} because of James periodicity\n", n1_, n2_);
+    }
 
     int1d v_degs;
     Mod1d rels, tmp_Mod1d;
     int1d tmp_ind1d;
-    if (ring == "S0" || ring == "tmf")
-        Coh_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, ring);
-    else if (ring == "X2")
-        Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);
+    if (ring == "")
+        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "S0", hopf);
+    else if (ring == "tmf_")
+        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "tmf", hopf);
+    else if (ring == "X2_")
+        Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);  ////
     else {
         fmt::print("ring={} not supported\n", ring);
         return 1;
     }
     std::string db_filename, tablename;
     std::string str_n1 = std::to_string(abs(n1_));
+    std::string str_n2 = std::to_string(abs(n2_));
     if (n1_ < 0)
         str_n1 = "m" + str_n1;
-    if (ring != "S0") {
-        db_filename = fmt::format("{}_RP{}_{}_Adams_res.db", ring, str_n1, n2_);
-        tablename = fmt::format("{}_RP{}_{}_Adams_res", ring, str_n1, n2_);
-    }
-    else {
-        db_filename = fmt::format("RP{}_{}_Adams_res.db", str_n1, n2_);
-        tablename = fmt::format("RP{}_{}_Adams_res", str_n1, n2_);
-    }
+    if (n2_ < 0)
+        str_n2 = "m" + str_n2;
+    db_filename = fmt::format("{}{}P{}_{}_Adams_res.db", ring, field, str_n1, str_n2);
+    tablename = fmt::format("{}{}P{}_{}_Adams_res", ring, field, str_n1, str_n2);
+
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }

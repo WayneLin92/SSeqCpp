@@ -407,8 +407,10 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
 
         dbProd.begin_transaction();
         if (t_old != deg.t) {
-            stmt_t_max.bind_and_step(t_old);
-            stmt_time.step_and_reset();
+            if (t_old != -1) {
+                stmt_t_max.bind_and_step(t_old);
+                stmt_time.step_and_reset();
+            }
             t_old = deg.t;
         }
         /* save generators to database */
@@ -573,8 +575,10 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
 
         dbProd.begin_transaction();
         if (t_old != deg.t) {
-            stmt_t_max.bind_and_step(t_old);
-            stmt_time.step_and_reset();
+            if (t_old != -1) {
+                stmt_t_max.bind_and_step(t_old);
+                stmt_time.step_and_reset();
+            }
             t_old = deg.t;
         }
         /* save generators to database */
@@ -750,8 +754,10 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
         dbMap.begin_transaction();
         if (t_old != deg.t) {
-            stmt_t_max.bind_and_step(t_old - fil + sus);
-            stmt_time.step_and_reset();
+            if (t_old != -1) {
+                stmt_t_max.bind_and_step(t_old - fil + sus);
+                stmt_time.step_and_reset();
+            }
             t_old = deg.t;
         }
         /*# save products to database */

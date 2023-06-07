@@ -3,7 +3,7 @@
 #include <string>
 
 inline const char* PROGRAM = "Adams";
-inline const char* VERSION = "Version:\n  3.2.0 (2023-06-04)";
+inline const char* VERSION = "Version:\n  3.2.1 (2023-06-07)";
 inline constexpr int DB_ADAMS_VERSION = 3;
 inline constexpr std::string_view DB_VERSION_NOTES_2 = "Add t_max in version table. Change products table.";
 inline constexpr std::string_view DB_VERSION_NOTES = "Add fil,from,to in version table of maps.";

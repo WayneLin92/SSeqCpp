@@ -5,7 +5,6 @@
 #include <iostream>
 
 int main_res(int, char**, int&, const char*);
-int main_res_RP(int, char**, int&, const char*);
 int main_map_coh(int, char**, int&, const char*);
 int main_map_res(int, char**, int&, const char*);
 
@@ -29,7 +28,6 @@ int main(int argc, char** argv)
     bench::Timer timer;
     myio::SubCmdArg1d subcmds = {
         {"res", "Compute a minimal A-resolution", main_res},
-        {"res_RP", "Compute a minimal A-resolution for RP", main_res_RP},
         {"map_coh", "Set up the cohomology map in file", main_map_coh},
         {"map_res", "Compute a chain map between resolutions", main_map_res},
         {"prod", "Compute the multiplications for a ring", main_prod},

@@ -502,7 +502,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
 
-    if (ut::has(RING_SPECTRA, cw2)) {
+    if (ut::has(RING_SPECTRA, std::string_view(to))) {
         auto basis2 = dbCw2.load_basis(table_cw2);
         auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
         Poly1d images;

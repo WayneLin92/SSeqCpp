@@ -58,10 +58,12 @@ def str2array(str_array: str):
 SET_RINGS = {"S0", "tmf", "ko", "X2"}
 
 
-def get_complex_name(path):
+def get_complex_name(path: str):
     path = os.path.basename(path)
     if path.endswith("Adams_res.db"):
         return path[:-13]
+    elif (index := path.find("AdamsSS")) != -1:
+        return path[: index - 1]
     else:
         raise ValueError(f"{path=} is not supported")
 

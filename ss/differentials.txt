@@ -6,6 +6,10 @@ ss add_diff S0 34 2 3 0 0
 ss add_diff S0 56 9 5 0 0
 ss add_diff S0 68 7 7 1 1
 ss add_diff tmf 96 16 3 0 0
+ss add_diff C2 24 6 3 0 0
+ss add_diff C2 20 3 100 0 ""
+ss add_diff C2 57 8 5 0 0
+ss add_diff C2 58 6 4 0 0
 ss add_diff j 16 8 2 0 0
 ss add_diff j 37 8 2 0 0
 ss add_diff j 45 12 2 0 0

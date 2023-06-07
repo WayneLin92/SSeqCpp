@@ -6,6 +6,7 @@
 #include "main.h"
 #include "mylog.h"
 #include <fstream>
+#include <regex>
 
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log)
 {
@@ -147,6 +148,9 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 
         /*# Load maps */
 
+        std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
+        std::smatch match;
+
         json& json_maps = diagram.at("maps");
         maps_.reserve(json_maps.size());
         for (auto& json_map : json_maps) {
@@ -156,7 +160,15 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             std::string abs_path = fmt::format("{}/{}", dir, path);
             DBSS db(abs_path);
             std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
-            std::string table = fmt::format("map_AdamsE2_{}_to_{}", from, to);
+            std::string table;
+            if (std::regex_search(path, match, is_map_regex); match[0].matched) {
+                table = fmt::format("map_AdamsE2_{}", match[1].str());
+            }
+            else {
+                fmt::print("filename={} not supported.\n", path);
+                throw MyException(0x839393b2, "File name is not supported.");
+            }
+            
             Map map;
             map.name = name;
             map.t_max = json_map["t_max"].get<int>();
