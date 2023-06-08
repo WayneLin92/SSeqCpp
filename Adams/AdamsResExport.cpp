@@ -454,12 +454,14 @@ void load_map(const myio::Database& db, std::string_view table_prefix, std::map<
     }
 }
 
-/* A sorted list of ring spectra */
-const std::vector<std::string_view> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
 
 void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
+    /* A sorted list of ring spectra */
+    std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
+    std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
+
     std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
     myio::AssertFileExists(db_map);
@@ -502,7 +504,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
 
-    if (ut::has(RING_SPECTRA, std::string_view(to))) {
+    if (ut::has(RING_SPECTRA, to)) {
         auto basis2 = dbCw2.load_basis(table_cw2);
         auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
         Poly1d images;
