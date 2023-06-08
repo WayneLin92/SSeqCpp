@@ -513,14 +513,9 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     }
     if (cw2 == "S0") {
         {
-            constexpr std::array<std::string_view, 7> Cs = {"C2", "Ceta", "Cnu", "Csigma", "C2h4", "C2h5", "C2h6"};
-            int i = 0;
-            while (i < (int)Cs.size()) {
-                if (cw1 == Cs[i])
-                    break;
-                ++i;
-            }
-            if (i < (int)Cs.size()) {
+            const std::vector<std::string> Cs = {"C2", "Ceta", "Cnu", "Csigma", "C2h4", "C2h5", "C2h6"};
+            int i = ut::IndexOf(Cs, cw1);
+            if (i != -1) {
                 images = {MMod(MMilnor::P(i, i + 1), 0)};
                 sus = 1 << i;
                 return;
@@ -552,6 +547,19 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             sus = -3;
             return;
         }
+    }
+    if (cw2 == "tmf") {
+        const std::vector<std::string> Cs = {"tmf_C2", "tmf_Ceta", "tmf_Cnu"};
+        int i = ut::IndexOf(Cs, cw1);
+        if (i != -1) {
+            images = {MMod(MMilnor::P(i, i + 1), 0)};
+            sus = 1 << i;
+            return;
+        }
+    }
+    if ((cw1 == "C2" && cw2 == "tmf_C2") || (cw1 == "Ceta" && cw2 == "tmf_Ceta") || (cw1 == "Cnu" && cw2 == "tmf_Cnu")) {
+        images = {MMod(MMilnor(), 0)};
+        return;
     }
     if (cw1 == "C2") {
         if (cw2 == "C2h4" || cw2 == "C2h5" || cw2 == "C2h6") {

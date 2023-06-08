@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.11)
 
 project(
     AlgTop
-    VERSION 3.1.1
+    VERSION 3.2.1
     DESCRIPTION "Algebraic Topology based on Groebner Bases"
     LANGUAGES C CXX
 )

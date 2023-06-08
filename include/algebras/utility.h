@@ -261,6 +261,13 @@ bool has(const T& map, const K& key)
     return map.find(key) != map.end();
 }
 
+template <typename T>
+int IndexOf(const std::vector<T>& vec, const T& key)
+{
+    auto it = find(vec.begin(), vec.end(), key);
+    return it != vec.end() ? int(it - vec.begin()) : -1;
+}
+
 namespace detail {
     /* A safe way to convert time_t to std::tm */
     inline std::tm localtime_xp(std::time_t timer)

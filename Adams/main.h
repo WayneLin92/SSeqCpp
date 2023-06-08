@@ -10,8 +10,6 @@ inline constexpr std::string_view DB_VERSION_NOTES = "Add fil,from,to in version
 
 void DbResVersionConvert(const char* db_filename);
 
-// #define MYDEPLOY
-
 /* local id for a resolution row */
 inline constexpr int LOC_V_BITS = 19;
 struct LocId
