@@ -1,4 +1,5 @@
 # Adams
+* Add three cells
 * Add CW(theta4, theta4), Ctheta4, Ctheta5
 * Auto adjust t_max in command-line
 * Brown-Gitler

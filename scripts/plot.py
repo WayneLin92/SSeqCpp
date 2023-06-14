@@ -61,7 +61,8 @@ def get_complex_name(path: str):
     path = os.path.basename(path)
     if path.endswith("Adams_res.db"):
         return path[:-13]
-    elif (index := path.find("AdamsSS")) != -1:
+    elif path.find("AdamsSS") != -1:
+        index = path.find("AdamsSS")
         return path[: index - 1]
     else:
         raise ValueError(f"{path=} is not supported")

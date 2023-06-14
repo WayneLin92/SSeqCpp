@@ -112,6 +112,44 @@ void Coh_DC2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
 }
 
 /****************************************************
+ *               three cells
+ ***************************************************/
+void Coh_three_cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != n1)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n1) <= t_max; ++i)
+        if (i != n2)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n1) + (1 << n2) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0)));
+}
+
+/****************************************************
+ *               four cells
+ ***************************************************/
+void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != n1 && i != n2)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n1) <= t_max; ++i)
+        if (i != n2)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n2) <= t_max; ++i)
+        if (i != n1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n2, n2 + 1), 0));
+    for (int i = 0; (1 << i) + (1 << n1) + (1 << n2) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0)));
+    rels.push_back(MMilnor::P(n1, n1 + 1) * MMod(MMilnor::P(n2, n2 + 1), 0) + MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
+}
+
+/****************************************************
  *                   j
  ***************************************************/
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
