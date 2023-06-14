@@ -270,26 +270,11 @@ public:
 
 public:
     template <typename T, typename FnMap>
-    void update_str_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const  ///
+    void update_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const  ///
     {
         Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
-        for (size_t i = i_start; i < column.size(); ++i) {
-            stmt.bind_str(1, map(column[i]));
-            stmt.bind_int(2, (int)i);
-            stmt.step_and_reset();
-        }
-    }
-
-    /* `map` should return a pair of type (void*, int) */
-    template <typename T, typename FnMap>
-    void update_blob_column(const std::string& table_name, const std::string& column_name, const std::string& index_name, const std::vector<T>& column, const FnMap& map, size_t i_start) const
-    {
-        Statement stmt(*this, "UPDATE " + table_name + " SET " + column_name + " = ?1 WHERE " + index_name + "= ?2;");
-        for (size_t i = i_start; i < column.size(); ++i) {
-            stmt.bind_blob(1, map(column[i]).first, (int)map(column[i]).second);
-            stmt.bind_int(2, (int)i);
-            stmt.step_and_reset();
-        }
+        for (size_t i = i_start; i < column.size(); ++i)
+            stmt.bind_and_step(map(column[i]), (int)i);
     }
 };
 }  // namespace myio

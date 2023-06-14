@@ -6,9 +6,6 @@
  * Output the image of a differential that should be moved to the next level */
 void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level, int1d& image, int& level_image)
 {
-    if (level == LEVEL_PERM + 1)
-        __debugbreak();
-
     level_image = -1;
 
     size_t i = i_insert;

@@ -19,11 +19,7 @@ public:
         return id_;
     }
 
-    static void Assert(bool statement, const std::string& message)
-    {
-        if (!statement)
-            throw MyException(0xd0dec985, "Assert failed: " + message);
-    }
+    static void Assert(bool statement, const std::string& message);
 
 protected:
     unsigned int id_;

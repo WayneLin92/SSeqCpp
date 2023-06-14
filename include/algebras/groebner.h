@@ -8,6 +8,7 @@
 #include "algebras.h"
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
 
 /* extension of namespace alg in algebras.h */
 namespace alg2 {

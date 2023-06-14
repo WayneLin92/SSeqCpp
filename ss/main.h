@@ -175,6 +175,9 @@ struct ModSp
 };
 using ModSp1d = std::vector<ModSp>;
 
+struct Map;
+using Map1d = std::vector<Map>;
+
 struct MapRing2Ring  ////TODO: Add pi_images
 {
     size_t from, to;
@@ -188,6 +191,14 @@ struct MapMod2Mod
     int fil, sus;
     std::vector<Mod> images;
     int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods);
+};
+
+struct MapMod2ModV2
+{
+    size_t from, to, over;
+    int fil, sus;
+    std::vector<Mod> images;
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps);
 };
 
 struct MapMod2Ring
@@ -216,19 +227,20 @@ struct Map
 {
     std::string name;
     int t_max;
-    std::variant<MapRing2Ring, MapMod2Mod, MapMod2Ring, MapMulRing, MapRing2Mod> map;
+    std::variant<MapRing2Ring, MapMod2Mod, MapMod2ModV2, MapMod2Ring, MapMulRing, MapRing2Mod> map;
 };
-
-using Map1d = std::vector<Map>;
 
 class Diagram
 {
 
-public: /* Settings */
+public:
 protected:
     RingSp1d rings_;
     ModSp1d modules_;
     Map1d maps_;
+
+protected: /* Settings */
+    std::vector<size_t> deduce_list_spectra_;
 
 public:
     Diagram(std::string diagram_name, DeduceFlag flag, bool log = true);
@@ -402,6 +414,7 @@ public:
 
 public: /* Differentials */
     int DeduceTrivialDiffs();
+    int DeduceManual();
     /* Return 0 if there is no exception */
     int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
     int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
@@ -574,7 +587,7 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 }
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
-void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log=false);
+void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log = false);
 
 int main_deduce(int, char**, int&, const char*);
 int main_deduce_ext(int, char**, int&, const char*);

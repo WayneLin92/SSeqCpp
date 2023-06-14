@@ -16,6 +16,8 @@ int main_plot_htpy(int, char**, int&, const char*);
 int main_add_diff(int, char**, int&, const char*);
 int main_add_pi(int, char**, int&, const char*);
 
+int main_import_chua_d2(int, char**, int&, const char*);
+
 int main(int argc, char** argv)
 {
     Logger::SetOutMain("ss.log");
@@ -33,6 +35,7 @@ int main(int argc, char** argv)
         {"add_diff", "Manually input a differential into the ss table", main_add_diff},
         {"add_pi", "Manually input a homotopy into the pi table", main_add_pi},
         {"deduce", "Deduce differentials and extensions", main_deduce},
+        {"import_chua_d2", "Import the d2 data of Chua", main_import_chua_d2},
     };
     int index = 1;
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Manage spectral sequences and homotopy groups", VERSION, subcmds))

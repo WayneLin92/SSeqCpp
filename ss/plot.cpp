@@ -332,8 +332,8 @@ void ToIndices(const algZ::Poly& x, const PiBasis& basis, const std::map<AdamsDe
             break;
         }
         else {
-            auto& basis_d = basis.at(d).nodes_pi_basis;
-            auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
+            const auto& basis_d = basis.at(d).nodes_pi_basis;
+            const auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
             int index = (int)(p - basis_d.begin());
             result.push_back(pi_deg2id.at(d) + index);
         }
@@ -349,8 +349,8 @@ void ToIndices(const algZ::Mod& x, const PiBasisMod& basis, const std::map<Adams
             break;
         }
         else {
-            auto& basis_d = basis.at(d).nodes_pi_basis;
-            auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
+            const auto& basis_d = basis.at(d).nodes_pi_basis;
+            const auto& p = std::lower_bound(basis_d.begin(), basis_d.end(), m);
             int index = (int)(p - basis_d.begin());
             result.push_back(pi_deg2id.at(d) + index);
         }

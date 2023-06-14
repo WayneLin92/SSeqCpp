@@ -1,3 +1,4 @@
+#include "algebras/linalg.h"
 #include "main.h"
 #include "mylog.h"
 #include <fstream>
@@ -146,6 +147,132 @@ void Migrate_htpy(const Diagram& diagram1, Diagram& diagram2)
     // diagram2.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, 0);
 }
 
+void ImportChuaD2(Diagram& diagram)
+{
+    myio::DbAdamsSS db_S0("mix/S0_AdamsSS_t261.db");
+    myio::DbAdamsSS db_Chua_d2("Chua_d2.db");
+
+    std::map<AdamsDeg, int2d> d2_Chua;
+    {
+        myio::Statement stmt(db_Chua_d2, "select stem, Adams_filtration, \"index\", REPLACE(SUBSTR(target, 2, LENGTH(target) - 2), \" \", \"\") from Chua_d2 order by rowid;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int stem = stmt.column_int(0), s = stmt.column_int(1), index1 = stmt.column_int(2);
+            AdamsDeg deg = {s, stem + s};
+            if (index1 != (int)d2_Chua[deg].size())
+                throw MyException(0x794fed62, "Not ordered by index");
+            int1d target = myio::Deserialize<int1d>(stmt.column_str(3));
+            int1d target1;
+            for (int i = 0; i < (int)target.size(); ++i)
+                if (target[i])
+                    target1.push_back(i);
+            d2_Chua[deg].push_back(std::move(target1));
+        }
+    }
+
+    std::map<AdamsDeg, int2d> BFCC_to_res_id;
+    {
+        myio::Statement stmt(db_Chua_d2, "select stem, s, i, res_index from BFCC_to_res_id order by rowid;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int stem = stmt.column_int(0), s = stmt.column_int(1), index1 = stmt.column_int(2);
+            AdamsDeg deg = {s, stem + s};
+            if (index1 != (int)BFCC_to_res_id[deg].size())
+                throw MyException(0x507f4941, "Not ordered by index");
+            int1d res_id = myio::Deserialize<int1d>(stmt.column_str(3));
+            int1d res_id1;
+            for (int i = 0; i < (int)res_id.size(); ++i)
+                if (res_id[i])
+                    res_id1.push_back(i);
+            BFCC_to_res_id[deg].push_back(std::move(res_id1));
+        }
+    }
+
+    std::map<AdamsDeg, int2d> basis_to_res_id;
+    {
+        myio::Statement stmt(db_S0, "select s, t, repr from S0_AdamsE2_basis order by id;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int s = stmt.column_int(0), t = stmt.column_int(1);
+            AdamsDeg deg = {s, t};
+            int1d repr = myio::Deserialize<int1d>(stmt.column_str(2));
+            basis_to_res_id[deg].push_back(std::move(repr));
+        }
+    }
+    for (auto& [deg, map] : basis_to_res_id) {
+        int1d min_res_id1d;
+        for (auto& map_i : map)
+            if (!map_i.empty())
+                min_res_id1d.push_back(*std::min_element(map_i.begin(), map_i.end()));
+        int min_res_id = *std::min_element(min_res_id1d.begin(), min_res_id1d.end());
+        for (auto& map_i : map)
+            for (auto& j : map_i)
+                j -= min_res_id;
+    }
+
+    std::map<AdamsDeg, int2d> res_id_to_basis;
+    for (auto& [deg, map] : basis_to_res_id) {
+        for (int i = 0; i < map.size(); ++i) {
+            int2d image, kernel, g;
+            lina::SetLinearMap(map, image, kernel, g);
+            res_id_to_basis[deg].push_back(lina::GetImage(image, g, {i}));
+        }
+    }
+
+    std::map<AdamsDeg, int2d> x, dx;
+    for (auto& [deg, map] : d2_Chua) {
+        AdamsDeg deg_dx = deg + AdamsDeg(2, 1);
+        if (ut::has(BFCC_to_res_id, deg) && ut::has(res_id_to_basis, deg) && ut::has(BFCC_to_res_id, deg_dx) && ut::has(res_id_to_basis, deg_dx)) {
+            for (int i = 0; i < (int)map.size(); ++i) {
+                int1d x_res_id = BFCC_to_res_id[deg][i];
+                int1d x_basis;
+                for (int j : x_res_id)
+                    x_basis = lina::add(x_basis, res_id_to_basis[deg][j]);
+                x[deg].push_back(x_basis);
+
+                int1d dx_res_id;
+                for (int j : map[i])
+                    dx_res_id = lina::add(dx_res_id, BFCC_to_res_id[deg_dx][j]);
+                int1d dx_basis;
+                for (int j : dx_res_id)
+                    dx_basis = lina::add(dx_basis, res_id_to_basis[deg_dx][j]);
+                dx[deg].push_back(dx_basis);
+            }
+        }
+    }
+
+    for (auto& [deg, x_d] : x) {
+        for (size_t i = 0; i < x_d.size(); ++i)
+            diagram.SetRingDiffGlobal(0, deg, x_d[i], dx[deg][i], 2);
+    }
+}
+
+int main_import_chua_d2(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name;
+
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    auto flag_no_op = DeduceFlag::no_op;
+    Diagram diagram(diagram_name, flag_no_op);
+
+    try {
+        ImportChuaD2(diagram);
+        diagram.save(diagram_name, flag_no_op);
+    }
+    /*catch (SSException& e) {
+        std::cerr << "SSException " << std::hex << e.id() << ": " << e.what() << '\n';
+    }
+    catch (MyException& e) {
+        std::cerr << "MyException " << std::hex << e.id() << ": " << e.what() << '\n';
+    }*/
+    catch (NoException&) {
+        ;
+    }
+
+    return 0;
+}
+
 int main_migrate_ss(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name1, diagram_name2;
@@ -156,8 +283,8 @@ int main_migrate_ss(int argc, char** argv, int& index, const char* desc)
         return error;
 
     auto flag_no_op = DeduceFlag::no_op;
-    Diagram diagram1(diagram_name1, flag_no_op);
-    Diagram diagram2(diagram_name2, flag_no_op, false);
+    Diagram diagram1(diagram_name1, flag_no_op, false);
+    Diagram diagram2(diagram_name2, flag_no_op);
 
     try {
         Migrate_ss(diagram1, diagram2);

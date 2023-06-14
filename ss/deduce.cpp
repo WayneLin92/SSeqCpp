@@ -3,14 +3,14 @@
 #include "mylog.h"
 #include <set>
 
-/* Deduce zero differentials for degree reason
- * t_test is for DeduceDiffs() */
+/* Deduce zero differentials for degree reason */
 int Diagram::DeduceTrivialDiffs()
 {
-    int old_count = 0, count_new_diffs = 0;
+    int old_count = 0, count = 0;
     const size_t num_cw = rings_.size() + modules_.size();
     while (true) {
         for (size_t iCw = 0; iCw < num_cw; ++iCw) {
+            auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
             auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
             int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
             for (auto& [d, basis_ss_d] : nodes_ss.front()) {
@@ -22,28 +22,80 @@ int Diagram::DeduceTrivialDiffs()
                             /* Find the first possible d_{r1} target for r1>=r */
                             int r1 = NextRTgt(nodes_ss, t_max, d, r);
                             if (r != r1) {
-                                SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r);
-                                ++count_new_diffs;
+                                Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::degree, name, d, sc.basis[i], {}, r1 - 1);
+                                SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r1 - 1);
+                                ++count;
                             }
                         }
                         else if (sc.levels[i] < LEVEL_MAX / 2) {
                             const int r = sc.levels[i];
                             int r1 = NextRSrc(nodes_ss, d, r);
                             if (r != r1) {
-                                SetCwDiffGlobal(iCw, d - AdamsDeg(r, r - 1), {}, sc.basis[i], r);
-                                ++count_new_diffs;
+                                Logger::LogDiffInv(int(nodes_ss.size() - 2), enumReason::degree, name, d, {}, sc.basis[i], r1 + 1);
+                                SetCwDiffGlobal(iCw, d - AdamsDeg(r1 + 1, r1), {}, sc.basis[i], r1 + 1);
+                                ++count;
                             }
                         }
                     }
                 }
             }
         }
-        if (old_count != count_new_diffs)
-            old_count = count_new_diffs;
+        if (old_count != count)
+            old_count = count;
         else
             break;
     }
-    return count_new_diffs;
+    return count;
+}
+
+/* Deduce zero differentials because of the image of j */
+int Diagram::DeduceManual()
+{
+    int old_count = 0, count = 0;
+    const size_t num_cw = rings_.size() + modules_.size();
+
+    AdamsDeg1d degs_S0 = {{1, 1}, {2, 2}, {3, 1}, {3, 2}, {3, 3}, {7, 2}, {7, 3}, {7, 4}, {8, 3}, {1, 0}};  //// TODO: constexpr
+    for (auto& d : degs_S0)
+        d = AdamsDeg(d.t, d.t + d.s);
+    std::sort(degs_S0.begin(), degs_S0.end());
+
+    AdamsDeg1d degs_j = {{2, 2}, {3, 1}, {3, 2}, {3, 3}, {7, 2}, {7, 3}, {7, 4}};  //// TODO: constexpr
+    for (auto& d : degs_j)
+        d = AdamsDeg(d.t, d.t + d.s);
+    std::sort(degs_j.begin(), degs_j.end());
+
+    while (true) {
+        for (size_t iCw = 0; iCw < num_cw; ++iCw) {
+            auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
+            if (name == "S0" || name == "j") {
+                auto& degs_perm = name == "S0" ? degs_S0 : degs_j;
+                auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
+                int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
+                for (auto& [d, basis_ss_d] : nodes_ss.front()) {
+                    const Staircase& sc = GetRecentSc(nodes_ss, d);
+                    for (size_t i = 0; i < sc.levels.size(); ++i) {
+                        if (sc.diffs[i] == NULL_DIFF) {
+                            if (sc.levels[i] > LEVEL_PERM) {
+                                const int r = LEVEL_MAX - sc.levels[i];
+                                AdamsDeg dx = d + AdamsDeg(r, r - 1);
+                                AdamsDeg dx_residue = dx % AdamsDeg(4, 12);
+                                if (ut::has(degs_perm, dx_residue)) {
+                                    Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::manual, name, d, sc.basis[i], {}, r);
+                                    SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r);
+                                    ++count;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (old_count != count)
+            old_count = count;
+        else
+            break;
+    }
+    return count;
 }
 
 int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag)
@@ -223,18 +275,20 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
     }
 
     const size_t num_cw = rings_.size() + modules_.size();
-    for (size_t iCw = 0; iCw < num_cw; ++iCw) {
+    for (size_t iCw : deduce_list_spectra_) {
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
-        if (name == "j")
-            continue;
+        /*if (name == "j")
+            continue;*/
         auto& degs = iCw < rings_.size() ? rings_[iCw].degs_basis_order_by_stem : modules_[iCw - rings_.size()].degs_basis_order_by_stem;
 
         for (AdamsDeg deg : degs) {
             if (depth == 0)
                 std::cout << name << "  deg=" << deg.StrAdams() << "                        \r";
+            if (!BelowS0VanishingLine(deg))
+                continue;
             if (deg.stem() < stem_min)
                 continue;
-            else if (deg.stem() > stem_max)
+            if (deg.stem() > stem_max)
                 break;
 
             count += DeduceDiffs(iCw, deg, depth, flag);
@@ -288,6 +342,24 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    DeduceFlag flag = DeduceFlag::no_op;
+    Diagram diagram(diagram_name, flag);
+    int count = diagram.DeduceManual();
+    diagram.save(diagram_name, flag);
+    Logger::LogSummary("Changed differentials", count);
+
+    return 0;
+}
+
 /* This is for debugging */
 int main_deduce_tmp(int argc, char** argv, int& index, const char* desc)
 {
@@ -299,13 +371,10 @@ int main_deduce_tmp(int argc, char** argv, int& index, const char* desc)
         return error;
 
     DeduceFlag flag = DeduceFlag::no_op;
-    Diagram diagram(diagram_name, flag);
-    int count = 0;
-    int count_ss = 0, count_homotopy = 0;
-    diagram.DeduceExtensions(0, 30, count_ss, count_homotopy, 0, flag);
-    diagram.SimplifyPiRels();
-    diagram.save(diagram_name, flag);
-    std::cout << "Changed differentials: " << count << '\n';
+    Diagram diagram(diagram_name, flag, false);////
+    int count = diagram.DeduceManual();
+    //diagram.save(diagram_name, flag);
+    Logger::LogSummary("Changed differentials", count);
 
     return 0;
 }
@@ -319,6 +388,7 @@ int main_deduce(int argc, char** argv, int& index, const char* desc)
         {"ext_def", "Define decomposables", main_deduce_ext_def},
         {"ext_def2", "Define indecomposables", main_deduce_ext_def2},
         {"ext_2tor", "Compute 2-torsion degrees of generators of rings", main_deduce_ext_2tor},  //// TODO: check all rings
+        {"manual", "Deduce by knowledge from other sources", main_deduce_manual},
         {"tmp", "Generate tables: ss_prod,ss_diff,ss_nd,ss_stable_levels for plotting", main_deduce_tmp},
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Make deductions on ss or homotopy", VERSION, subcmds))

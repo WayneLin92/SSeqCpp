@@ -23,8 +23,18 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
     }
 
     try {
-        json& diagram = js.at("diagrams").at(diagram_name);
-        std::string dir = diagram.at("dir").get<std::string>();
+        json& diagrams = js.at("diagrams");
+        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
+        json diagram;
+        {
+            std::ifstream ifs(fmt::format("{}/ss.json", dir));
+            if (ifs.is_open())
+                ifs >> diagram;
+            else {
+                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
+                throw MyException(0xef000cd, "File dir/ss.json not found");
+            }
+        }
         if (log) {
             auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
@@ -71,10 +81,18 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
     }
 
     try {
-        if (diagram_name == "default")
-            diagram_name = js.at("diagrams").at("default").get<std::string>();
-        json& diagram = js.at("diagrams").at(diagram_name);
-        std::string dir = diagram.at("dir").get<std::string>();
+        json& diagrams = js.at("diagrams");
+        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
+        json diagram;
+        {
+            std::ifstream ifs(fmt::format("{}/ss.json", dir));
+            if (ifs.is_open())
+                ifs >> diagram;
+            else {
+                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
+                throw MyException(0xef000cd, "File dir/ss.json not found");
+            }
+        }
         if (log) {
             auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
@@ -84,8 +102,12 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 
         json& json_rings = diagram.at("rings");
         rings_.reserve(json_rings.size());
+        size_t iCw = 0;
+
         for (auto& json_ring : json_rings) {
             std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
+            if (!json_ring.contains("deduce") || json_ring.at("deduce").get<std::string>() == "on")
+                deduce_list_spectra_.push_back(iCw);
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
@@ -108,6 +130,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             }
 
             rings_.push_back(std::move(ring));
+            ++iCw;
         }
 
         /*# Load modules */
@@ -117,6 +140,8 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         for (auto& json_mod : json_mods) {
             std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
             std::string over = json_mod.at("over").get<std::string>();
+            if (!json_mod.contains("deduce") || json_mod.at("deduce").get<std::string>() == "on")
+                deduce_list_spectra_.push_back(iCw);
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
@@ -144,6 +169,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 
             modules_.push_back(std::move(mod));
             ring.ind_mods.push_back(modules_.size() - 1);
+            ++iCw;
         }
 
         /*# Load maps */
@@ -168,7 +194,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                 fmt::print("filename={} not supported.\n", path);
                 throw MyException(0x839393b2, "File name is not supported.");
             }
-            
+
             Map map;
             map.name = name;
             map.t_max = json_map["t_max"].get<int>();
@@ -193,7 +219,16 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     size_t index_to = (size_t)GetModuleIndexByName(to);
                     MyException::Assert(index_to != -1, "index_to != -1");
                     auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
-                    map.map = MapMod2Mod{index_from, index_to, fil, sus, std::move(images)};
+                    if (!json_map.contains("over")) {
+                        map.map = MapMod2Mod{index_from, index_to, fil, sus, std::move(images)};
+                    }
+                    else {
+                        std::string over = json_map.at("over").get<std::string>();
+                        size_t index_map = 0;
+                        while (index_map < maps_.size() && maps_[index_map].name != over)
+                            ++index_map;
+                        map.map = MapMod2ModV2{index_from, index_to, index_map, fil, sus, std::move(images)};
+                    }
                 }
                 modules_[index_from].ind_maps.push_back(maps_.size());
             }
@@ -226,10 +261,18 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
     }
     std::map<std::string, std::string> paths;
     try {
-        if (diagram_name == "default")
-            diagram_name = js["diagrams"]["default"].get<std::string>();
-        json& diagram = js["diagrams"][diagram_name];
-        std::string dir = diagram["dir"].get<std::string>();
+        json& diagrams = js.at("diagrams");
+        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
+        json diagram;
+        {
+            std::ifstream ifs(fmt::format("{}/ss.json", dir));
+            if (ifs.is_open())
+                ifs >> diagram;
+            else {
+                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
+                throw MyException(0xef000cd, "File dir/ss.json not found");
+            }
+        }
 
         /* #save rings */
         json& json_rings = diagram["rings"];

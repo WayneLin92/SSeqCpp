@@ -159,6 +159,11 @@ struct AdamsDeg
     {
         return AdamsDeg{s * rhs, t * rhs};
     };
+    AdamsDeg operator%(const AdamsDeg& rhs) const
+    {
+        int q = rhs.s == 0 ? t / rhs.t : (rhs.t == 0 ? s / rhs.s : std::min(s / rhs.s, t / rhs.t));
+        return *this - rhs * q;
+    };
     std::string Str() const
     {
         return '(' + std::to_string(s) + ',' + std::to_string(t) + ')';
@@ -740,7 +745,7 @@ template <typename FnMap>
 auto subsModTpl(const Mod& x, const FnMap& map)
 {
     using T = decltype(map(0));
-    T result{}, tmp_prod{}, tmp{};
+    T result{}, tmp{};
     for (const MMod& m : x.data)
         result.iaddP(m.m * map(m.v), tmp);
     return result;

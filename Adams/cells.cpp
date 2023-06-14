@@ -574,6 +574,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     if (cw2 == "C2") {
         if (cw1 == "DC2h4" || cw1 == "DC2h5" || cw1 == "DC2h6") {
             images = {{}, MMod(MMilnor(), 0)};
+            sus = cw1 == "DC2h4" ? 15 : (cw1 == "DC2h5" ? 31 : 63);
             return;
         }
     }

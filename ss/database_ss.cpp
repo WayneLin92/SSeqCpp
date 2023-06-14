@@ -212,7 +212,7 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    fmt::print("Confirm to reset {}\n", diagram_name);
+    fmt::print("Confirm to reset_ss {}\n", diagram_name);
     if (myio::UserConfirm()) {
         std::vector<std::string> names, paths;
         std::vector<int> isRing;
@@ -237,7 +237,7 @@ int main_reset_pi(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    fmt::print("Confirm to resetpi {}\n", diagram_name);
+    fmt::print("Confirm to reset_pi {}\n", diagram_name);
     if (myio::UserConfirm()) {
         std::vector<std::string> names, paths;
         std::vector<int> isRing;

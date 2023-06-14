@@ -930,7 +930,7 @@ T&& debug_hook(T&& rel, T1&&... args)
 {
     if (rel.Str() == "x_{22}x_{40}v_0+2x_1x_{162}v_0+O(9)") {
         fmt::print(args...);
-        __debugbreak();
+        //__debugbreak();
     }
     return rel;
 }

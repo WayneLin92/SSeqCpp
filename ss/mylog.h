@@ -17,8 +17,9 @@ enum class enumReason : uint32_t
     def,      /* By definition */
     try_,     /* Try */
     migrate,  /* Migration */
+    manual,   /* By other source of knowledge */
 };
-inline const std::array<std::string_view, 11> REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "exact_hq", "exact_ih", "exact_qi", "def", "try", "migrate"};
+inline const std::array<std::string_view, 12> REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "exact_hq", "exact_ih", "exact_qi", "def", "try", "migrate", "manual"};
 inline const char* INDENT = "          ";
 
 /* There should be at least one global instance to close the files */

@@ -18,7 +18,6 @@ class Config:
 cosA = math.cos(Config.bullets_tilt_angle)
 sinA = math.sin(Config.bullets_tilt_angle)
 
-PATH_SS_JSON = "C:/Users/lwnpk/OneDrive/Projects/algtop_cpp/ss/ss.json"
 PATH_HTML_TPL = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\index_tpl.html"
 PATH_TMP_HTML = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
 PATH_TMP_JS = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
@@ -1212,19 +1211,23 @@ if __name__ == "__main__":
         os.sys.exit()
 
     # actions
-    with open(PATH_SS_JSON) as file_ss_json:
+    with open("ss.json") as file_ss_json:
         ss_json = json.load(file_ss_json)
 
-    dir_website = (
-        "C:/Users/lwnpk/OneDrive/Projects/HTML/WayneLin92.github.io/ss-fb42729d/mix100"
+    dir_db = (
+        ss_json["diagrams"][args.diagram]
+        if args.diagram in ss_json["diagrams"]
+        else args.diagram
     )
+    path_diagram_json = f"{dir_db}/ss.json"
+    with open(path_diagram_json) as file_ss_json:
+        diagram_json = json.load(file_ss_json)
 
-    rings = ss_json["diagrams"][args.diagram]["rings"]
-    mods = ss_json["diagrams"][args.diagram]["modules"]
-    dir_db = ss_json["diagrams"][args.diagram]["dir"]
+    rings = diagram_json["rings"]
+    mods = diagram_json["modules"]
     dir_website = os.path.join(
         ss_json["dir_website_ss"],
-        ss_json["diagrams"][args.diagram]["dir_html"],
+        diagram_json["dir_html"],
     )
 
     for i, ring in enumerate(rings):

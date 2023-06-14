@@ -73,6 +73,36 @@ int1d MapMod2Mod::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods)
     return result;
 }
 
+auto subs(const Mod& x, const std::vector<Poly>& map1, const std::vector<Mod>& map2)
+{
+    Mod result{}, tmp{};
+    Poly tmp_prod_p, tmf_p;
+    for (const MMod& m : x.data) {
+        Poly fm = Poly::Unit();
+        for (auto p = m.m.begin(); p != m.m.end(); ++p) {
+            powP(map1[p->g()], p->e_masked(), tmp_prod_p, tmf_p);
+            fm.imulP(tmp_prod_p, tmf_p);
+        }
+        result.iaddP(fm * map2[m.v], tmp);
+    }
+    return result;
+}
+
+int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps)
+{
+    int1d result;
+    auto& ring_map = std::get<MapRing2Ring>(maps[over].map);
+    if (!x.empty()) {
+        auto x_alg = Indices2Mod(x, mods[from].basis.at(deg_x));
+        auto fx_alg = mods[to].gb.Reduce(subs(x_alg, ring_map.images, images));
+        if (fx_alg) {
+            AdamsDeg deg_fx = deg_x + AdamsDeg(fil, fil - sus);
+            result = Mod2Indices(fx_alg, mods[to].basis.at(deg_fx));
+        }
+    }
+    return result;
+}
+
 int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings)
 {
     int1d result;
@@ -116,8 +146,12 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
                 else if (!dx.empty())
                     continue;
                 auto fx = f.map(x, deg_x, rings_);
-                if (!fx.empty() || !fdx.empty())
-                    count += SetRingDiffGlobal(f.to, deg_x, fx, fdx, r, bFastTry);  //// TODO: add log
+                if (!fx.empty() || !fdx.empty()) {
+                    if (int count1 = SetRingDiffGlobal(f.to, deg_x, fx, fdx, r, bFastTry)) {
+                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, rings_[f.to].name), deg_x, fx, fdx, r);
+                        count += count1;
+                    }
+                }
             }
         }
     }
@@ -159,10 +193,14 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                         continue;
                     auto fx = f.map(x, deg_x, modules_, rings_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!fx.empty() || !fdx.empty())
-                        count += SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
+                    if (!fx.empty() || !fdx.empty()) {
+                        if (int count1 = SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
+                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, rings_[f.to].name), deg_fx, fx, fdx, r);
+                            count += count1;
+                        }
+                    }
                 }
-                else {
+                else if (std::holds_alternative<MapMod2Mod>(map.map)) {
                     auto& f = std::get<MapMod2Mod>(map.map);
                     int1d fdx;
                     if (deg_dx.t <= map.t_max)
@@ -171,8 +209,28 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                         continue;
                     auto fx = f.map(x, deg_x, modules_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!fx.empty() || !fdx.empty())
-                        count += SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry);  //// TODO: add log
+                    if (!fx.empty() || !fdx.empty()) {
+                        if (int count1 = SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
+                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, modules_[f.to].name), deg_fx, fx, fdx, r);
+                            count += count1;
+                        }
+                    }
+                }
+                else {
+                    auto& f = std::get<MapMod2ModV2>(map.map);
+                    int1d fdx;
+                    if (deg_dx.t <= map.t_max)
+                        fdx = f.map(dx, deg_dx, modules_, maps_);
+                    else if (!dx.empty())
+                        continue;
+                    auto fx = f.map(x, deg_x, modules_, maps_);
+                    AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
+                    if (!fx.empty() || !fdx.empty()) {
+                        if (int count1 = SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
+                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, modules_[f.to].name), deg_fx, fx, fdx, r);
+                            count += count1;
+                        }
+                    }
                 }
             }
         }

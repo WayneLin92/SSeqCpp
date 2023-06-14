@@ -1,20 +1,74 @@
 Added
-ss add_diff S0 15 1 2 0 0
 ss add_diff S0 15 2 3 0 0
 ss add_diff S0 31 8 4 0,1 0
 ss add_diff S0 34 2 3 0 0
 ss add_diff S0 56 9 5 0 0
 ss add_diff S0 68 7 7 1 1
 ss add_diff tmf 96 16 3 0 0
-ss add_diff C2 24 6 3 0 0
-ss add_diff C2 20 3 100 0 ""
-ss add_diff C2 57 8 5 0 0
-ss add_diff C2 58 6 4 0 0
+
+j
 ss add_diff j 16 8 2 0 0
+ss add_diff j 32 16 3 0 0
+ss add_diff j 48 24 2 0 0
+ss add_diff j 64 32 4 0 0
+ss add_diff j 80 40 2 0 0
+ss add_diff j 96 48 3 0 0
+ss add_diff j 112 56 2 0 0
+ss add_diff j 128 64 5 0 0
+ss add_diff j 144 72 2 0 0
+ss add_diff j 160 80 3 0 0
+
 ss add_diff j 37 8 2 0 0
 ss add_diff j 45 12 2 0 0
+ss add_diff j 53 16 2 0 0
+ss add_diff j 61 19 3 "" 0
+ss add_diff j 69 23 3 "" 0
+ss add_diff j 77 27 3 "" 0
+ss add_diff j 85 31 3 "" 0
+
+ss add_diff j 49 15 3 "" 0
+ss add_diff j 57 19 3 "" 0
+ss add_diff j 65 23 3 "" 0
+ss add_diff j 73 27 3 "" 0
+
+ss add_diff j 73 17 3 "" 0,2
+ss add_diff j 81 21 3 "" 0,2
+ss add_diff j 89 25 3 "" 0,2
+ss add_diff j 97 29 3 "" 0,3
+ss add_diff j 105 33 3 "" 0,3
+
+ss add_diff j 85 15 3 "" 0
+ss add_diff j 105 27 3 "" 0,3
+
+ss add_diff j 37 12 3 "" 0
+ss add_diff j 45 16 3 "" 0
+ss add_diff j 53 20 3 "" 0
+ss add_diff j 61 24 3 "" 0
+ss add_diff j 69 28 3 "" 0
+ss add_diff j 77 32 3 "" 0
+ss add_diff j 85 36 3 "" 0
+ss add_diff j 93 40 3 "" 0
+ss add_diff j 101 44 3 "" 0
+ss add_diff j 109 48 3 "" 0
+ss add_diff j 117 52 3 "" 0
+ss add_diff j 125 56 3 "" 0
+ss add_diff j 133 60 3 "" 0
+ss add_diff j 141 64 3 "" 0
+ss add_diff j 149 68 3 "" 0
+ss add_diff j 157 72 3 "" 0
+ss add_diff j 165 76 3 "" 0
+
+C2
+ss add_diff C2 20 3 100 0 ""
+ss add_diff C2 24 6 3 0 0
+
+ss add_diff C2 57 8 5 0 0
+ss add_diff C2 58 6 4 0 0
 
 Added
+ss add_diff S0 126 2 8 0 ""
+ss add_diff S0 127 56 6 1 0
+ss add_diff S0 159 74 4 1 0
 ss add_diff S0 38 2 4 0 0
 ss add_diff S0 38 4 3 0 0
 ss add_diff S0 57 7 3 0 1
@@ -28,10 +82,10 @@ ss add_diff S0 63 7 4 0 ""
 ss add_diff S0 63 7 4 1 1
 ss add_diff S0 63 8 3 1 0,1
 ss add_diff S0 64 2 100 0 ""
+ss add_diff S0 128 2 100 0 ""
 ss add_diff S0 64 5 100 0 ""
 ss add_diff S0 66 6 100 0 ""
 ss add_diff S0 67 5 100 0,1 ""
-ss add_diff S0 67 6 100 1 ""
 ss add_diff S0 67 9 3 1 0
 ss add_diff S0 68 12 5 1 0
 ss add_diff S0 68 4 3 0 0
@@ -57,11 +111,8 @@ ss add_diff S0 75 5 4 0 0
 ss add_diff S0 75 6 100 0 ""
 ss add_diff S0 75 7 3 0 0
 ss add_diff S0 76 5 3 0 0
-ss add_diff S0 76 6 2 0 1
 ss add_diff S0 77 3 100 0 ""
 ss add_diff S0 77 5 100 0 ""
-ss add_diff S0 77 7 2 0,1 1
-ss add_diff S0 77 7 2 1 ""
 ss add_diff S0 78 3 3 0 1
 ss add_diff S0 78 5 4 0 1
 ss add_diff S0 79 3 100 0 ""
@@ -105,9 +156,8 @@ ss add_diff S0 98 11 6 1 0
 ss add_diff S0 99 9 3 0 1
 ss add_diff S0 100 9 4 0 0,1
 ss add_diff S0 101 5 3 0 2
-ss add_diff S0 107 12 2 0 1
 ss add_diff S0 107 5 4 0 1
 
-ss add_diff S0 120 9 2 0 2
-ss add_diff S0 125 15 2 2 ""
 ss add_diff S0 70 13 5 "" 0
+ss add_diff S0 102 29 5 "" 0
+ss add_diff S0 118 37 5 "" 0
