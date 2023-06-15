@@ -99,7 +99,7 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Coh_three_cell(v_degs, rels, 3, 2, d_max);
     else if (cw == "C2_Ceta")
         Coh_smash_2cell(v_degs, rels, 0, 1, d_max);
-    else if (cw == "Ceta_nu")
+    else if (cw == "Ceta_Cnu")
         Coh_smash_2cell(v_degs, rels, 1, 2, d_max);
     else if (cw == "Cnu_Csigam")
         Coh_smash_2cell(v_degs, rels, 2, 3, d_max);

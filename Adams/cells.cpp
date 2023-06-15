@@ -462,9 +462,9 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
 
             int1d v_degs_n, tmp_ind1d;
             Mod1d tmp, tmp1;
-            Coh_P(v_degs_n, tmp, tmp1, tmp_ind1d, n1, n2, n2 << hopf, "S0", hopf);
+            Coh_P(v_degs_n, tmp, tmp1, tmp_ind1d, n1, n2, std::min(n2 << hopf, 256), "S0", hopf);
             int1d v_degs_m;
-            Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, m2 << hopf, "S0", hopf);
+            Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, std::min(m2 << hopf, 256), "S0", hopf);
 
             images.clear();
             for (size_t i = 0; i < v_degs_n.size(); ++i)
@@ -479,9 +479,9 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
 
             int1d v_degs_n, tmp_ind1d;
             Mod1d cell_reduced_n, tmp, tmp1;
-            Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, n2 << hopf, "S0", hopf);
+            Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, std::min(n2 << hopf, 256), "S0", hopf);
             int1d v_degs_m;
-            Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, m2 << hopf, "S0", hopf);
+            Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, std::min(m2 << hopf, 256), "S0", hopf);
 
             images.clear();
             for (size_t i = 0; i < v_degs_m.size(); ++i)
@@ -492,13 +492,13 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         else if (n1 == m2 + 1) { /*## connecting map */
             int1d v_degs_n, tmp_ind1d;
             Mod1d cell_reduced_n, tmp, tmp1;
-            Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, n2 << hopf, "S0", hopf);
+            Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, std::min(n2 << hopf, 256), "S0", hopf);
             int1d v_degs_m;
             Mod1d rels_m;
-            Coh_P(v_degs_m, rels_m, tmp1, tmp_ind1d, m1, m2, n2 << hopf, "S0", hopf);
+            Coh_P(v_degs_m, rels_m, tmp1, tmp_ind1d, m1, m2, std::min(n2 << hopf, 256), "S0", hopf);
             int1d v_degs_l;
             Mod1d rels_l;
-            Coh_P(v_degs_l, rels_l, tmp1, tmp_ind1d, m1, n2, n2 << hopf, "S0", hopf);
+            Coh_P(v_degs_l, rels_l, tmp1, tmp_ind1d, m1, n2, std::min(n2 << hopf, 256), "S0", hopf);
             Groebner gb(n2, rels_l, v_degs_l);
 
             images.clear();
@@ -525,9 +525,9 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
 
         int1d v_degs_n, tmp_ind1d;
         Mod1d cell_reduced_n, tmp, tmp1;
-        Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, n2 << hopf1, "S0", hopf1);
+        Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, std::min(n2 << hopf1, 256), "S0", hopf1);
         int1d v_degs_m;
-        Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, m2 << hopf2, "S0", hopf2);
+        Coh_P(v_degs_m, tmp, tmp1, tmp_ind1d, m1, m2, std::min(m2 << hopf2, 256), "S0", hopf2);
 
         images.clear();
         for (size_t i = 0; i < v_degs_m.size(); ++i)
@@ -535,6 +535,22 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         sus = (n2_ - 2 * m2_) << hopf1;
         return;
     }
+}
+
+/* CW_hn1_hn2 --> Chn2 */
+void SetCohMapQ3cell_2cell(Mod1d& images, int& sus, int n1, int n2)
+{
+    images = {MMod(MMilnor::P(n1, n1 + 1), 0)};
+    sus = 1 << n1;
+    return;
+}
+
+/* Chn1 smash Chn2 --> Chn2 */
+void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
+{
+    images = {MMod(MMilnor::P(n2, n2 + 1), 0)};
+    sus = 1 << n2;
+    return;
 }
 
 void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
@@ -600,7 +616,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         return;
     }
     if (cw1 == "C2") {
-        if (cw2 == "C2h4" || cw2 == "C2h5" || cw2 == "C2h6") {
+        if (cw2 == "C2h4" || cw2 == "C2h5" || cw2 == "C2h6" || cw2 == "CW_2_eta" || cw2 == "C2_Ceta") {
             images = {MMod(MMilnor(), 0)};
             return;
         }
@@ -609,10 +625,76 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             return;
         }
     }
+    if (cw1 == "Ceta") {
+        if (cw2 == "CW_eta_nu" || cw2 == "CW_eta_2" || cw2 == "C2_Ceta" || cw2 == "Ceta_Cnu") {
+            images = {MMod(MMilnor(), 0)};
+            return;
+        }
+    }
+    if (cw1 == "Cnu") {
+        if (cw2 == "CW_nu_sigma" || cw2 == "CW_nu_eta" || cw2 == "Ceta_Cnu" || cw2 == "Cnu_Csigma") {
+            images = {MMod(MMilnor(), 0)};
+            return;
+        }
+    }
     if (cw2 == "C2") {
         if (cw1 == "DC2h4" || cw1 == "DC2h5" || cw1 == "DC2h6") {
             images = {{}, MMod(MMilnor(), 0)};
             sus = cw1 == "DC2h4" ? 15 : (cw1 == "DC2h5" ? 31 : 63);
+            return;
+        }
+        if (cw1 == "CW_eta_2") {
+            SetCohMapQ3cell_2cell(images, sus, 1, 0);
+            return;
+        }
+        if (cw1 == "C2_Ceta") {
+            SetCohMapQSmash_2cell(images, sus, 1, 0);
+            return;
+        }
+    }
+    if (cw2 == "Ceta") {
+        if (cw1 == "CW_2_eta") {
+            SetCohMapQ3cell_2cell(images, sus, 0, 1);
+            return;
+        }
+        if (cw1 == "CW_nu_eta") {
+            SetCohMapQ3cell_2cell(images, sus, 2, 1);
+            return;
+        }
+        if (cw1 == "C2_Ceta") {
+            SetCohMapQSmash_2cell(images, sus, 0, 1);
+            return;
+        }
+        if (cw1 == "Ceta_Cnu") {
+            SetCohMapQSmash_2cell(images, sus, 2, 1);
+            return;
+        }
+    }
+    if (cw2 == "Cnu") {
+        if (cw1 == "CW_eta_nu") {
+            SetCohMapQ3cell_2cell(images, sus, 1, 2);
+            return;
+        }
+        if (cw1 == "CW_sigma_nu") {
+            SetCohMapQ3cell_2cell(images, sus, 3, 2);
+            return;
+        }
+        if (cw1 == "Ceta_Cnu") {
+            SetCohMapQSmash_2cell(images, sus, 1, 2);
+            return;
+        }
+        if (cw1 == "Cnu_Csigma") {
+            SetCohMapQSmash_2cell(images, sus, 3, 2);
+            return;
+        }
+    }
+    if (cw2 == "Csigma") {
+        if (cw1 == "CW_nu_sigma") {
+            SetCohMapQ3cell_2cell(images, sus, 2, 3);
+            return;
+        }
+        if (cw1 == "Cnu_Csigam") {
+            SetCohMapQSmash_2cell(images, sus, 2, 3);
             return;
         }
     }
