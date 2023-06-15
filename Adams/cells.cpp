@@ -548,8 +548,8 @@ void SetCohMapQ3cell_2cell(Mod1d& images, int& sus, int n1, int n2)
 /* Chn1 smash Chn2 --> Chn2 */
 void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
 {
-    images = {MMod(MMilnor::P(n2, n2 + 1), 0)};
-    sus = 1 << n2;
+    images = {MMod(MMilnor::P(n1, n1 + 1), 0)};
+    sus = 1 << n1;
     return;
 }
 
