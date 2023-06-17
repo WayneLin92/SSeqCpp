@@ -26,12 +26,6 @@ public:
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
     }
 
-    void save_t_max(int t_max)
-    {
-        myio::Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt_t_max.bind_and_step(t_max);
-    }
-
 public:
     void create_generators_cell(const std::string& table_prefix) const
     {
@@ -140,12 +134,6 @@ public:
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
     }
 
-    void save_t_max(int t_max)
-    {
-        myio::Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt_t_max.bind_and_step(t_max);
-    }
-
 public:
     void recreate_tables(const std::string& table_prefix)
     {
@@ -188,6 +176,11 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
 
     myio::AssertFileExists(db_in);
     MyDB dbProd(db_in);
+    int t_max_prod = get_db_t_max(dbProd);
+    if (t_trunc > t_max_prod) {
+        t_trunc = t_max_prod;
+        fmt::print("t_max is truncated to {}\n", t_max_prod);
+    }
 
     AdamsDeg1d gen_degs;
     int1d gen_reprs;
@@ -300,7 +293,8 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
     dbE2.save_generators(table_out, gen_degs, gen_reprs);
     dbE2.save_gb(table_out, gb);
     dbE2.save_basis(table_out, basis, repr);
-    dbE2.save_t_max(t_trunc);
+    set_db_t_max(dbE2, t_trunc);
+    set_db_time(dbE2);
 
     dbE2.end_transaction();
 }
@@ -320,6 +314,14 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     std::string table_out = fmt::format("{}_AdamsE2", mod);
 
     MyDB dbProd(db_mod);
+    int t_max_prod = get_db_t_max(dbProd);
+    MyDB dbRing(db_ring);
+    int t_max_ring = get_db_t_max(dbRing);
+    int t_max_out = std::min(t_max_prod, t_max_ring);
+    if (t_trunc > t_max_out) {
+        t_trunc = t_max_out;
+        fmt::print("t_max is truncated to {}\n", t_max_out);
+    }
     if (!dbProd.has_table(table_mod + "_generators")) {
         constexpr std::array<std::string_view, 3> postfixes = {"generators", "products", "products_time"};
         for (auto& postfix : postfixes)
@@ -337,9 +339,8 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
             map_h[std::make_pair(p.first, LocId(s_i, i).id())].push_back(p.second);
     }
 
-    MyDB dbS0(db_ring);
-    auto S0_basis = dbS0.load_basis(table_ring);
-    auto S0_basis_repr = dbS0.load_basis_repr(table_ring);
+    auto ring_basis = dbRing.load_basis(table_ring);
+    auto ring_basis_repr = dbRing.load_basis_repr(table_ring);
 
     std::map<AdamsDeg, Mod1d> gbm;
     Mon2d leads;
@@ -356,8 +357,8 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
             auto repr_g = gen_reprs[gen_id];
             int t1 = t - v_degs[gen_id].t;
             if (t1 >= 0) {
-                auto p1 = S0_basis.lower_bound(AdamsDeg{0, t1});
-                auto p2 = S0_basis.lower_bound(AdamsDeg{0, t1 + 1});
+                auto p1 = ring_basis.lower_bound(AdamsDeg{0, t1});
+                auto p2 = ring_basis.lower_bound(AdamsDeg{0, t1 + 1});
                 for (auto p = p1; p != p2; ++p) {
                     auto deg_mon = p->first + v_degs[gen_id];
                     if (deg_mon.stem() > stem_trunc)
@@ -366,7 +367,7 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
                         MMod m = MMod(p->second[i], (uint32_t)gen_id);
                         if (size_t(gen_id) >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&m](const Mon& _m) { return divisible(_m, m.m); })) {
                             basis_new[deg_mon].push_back(m);
-                            auto repr_mon = mul(map_h, repr_g, S0_basis_repr.at(p->first)[i]);
+                            auto repr_mon = mul(map_h, repr_g, ring_basis_repr.at(p->first)[i]);
                             repr_new[deg_mon].push_back(std::move(repr_mon));
                         }
                     }
@@ -432,7 +433,8 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.save_generators(table_out, v_degs, gen_reprs);
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
-    dbE2.save_t_max(t_trunc);
+    set_db_t_max(dbE2, t_trunc);
+    set_db_time(dbE2);
 
     dbE2.end_transaction();
 }
@@ -466,6 +468,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     myio::Database dbResMap(db_map);
+    int t_max_map = get_db_t_max(dbResMap);
 
     auto from = dbResMap.get_str("select value from version where id=446174262");
     auto to = dbResMap.get_str("select value from version where id=1713085477");
@@ -488,14 +491,21 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
 
     MyDB dbCw1(db_cw1);
+    int t_max_cw1 = get_db_t_max(dbCw1);
+    MyDB dbCw2(db_cw2);
+    int t_max_cw2 = get_db_t_max(dbCw2);
+    int t_max_out = std::min({t_max_map, t_max_cw1, t_max_cw2 + sus - fil});
+    if (t_trunc > t_max_out) {
+        t_trunc = t_max_out;
+        fmt::print("t_max is truncated to {}\n", t_max_out);
+    }
+
     auto gen_degs = dbCw1.load_gen_adamsdegs(table_cw1);
     auto gen_reprs1 = dbCw1.get_column_int(table_cw1 + "_generators", "repr", "");
     int1d out_of_region;
     for (size_t i = 0; i < gen_degs.size(); ++i)
         if (gen_degs[i].t > t_trunc || gen_degs[i].stem() > stem_trunc)
             out_of_region.push_back((int)i);
-
-    MyDB dbCw2(db_cw2);
 
     std::map<int, int1d> map_h;
     load_map(dbResMap, table_map, map_h, fil);
@@ -555,7 +565,8 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
         stmt.bind_and_step(446174262, std::string("from"), from);
         stmt.bind_and_step(1713085477, std::string("to"), to);
     }
-    dbMapAdamsE2.save_t_max(t_trunc);
+    set_db_t_max(dbMapAdamsE2, t_trunc);
+    set_db_time(dbMapAdamsE2);
     dbMapAdamsE2.end_transaction();
 }
 

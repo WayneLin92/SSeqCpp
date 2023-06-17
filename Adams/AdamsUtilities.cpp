@@ -6,25 +6,37 @@
 #include <map>
 #include <regex>
 
+int get_db_t_max(const myio::Database& db)
+{
+    if (db.has_table("version")) {
+        try {
+            return db.get_int("select value from version where id=817812698");
+        }
+        catch (MyException&) {
+            return -1;
+        }
+    }
+    return -2;
+}
+
+void set_db_t_max(const myio::Database& db, int t_max)
+{
+    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+    stmt.bind_and_step(t_max);
+}
+
+void set_db_time(const myio::Database& db)
+{
+    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+    stmt.step_and_reset();
+}
+
 class DbAdamsUt : public myio::Database
 {
     using Statement = myio::Statement;
 
 public:
     explicit DbAdamsUt(const std::string& filename) : Database(filename) {}
-
-    int get_t_max()
-    {
-        if (has_table("version")) {
-            try {
-                return get_int("select value from version where id=817812698");
-            }
-            catch (MyException&) {
-                return -1;
-            }
-        }
-        return -2;
-    }
 
     int get_timestamp()
     {
@@ -70,7 +82,7 @@ void UtStatus(const std::string& dir)
 
         if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
             DbAdamsUt db(filename);
-            table_spectra[match[1].str()][0] = fmt::format("{}", db.get_t_max());
+            table_spectra[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][0] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
@@ -78,7 +90,7 @@ void UtStatus(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
             DbAdamsUt db(filename);
-            table_spectra[match[1].str()][1] = fmt::format("{}", db.get_t_max());
+            table_spectra[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][1] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
@@ -86,7 +98,7 @@ void UtStatus(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
             DbAdamsUt db(filename);
-            table_spectra[match[1].str()][2] = fmt::format("{}", db.get_t_max());
+            table_spectra[match[1].str()][2] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][2] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
@@ -94,7 +106,7 @@ void UtStatus(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
             DbAdamsUt db(filename);
-            table_maps[match[1].str()][0] = fmt::format("{}", db.get_t_max());
+            table_maps[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][0] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
@@ -102,7 +114,7 @@ void UtStatus(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
             DbAdamsUt db(filename);
-            table_maps[match[1].str()][1] = fmt::format("{}", db.get_t_max());
+            table_maps[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][1] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))

@@ -3,12 +3,18 @@
 #include <string>
 
 inline const char* PROGRAM = "Adams";
-inline const char* VERSION = "Version:\n  3.2.1 (2023-06-07)";
+inline const char* VERSION = "Version:\n  3.2.2 (2023-06-17)";
 inline constexpr int DB_ADAMS_VERSION = 3;
 inline constexpr std::string_view DB_VERSION_NOTES_2 = "Add t_max in version table. Change products table.";
 inline constexpr std::string_view DB_VERSION_NOTES = "Add fil,from,to in version table of maps.";
 
 void DbResVersionConvert(const char* db_filename);
+namespace myio {
+class Database;
+}
+int get_db_t_max(const myio::Database& db);
+void set_db_t_max(const myio::Database& db, int t_max);
+void set_db_time(const myio::Database& db);
 
 /* local id for a resolution row */
 inline constexpr int LOC_V_BITS = 19;

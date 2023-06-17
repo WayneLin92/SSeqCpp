@@ -318,6 +318,11 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     myio::AssertFileExists(db_res);
     DbResVersionConvert(db_res.c_str()); /*Version convertion */
     DbAdamsResLoader dbRes(db_res);
+    int t_max_res = get_db_t_max(dbRes);
+    if (t_trunc > t_max_res) {
+        t_trunc = t_max_res;
+        fmt::print("t_max is truncated to {}\n", t_max_res);
+    }
     auto gb = AdamsResConst::load(dbRes, table_res, t_trunc);
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
@@ -330,6 +335,7 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     }
 
     DbAdamsResProd dbProd(db_out);
+    int old_t_max_prod = get_db_t_max(dbProd);
     if (!dbProd.ConvertVersion(dbRes)) {
         fmt::print("Version conversion failed.\n");
         throw MyException(0xeb8fef62, "Version conversion failed.");
@@ -353,7 +359,7 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     bench::Timer timer;
     timer.SuppressPrint();
 
-    int t_old = -1;
+    int t_prev = -1;
     for (const auto& [id, deg] : id_deg) {
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
@@ -406,12 +412,12 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
         }
 
         dbProd.begin_transaction();
-        if (t_old != deg.t) {
-            if (t_old != -1) {
-                stmt_t_max.bind_and_step(t_old);
+        if (t_prev != deg.t) {
+            if (t_prev != -1) {
+                stmt_t_max.bind_and_step(t_prev);
                 stmt_time.step_and_reset();
             }
-            t_old = deg.t;
+            t_prev = deg.t;
         }
         /* save generators to database */
         for (size_t i = 0; i < diffs_d_size; ++i) {
@@ -471,7 +477,9 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
         dbProd.end_transaction();
         diffs.erase(deg);
     }
-    stmt_t_max.bind_and_step(t_old);
+
+    stmt_t_max.bind_and_step(std::max({t_prev, old_t_max_prod, t_trunc}));
+    stmt_time.step_and_reset();
 }
 
 /*  F_s ----f----> F_{s-g}
@@ -494,18 +502,27 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
 
     DbResVersionConvert(db_ring.c_str()); /*Version convertion */
     DbAdamsResLoader dbResRing(db_ring);
-    auto gbRing = AdamsResConst::load(dbResRing, table_ring, t_trunc);
+    int t_max_ring = get_db_t_max(dbResRing);
 
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
+    int t_max_mod, t_max_res;
     {
         DbResVersionConvert(db_mod.c_str()); /*Version convertion */
         DbAdamsResLoader dbRes(db_mod);
+        t_max_mod = get_db_t_max(dbRes);
+        t_max_res = std::min(t_max_ring, t_max_mod);
+        if (t_trunc > t_max_res) {
+            t_trunc = t_max_res;
+            fmt::print("t_max is truncated to {}\n", t_max_res);
+        }
         dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
     }
+    auto gbRing = AdamsResConst::load(dbResRing, table_ring, t_trunc);
 
     DbAdamsResProd dbProd(db_out);
+    int old_t_max_prod = get_db_t_max(dbProd);
     if (!dbProd.ConvertVersion(dbResRing)) {
         fmt::print("Version conversion failed.\n");
         throw MyException(0xeb8fef62, "Version conversion failed.");
@@ -535,7 +552,7 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
     bench::Timer timer;
     timer.SuppressPrint();
 
-    int t_old = -1;
+    int t_prev = -1;
     for (const auto& [id, deg] : id_deg) {
         const auto& diffs_d = diffs.at(deg);
         const size_t diffs_d_size = diffs_d.size();
@@ -574,12 +591,12 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
                 fh[g].push_back(HomToK(f_g[i]));
 
         dbProd.begin_transaction();
-        if (t_old != deg.t) {
-            if (t_old != -1) {
-                stmt_t_max.bind_and_step(t_old);
+        if (t_prev != deg.t) {
+            if (t_prev != -1) {
+                stmt_t_max.bind_and_step(t_prev);
                 stmt_time.step_and_reset();
             }
-            t_old = deg.t;
+            t_prev = deg.t;
         }
         /* save generators to database */
         for (size_t i = 0; i < diffs_d_size; ++i) {
@@ -628,7 +645,8 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
         dbProd.end_transaction();
         diffs.erase(deg);
     }
-    stmt_t_max.bind_and_step(t_old);
+
+    stmt_t_max.bind_and_step(std::max({t_prev, old_t_max_prod, t_trunc}));
     stmt_time.step_and_reset();
 }
 
@@ -668,6 +686,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     DbAdamsResMap dbMap(db_map);
+    int old_t_max_map = get_db_t_max(dbMap);
     try {
         dbMap.get_str("select value from version where id=446174262"); /* from */
     }
@@ -693,7 +712,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     catch (MyException&) {
     }
 
-    int sus = dbMap.get_int("select value from version where id=1585932889");
+    const int sus = dbMap.get_int("select value from version where id=1585932889");
     dbMap.create_tables(table_map);
     myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
     myio::Statement stmt_t_max(dbMap, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
@@ -701,16 +720,24 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
     DbResVersionConvert(db_cw1.c_str()); /*Version convertion */
     DbAdamsResLoader dbResCw1(db_cw1);
-    auto gbCw1 = AdamsResConst::load_gb_by_basis_degrees(dbResCw1, table_cw1, t_trunc);
+    int t_max_cw1 = get_db_t_max(dbResCw1);
 
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
+    int t_max_cw2, t_max_res;
     {
-        DbResVersionConvert(db_cw2.c_str()); /*Version convertion */
+        DbResVersionConvert(db_cw2.c_str()); /* Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
+        t_max_cw2 = get_db_t_max(dbResCw2);
+        t_max_res = std::min(t_max_cw1, t_max_cw2 + sus - fil);
+        if (t_trunc > t_max_res) {
+            t_trunc = t_max_res;
+            fmt::print("t_max is truncated to {}\n", t_max_res);
+        }
         dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc + fil - sus, stem_trunc - sus);
     }
+    auto gbCw1 = AdamsResConst::load_gb_by_basis_degrees(dbResCw1, table_cw1, t_trunc);
 
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
@@ -722,7 +749,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     bench::Timer timer;
     timer.SuppressPrint();
 
-    int t_old = -1;
+    int t_prev = -1;
     AdamsDegV2 deg1_old(-1, -1);
     AdamsDegV2 deg2_old(-1, -1);
     for (const auto& [id, deg] : id_deg) {
@@ -753,12 +780,12 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
             fh.push_back(HomToK(f[i]));
 
         dbMap.begin_transaction();
-        if (t_old != deg.t) {
-            if (t_old != -1) {
-                stmt_t_max.bind_and_step(t_old - fil + sus);
+        if (t_prev != deg.t) {
+            if (t_prev != -1) {
+                stmt_t_max.bind_and_step(t_prev - fil + sus);
                 stmt_time.step_and_reset();
             }
-            t_old = deg.t;
+            t_prev = deg.t;
         }
         /*# save products to database */
         for (size_t i = 0; i < diffs_d_size; ++i)
@@ -773,7 +800,8 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         dbMap.end_transaction();
         diffs.erase(deg);
     }
-    stmt_t_max.bind_and_step(t_old - fil + sus);
+
+    stmt_t_max.bind_and_step(std::max({t_prev - fil + sus, old_t_max_map, t_trunc}));
     stmt_time.step_and_reset();
 }
 

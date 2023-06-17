@@ -714,10 +714,20 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     }
     if (cw1 == "CW_eta_2" && cw2 == "RP1_6") {
         images = {{}, MMod(MMilnor(), 0)};
+        sus = -3;
         return;
     }
     if (cw1 == "RP1_6" && cw2 == "CW_2_eta") {
         images = {MMod(MMilnor(), 0)};
+        sus = 1;
+        return;
+    }
+    if (cw1 == "Fphi" && cw2 == "RP1_256") {
+        images = {};
+        for (int i = 1; i <= 8; ++i) {
+            images.push_back(MMod(MMilnor::P(i, i + 1), 0));
+        }
+        sus = 1;
         return;
     }
 
