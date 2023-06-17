@@ -712,6 +712,14 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         sus = 1;
         return;
     }
+    if (cw1 == "CW_eta_2" && cw2 == "RP1_6") {
+        images = {{}, MMod(MMilnor(), 0)};
+        return;
+    }
+    if (cw1 == "RP1_6" && cw2 == "CW_2_eta") {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
 
     fmt::print("map not supported.\n");
     throw MyException(0x8636b4b2, "map not supported.");
