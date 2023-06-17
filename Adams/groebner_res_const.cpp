@@ -59,8 +59,10 @@ Mod AdamsResConst::DiffInv(Mod x, size_t s) const
         else
             ++index;
     }
-    if (x)
-        throw MyException(0x4b901937U, "Something is wrong: d_inv(x) not well defined.");
+    if (x) {
+        fmt::print("Something is wrong: d_inv(x) not well defined. s={}\n", s);
+        std::exit(-2);
+    }
     size_t sp1 = s + 1;
     index = 0;
     while (index < result.data.size()) {
@@ -143,7 +145,7 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
     for (size_t i = 0; i < xs.size(); ++i)
         if (xs[i]) {
             fmt::print("Something is wrong: d_inv(x) not well defined. s={}\n", s);
-            throw MyException(0x277dc39aU, "Something is wrong: d_inv(x) not well defined.");
+            std::exit(-2);
         }
 
     size_t sp1 = s + 1;

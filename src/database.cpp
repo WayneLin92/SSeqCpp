@@ -131,6 +131,7 @@ Statement::~Statement()
 Statement::Statement(const Database& db, const std::string& sql)
 {
     db.sqlite3_prepare(sql, &stmt_);
+    sql_ = sql;
 }
 
 void Statement::bind_int(int iCol, int i) const
@@ -157,14 +158,14 @@ void Statement::bind_null(int iCol) const
         throw MyException(0xe22b11c4, "Sqlite bind_null fail");
 }
 
- /* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
+/* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
 void Statement::bind_str(int iCol, const std::string& str) const
 {
     if (sqlite3_bind_text(stmt_, iCol, str.c_str(), -1, SQLITE_STATIC) != SQLITE_OK)
         throw MyException(0x29cc3b21, "Sqlite bind_str fail");
 }
 
- /* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
+/* Warning: SQLITE_STATIC is used here. str should not change before step_and_reset */
 void Statement::bind_blob(int iCol, const void* data, int nBytes) const
 {
     if (sqlite3_bind_blob(stmt_, iCol, data, nBytes, SQLITE_STATIC) != SQLITE_OK)
@@ -196,7 +197,10 @@ int Statement::column_blob_size(int iCol) const
 
 void Statement::step_and_reset() const
 {
-    step();
+    if (int rc = step(); rc != SQLITE_DONE) {
+        fmt::print("step fail ({}): {}\n, ", rc, sql_);
+        throw MyException(0xe4ea82c9, "Sqlite step fail");
+    }
     sqlite3_reset(stmt_);
 }
 

@@ -143,7 +143,7 @@ public:
     int1d load_old_ids(std::string_view table_prefix) const
     {
         int1d result;
-        Statement stmt(*this, fmt::format("SELECT DISTINCT id FROM {}_products ORDER BY id", table_prefix));
+        Statement stmt(*this, fmt::format("SELECT id FROM {}_generators ORDER BY id", table_prefix));
         while (stmt.step() == MYSQLITE_ROW) {
             int id = stmt.column_int(0);
             result.push_back(id);

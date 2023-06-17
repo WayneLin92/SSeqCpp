@@ -67,6 +67,7 @@ class Statement
 {
 private:
     sqlite3_stmt* stmt_ = nullptr;
+    std::string sql_;
 
 public:
     Statement() = default;
