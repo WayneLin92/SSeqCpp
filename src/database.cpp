@@ -198,8 +198,8 @@ int Statement::column_blob_size(int iCol) const
 void Statement::step_and_reset() const
 {
     if (int rc = step(); rc != SQLITE_DONE) {
-        fmt::print("step fail ({}): {}\n, ", rc, sql_);
-        throw MyException(0xe4ea82c9, "Sqlite step fail");
+        fmt::print("Sqlite step fail ({}): {}\n", rc, sql_);
+        throw MyException(0xe4ea82c9, fmt::format("Sqlite step fail ({}): {}", rc, sql_));
     }
     sqlite3_reset(stmt_);
 }
