@@ -62,7 +62,7 @@ void UtStatus(const std::string& dir)
     }
 
     constexpr std::string_view green = "\033[38;2;0;255;0m";
-    constexpr std::string_view light_green = "\033[38;2;50;255;200m";
+    constexpr std::string_view blue = "\033[38;2;50;128;255m";
     constexpr std::string_view light_red = "\033[38;2;255;200;200m";
     constexpr std::string_view white = "";
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -74,7 +74,7 @@ void UtStatus(const std::string& dir)
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][0] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][0] = light_green;
+                table_color_spectra[match[1].str()][0] = blue;
         }
         else if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
             DbAdamsUt db(filename);
@@ -82,7 +82,7 @@ void UtStatus(const std::string& dir)
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][1] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][1] = light_green;
+                table_color_spectra[match[1].str()][1] = blue;
         }
         else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
             DbAdamsUt db(filename);
@@ -90,7 +90,7 @@ void UtStatus(const std::string& dir)
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][2] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][2] = light_green;
+                table_color_spectra[match[1].str()][2] = blue;
         }
         else if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
             DbAdamsUt db(filename);
@@ -98,7 +98,7 @@ void UtStatus(const std::string& dir)
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][0] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_maps[match[1].str()][0] = light_green;
+                table_color_maps[match[1].str()][0] = blue;
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
             DbAdamsUt db(filename);
@@ -106,7 +106,7 @@ void UtStatus(const std::string& dir)
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][1] = green;
             else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_maps[match[1].str()][1] = light_green;
+                table_color_maps[match[1].str()][1] = blue;
         }
     }
 
