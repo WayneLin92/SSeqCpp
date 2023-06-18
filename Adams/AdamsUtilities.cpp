@@ -6,6 +6,11 @@
 #include <map>
 #include <regex>
 
+void create_db_version(const myio::Database& db)
+{
+    db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+}
+
 int get_db_t_max(const myio::Database& db)
 {
     if (db.has_table("version")) {
@@ -79,9 +84,10 @@ void UtStatus(const std::string& dir)
     constexpr std::string_view white = "";
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
         std::string filename = entry.path().filename().string();
+        std::string filepath = entry.path().string();
 
         if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(filepath);
             table_spectra[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][0] = green;
@@ -89,7 +95,7 @@ void UtStatus(const std::string& dir)
                 table_color_spectra[match[1].str()][0] = blue;
         }
         else if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(filepath);
             table_spectra[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][1] = green;
@@ -97,7 +103,7 @@ void UtStatus(const std::string& dir)
                 table_color_spectra[match[1].str()][1] = blue;
         }
         else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(filepath);
             table_spectra[match[1].str()][2] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_spectra[match[1].str()][2] = green;
@@ -105,7 +111,7 @@ void UtStatus(const std::string& dir)
                 table_color_spectra[match[1].str()][2] = blue;
         }
         else if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(filepath);
             table_maps[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][0] = green;
@@ -113,7 +119,7 @@ void UtStatus(const std::string& dir)
                 table_color_maps[match[1].str()][0] = blue;
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(filepath);
             table_maps[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
             if (current_timestamp - db.get_timestamp() < (3600 * 6))
                 table_color_maps[match[1].str()][1] = green;
@@ -225,6 +231,15 @@ void UtAddFromTo()
     }
 }
 
+void UtAddTMax(const std::string& db_filename, int t_max)
+{
+    myio::AssertFileExists(db_filename);
+    DbAdamsUt db(db_filename);
+    if (!db.has_table("version"))
+        create_db_version(db);
+    set_db_t_max(db, t_max);
+}
+
 int main_status(int argc, char** argv, int& index, const char* desc)
 {
     std::string dir = ".";
@@ -254,5 +269,19 @@ int main_rename(int argc, char** argv, int& index, const char* desc)
 int main_add_from_to(int, char**, int&, const char*)
 {
     UtAddFromTo();
+    return 0;
+}
+
+int main_add_t_max(int argc, char** argv, int& index, const char* desc)
+{
+    std::string db_filename;
+    int t_max = 0;
+
+    myio::CmdArg1d args = {{"db", &db_filename}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    UtAddTMax(db_filename, t_max);
     return 0;
 }

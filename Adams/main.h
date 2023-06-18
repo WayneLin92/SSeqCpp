@@ -12,6 +12,7 @@ void DbResVersionConvert(const char* db_filename);
 namespace myio {
 class Database;
 }
+void create_db_version(const myio::Database& db);
 int get_db_t_max(const myio::Database& db);
 void set_db_t_max(const myio::Database& db, int t_max);
 void set_db_time(const myio::Database& db);

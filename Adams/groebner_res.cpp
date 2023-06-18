@@ -412,7 +412,7 @@ public:
 
     void SetVersion()
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        create_db_version(*this);
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string("Add t_max in version table"));

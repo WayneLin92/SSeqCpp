@@ -30,7 +30,7 @@ public:
 
     void SetVersion()
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        create_db_version(*this);
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
@@ -182,7 +182,7 @@ public:
 
     void SetVersion()
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
+        create_db_version(*this);
         Statement stmt(*this, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(0, std::string("version"), DB_ADAMS_VERSION);
         stmt.bind_and_step(1, std::string("change notes"), std::string(DB_VERSION_NOTES));
@@ -318,10 +318,14 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     myio::AssertFileExists(db_res);
     DbResVersionConvert(db_res.c_str()); /*Version convertion */
     DbAdamsResLoader dbRes(db_res);
-    int t_max_res = get_db_t_max(dbRes);
-    if (t_trunc > t_max_res) {
-        t_trunc = t_max_res;
-        fmt::print("t_max is truncated to {}\n", t_max_res);
+    int t_max_out = get_db_t_max(dbRes);
+    if (t_max_out < 0) {
+        fmt::print("We need t_max info from the database");
+        return;
+    }
+    if (t_trunc > t_max_out) {
+        t_trunc = t_max_out;
+        fmt::print("t_max is truncated to {}\n", t_max_out);
     }
     auto gb = AdamsResConst::load(dbRes, table_res, t_trunc);
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
@@ -507,17 +511,21 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
-    int t_max_mod, t_max_res;
+    int t_max_mod, t_max_out;
     {
         DbResVersionConvert(db_mod.c_str()); /*Version convertion */
-        DbAdamsResLoader dbRes(db_mod);
-        t_max_mod = get_db_t_max(dbRes);
-        t_max_res = std::min(t_max_ring, t_max_mod);
-        if (t_trunc > t_max_res) {
-            t_trunc = t_max_res;
-            fmt::print("t_max is truncated to {}\n", t_max_res);
+        DbAdamsResLoader dbResMod(db_mod);
+        t_max_mod = get_db_t_max(dbResMod);
+        t_max_out = std::min(t_max_ring, t_max_mod);
+        if (t_max_out < 0) {
+            fmt::print("We need t_max info from the database");
+            return;
         }
-        dbRes.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
+        if (t_trunc > t_max_out) {
+            t_trunc = t_max_out;
+            fmt::print("t_max is truncated to {}\n", t_max_out);
+        }
+        dbResMod.load_generators(table_mod, id_deg, vid_num, diffs, t_trunc, stem_trunc);
     }
     auto gbRing = AdamsResConst::load(dbResRing, table_ring, t_trunc);
 
@@ -725,15 +733,19 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
     std::map<AdamsDegV2, Mod1d> diffs;              /* diffs[deg] is the list of differentials of v in deg */
-    int t_max_cw2, t_max_res;
+    int t_max_cw2, t_max_out;
     {
         DbResVersionConvert(db_cw2.c_str()); /* Version convertion */
         DbAdamsResLoader dbResCw2(db_cw2);
         t_max_cw2 = get_db_t_max(dbResCw2);
-        t_max_res = std::min(t_max_cw1, t_max_cw2 + sus - fil);
-        if (t_trunc > t_max_res) {
-            t_trunc = t_max_res;
-            fmt::print("t_max is truncated to {}\n", t_max_res);
+        t_max_out = std::min(t_max_cw1, t_max_cw2 + sus - fil);
+        if (t_max_out < 0) {
+            fmt::print("We need t_max info from the database");
+            return;
+        }
+        if (t_trunc > t_max_out) {
+            t_trunc = t_max_out;
+            fmt::print("t_max is truncated to {}\n", t_max_out);
         }
         dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc + fil - sus, stem_trunc - sus);
     }
