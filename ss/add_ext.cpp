@@ -11,7 +11,7 @@ int main_add_pi(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    Diagram diagram(diagram_name, DeduceFlag::homotopy);
+    Diagram diagram(diagram_name, DeduceFlag::pi);
 
     /*int1d arr_rel = myio::Deserialize<int1d>(strRel);
     algZ::Poly tmp;

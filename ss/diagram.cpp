@@ -11,7 +11,7 @@ void Diagram::AddNode(DeduceFlag flag)
     for (auto& mod : modules_)
         mod.nodes_ss.push_back({});
 
-    if (flag & DeduceFlag::homotopy) {
+    if (flag & DeduceFlag::pi) {
         for (auto& ring : rings_) {
             ring.pi_gb.AddNode();
             ring.nodes_pi_basis.push_back({});
@@ -32,7 +32,7 @@ void Diagram::PopNode(DeduceFlag flag)
         ring.nodes_ss.pop_back();
     for (auto& mod : modules_)
         mod.nodes_ss.pop_back();
-    if (flag & DeduceFlag::homotopy) {
+    if (flag & DeduceFlag::pi) {
         for (auto& ring : rings_) {
             ring.pi_gb.PopNode();
             ring.nodes_pi_basis.pop_back();
@@ -117,13 +117,14 @@ int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, cons
     return result;
 }
 
-int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry)
+int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
     auto& nodes_ss = ring.nodes_ss;
+    int depth = int(nodes_ss.size() - 2);
 
-    if (IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
+    if (newCertain || IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
         AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
         if (x.empty())
             count += SetRingBoundaryLeibniz(iRing, deg_dx, dx, r - 1);
@@ -133,7 +134,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
                 ++r_min;
             if (dx.empty())
                 r = NextRTgt(nodes_ss, ring.t_max, deg_x, r + 1) - 1;
-            count += SetRingDiffLeibniz(iRing, deg_x, x, dx, r, r_min, bFastTry);
+            count += SetRingDiffLeibniz(iRing, deg_x, x, dx, r, r_min, flag);
         }
 
         for (size_t iMap : ring.ind_maps) {
@@ -146,11 +147,25 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
                 else if (!dx.empty())
                     continue;
                 auto fx = f.map(x, deg_x, rings_);
-                if (!fx.empty() || !fdx.empty()) {
-                    if (int count1 = SetRingDiffGlobal(f.to, deg_x, fx, fdx, r, bFastTry)) {
-                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, rings_[f.to].name), deg_x, fx, fdx, r);
-                        count += count1;
-                    }
+                if (IsNewDiff(rings_[f.to].nodes_ss, deg_x, fx, fdx, r)) {
+                    Logger::LogDiff(depth, enumReason::nat, fmt::format("({}) {}", map.display, rings_[f.to].name), deg_x, fx, fdx, r);
+                    count += SetRingDiffGlobal(f.to, deg_x, fx, fdx, r, true, flag);
+                }
+            }
+        }
+
+        /* x^2 are cycles in E_r */
+        auto deg_xx = deg_x * 2;
+        if (deg_xx.t <= ring.t_max && !x.empty() && dx.empty() && r < R_PERM - 1) {
+            Poly poly_x = Indices2Poly(x, ring.basis.at(deg_x));
+            Poly poly_xx;
+            poly_x.frobP(poly_xx);
+            poly_xx = ring.gb.Reduce(std::move(poly_xx));
+            if (poly_xx) {
+                int1d xx = Poly2Indices(poly_xx, ring.basis.at(deg_xx));
+                if (IsNewDiff(nodes_ss, deg_xx, xx, {}, r + 1)) {
+                    Logger::LogDiff(depth, enumReason::deduce_v2, ring.name, deg_xx, xx, {}, r + 1);
+                    count += SetRingDiffGlobal(iRing, deg_xx, xx, {}, r + 1, true, flag);
                 }
             }
         }
@@ -158,7 +173,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
     return count;
 }
 
-int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry)
+int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
     int count = 0;
@@ -169,7 +184,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
     auto& nodes_ss = mod.nodes_ss;
     int t_max = mod.t_max;
 
-    if (IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
+    if (newCertain || IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
         if (x.empty())
             count += SetModuleBoundaryLeibniz(iMod, deg_dx, dx, r - 1);
         else {
@@ -178,7 +193,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                 ++r_min;
             if (dx.empty())
                 r = NextRTgt(nodes_ss, t_max, deg_x, r + 1) - 1;
-            count += SetModuleDiffLeibniz(iMod, deg_x, x, dx, r, r_min, bFastTry);
+            count += SetModuleDiffLeibniz(iMod, deg_x, x, dx, r, r_min, flag);
         }
 
         for (size_t iMap : mod.ind_maps) {
@@ -193,11 +208,9 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                         continue;
                     auto fx = f.map(x, deg_x, modules_, rings_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!fx.empty() || !fdx.empty()) {
-                        if (int count1 = SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
-                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, rings_[f.to].name), deg_fx, fx, fdx, r);
-                            count += count1;
-                        }
+                    if (IsNewDiff(rings_[f.to].nodes_ss, deg_fx, fx, fdx, r)) {
+                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.display, rings_[f.to].name), deg_fx, fx, fdx, r);
+                        count += SetRingDiffGlobal(f.to, deg_fx, fx, fdx, r, true, flag);
                     }
                 }
                 else if (std::holds_alternative<MapMod2Mod>(map.map)) {
@@ -209,11 +222,9 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                         continue;
                     auto fx = f.map(x, deg_x, modules_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!fx.empty() || !fdx.empty()) {
-                        if (int count1 = SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
-                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, modules_[f.to].name), deg_fx, fx, fdx, r);
-                            count += count1;
-                        }
+                    if (IsNewDiff(modules_[f.to].nodes_ss, deg_fx, fx, fdx, r)) {
+                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.display, modules_[f.to].name), deg_fx, fx, fdx, r);
+                        count += SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, true, flag);
                     }
                 }
                 else {
@@ -225,11 +236,9 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                         continue;
                     auto fx = f.map(x, deg_x, modules_, maps_);
                     AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!fx.empty() || !fdx.empty()) {
-                        if (int count1 = SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, bFastTry)) {
-                            Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.name, modules_[f.to].name), deg_fx, fx, fdx, r);
-                            count += count1;
-                        }
+                    if (IsNewDiff(modules_[f.to].nodes_ss, deg_fx, fx, fdx, r)) {
+                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map.display, modules_[f.to].name), deg_fx, fx, fdx, r);
+                        count += SetModuleDiffGlobal(f.to, deg_fx, fx, fdx, r, true, flag);
                     }
                 }
             }
@@ -238,10 +247,10 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
     return count;
 }
 
-int Diagram::SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry)
+int Diagram::SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
 {
     if (iCw < rings_.size())
-        return SetRingDiffGlobal(iCw, deg_x, x, dx, r, bFastTry);
+        return SetRingDiffGlobal(iCw, deg_x, x, dx, r, newCertain, flag);
     else
-        return SetModuleDiffGlobal(iCw - rings_.size(), deg_x, x, dx, r, bFastTry);
+        return SetModuleDiffGlobal(iCw - rings_.size(), deg_x, x, dx, r, newCertain, flag);
 }

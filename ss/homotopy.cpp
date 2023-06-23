@@ -500,7 +500,7 @@ void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)
             if (r != LEVEL_MAX - sc.levels[i_end_perm]) {
                 int1d x = {sc.basis[i_end_perm]};
                 Logger::LogDiff(depth, enumReason::exact_hq, modules_[iMod].name, deg_x, x, {}, r - 1);
-                SetModuleDiffGlobal(iMod, deg_x, x, {}, r - 1);
+                SetModuleDiffGlobal(iMod, deg_x, x, {}, r - 1, true);
             }
         }
         else if (i_stable - i_end_perm > 1) {
@@ -1528,7 +1528,7 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, Deduc
         AddPiRelsRing({std::move(rel)});
         int count_ss1 = 0, count_homotopy1 = 0;
         SyncHomotopy(deg_change, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::homotopy_exact) {
+        if (flag & DeduceFlag::pi_exact) {
             if (count_ss1)
                 DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_change.stem(), stem_max_exactness_, depth + 1);
@@ -1552,7 +1552,7 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
         int count_ss1 = 0, count_homotopy1 = 0;
         auto deg_min = deg_change - modules_[iCof].deg_qt;
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::homotopy_exact) {
+        if (flag & DeduceFlag::pi_exact) {
             if (count_ss1)
                 DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
@@ -1577,7 +1577,7 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
         int count_ss1 = 0, count_homotopy1 = 0;
         auto deg_min = deg_change;
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::homotopy_exact) {
+        if (flag & DeduceFlag::pi_exact) {
             DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
@@ -1594,7 +1594,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
 {
     //SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
     //count_htpy += DeduceTrivialExtensions(depth);
-    //if (flag & DeduceFlag::homotopy_exact)
+    //if (flag & DeduceFlag::pi_exact)
     //    count_htpy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
 
     //algZ::Poly tmp;
@@ -1673,7 +1673,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                AdamsDeg deg_min = deg;
     //                SyncHomotopy(deg_min, count_ss, count_htpy, depth);
     //                count_htpy += DeduceTrivialExtensions(depth);
-    //                if (flag & DeduceFlag::homotopy_exact)
+    //                if (flag & DeduceFlag::pi_exact)
     //                    count_htpy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
 
     //                algZ::Poly h = rings_.pi_gb.Gen((uint32_t)iCof);
@@ -1767,7 +1767,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                    AddPiRelsRing({std::move(rel_pass)});
     //                    SyncHomotopy(deg, count_ss, count_htpy, depth);
     //                    count_htpy += DeduceTrivialExtensions(depth);
-    //                    if (flag & DeduceFlag::homotopy_exact)
+    //                    if (flag & DeduceFlag::pi_exact)
     //                        count_htpy += DeduceExtensionsByExactness(deg.stem(), stem_max_exactness_, depth);
     //                }
     //                else
@@ -1850,7 +1850,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                        auto deg_min = deg - ssCof.deg_qt;
     //                        SyncHomotopy(deg_min, count_ss, count_htpy, depth);
     //                        count_htpy += DeduceTrivialExtensions(depth);
-    //                        if (flag & DeduceFlag::homotopy_exact)
+    //                        if (flag & DeduceFlag::pi_exact)
     //                            count_htpy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
     //                    }
     //                    else
@@ -1899,10 +1899,10 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::homotopy;
+    DeduceFlag flag = DeduceFlag::pi;
     for (auto& f : strFlags) {
         if (f == "exact")
-            flag = flag | DeduceFlag::homotopy_exact;
+            flag = flag | DeduceFlag::pi_exact;
     }
 
     Diagram diagram(diagram_name, flag);
@@ -1947,7 +1947,7 @@ int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::homotopy;
+    DeduceFlag flag = DeduceFlag::pi;
     Diagram diagram(diagram_name, flag);
 
     try {

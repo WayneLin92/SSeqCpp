@@ -1,27 +1,25 @@
 # Adams
-* Add three cells
 * Add CW(theta4, theta4), Ctheta4, Ctheta5
-* Auto adjust t_max in command-line
 * Brown-Gitler
 * Fast multiplication using extensions
 
 # SS
-* Secondary deductions
 * Cache contradictions
 * Smart deduce
 * Simplify pi generators and relations
 * Fast sync
 * Test differential monomial orderings for mod
-* Support stem_trunc
 * Optimize deduce diff for dr=0 and increase r.
+* Support stem_trunc
 
 # html
+* [html parameter](https://medium.com/@cyberbotmachines/how-to-pass-value-from-one-html-page-to-another-using-javascript-3c9ab62df4d)
 * Change title
-* Mark differentials that cannot be zero
 * Draw maps
 * KaTeX
 * async load
 * multiplication by theta and g
+* Mark differentials that cannot be zero
 
 # Others
 * Trace Cnu d5 in (97, 5)

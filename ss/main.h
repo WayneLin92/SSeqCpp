@@ -7,8 +7,8 @@
 #include <set>
 #include <variant>
 
-inline const char* PROGRAM = "Adams";
-inline const char* VERSION = "Version:\n  1.0 (2023-05-19)";
+inline const char* PROGRAM = "ss";
+inline const char* VERSION = "Version:\n  1.1 (2023-06-23)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -16,7 +16,7 @@ constexpr int LEVEL_MIN = 2;
 constexpr int R_PERM = 1000;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
-constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
+constexpr size_t MAX_DEPTH = 3;                /* Maximum deduction depth */
 
 inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
@@ -25,11 +25,12 @@ enum class DeduceFlag : uint32_t
 {
     no_op = 0,
     set_diff = 1,
-    fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
-    all_x = 4,         /* Deduce dx for all x including linear combinations */
-    homotopy = 8,
-    homotopy_exact = 16, /* Check exactness of htpy in the try node */
-    homotopy_def = 32,   /* Check exactness of htpy in the try node */
+    fast_try_diff = 2,   /* SetDiffLeibniz will update only partially in the try node */
+    all_x = 4,           /* Deduce dx for all x including linear combinations */
+    xy = 8,         /* Deduce dx for all x including linear combinations */
+    pi = 16,
+    pi_exact = 32, /* Check exactness of htpy in the try node */
+    pi_def = 64,   /* define generators in pi */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -225,7 +226,7 @@ struct MapRing2Mod
 
 struct Map
 {
-    std::string name;
+    std::string name, display;
     int t_max;
     std::variant<MapRing2Ring, MapMod2Mod, MapMod2ModV2, MapMod2Ring, MapMulRing, MapRing2Mod> map;
 };
@@ -241,6 +242,7 @@ protected:
 
 protected: /* Settings */
     std::vector<size_t> deduce_list_spectra_;
+    int deduce_count_max_ = 10;
 
 public:
     Diagram(std::string diagram_name, DeduceFlag flag, bool log = true);
@@ -364,7 +366,6 @@ private: /* ss */
     int NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const;
 
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
-    bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
@@ -380,8 +381,10 @@ private:
      *
      * dx should not be null.
      */
-    int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
-    int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, bool bFastTry = false);
+    int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
+    int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r);
+    int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
+    int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r);
 
 public:
     /* Add a node */
@@ -402,9 +405,9 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
-    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool bFastTry = false);
+    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
+    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
+    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_r(y)=0 (y on level < LEVEL_MAX - r);
@@ -413,12 +416,15 @@ public:
     int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r);
 
 public: /* Differentials */
+    bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
     int DeduceTrivialDiffs();
     int DeduceManual();
     /* Return 0 if there is no exception */
     int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
     int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
+    /* Deduce d(xy) no matter what dx is */
+    int DeduceDiffsV2();
 
 public:
     /* Return if Einf at deg is possibly nontrivial */

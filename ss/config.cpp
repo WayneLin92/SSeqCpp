@@ -121,11 +121,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             ring.nodes_ss.reserve(MAX_DEPTH + 3);
             ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
 
-            if (flag & DeduceFlag::homotopy) {
+            if (flag & DeduceFlag::pi) {
                 ring.pi_gen_Einf = db.get_column_from_str<Poly>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
                 ring.pi_gb = algZ::Groebner(ring.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb(name, DEG_MAX), true);
                 ring.nodes_pi_basis.reserve(MAX_DEPTH + 2);
-                if (flag & DeduceFlag::homotopy_def)
+                if (flag & DeduceFlag::pi_def)
                     db.load_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
             }
 
@@ -159,11 +159,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             Mod1d xs = db.load_gb_mod(table_prefix, DEG_MAX);
             mod.gb = GroebnerMod(&ring.gb, mod.t_max, {}, std::move(xs));
 
-            if (flag & DeduceFlag::homotopy) {
+            if (flag & DeduceFlag::pi) {
                 mod.pi_gen_Einf = db.get_column_from_str<Mod>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
                 mod.pi_gb = algZ::GroebnerMod(&ring.pi_gb, mod.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb_mod(name, DEG_MAX), true);
                 mod.nodes_pi_basis.reserve(MAX_DEPTH);
-                if (flag & DeduceFlag::homotopy_def)
+                if (flag & DeduceFlag::pi_def)
                     db.load_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
             }
 
@@ -181,6 +181,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         maps_.reserve(json_maps.size());
         for (auto& json_map : json_maps) {
             std::string name = json_map.at("name").get<std::string>(), path = json_map.at("path").get<std::string>();
+            std::string display = json_map.contains("display") ? json_map["display"].get<std::string>() : name;
             int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
             int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
             std::string abs_path = fmt::format("{}/{}", dir, path);
@@ -197,6 +198,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 
             Map map;
             map.name = name;
+            map.display = display;
             map.t_max = json_map["t_max"].get<int>();
             if (GetRingIndexByName(from) != -1) {
                 size_t index_from = (size_t)GetRingIndexByName(from);
@@ -287,7 +289,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             auto& ring = rings_[iRing];
             db.update_basis_ss(table_prefix, ring.nodes_ss[1]);
 
-            if (flag & DeduceFlag::homotopy) {
+            if (flag & DeduceFlag::pi) {
                 db.drop_and_create_pi_relations(name);
                 db.drop_and_create_pi_basis(name);
 
@@ -295,7 +297,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
                 db.save_pi_generators(name, ring.pi_gb.gen_degs(), ring.pi_gen_Einf);
                 db.save_pi_gb(name, ring.pi_gb.OutputForDatabase(), GetRingGbEinf(iRing));
                 db.save_pi_basis(name, ring.nodes_pi_basis.front());
-                if (flag & DeduceFlag::homotopy_def) {
+                if (flag & DeduceFlag::pi_def) {
                     db.drop_and_create_pi_definitions(name);
                     db.save_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
                 }
@@ -317,15 +319,15 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             auto& mod = modules_[iMod];
             db.update_basis_ss(table_prefix, mod.nodes_ss[1]);
 
-            if (flag & DeduceFlag::homotopy) {
+            if (flag & DeduceFlag::pi) {
                 db.drop_and_create_pi_relations(name);
                 db.drop_and_create_pi_basis(name);
-                if (flag & DeduceFlag::homotopy_def)
+                if (flag & DeduceFlag::pi_def)
                     db.drop_and_create_pi_generators_mod(name);
                 db.save_pi_generators_mod(name, mod.pi_gb.v_degs(), mod.pi_gen_Einf);
                 db.save_pi_gb_mod(name, mod.pi_gb.OutputForDatabase(), GetModuleGbEinf(iMod));
                 db.save_pi_basis_mod(name, mod.nodes_pi_basis.front());
-                if (flag & DeduceFlag::homotopy_def) {
+                if (flag & DeduceFlag::pi_def) {
                     db.drop_and_create_pi_definitions(name);
                     db.save_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
                 }

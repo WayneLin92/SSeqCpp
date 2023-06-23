@@ -6,7 +6,6 @@
 #include <future>
 #include <iterator>
 #include <string>
-#include <vector>
 
 #ifndef __unix__
 #ifndef _MSC_VER
@@ -251,6 +250,12 @@ auto get_keys(const T& map)
 
 template <typename T>
 bool has(const std::vector<T>& sorted, const T& key)
+{
+    return std::binary_search(sorted.begin(), sorted.end(), key);
+}
+
+template <typename T, size_t N>
+bool has(const std::array<T, N>& sorted, const T& key)
 {
     return std::binary_search(sorted.begin(), sorted.end(), key);
 }

@@ -87,6 +87,19 @@ void Logger::LogDiff(int depth, enumReason reason, std::string_view name, alg::A
         fmt::format_to(std::back_inserter(out_), line_);
 }
 
+void Logger::LogNullDiff(int depth, std::string_view name, alg::AdamsDeg deg_x, const alg::int1d& x, int r)
+{
+    std::string_view indent(INDENT, depth * 2);
+    line_.clear();
+    fmt::format_to(std::back_inserter(line_), "{}{} {} d_{}{}=?\n", indent, name, deg_x, r, x);
+    if (depth == 0) {
+        fmt::print(fmt::fg(fmt::color::gray), "{}", line_);
+        fmt::print(fout_deduce_, "{}", line_);
+    }
+    else
+        fmt::format_to(std::back_inserter(out_), line_);
+}
+
 void Logger::LogDiffInv(int depth, enumReason reason, std::string_view name, alg::AdamsDeg deg_dx, const alg::int1d& x, const alg::int1d& dx, int r)
 {
     std::string_view indent(INDENT, depth * 2);

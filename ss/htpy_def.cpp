@@ -516,7 +516,7 @@ int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
+    DeduceFlag flag = DeduceFlag::pi | DeduceFlag::pi_def;
     Diagram diagram(diagram_name, flag);
 
     try {
@@ -556,7 +556,7 @@ int main_deduce_ext_def2(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::homotopy | DeduceFlag::homotopy_def;
+    DeduceFlag flag = DeduceFlag::pi | DeduceFlag::pi_def;
     Diagram diagram(diagram_name, flag);
 
     try {

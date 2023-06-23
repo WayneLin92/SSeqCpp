@@ -366,7 +366,7 @@ int main_plot_htpy(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    Diagram diagram(diagram_name, DeduceFlag::homotopy);
+    Diagram diagram(diagram_name, DeduceFlag::pi);
     /* pi_basis_products */
     int count_ss = 0, count_homotopy = 0;
     diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);

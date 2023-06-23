@@ -1,4 +1,4 @@
-Added
+//Added
 ss add_diff S0 15 2 3 0 0
 ss add_diff S0 31 8 4 0,1 0
 ss add_diff S0 34 2 3 0 0
@@ -6,7 +6,7 @@ ss add_diff S0 56 9 5 0 0
 ss add_diff S0 68 7 7 1 1
 ss add_diff tmf 96 16 3 0 0
 
-j
+//j
 ss add_diff j 16 8 2 0 0
 ss add_diff j 32 16 3 0 0
 ss add_diff j 48 24 2 0 0
@@ -58,14 +58,18 @@ ss add_diff j 149 68 3 "" 0
 ss add_diff j 157 72 3 "" 0
 ss add_diff j 165 76 3 "" 0
 
-C2
+//C2
 ss add_diff C2 20 3 100 0 ""
 ss add_diff C2 24 6 3 0 0
 
 ss add_diff C2 57 8 5 0 0
 ss add_diff C2 58 6 4 0 0
 
-Added
+ss add_diff Csigma 63 19 5 0 0
+ss add_diff Csigma 95 38 4 1 0
+ss add_diff Csigma 127 50 6 1 0
+
+//Added
 ss add_diff S0 126 2 8 0 ""
 ss add_diff S0 127 56 6 1 0
 ss add_diff S0 159 74 4 1 0
@@ -136,7 +140,6 @@ ss add_diff S0 86 12 3 0 0
 ss add_diff S0 86 4 4 0 0
 ss add_diff S0 86 5 100 0 ""
 ss add_diff S0 86 6 100 0 ""
-ss add_diff S0 86 6 100 1 ""
 ss add_diff S0 86 7 100 0 ""
 ss add_diff S0 87 10 6 0 0
 ss add_diff S0 87 5 100 0 ""

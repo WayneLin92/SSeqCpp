@@ -69,11 +69,11 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     int count = 0;
     if (isRing) {
         size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-        count += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r);
+        count += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false);
     }
     else {
         size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
-        count += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r);
+        count += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false);
     }
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Logger::LogSummary("Changed differentials", count);

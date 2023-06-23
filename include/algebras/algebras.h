@@ -117,7 +117,7 @@ struct AdamsDeg
     {
         return s == -1024 && t == -1024;
     }
-    bool operator<(const AdamsDeg& rhs) const
+    constexpr bool operator<(AdamsDeg rhs) const
     {
         if (t < rhs.t)
             return true;
@@ -127,11 +127,11 @@ struct AdamsDeg
             return true;
         return false;
     };
-    AdamsDeg operator+(const AdamsDeg& rhs) const
+    constexpr AdamsDeg operator+(const AdamsDeg& rhs) const
     {
         return AdamsDeg{s + rhs.s, t + rhs.t};
     };
-    AdamsDeg operator-(const AdamsDeg& rhs) const
+    constexpr AdamsDeg operator-(const AdamsDeg& rhs) const
     {
         return AdamsDeg{s - rhs.s, t - rhs.t};
     };
@@ -155,11 +155,11 @@ struct AdamsDeg
     {
         return !operator==(rhs);
     };
-    AdamsDeg operator*(int rhs) const
+    constexpr AdamsDeg operator*(int rhs) const
     {
         return AdamsDeg{s * rhs, t * rhs};
     };
-    AdamsDeg operator%(const AdamsDeg& rhs) const
+    constexpr AdamsDeg operator%(const AdamsDeg& rhs) const
     {
         int q = rhs.s == 0 ? t / rhs.t : (rhs.t == 0 ? s / rhs.s : std::min(s / rhs.s, t / rhs.t));
         return *this - rhs * q;

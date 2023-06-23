@@ -6,20 +6,21 @@
 
 enum class enumReason : uint32_t
 {
-    htpy2ss,  /* Homotopy relations to ss boundaries */
-    ss2htpy,  /* ss boundaries to Homotopy relations */
-    degree,   /* For degree reason */
-    nat,      /* By naturality */
-    deduce,   /* By deduction */
-    exact_hq, /* By long exact sequence h*q */
-    exact_ih, /* By long exact sequence i*h */
-    exact_qi, /* By long exact sequence q*i */
-    def,      /* By definition */
-    try_,     /* Try */
-    migrate,  /* Migration */
-    manual,   /* By other source of knowledge */
+    htpy2ss,   /* Homotopy relations to ss boundaries */
+    ss2htpy,   /* ss boundaries to Homotopy relations */
+    degree,    /* For degree reason */
+    nat,       /* By naturality */
+    deduce,    /* By deduction */
+    deduce_v2, /* By deduction of d(xy) */
+    exact_hq,  /* By long exact sequence h*q */
+    exact_ih,  /* By long exact sequence i*h */
+    exact_qi,  /* By long exact sequence q*i */
+    def,       /* By definition */
+    try_,      /* Try */
+    migrate,   /* Migration */
+    manual,    /* By other source of knowledge */
 };
-inline const std::array<std::string_view, 12> REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "exact_hq", "exact_ih", "exact_qi", "def", "try", "migrate", "manual"};
+constexpr std::array REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "deduce_v2", "exact_hq", "exact_ih", "exact_qi", "def", "try", "migrate", "manual"};
 inline const char* INDENT = "          ";
 
 /* There should be at least one global instance to close the files */
@@ -63,6 +64,7 @@ public:
     }
 
     static void LogDiff(int depth, enumReason reason, std::string_view name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
+    static void LogNullDiff(int depth, std::string_view name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
     static void LogDiffInv(int depth, enumReason reason, std::string_view name, alg::AdamsDeg deg_dx, const alg::int1d& x, const alg::int1d& dx, int r);
     static void LogDiffPerm(int depth, enumReason reason, std::string_view name, alg::AdamsDeg deg);
     static void LogDiffBoun(int depth, enumReason reason, std::string_view name, alg::AdamsDeg deg_dx, const alg::int1d& dx);
