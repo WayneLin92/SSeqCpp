@@ -8,7 +8,7 @@
 #include <variant>
 
 inline const char* PROGRAM = "ss";
-inline const char* VERSION = "Version:\n  1.1 (2023-06-23)";
+inline const char* VERSION = "Version:\n  1.2 (2023-07-09)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -16,7 +16,7 @@ constexpr int LEVEL_MIN = 2;
 constexpr int R_PERM = 1000;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
-constexpr size_t MAX_DEPTH = 3;                /* Maximum deduction depth */
+constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
 
 inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
@@ -25,9 +25,9 @@ enum class DeduceFlag : uint32_t
 {
     no_op = 0,
     set_diff = 1,
-    fast_try_diff = 2,   /* SetDiffLeibniz will update only partially in the try node */
-    all_x = 4,           /* Deduce dx for all x including linear combinations */
-    xy = 8,         /* Deduce dx for all x including linear combinations */
+    fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
+    all_x = 4,         /* Deduce dx for all x including linear combinations */
+    xy = 8,            /* Deduce dx for all x including linear combinations */
     pi = 16,
     pi_exact = 32, /* Check exactness of htpy in the try node */
     pi_def = 64,   /* define generators in pi */
@@ -130,7 +130,7 @@ struct RingSp
 {
     /* #metadata */
     std::string name;
-    int t_max = -1;  ////TODO: remove
+    int t_max = -1;
     std::vector<size_t> ind_mods, ind_maps;
 
     /* #ss */
@@ -138,7 +138,7 @@ struct RingSp
     std::map<AdamsDeg, Mon1d> basis;
     AdamsDeg1d degs_basis_order_by_stem;      /* Constant after initialization */
     Staircases1d nodes_ss;                    /* size = depth + 2 */
-    ut::map_seq2d<int, 0> basis_ss_possEinf;  ////TODO: change to int2d
+    ut::map_seq2d<int, 0> basis_ss_possEinf;  //// TODO: change to int2d
 
     /* #pi */
     algZ::Groebner pi_gb;
@@ -154,8 +154,7 @@ struct ModSp
 {
     /* #metadata */
     std::string name;
-    int t_max = -1;  ////TODO: remove
-    AdamsDeg deg_qt;
+    int t_max = -1;
     size_t iRing;
     std::vector<size_t> ind_maps;
 
@@ -164,7 +163,7 @@ struct ModSp
     std::map<AdamsDeg, MMod1d> basis;
     AdamsDeg1d degs_basis_order_by_stem;      /* Constant after initialization */
     Staircases1d nodes_ss;                    /* size = depth + 2 */
-    ut::map_seq2d<int, 0> basis_ss_possEinf;  ////TODO: change to int2d
+    ut::map_seq2d<int, 0> basis_ss_possEinf;  //// TODO: change to int2d
 
     /* #pi */
     algZ::GroebnerMod pi_gb;
@@ -183,7 +182,7 @@ struct MapRing2Ring  ////TODO: Add pi_images
 {
     size_t from, to;
     std::vector<Poly> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings);
+    int1d map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings) const;
 };
 
 struct MapMod2Mod
@@ -191,7 +190,7 @@ struct MapMod2Mod
     size_t from, to;
     int fil, sus;
     std::vector<Mod> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods);
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods) const;
 };
 
 struct MapMod2ModV2
@@ -199,7 +198,7 @@ struct MapMod2ModV2
     size_t from, to, over;
     int fil, sus;
     std::vector<Mod> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps);
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps) const;
 };
 
 struct MapMod2Ring
@@ -207,7 +206,7 @@ struct MapMod2Ring
     size_t from, to;
     int fil, sus;
     std::vector<Poly> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings);
+    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings) const;
 };
 
 struct MapMulRing
@@ -285,6 +284,16 @@ public: /* Getters */
         return modules_;
     }
 
+    auto& GetMaps()
+    {
+        return maps_;
+    }
+
+    auto& GetMaps() const
+    {
+        return maps_;
+    }
+
     int GetRingIndexByName(const std::string& name) const
     {
         for (size_t i = 0; i < rings_.size(); ++i)
@@ -318,7 +327,7 @@ public: /* Getters */
     }
 
     /* This is used for plotting Er pages. The actual result might differ by a linear combination.
-     * Return a level such that all levels above will not decrease further.
+     * Return a level such that nontrivial diffs in >= level will not be longer.
      */
     static int GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg);
 
@@ -341,7 +350,7 @@ private: /* ss */
     /* Return if it is possibly a new dr source for r>=r_min */
     static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
 
-    /* Return the first index (with level >=`level_min`) such that all levels above are already fixed */
+    /* Return the first index with level >=`level_min` such that all levels above are already fixed */
     static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
 
     /* Count the number of all possible d_r targets. Return (count, index). */
@@ -550,18 +559,6 @@ std::ostream& operator<<(std::ostream& sout, const int1d& arr);
 
 /* Order by (t, -s) */
 template <typename T>
-AdamsDeg1d OrderDegsV2(const T& cont)
-{
-    AdamsDeg1d result;
-    for (auto& [d, _] : cont) {
-        result.push_back(d);
-    }
-    std::sort(result.begin(), result.end(), [](const AdamsDeg& d1, const AdamsDeg& d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
-    return result;
-}
-
-/* Order by (t, -s) */
-template <typename T>
 AdamsDeg1d OrderDegsByStem(const T& cont)
 {
     AdamsDeg1d result;
@@ -595,10 +592,6 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log = false);
 
-int main_deduce(int, char**, int&, const char*);
-int main_deduce_ext(int, char**, int&, const char*);
-int main_deduce_ext_def(int, char**, int&, const char*);
-int main_deduce_ext_def2(int, char**, int&, const char*);
-int main_deduce_ext_2tor(int, char**, int&, const char*);
+
 
 #endif

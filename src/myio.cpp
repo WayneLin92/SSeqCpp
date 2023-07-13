@@ -1,18 +1,24 @@
 #include "myio.h"
 #include "myexception.h"
 #include "utility.h"
+#include <fmt/ranges.h>
 #include <fstream>
 #include <iostream>
-#include <fmt/ranges.h>
+#include <sys/stat.h>
 
 /*********** FUNCTIONS **********/
 
 namespace myio {
 
+std::string join(const std::string& sep, const string1d& strs)
+{
+    return fmt::format("{}", fmt::join(strs.begin(), strs.end(), sep));
+}
+
 /*
-** Consume and ignore string `pattern` from istream.
-** Set badbit error if pattern is not matched.
-*/
+ * Consume and ignore string `pattern` from istream.
+ * Set badbit error if pattern is not matched.
+ */
 void consume(std::istream& sin, const char* pattern)
 {
     size_t i;
@@ -53,6 +59,15 @@ void AssertFileExists(const std::string& filename)
     }
 }
 
+void AssertFolderExists(const std::string& foldername)
+{
+    struct stat sb;
+    if (stat(foldername.c_str(), &sb) != 0) {
+        fmt::print("Error: Folder {} does not exist.\n", foldername);
+        throw MyException(0xcfb27b11, "Folder does not exists.");
+    }
+}
+
 template <typename T>
 int TplLoadArg(int argc, char** argv, int& index, const char* name, T* x, bool optional)
 {
@@ -87,7 +102,7 @@ std::string myio::CmdArg::StrValue()
         return *std::get<std::string*>(value);
     else if (std::holds_alternative<std::vector<std::string>*>(value)) {
         auto& strs = *std::get<std::vector<std::string>*>(value);
-        return fmt::format("{}", fmt::join(strs.begin(), strs.end(), ","));
+        return join(",", strs);
     }
     return "?";
 }
@@ -101,7 +116,7 @@ void PrintHelp(const std::string& cmd, const char* description, const char* vers
         fmt::print(" [{}]", x.name);
     fmt::print("\n\nDefault values:\n");
     for (auto& x : op_args)
-        fmt::print("  {} = {}\n", x.name, x.StrValue()); 
+        fmt::print("  {} = {}\n", x.name, x.StrValue());
     fmt::print("\n{}\n", version);
 }
 
@@ -170,7 +185,7 @@ int LoadSubCmd(int argc, char** argv, int& index, const char* program, const cha
     if (index < argc && strcmp(argv[index], "-h") == 0) {
         std::string cmd = program;
         if (index > 1)
-             cmd += fmt::format(" {}", fmt::join(argv + 1, argv + index, " "));
+            cmd += fmt::format(" {}", fmt::join(argv + 1, argv + index, " "));
         PrintHelp(cmd, description, version, cmds);
         return 1;
     }

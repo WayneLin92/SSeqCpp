@@ -178,7 +178,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
 
         /*if (flag & DeduceFlag::set_diff)
             DeduceDiffs(depth + 1, 0);*/
-        if (flag & DeduceFlag::pi) {
+        /*if (flag & DeduceFlag::pi) {
             int count_ss1 = 0, count_homotopy1 = 0;
             AdamsDeg deg_min = deg_x - AdamsDeg(0, 1);
             if (iCw >= rings_.size())
@@ -191,7 +191,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
             DeduceTrivialExtensions(depth + 1);
             if (flag & DeduceFlag::pi_exact)
                 DeduceExtensionsByExactness(deg_min.stem(), 100, depth + 1);
-        }
+        }*/
     }
     catch (SSException&) {
         bException = true;
@@ -307,7 +307,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
             int count_trivial = DeduceTrivialDiffs();
             count += count_trivial;
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
-            if (flag & DeduceFlag::pi) {
+            /*if (flag & DeduceFlag::pi) {
                 int count_homotopy1 = 0;
                 AdamsDeg deg_min = deg_src - AdamsDeg(0, 1);
                 if (iCw >= rings_.size())
@@ -320,7 +320,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 DeduceTrivialExtensions(depth);
                 if (flag & DeduceFlag::pi_exact)
                     DeduceExtensionsByExactness(deg_min.stem(), 100, depth);
-            }
+            }*/
         }
         else {
             Logger::ClearDepth();
@@ -516,7 +516,13 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-/* Generate the table of the spectral sequence */
+ int main_deduce(int, char**, int&, const char*);
+ int main_deduce_ext(int, char**, int&, const char*);
+ int main_deduce_ext_def(int, char**, int&, const char*);
+ int main_deduce_ext_def2(int, char**, int&, const char*);
+ int main_deduce_ext_2tor(int, char**, int&, const char*);
+
+/* Deduce differentials and extensions */
 int main_deduce(int argc, char** argv, int& index, const char* desc)
 {
     myio::SubCmdArg1d subcmds = {
@@ -529,7 +535,7 @@ int main_deduce(int argc, char** argv, int& index, const char* desc)
         {"manual", "Deduce by hard-coded human knowledge", main_deduce_manual},
         {"test", "For debugging", main_deduce_test},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Make deductions on ss or homotopy", VERSION, subcmds))
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
 
     return 0;

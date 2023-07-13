@@ -13,7 +13,6 @@
 * Support stem_trunc
 
 # html
-* [html parameter](https://medium.com/@cyberbotmachines/how-to-pass-value-from-one-html-page-to-another-using-javascript-3c9ab62df4d)
 * Change title
 * Draw maps
 * KaTeX

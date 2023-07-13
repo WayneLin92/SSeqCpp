@@ -6,6 +6,7 @@
 #include <future>
 #include <iterator>
 #include <string>
+#include <vector>
 
 #ifndef __unix__
 #ifndef _MSC_VER

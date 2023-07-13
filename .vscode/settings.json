@@ -35,6 +35,7 @@
     "files.associations": {
         "*.excalidraw": "json",
         "*.excalidrawlib": "json",
+        ".gitignore": "plaintext",
         "__bit_reference": "cpp",
         "__config": "cpp",
         "__debug": "cpp",
@@ -141,6 +142,7 @@
         "ranges": "cpp",
         "span": "cpp",
         "typeindex": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "__std_stream": "cpp"
     }
 }

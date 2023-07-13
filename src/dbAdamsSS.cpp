@@ -218,6 +218,14 @@ void DbAdamsSS::save_generators(const std::string& table_prefix, const alg2::Ada
     // myio::Logger::out() << gen_degs.size() << " generators are inserted into " + table_prefix + "_generators!\n";
 }
 
+void DbAdamsSS::save_gen_names(const std::string& table_prefix, const std::vector<std::string>& gen_names) const
+{
+    Statement stmt(*this, "UPDATE " + table_prefix + "_generators SET name=?1 WHERE id=?2;");
+    for (size_t i = 0; i < gen_names.size(); ++i)
+        if (!gen_names[i].empty())
+            stmt.bind_and_step(gen_names[i], (int)i);
+}
+
 void DbAdamsSS::save_gb(const std::string& table_prefix, const std::map<AdamsDeg, Poly1d>& gb) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_relations (rel, s, t) VALUES (?1, ?2, ?3);");
@@ -299,6 +307,15 @@ AdamsDeg1d DbAdamsSS::load_gen_adamsdegs(const std::string& table_prefix) const
     while (stmt.step() == MYSQLITE_ROW)
         result.push_back({stmt.column_int(0), stmt.column_int(1)});
     // myio::Logger::out() << "gen_adamsdegs loaded from " << table_prefix + "_generators, size=" << result.size() << '\n';
+    return result;
+}
+
+std::vector<std::string> DbAdamsSS::load_gen_names(const std::string& table_prefix) const
+{
+    std::vector<std::string> result;
+    Statement stmt(*this, "SELECT coalesce(name, \"\") FROM " + table_prefix + "_generators ORDER BY id;");
+    while (stmt.step() == MYSQLITE_ROW)
+        result.push_back(stmt.column_str(0));
     return result;
 }
 

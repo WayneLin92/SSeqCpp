@@ -18,9 +18,9 @@ class Config:
 cosA = math.cos(Config.bullets_tilt_angle)
 sinA = math.sin(Config.bullets_tilt_angle)
 
-PATH_HTML_TPL = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\index_tpl.html"
-PATH_TMP_HTML = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\index.html"
-PATH_TMP_JS = R"C:\Users\lwnpk\OneDrive\Projects\HTML\WayneLin92.github.io\ss-fb42729d\others\AdamsSS_tmp\data.js"
+PATH_HTML_TPL = R"index_tpl.html"
+PATH_TMP_HTML = R"others\AdamsSS_tmp\index.html"
+PATH_TMP_JS = R"others\AdamsSS_tmp\data.js"
 
 R_PERM = 1000
 
@@ -936,10 +936,21 @@ def export_ss_ring(data_ring, path_html=None, path_js=None):
     content = content.replace("<!-- d5_lines:f6d7f992 -->", tpl_diff_lines[3])
     content = content.replace("<!-- d6_lines:05c49c4a -->", tpl_diff_lines[4])
 
-    with open(path_js, "w") as file:
-        file.write(content_js)
-    with open(path_html, "w", encoding="utf-8") as file:
-        file.write(content)
+    try:
+        with open(path_js, "w") as file:
+            file.write(content_js)
+    except:
+        os.makedirs(os.path.dirname(path_js))
+        with open(path_js, "w") as file:
+            file.write(content_js)
+
+    try:
+        with open(path_html, "w", encoding="utf-8") as file:
+            file.write(content)
+    except:
+        os.makedirs(os.path.dirname(path_html))
+        with open(path_html, "w", encoding="utf-8") as file:
+            file.write(content)
 
 
 def export_ss_mod(data_ring, data_mod, path_html=None, path_js=None):
@@ -977,10 +988,21 @@ def export_ss_mod(data_ring, data_mod, path_html=None, path_js=None):
     content = content.replace("<!-- d5_lines:f6d7f992 -->", tpl_diff_lines[3])
     content = content.replace("<!-- d6_lines:05c49c4a -->", tpl_diff_lines[4])
 
-    with open(path_js, "w") as file:
-        file.write(content_js)
-    with open(path_html, "w", encoding="utf-8") as file:
-        file.write(content)
+    try:
+        with open(path_js, "w") as file:
+            file.write(content_js)
+    except:
+        os.makedirs(os.path.dirname(path_js))
+        with open(path_js, "w") as file:
+            file.write(content_js)
+
+    try:
+        with open(path_html, "w", encoding="utf-8") as file:
+            file.write(content)
+    except:
+        os.makedirs(os.path.dirname(path_html))
+        with open(path_html, "w", encoding="utf-8") as file:
+            file.write(content)
 
 
 def export_ss_from_res(data, path_html=None, path_js=None):
@@ -1214,6 +1236,11 @@ if __name__ == "__main__":
     # actions
     with open("ss.json") as file_ss_json:
         ss_json = json.load(file_ss_json)
+    PATH_HTML_TPL = os.path.join(ss_json["dir_website_ss"], R"index_tpl.html")
+    PATH_TMP_HTML = os.path.join(
+        ss_json["dir_website_ss"], R"others\AdamsSS_tmp\index.html"
+    )
+    PATH_TMP_JS = os.path.join(ss_json["dir_website_ss"], R"others\AdamsSS_tmp\data.js")
 
     dir_db = (
         ss_json["diagrams"][args.diagram]
@@ -1226,15 +1253,15 @@ if __name__ == "__main__":
 
     rings = diagram_json["rings"]
     mods = diagram_json["modules"]
-    dir_website = os.path.join(
+    dir_plot = os.path.join(
         ss_json["dir_website_ss"],
         diagram_json["dir_html"],
     )
 
     for i, ring in enumerate(rings):
         path_ring = os.path.join(dir_db, ring["path"])
-        path_html = os.path.join(dir_website, f"{ring['name']}_ss/index.html")
-        path_js = os.path.join(dir_website, f"{ring['name']}_ss/data.js")
+        path_html = os.path.join(dir_plot, f"{ring['name']}_ss/index.html")
+        path_js = os.path.join(dir_plot, f"{ring['name']}_ss/data.js")
         data_ring = load_ss_ring(path_ring)
         export_ss_ring(data_ring, path_html, path_js)
 
@@ -1248,8 +1275,8 @@ if __name__ == "__main__":
             if ring["name"] == mod["over"]:
                 break
         path_mod = os.path.join(dir_db, mod["path"])
-        path_html = os.path.join(dir_website, f"{mod['name']}_ss/index.html")
-        path_js = os.path.join(dir_website, f"{mod['name']}_ss/data.js")
+        path_html = os.path.join(dir_plot, f"{mod['name']}_ss/index.html")
+        path_js = os.path.join(dir_plot, f"{mod['name']}_ss/data.js")
         data_ring, data_mod = load_ss_mod(path_ring, path_mod)
         export_ss_mod(data_ring, data_mod, path_html, path_js)
 

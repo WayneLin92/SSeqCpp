@@ -288,6 +288,11 @@ public:
         return size_;
     }
 
+    bool IsGen() const
+    {
+        return size_ == 1 && data_[0].e() == 1;
+    }
+
     /* This is made for `SortMod2()` */
     bool IsNull() const
     {
@@ -649,6 +654,11 @@ struct MMod
     bool operator==(const MMod& rhs) const
     {
         return m == rhs.m && v == rhs.v;
+    }
+
+    bool IsGen() const
+    {
+        return !m;
     }
 
     std::string Str() const;

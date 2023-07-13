@@ -360,8 +360,6 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //                    for (auto& b : basis_stem)
     //                        if (b.fil() > d_g.s)
     //                            indeterminancy.push_back(b);
-    //                    // if (gen_id == 38)
-    //                    //     std::cout << "debug\n";
     //                    if (rings_.pi_gen_defs[gen_id] == EnumDef::constraints)
     //                        FilterIndeterminancy(indeterminancy, rings_.pi_gen_def_mons[gen_id], rings_.pi_gb);
     //                    for (auto& b : indeterminancy)
@@ -409,9 +407,6 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //                    ExtendRelMod(iCof, d_prod.stem(), prod_reduced);
     //                    if (d_prod.t + prod_reduced.UnknownFil() - d_prod.s > ssCof.t_max)
     //                        continue;
-
-    //                    /*if (iCof == 0 && v_id == 21)
-    //                        std::cout << "debug\n";*/
 
     //                    algZ::Mod1d indeterminancy, m_by_ind;
     //                    auto& basis_stem = basis_Cofs[iCof][d_g.stem()];

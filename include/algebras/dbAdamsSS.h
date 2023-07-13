@@ -153,6 +153,7 @@ public:
 
 public:
     void save_generators(const std::string& table_prefix, const AdamsDeg1d& gen_degs, int1d& gen_repr) const;
+    void save_gen_names(const std::string& table_prefix, const std::vector<std::string>& gen_names) const;
     void save_gb(const std::string& table_prefix, const std::map<AdamsDeg, Poly1d>& gb) const;
     void save_gb_mod(const std::string& table_prefix, const std::map<AdamsDeg, Mod1d>& gbm) const;
     void save_basis(const std::string& table_prefix, const std::map<AdamsDeg, Mon1d>& basis, const std::map<AdamsDeg, int2d>& repr) const;
@@ -160,6 +161,7 @@ public:
 
 public:
     AdamsDeg1d load_gen_adamsdegs(const std::string& table_prefix) const;
+    std::vector<std::string> load_gen_names(const std::string& table_prefix) const;
     Poly1d load_gb(const std::string& table_prefix, int t_max) const;
     Mod1d load_gb_mod(const std::string& table_prefix, int t_max) const;
     std::map<AdamsDeg, Mon1d> load_basis(const std::string& table_prefix) const;

@@ -46,7 +46,7 @@ void Diagram::PopNode(DeduceFlag flag)
     }
 }
 
-int1d MapRing2Ring::map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings)
+int1d MapRing2Ring::map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings) const
 {
 
     int1d result;
@@ -59,7 +59,7 @@ int1d MapRing2Ring::map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings)
     return result;
 }
 
-int1d MapMod2Mod::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods)
+int1d MapMod2Mod::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods) const
 {
     int1d result;
     if (!x.empty()) {
@@ -88,7 +88,7 @@ auto subs(const Mod& x, const std::vector<Poly>& map1, const std::vector<Mod>& m
     return result;
 }
 
-int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps)
+int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps) const
 {
     int1d result;
     auto& ring_map = std::get<MapRing2Ring>(maps[over].map);
@@ -103,7 +103,7 @@ int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, con
     return result;
 }
 
-int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings)
+int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings) const
 {
     int1d result;
     if (!x.empty()) {

@@ -21,6 +21,8 @@ int main_res_csv(int, char**, int&, const char*);
 
 int main_status(int, char**, int&, const char*);
 int main_rename(int, char**, int&, const char*);
+int main_app_t_max(int, char**, int&, const char*);
+int main_ss_json(int, char**, int&, const char*);
 int main_add_from_to(int, char**, int&, const char*);
 int main_add_t_max(int, char**, int&, const char*);
 
@@ -41,6 +43,8 @@ int main(int argc, char** argv)
         {"res_csv", "Export the resolution data to a csv file", main_res_csv},
         {"status", "Display the computation status in the current directory", main_status},
         {"rename", "For compatibility: rename files", main_rename},
+        {"app_t_max", "append t_max to filenames", main_app_t_max},
+        {"ss_json", "print info for ss.json", main_ss_json},
         {"add_from_to", "For compatibility: add from to info to databases of maps", main_add_from_to},
         {"add_t_max", "For compatibility: add t_max info to the database", main_add_t_max},
     };

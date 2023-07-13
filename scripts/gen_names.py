@@ -67,9 +67,9 @@ def set_AdamsE2_name(cw: str, path: str):
     for id, s, t in c.execute(sql):
         if id not in gen_names:
             if names[(t - s, s)] == 0:
-                gen_names[id] = f"x_{{{t-s}, {s}}}"
+                gen_names[id] = f"x_{{{t-s},{s}}}"
             else:
-                gen_names[id] = f"x_{{{t-s}, {s}, {names[(t-s, s)]}}}"
+                gen_names[id] = f"x_{{{t-s},{s},{names[(t-s, s)]}}}"
         names[(t - s, s)] += 1
 
     sql = f"Update {cw}_AdamsE2_generators SET name=?2 where id=?1"

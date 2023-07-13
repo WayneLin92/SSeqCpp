@@ -3,6 +3,18 @@
 
 using namespace alg2;
 
+/* Order by (t, -s) */
+template <typename T>
+AdamsDeg1d OrderDegsV2(const T& cont)
+{
+    AdamsDeg1d result;
+    for (auto& [d, _] : cont) {
+        result.push_back(d);
+    }
+    std::sort(result.begin(), result.end(), [](const AdamsDeg& d1, const AdamsDeg& d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+    return result;
+}
+
 void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_pi_generators (id, Einf, s, t) VALUES (?1, ?2, ?3, ?4);");

@@ -12,7 +12,7 @@ namespace myio {
 using int1d = std::vector<int>;
 using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
-
+using string1d = std::vector<std::string>;
 
 
 template <typename FwdIt, typename FnStr> //// Deprecate
@@ -33,14 +33,29 @@ std::string TplStrCont(const char* left, const char* sep, const char* right, con
     return result;
 }
 
+std::string join(const std::string& sep, const string1d& strs);
+
+template <typename FwdIt, typename FnStr>
+std::string Tpljoin(const std::string& sep, FwdIt first, FwdIt last, FnStr str)
+{
+    string1d strs;
+    for (auto it = first; it != last; ++it)
+        strs.push_back(str(*it));
+    return join(sep, strs);
+}
+
 template <typename Container, typename FnStr>
-std::string StrCont(const char* left, const char* sep, const char* right, const char* empty, const Container& cont, FnStr str)  // TODO: make a performant version
+std::string StrCont(const char* left, const char* sep, const char* right, const char* empty, const Container& cont, FnStr str)
 {
     return TplStrCont(left, sep, right, empty, cont.begin(), cont.end(), str);
 }
 
-/* Consume `pattern` from `sin`. Set badbit if not found. */
+/**
+ * Consume and ignore string `pattern` from istream.
+ * Set badbit error if pattern is not matched.
+ */
 void consume(std::istream& sin, const char* pattern);
+
 inline std::istream& operator>>(std::istream& sin, const char* pattern)
 {
     consume(sin, pattern);
@@ -117,6 +132,7 @@ inline std::istream& operator>>(std::istream& sin, int3d& a)
 
 bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
+void AssertFolderExists(const std::string& foldername);
 
 struct COUT_FLUSH
 {

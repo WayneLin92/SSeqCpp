@@ -31,4 +31,4 @@ This computation takes 0.1 seconds on my AMD Ryzen 9 3900X CPU.
 ## Implementation limits of the program
 - The maximum Adams filtration is $s_{max}=2^{12}-1=4095$.
 - The maximum degree of the Steenrod algebra is $n_{max}=383$.
-- The maximum dimension of a free module over the Steenrod algebra is $v_{max}=2^{19}=524288$
+- The maximum dimension of a free module over the Steenrod algebra is $dim_{max}=2^{19}=524288$

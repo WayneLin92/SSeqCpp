@@ -1,5 +1,50 @@
 #include "algebras/linalg.h"
+#include "json.h"
 #include "main.h"
+#include "mylog.h"
+#include <filesystem>
+#include <fmt/os.h>
+#include <fstream>
+#include <regex>
+
+void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohmann::json& diag_json)
+{
+    using json = nlohmann::json;
+    {
+        std::ifstream ifs("ss.json");
+        if (ifs.is_open())
+            ifs >> root_json;
+        else {
+            Logger::LogException(0, 0xb8525e9bU, "File ss.json not found\n");
+            throw MyException(0xb8525e9bU, "File ss.json not found");
+        }
+    }
+    try {
+        json& diagrams = root_json.at("diagrams");
+        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
+        {
+            std::ifstream ifs(fmt::format("{}/ss.json", dir));
+            if (ifs.is_open())
+                ifs >> diag_json;
+            else {
+                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
+                throw MyException(0xef000cd, "File dir/ss.json not found");
+            }
+        }
+    }
+    catch (nlohmann::detail::exception e) {
+        Logger::LogException(0, e.id, "{}\n", e.what());
+        throw e;
+    }
+}
+
+struct GenCell
+{
+    int cell = -1;
+    Poly poly;
+};
+using GenCell1d = std::vector<GenCell>;
+using GenCell2d = std::vector<GenCell1d>;
 
 class MyDB : public DBSS
 {
@@ -97,6 +142,23 @@ public:
         create_ss_stable_levels(table_prefix);
     }
 
+    GenCell1d load_gen_cells(const std::string& table_prefix) const
+    {
+        GenCell1d result;
+        Statement stmt(*this, "SELECT coalesce(cell, -1), coalesce(cell_coeff, \"\") FROM " + table_prefix + "_generators ORDER BY id;");
+        while (stmt.step() == MYSQLITE_ROW)
+            result.push_back(GenCell{stmt.column_int(0), myio::Deserialize<Poly>(stmt.column_str(1))});
+        return result;
+    }
+
+    void save_gen_cells(const std::string& table_prefix, const std::vector<std::string>& gen_names, const GenCell1d& gen_cells) const
+    {
+        Statement stmt(*this, "UPDATE " + table_prefix + "_generators SET name=?1, cell=?2, cell_coeff=?3 WHERE id=?4;");
+        for (size_t i = 0; i < gen_names.size(); ++i)
+            if (!gen_names[i].empty())
+                stmt.bind_and_step(gen_names[i], gen_cells[i].cell, myio::Serialize(gen_cells[i].poly), (int)i);
+    }
+
     void load_basis_v2(const std::string& table_prefix, Mon1d& basis, AdamsDeg1d& deg_basis) const
     {
         Statement stmt(*this, "SELECT mon, s, t FROM " + table_prefix + "_basis ORDER BY id");
@@ -131,18 +193,43 @@ public:
     }
 };
 
-void serialize_ss(const Staircases& ss, int2d& seq_ss, AdamsDeg1d& seq_deg)
+constexpr double BULLET_RADIUS = 0.08f;
+
+double GetRadius(int n)
 {
-    auto degs = OrderDegsV2(ss);
-    for (auto& d : degs) {
-        for (auto& b : ss.at(d).basis) {
-            seq_ss.push_back(b);
-            seq_deg.push_back(d);
+    double length = BULLET_RADIUS * 3 * (n - 1);
+    if (length > 1 - BULLET_RADIUS * 6)
+        length = 1 - BULLET_RADIUS * 6;
+    double sep = n > 1 ? length / (n - 1) : BULLET_RADIUS * 3;
+    return sep / 3;
+}
+
+double radii_get_r(const std::map<AdamsDeg, double>& radii, AdamsDeg deg)
+{
+    return ut::has(radii, deg) ? radii.at(deg) : BULLET_RADIUS;
+}
+
+void SmoothenRadii(std::map<AdamsDeg, double>& radii)
+{
+    constexpr std::array<AdamsDeg, 8> nbhd = {AdamsDeg(1, 1), AdamsDeg(-1, -1), AdamsDeg(0, 1), AdamsDeg(0, -1), AdamsDeg(1, 2), AdamsDeg(-1, 0), AdamsDeg(1, 0), AdamsDeg(-1, -2)};
+    constexpr double BULLET_RADIUS_RATIO = 1.07;
+    const double BULLET_RADIUS_RATIO_V2 = std::pow(BULLET_RADIUS_RATIO, 1.414);
+    std::map<AdamsDeg, double> radii_ub;
+    for (int _ = 0; _ < 4; ++_) {
+        radii_ub = radii;
+        for (auto& [d, r] : radii) {
+            for (size_t i = 0; i < 4; ++i)
+                radii_ub[d + nbhd[i]] = std::min(radii_ub[d + nbhd[i]], r * BULLET_RADIUS_RATIO);
+            for (size_t i = 4; i < 8; ++i)
+                radii_ub[d + nbhd[i]] = std::min(radii_ub[d + nbhd[i]], r * BULLET_RADIUS_RATIO_V2);
         }
+        for (auto& [d, r] : radii)
+            if (r > radii_ub.at(d) * 1.005)
+                r = std::sqrt(r * radii_ub.at(d));
     }
 }
 
-int main_plot(int argc, char** argv, int& index, const char* desc)
+int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
@@ -151,175 +238,367 @@ int main_plot(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+    std::string plot_dir = root_json.at("dir_website_ss").get<std::string>() + "/" + diag_json.at("dir_plot").get<std::string>();
+    myio::AssertFolderExists(plot_dir);
+
     Diagram diagram(diagram_name, DeduceFlag::no_op);
-    diagram.DeduceTrivialDiffs();
-    auto& rings = diagram.GetRings();
-    auto& mods = diagram.GetModules();
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+    const auto& maps = diagram.GetMaps();
 
-    std::vector<MyDB> dbPlots;
-    std::vector<std::string> names, paths;
-    std::vector<int> isRing;
-    GetAllDbNames(diagram_name, names, paths, isRing);
-
-    dbPlots.reserve(paths.size());
-    std::vector<std::map<AdamsDeg, int>> deg2ids;
-    for (size_t i = 0; i < paths.size(); ++i) {
-        std::string dbname = paths[i];
-        dbname.insert(dbname.size() - 3, "_plot");
-        dbPlots.emplace_back(dbname);
-        MyDB db(paths[i]);
-        deg2ids.push_back(db.load_basis_indices(fmt::format("{}_AdamsE2", names[i])));
-    }
-
-    for (auto& db : dbPlots)
-        db.begin_transaction();
-
-    /* ss_products */
+    /*
     {
-        int3d seq_ss_rings(rings.size()), seq_ss_mods(mods.size());
-        AdamsDeg2d seq_deg_rings(rings.size()), seq_deg_mods(mods.size());
-        for (size_t iRing = 0; iRing < rings.size(); ++iRing)
-            serialize_ss(rings[iRing].nodes_ss.front(), seq_ss_rings[iRing], seq_deg_rings[iRing]);
-        for (size_t iMod = 0; iMod < mods.size(); ++iMod)
-            serialize_ss(mods[iMod].nodes_ss.front(), seq_ss_mods[iMod], seq_deg_mods[iMod]);
+      "gen_names": [],
+      "basis": [[1, 2], [1, 2, 3, 4]],
+      "bullets": [{"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0}],
+      "prods": [{"i": 0, "j"(factor): 1, "p": [0, 1], "l"(is structure line): 0}],
+      "diffs": [{"i": 0, "j": [0, 1], "r": 2}],
+      "nds": [{"i": 0, "r": 2}],
+    }
+    */
 
-        int1d arr_factors = {1, 3, 7, 15, 23, 29, 33, 42};  //// TODO: change
-        for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
-            auto& ring = rings[iRing];
-            auto& seq_ss_ring = seq_ss_rings[iRing];
-            auto& seq_deg_ring = seq_deg_rings[iRing];
-            dbPlots[iRing].drop_and_create_ss_products(fmt::format("{}_AdamsE2", ring.name));
-            myio::Statement stmt(dbPlots[iRing], fmt::format("INSERT INTO {}_AdamsE2_ss_products (id1, id2, prod) VALUES (?1, ?2, ?3);", ring.name));
-            for (int i : arr_factors) {
-                for (size_t j = 0; j < seq_ss_ring.size(); ++j) {
-                    const AdamsDeg deg_prod = seq_deg_ring[i] + seq_deg_ring[j];
-                    if (deg_prod.t <= ring.t_max) {
-                        Poly bi = Indices2Poly(seq_ss_ring[i], ring.basis.at(seq_deg_ring[i]));
-                        Poly bj = Indices2Poly(seq_ss_ring[j], ring.basis.at(seq_deg_ring[j]));
-                        Poly poly_prod = ring.gb.Reduce(bi * bj);
-                        if (poly_prod) {
-                            int1d prod = Poly2Indices(poly_prod, ring.basis.at(deg_prod));
-                            prod = lina::GetInvImage(ring.nodes_ss.front().at(deg_prod).basis, prod);
-                            for (size_t k = 0; k < prod.size(); ++k)
-                                prod[k] += deg2ids[iRing][deg_prod];
+    constexpr double BULLET_ANGLE = -20.0f / 180 * 3.1415926f;
+    const double COS_BULLET_ANGLE = std::cos(BULLET_ANGLE);
+    const double SIN_BULLET_ANGLE = std::sin(BULLET_ANGLE);
 
-                            stmt.bind_and_step((int)i, (int)j, myio::Serialize(prod));
-                        }
+    std::vector<std::map<AdamsDeg, int>> all_deg2id;
+    size_t cw_size = rings.size() + mods.size();
+    for (size_t iCw = 0; iCw < cw_size; ++iCw) {
+        bool isRing = iCw < rings.size();
+        size_t iMod = isRing ? -1 : iCw - rings.size();
+        auto& name = isRing ? rings[iCw].name : mods[iMod].name;
+        auto& nodes_ss = isRing ? rings[iCw].nodes_ss : mods[iMod].nodes_ss;
+        auto& ring = isRing ? rings[iCw] : rings[mods[iMod].iRing];
+
+        json js;
+        if (!isRing)
+            js["over"] = ring.name;
+
+        /* gen_names */
+        {
+            auto path = isRing ? diag_json.at("rings")[iCw].at("path").get<std::string>() : diag_json.at("modules")[iMod].at("path").get<std::string>();
+            MyDB db(db_dir + "/" + path);
+            auto gen_names = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+            auto gen_degs = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+            std::map<AdamsDeg, int> gen_index;
+            char letter = isRing ? 'x' : 'v';
+            std::string key = isRing ? "gen_names" : "v_names";
+            for (size_t i = 0; i < gen_names.size(); ++i) {
+                ++gen_index[gen_degs[i]];
+                if (gen_names[i].empty())
+                    js[key].push_back(fmt::format("{}_{{{},{}{}}}", letter, gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]])));
+                else
+                    js[key].push_back(gen_names[i]);
+            }
+        }
+
+        /* basis */
+        if (isRing) {
+            for (auto& [d, basis_d] : ring.basis) {
+                for (auto& m : basis_d) {
+                    js["basis"].push_back(json::array());
+                    for (auto& p : m) {
+                        js["basis"].back().push_back(p.g());
+                        js["basis"].back().push_back(p.e());
                     }
                 }
             }
         }
+        else {
+            for (auto& [d, basis_d] : mods[iMod].basis) {
+                for (auto& m : basis_d) {
+                    js["basis"].push_back(json::array());
+                    for (auto& p : m.m) {
+                        js["basis"].back().push_back(p.g());
+                        js["basis"].back().push_back(p.e());
+                    }
+                    js["basis"].back().push_back(m.v);
+                }
+            }
+        }
 
-        for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
-            auto& mod = mods[iMod];
-            auto& seq_ss_mod = seq_ss_mods[iMod];
-            auto& seq_deg_mod = seq_deg_mods[iMod];
-            auto& ring = rings[mod.iRing];
-            auto& seq_ss_ring = seq_ss_rings[mod.iRing];
-            auto& seq_deg_ring = seq_deg_rings[mod.iRing];
-            auto& nodes_ss = mod.nodes_ss;
-            auto& basis = mod.basis;
-            auto& gb = mod.gb;
-            int t_max = mod.t_max;
-            dbPlots[iMod + rings.size()].drop_and_create_ss_products(fmt::format("{}_AdamsE2", mod.name));
-            myio::Statement stmt(dbPlots[iMod + rings.size()], fmt::format("INSERT INTO {}_AdamsE2_ss_products (id1, id2, prod) VALUES (?1, ?2, ?3);", mod.name));
-            for (int i : arr_factors) {
-                for (size_t j = 0; j < seq_ss_mod.size(); ++j) {
-                    const AdamsDeg deg_prod = seq_deg_ring[i] + seq_deg_mod[j];
-                    if (deg_prod.t <= t_max) {
-                        Poly ai = Indices2Poly(seq_ss_ring[i], ring.basis.at(seq_deg_ring[i]));
-                        if (ai.data.size() != 1)
-                            throw MyException(0x8f0340d6U, "the factor is supposed to be the only one in its degree.");
-                        Mod bj = Indices2Mod(seq_ss_mod[j], basis.at(seq_deg_mod[j]));
-                        Mod x_prod = gb.Reduce(ai.GetLead() * bj);
-                        if (x_prod) {
-                            int1d prod = Mod2Indices(x_prod, basis.at(deg_prod));
+        ///* ss */
+
+        std::map<AdamsDeg, double> radii;
+        all_deg2id.push_back({});
+        std::map<AdamsDeg, int>& deg2id = all_deg2id.back();
+        {
+            int index = 0;
+            for (auto& [d, ss_d] : nodes_ss.front()) {
+                radii[d] = GetRadius((int)ss_d.levels.size());
+                deg2id[d] = index;
+                index += (int)ss_d.levels.size();
+            }
+        }
+        SmoothenRadii(radii);
+        for (auto& [deg, sc] : nodes_ss.front()) {
+            int n = (int)sc.levels.size();
+            double bottom_right_x = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1);
+            double bottom_right_y = (double)deg.s + radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1);
+            int stable_level = diagram.GetFirstFixedLevelForPlot(nodes_ss, deg);
+            for (size_t i = 0; i < sc.levels.size(); ++i) {
+                js["bullets"].push_back(json::object());
+                auto& bullet = js["bullets"].back();
+                bullet["x"] = bottom_right_x - radii.at(deg) * 3 * COS_BULLET_ANGLE * double(i);
+                bullet["y"] = bottom_right_y - radii.at(deg) * 3 * SIN_BULLET_ANGLE * double(i);
+                bullet["r"] = radii.at(deg);
+                bullet["b"] = sc.basis[i];
+
+                if (!sc.basis[i].empty()) {
+                    size_t index = (size_t)sc.basis[i].front();
+                    if (isRing ? ring.basis.at(deg)[index].IsGen() : mods[iMod].basis.at(deg)[index].IsGen())
+                        bullet["c"] = "blue";
+                    else
+                        bullet["c"] = "black";
+                }
+                else
+                    bullet["c"] = "black";
+
+                if (sc.diffs[i] == NULL_DIFF)
+                    bullet["d"] = nullptr;
+                else
+                    bullet["d"] = sc.diffs[i];
+
+                if (sc.levels[i] >= stable_level) {
+                    if (sc.diffs[i] == NULL_DIFF)
+                        bullet["p"] = R_PERM;
+                    else
+                        bullet["p"] = 10000 - sc.levels[i];
+                }
+                else if (sc.levels[i] > 5000 || sc.diffs[i] == NULL_DIFF)
+                    bullet["p"] = R_PERM;
+                else
+                    bullet["p"] = sc.levels[i];
+
+                bullet["l"] = sc.levels[i];
+                bullet["i0"] = deg2id.at(deg);
+            }
+        }
+
+        /* struct lines */
+        AdamsDeg1d degs_factors;
+        Poly1d bjs;
+        int1d indices_factors;
+        std::map<AdamsDeg, int>& deg2id_ring = isRing ? deg2id : all_deg2id[mods[iMod].iRing];
+        for (auto& strt_factor : diag_json.at("rings")[isRing ? iCw : mods[iMod].iRing].at("plot_factors")[0]) {
+            int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
+            degs_factors.push_back(AdamsDeg(s, stem + s));
+            bjs.push_back(ring.basis.at(degs_factors.back())[i_factor]);
+            indices_factors.push_back(deg2id_ring.at(degs_factors.back()) + i_factor);
+        }
+
+        if (isRing) {
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    Poly bi = Indices2Poly(sc.basis[i], ring.basis.at(deg));
+                    for (size_t j = 0; j < degs_factors.size(); ++j) {
+                        const AdamsDeg deg_prod = degs_factors[j] + deg;
+                        if (deg_prod.t > ring.t_max)
+                            break;
+                        auto alg_prod = ring.gb.Reduce(bjs[j] * bi);
+                        if (alg_prod) {
+                            int1d prod = Poly2Indices(alg_prod, ring.basis.at(deg_prod));
                             prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
-                            for (size_t l = 0; l < prod.size(); ++l)
-                                prod[l] += deg2ids[iMod + rings.size()][deg_prod];
 
-                            stmt.bind_and_step((int)i, (int)j, myio::Serialize(prod));
+                            js["prods"].push_back(json::object());
+                            auto& prod_json = js["prods"].back();
+                            prod_json["i"] = deg2id.at(deg) + i;
+                            prod_json["j"] = indices_factors[j];
+                            prod_json["p"] = json::array();
+                            for (size_t k = 0; k < prod.size(); ++k)
+                                prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
+                            prod_json["l"] = 1;
                         }
                     }
                 }
             }
         }
-    }
+        else {
+            auto& mod = mods[iMod];
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    Mod bi = Indices2Mod(sc.basis[i], mod.basis.at(deg));
+                    for (size_t j = 0; j < degs_factors.size(); ++j) {
+                        const AdamsDeg deg_prod = degs_factors[j] + deg;
+                        if (deg_prod.t > mod.t_max)
+                            break;
+                        auto alg_prod = mod.gb.Reduce(bjs[j] * bi);
+                        if (alg_prod) {
+                            int1d prod = Mod2Indices(alg_prod, mod.basis.at(deg_prod));
+                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
 
-    /* ss_diffs */
-    for (size_t iCw = 0; iCw < dbPlots.size(); ++iCw) {
-        auto& nodes_ss = iCw < rings.size() ? rings[iCw].nodes_ss : mods[iCw - rings.size()].nodes_ss;
-        auto& name = iCw < rings.size() ? rings[iCw].name : mods[iCw - rings.size()].name;
+                            js["prods"].push_back(json::object());
+                            auto& prod_json = js["prods"].back();
+                            prod_json["i"] = deg2id.at(deg) + i;
+                            prod_json["j"] = indices_factors[j];
+                            prod_json["p"] = json::array();
+                            for (size_t k = 0; k < prod.size(); ++k)
+                                prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
+                            prod_json["l"] = 1;
+                        }
+                    }
+                }
+            }
+        }
 
-        dbPlots[iCw].drop_and_create_ss_diff(fmt::format("{}_AdamsE2", name));
-        myio::Statement stmt(dbPlots[iCw], fmt::format("INSERT INTO {}_AdamsE2_ss_diffs (src, r, tgt) VALUES (?1, ?2, ?3);", name));
-        for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
-            for (size_t i = 0; i < basis_ss_d.levels.size(); ++i) {
-                int src = deg2ids[iCw][deg] + (int)i;
-                if (basis_ss_d.levels[i] > 9800 && basis_ss_d.diffs[i] != NULL_DIFF) {
-                    int r = LEVEL_MAX - basis_ss_d.levels[i];
+        /* diff lines */
+        for (auto& [deg, sc] : nodes_ss.front()) {
+            for (size_t i = 0; i < sc.levels.size(); ++i) {
+                int src = deg2id.at(deg) + (int)i;
+                if (sc.levels[i] > 9000 && sc.diffs[i] != NULL_DIFF) {
+                    int r = LEVEL_MAX - sc.levels[i];
                     AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
-                    int1d tgt = lina::GetInvImage(nodes_ss.front().at(deg_tgt).basis, basis_ss_d.diffs[i]);
+                    int1d tgt = lina::GetInvImage(nodes_ss.front().at(deg_tgt).basis, sc.diffs[i]);
+
+                    js["diffs"].push_back(json::object());
+                    auto& diff_json = js["diffs"].back();
+                    diff_json["i"] = src;
+                    diff_json["j"] = json::array();
                     for (size_t l = 0; l < tgt.size(); ++l)
-                        tgt[l] += deg2ids[iCw][deg_tgt];
-
-                    stmt.bind_and_step(src, r, myio::Serialize(tgt));
+                        diff_json["j"].push_back(deg2id.at(deg_tgt) + tgt[l]);
+                    diff_json["r"] = r;
                 }
             }
         }
-    }
 
-    /* ss_nd */
-    for (size_t iCw = 0; iCw < dbPlots.size(); ++iCw) {
-        auto& name = iCw < rings.size() ? rings[iCw].name : mods[iCw - rings.size()].name;
-        auto& nodes_ss = iCw < rings.size() ? rings[iCw].nodes_ss : mods[iCw - rings.size()].nodes_ss;
-        int t_max = iCw < rings.size() ? rings[iCw].t_max : mods[iCw - rings.size()].t_max;
-        dbPlots[iCw].drop_and_create_ss_nd(fmt::format("{}_AdamsE2", name));
-        myio::Statement stmt(dbPlots[iCw], fmt::format("INSERT INTO {}_AdamsE2_ss_nd (src, r, tgt) VALUES (?1, ?2, ?3);", name));
-
-        auto& degs = iCw < rings.size() ? rings[iCw].degs_basis_order_by_stem : mods[iCw - rings.size()].degs_basis_order_by_stem;
-
-        for (AdamsDeg deg : degs) {
-            NullDiff1d nds;
-            diagram.CacheNullDiffs(nodes_ss, t_max, deg, DeduceFlag::no_op, nds);
-            for (auto& nd : nds) {
-                auto& basis_ss_d = nodes_ss.front().at(deg);
-                size_t index = 0;
-                while (index < basis_ss_d.basis.size() && basis_ss_d.basis[index] != nd.x)
-                    ++index;
-                if (index == basis_ss_d.basis.size())
-                    throw MyException(0xef63215fU, "nd could be wrong");
-                int src = deg2ids[iCw][deg] + (int)index;
-                if (basis_ss_d.levels[index] > 9800) {
-                    int1d tgt;
-                    for (int j = nd.first; j < nd.first + nd.count; ++j)
-                        tgt.push_back(j);
-                    int r = LEVEL_MAX - basis_ss_d.levels[index];
-                    AdamsDeg deg_tgt = deg + AdamsDeg(r, r - 1);
-                    for (size_t j = 0; j < tgt.size(); ++j)
-                        tgt[j] += deg2ids[iCw][deg_tgt];
-
-                    stmt.bind_and_step(src, r, myio::Serialize(tgt));
+        /* unknown diff lines */
+        js["nds"] = json::array();
+        for (auto& [deg, sc] : nodes_ss.front()) {
+            if (deg.stem() <= 126) {
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int src = deg2id.at(deg) + (int)i;
+                    if (sc.levels[i] > 9000 && sc.diffs[i] == NULL_DIFF) {
+                        int r = LEVEL_MAX - sc.levels[i];
+                        js["nds"].push_back(json::object());
+                        auto& nd = js["nds"].back();
+                        nd["i"] = src;
+                        nd["r"] = r;
+                    }
                 }
             }
         }
+
+        auto out = fmt::output_file(plot_dir + "/" + name + ".js");
+        out.print("globalThis.DATA_JSON_{} = {};\n", name, js.dump());
     }
 
-    /* ss_stable_levels */
-    for (size_t iCw = 0; iCw < dbPlots.size(); ++iCw) {
-        auto& name = iCw < rings.size() ? rings[iCw].name : mods[iCw - rings.size()].name;
-        auto& nodes_ss = iCw < rings.size() ? rings[iCw].nodes_ss : mods[iCw - rings.size()].nodes_ss;
-        dbPlots[iCw].drop_and_create_ss_stable_levels(fmt::format("{}_AdamsE2", name));
-        myio::Statement stmt(dbPlots[iCw], fmt::format("INSERT INTO {}_AdamsE2_ss_stable_levels (s, t, l) VALUES (?1, ?2, ?3);", name));
+    /*
+    {
+      "from": "C2",
+      "to": "S0",
+      "maps": {"2": [0, 1]}
+    }
+    */
+    for (size_t iMap = 0; iMap < maps.size(); ++iMap) {
+        auto& map = maps[iMap];
+        json js;
+        js["maps"] = json::object();
+        auto& map_json = js["maps"];
 
-        for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
-            int level = diagram.GetFirstFixedLevelForPlot(nodes_ss, deg);
-            stmt.bind_and_step(deg.s, deg.t, level);
+        if (std::holds_alternative<MapRing2Ring>(map.map)) {
+            auto& f = std::get<MapRing2Ring>(map.map);
+            auto& nodes_ss = rings[f.from].nodes_ss;
+            js["from"] = rings[f.from].name;
+            js["to"] = rings[f.to].name;
+            js["sus"] = 0;
+            auto& deg2id1 = all_deg2id[f.from];
+            auto& deg2id2 = all_deg2id[f.to];
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                if (deg.t > map.t_max)
+                    break;
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int1d fx = f.map(sc.basis[i], deg, rings);
+                    if (!fx.empty()) {
+                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                        map_json[key] = json::array();
+                        int1d fx_ss = lina::GetInvImage(rings[f.to].nodes_ss.front().at(deg).basis, fx);
+                        for (int j : fx_ss)
+                            map_json[key].push_back(deg2id2.at(deg) + j);
+                    }
+                }
+            }
         }
+        else if (std::holds_alternative<MapMod2Ring>(map.map)) {
+            auto& f = std::get<MapMod2Ring>(map.map);
+            auto& nodes_ss = mods[f.from].nodes_ss;
+            js["from"] = mods[f.from].name;
+            js["to"] = rings[f.to].name;
+            js["sus"] = f.sus;
+            auto& deg2id1 = all_deg2id[f.from + rings.size()];
+            auto& deg2id2 = all_deg2id[f.to];
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                if (deg.t > map.t_max)
+                    break;
+                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int1d fx = f.map(sc.basis[i], deg, mods, rings);
+                    if (!fx.empty()) {
+                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                        map_json[key] = json::array();
+                        int1d fx_ss = lina::GetInvImage(rings[f.to].nodes_ss.front().at(deg_fx).basis, fx);
+                        for (int j : fx_ss)
+                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
+                    }
+                }
+            }
+        }
+        else if (std::holds_alternative<MapMod2Mod>(map.map)) {
+            auto& f = std::get<MapMod2Mod>(map.map);
+            auto& nodes_ss = mods[f.from].nodes_ss;
+            js["from"] = mods[f.from].name;
+            js["to"] = mods[f.to].name;
+            js["sus"] = f.sus;
+            auto& deg2id1 = all_deg2id[f.from + rings.size()];
+            auto& deg2id2 = all_deg2id[f.to + rings.size()];
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                if (deg.t > map.t_max)
+                    break;
+                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int1d fx = f.map(sc.basis[i], deg, mods);
+                    if (!fx.empty()) {
+                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                        map_json[key] = json::array();
+                        int1d fx_ss = lina::GetInvImage(mods[f.to].nodes_ss.front().at(deg_fx).basis, fx);
+                        for (int j : fx_ss)
+                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
+                    }
+                }
+            }
+        }
+        else {
+            auto& f = std::get<MapMod2ModV2>(map.map);
+            auto& nodes_ss = mods[f.from].nodes_ss;
+            js["from"] = mods[f.from].name;
+            js["to"] = mods[f.to].name;
+            js["sus"] = f.sus;
+            auto& deg2id1 = all_deg2id[f.from + rings.size()];
+            auto& deg2id2 = all_deg2id[f.to + rings.size()];
+            for (auto& [deg, sc] : nodes_ss.front()) {
+                if (deg.t > map.t_max)
+                    break;
+                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int1d fx = f.map(sc.basis[i], deg, mods, maps);
+                    if (!fx.empty()) {
+                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                        map_json[key] = json::array();
+                        int1d fx_ss = lina::GetInvImage(mods[f.to].nodes_ss.front().at(deg_fx).basis, fx);
+                        for (int j : fx_ss)
+                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
+                    }
+                }
+            }
+        }
+
+        auto out = fmt::output_file(plot_dir + "/" + map.name + ".js");
+        out.print("globalThis.DATA_JSON_{} = {};\n", map.name, js.dump());
     }
 
-    for (auto& db : dbPlots)
-        db.end_transaction();
     return 0;
 }
 
@@ -357,7 +636,7 @@ void ToIndices(const algZ::Mod& x, const PiBasisMod& basis, const std::map<Adams
     }
 }
 
-int main_plot_htpy(int argc, char** argv, int& index, const char* desc)
+int main_plot_pi(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
 
@@ -521,5 +800,742 @@ int main_plot_htpy(int argc, char** argv, int& index, const char* desc)
     //     db.end_transaction();
 
     // diagram.save(dbnames, DeduceFlag::homotopy);
+    return 0;
+}
+
+int main_rename_gen_reset(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    auto& rings = diag_json.at("rings");
+    for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+        auto name = rings[iRing].at("name").get<std::string>();
+        auto path = diag_json.at("rings")[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL", name));
+        db.end_transaction();
+    }
+    auto& mods = diag_json.at("modules");
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto name = mods[iMod].at("name").get<std::string>();
+        auto path = mods[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL, cell=NULL, cell_coeff=NULL", name));
+        db.end_transaction();
+    }
+    return 0;
+}
+
+int main_rename_gen_export(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+    std::string gen_names_json;
+
+    myio::CmdArg1d args = {{"gen_names_json", &gen_names_json}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+
+    /*
+    {
+        "S0": [
+            [stem, s, index, "gen_name"]
+        ]
+    {
+    */
+
+    json js;
+    size_t cw_size = rings.size() + mods.size();
+    for (size_t iCw = 0; iCw < cw_size; ++iCw) {
+        bool isRing = iCw < rings.size();
+        size_t iMod = isRing ? -1 : iCw - rings.size();
+        auto& name = isRing ? rings[iCw].name : mods[iMod].name;
+
+        js[name] = json::array();
+
+        auto path = isRing ? diag_json.at("rings")[iCw].at("path").get<std::string>() : diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        auto gen_names = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+        auto gen_degs = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+
+        std::map<AdamsDeg, int> gen_index;
+        for (size_t i = 0; i < gen_names.size(); ++i) {
+            ++gen_index[gen_degs[i]];
+            if (!gen_names[i].empty())
+                js[name].push_back({gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]], gen_names[i]});
+        }
+
+        if (js[name].empty())
+            js.erase(name);
+    }
+
+    auto out = fmt::output_file(gen_names_json);
+    out.print("{}", js.dump());
+
+    return 0;
+}
+
+int main_rename_gen_import(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+    std::string gen_names_json;
+
+    myio::CmdArg1d args = {{"gen_names_json", &gen_names_json}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    json js;
+    {
+        std::ifstream ifs(gen_names_json);
+        if (ifs.is_open())
+            ifs >> js;
+        else {
+            Logger::LogException(0, 0x13889aa5, "File not found\n");
+            throw MyException(0x13889aa5, "File not found");
+        }
+    }
+
+    auto& rings_json = diag_json.at("rings");
+    for (auto& [name, json_gen_names] : js.items()) {
+        size_t iRing = 0;
+        for (; iRing < rings_json.size(); ++iRing) {
+            if (rings_json[iRing].at("name").get<std::string>() == name)
+                break;
+        }
+        if (iRing < rings_json.size()) {
+            auto path = rings_json[iRing].at("path").get<std::string>();
+            MyDB db(db_dir + "/" + path);
+            auto gen_degs = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+            myio::string1d gen_names(gen_degs.size());
+
+            std::map<AdamsDeg, int1d> gen_indices;
+            for (size_t i = 0; i < gen_names.size(); ++i)
+                gen_indices[gen_degs[i]].push_back((int)i);
+
+            for (auto& json_gen_name : json_gen_names) {
+                int stem = json_gen_name[0].get<int>();
+                int s = json_gen_name[1].get<int>();
+                int index = json_gen_name[2].get<int>();
+                std::string gen_name = json_gen_name[3].get<std::string>();
+                AdamsDeg deg(s, stem + s);
+                gen_names[gen_indices.at(deg)[index - 1]] = std::move(gen_name);
+            }
+
+            db.begin_transaction();
+            db.save_gen_names(fmt::format("{}_AdamsE2", name), gen_names);
+            db.end_transaction();
+        }
+        else {
+            size_t iMod = 0;
+            auto& mods_json = diag_json.at("modules");
+            for (; iMod < mods_json.size(); ++iMod) {
+                if (mods_json[iMod].at("name").get<std::string>() == name)
+                    break;
+            }
+            if (iMod >= mods_json.size())
+                continue;
+            auto path = mods_json[iMod].at("path").get<std::string>();
+            MyDB db(db_dir + "/" + path);
+            auto gen_degs = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+            myio::string1d gen_names(gen_degs.size());
+            GenCell1d gen_cells(gen_degs.size());
+
+            std::map<AdamsDeg, int1d> gen_indices;
+            for (size_t i = 0; i < gen_names.size(); ++i)
+                gen_indices[gen_degs[i]].push_back((int)i);
+
+            for (auto& json_gen_name : json_gen_names) {
+                int stem = json_gen_name[0].get<int>();
+                int s = json_gen_name[1].get<int>();
+                int index = json_gen_name[2].get<int>();
+                std::string gen_name = json_gen_name[3].get<std::string>();
+                int cell = json_gen_name[4].get<int>();
+                Poly cell_coeff = myio::Deserialize<Poly>(json_gen_name[5].get<std::string>());
+                AdamsDeg deg(s, stem + s);
+                gen_names[gen_indices.at(deg)[index - 1]] = std::move(gen_name);
+                gen_cells[gen_indices.at(deg)[index - 1]] = GenCell{cell, cell_coeff};
+            }
+
+            db.begin_transaction();
+            db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names, gen_cells);
+            db.end_transaction();
+        }
+    }
+
+    return 0;
+}
+
+int main_rename_gen_defaultS0(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    auto& rings_json = diag_json.at("rings");
+
+    size_t iRing = 0;
+    for (; iRing < rings_json.size(); ++iRing) {
+        if (rings_json[iRing].at("name").get<std::string>() == "S0")
+            break;
+    }
+    if (iRing < rings_json.size()) {
+        auto path = rings_json[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        auto gen_degs = db.load_gen_adamsdegs("S0_AdamsE2");
+        myio::string1d gen_names = db.load_gen_names("S0_AdamsE2");
+
+        std::map<AdamsDeg, int> gen_index;
+        for (size_t i = 0; i < gen_names.size(); ++i) {
+            ++gen_index[gen_degs[i]];
+            if (gen_names[i].empty())
+                gen_names[i] = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+        }
+
+        db.begin_transaction();
+        db.save_gen_names("S0_AdamsE2", gen_names);
+        db.end_transaction();
+    }
+
+    return 0;
+}
+
+int main_rename_gen_cell(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto& name = mods[iMod].name;
+
+        auto path = diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        auto gen_degs = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+        myio::string1d gen_names(gen_degs.size());
+        GenCell1d gen_cells(gen_degs.size());
+
+        std::map<AdamsDeg, int> gen_index;
+        for (size_t i = 0; i < gen_names.size(); ++i) {
+            ++gen_index[gen_degs[i]];
+            if (gen_degs[i].s == 0) {
+                gen_names[i] = fmt::format("[{}]", gen_degs[i].stem());
+                gen_cells[i] = GenCell{gen_degs[i].stem(), Mon()};
+                fmt::print("{}: v_{{{},{}{}}} --> {}\n", name, gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]), gen_names[i]);
+            }
+        }
+
+        db.begin_transaction();
+        db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names, gen_cells);
+        db.end_transaction();
+    }
+
+    return 0;
+}
+
+bool IsNamed(const Poly& p, const myio::string1d& gen_names)
+{
+    for (auto& m : p.data)
+        for (auto& ge : m)
+            if (gen_names[ge.g()].empty())
+                return false;
+    return true;
+}
+
+bool IsNamed(const Mod& p, const GenCell1d& gen_cells, const myio::string1d& gen_names_ring)
+{
+    for (auto& m : p.data) {
+        for (auto& ge : m.m)
+            if (gen_names_ring[ge.g()].empty())
+                return false;
+        if (gen_cells[m.v].cell == -1)
+            return false;
+    }
+    return true;
+}
+
+std::string strMon(const Mon& m, const myio::string1d& gen_names)
+{
+    myio::string1d strs;
+    const std::regex no_need_bracket("^(?:(?:\\\\[a-zA-Z]+(?:\\{\\}|)|[a-zA-Z])(?:_\\d|_\\{\\d+\\}|)|(?:\\(|\\[).*(?:\\)|\\]))$"); /* match example: a_1, \alpha_{31} */
+    std::smatch match;
+    for (auto& ge : m) {
+        std::string gen_name = gen_names[ge.g()];
+        if (std::regex_search(gen_name, match, no_need_bracket); !match[0].matched)
+            gen_name = fmt::format("({})", gen_name);
+        int e = (int)ge.e();
+        if (e == 1)
+            strs.push_back(std::move(gen_name));
+        else if (e < 10)
+            strs.push_back(fmt::format("{}^{}", gen_name, e));
+        else
+            strs.push_back(fmt::format("{}^{{{}}}", gen_name, e));
+    }
+    std::string result = myio::join(" ", strs);
+    if (result.empty())
+        result = "1";
+    return result;
+}
+
+std::string StrPoly(const Poly& p, const myio::string1d& gen_names)
+{
+    std::string result = myio::Tpljoin("+", p.data.begin(), p.data.end(), [&gen_names](const Mon& m) { return strMon(m, gen_names); });
+    if (result.empty())
+        result = "0";
+    return result;
+}
+
+std::string StrGenCell(const GenCell& gen_cell, const myio::string1d& gen_names)
+{
+    std::string strPoly = StrPoly(gen_cell.poly, gen_names);
+    const std::regex is_sum("^.*\\+.*$");                                                                     /* match example: a+b */
+    const std::regex has_outer_brackets("^\\((?:[^)(]|\\((?:[^)(]|\\((?:[^)(]|\\([^)(]*\\))*\\))*\\))*\\)$"); /* match example: (a(((d))bc)d) */
+    std::smatch match;
+    if (std::regex_search(strPoly, match, is_sum); match[0].matched) {
+        if (std::regex_search(strPoly, match, has_outer_brackets); !match[0].matched)
+            return fmt::format("(({})[{}])", strPoly, gen_cell.cell);
+        else
+            return fmt::format("({}[{}])", strPoly, gen_cell.cell);
+    }
+    else
+        return fmt::format("({}[{}])", strPoly, gen_cell.cell);
+}
+
+GenCell TopCell(const Mod& p, const GenCell1d& gen_cells, const RingSp& ring)
+{
+    GenCell result;
+    GenCell1d cells;
+    for (auto& m : p.data) {
+        if (gen_cells[m.v].poly.data.size() > 10000) {
+            fmt::print("{} {}\n", m.v, gen_cells[m.v].cell);
+        }
+        auto poly = ring.gb.Reduce(m.m * gen_cells[m.v].poly);
+        if (poly)
+            cells.push_back(GenCell{gen_cells[m.v].cell, std::move(poly)});
+    }
+    if (!cells.empty()) {
+        int top_cell = std::max_element(cells.begin(), cells.end(), [](const GenCell& c1, const GenCell& c2) { return c1.cell < c2.cell; })->cell;
+        result.cell = top_cell;
+        ut::RemoveIf(cells, [top_cell](const GenCell& c) { return c.cell < top_cell; });
+        for (auto& c : cells)
+            result.poly += c.poly;
+        if (!result.poly)
+            result.cell = -1;
+    }
+    return result;
+}
+
+void ResolveNameConflict(myio::string1d& gen_names)
+{
+    std::set<std::string> set_gen_names;
+    for (auto& name : gen_names) {
+        if (!name.empty()) {
+            if (ut::has(set_gen_names, name)) {
+                int index = 2;
+                while (ut::has(set_gen_names, fmt::format("{}_{}", name, index)))
+                    ++index;
+                name += fmt::format("_{}", index);
+            }
+            set_gen_names.insert(name);
+        }
+    }
+}
+
+int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+    const auto& maps = diagram.GetMaps();
+    std::vector<std::vector<std::string>> gen_names_rings(rings.size());
+    std::vector<std::vector<std::string>> gen_names_mods(mods.size());
+    AdamsDeg2d gen_degs_all(rings.size() + mods.size());
+    GenCell2d gen_cells_mods;
+    for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+        auto& name = rings[iRing].name;
+        auto path = diag_json.at("rings")[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        gen_names_rings[iRing] = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+        gen_degs_all[iRing] = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+    }
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto& name = mods[iMod].name;
+        auto path = diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        std::string table = fmt::format("{}_AdamsE2_generators", name);
+        if (!db.has_column(table, "cell")) {
+            db.add_column(table, "cell SMALLINT");
+            db.add_column(table, "cell_coeff TEXT");
+        }
+        gen_names_mods[iMod] = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+        gen_cells_mods.push_back(db.load_gen_cells(fmt::format("{}_AdamsE2", name)));
+        gen_degs_all[rings.size() + iMod] = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+    }
+
+    int count = 0, old_count = -1;
+    while (count != old_count) {
+        old_count = count;
+        for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+            auto& ring = rings[iRing];
+            auto& name = rings[iRing].name;
+            auto& gen_names = gen_names_rings[iRing];
+            auto& gen_degs = gen_degs_all[iRing];
+
+            std::map<AdamsDeg, int> gen_index;
+            for (size_t i = 0; i < gen_names.size(); ++i) {
+                AdamsDeg deg = gen_degs[i];
+                ++gen_index[deg];
+                if (!gen_names[i].empty())
+                    continue;
+
+                for (size_t iMap : ring.ind_maps) {
+                    auto& map = maps[iMap];
+                    if (deg.t <= map.t_max) {
+                        auto& f = std::get<MapRing2Ring>(map.map);
+                        auto& f_gen = rings[f.to].gb.Reduce(f.images[i]);
+                        auto& gen_names_tgt = gen_names_rings[f.to];
+                        if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
+                            gen_names[i] = StrPoly(f_gen, gen_names_tgt);
+                            auto& old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                            fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                            ++count;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+            auto& mod = mods[iMod];
+            auto& name = mods[iMod].name;
+            auto& gen_cells = gen_cells_mods[iMod];
+            auto& gen_names = gen_names_mods[iMod];
+            auto& gen_degs = gen_degs_all[rings.size() + iMod];
+
+            std::map<AdamsDeg, int> gen_index;
+            for (size_t i = 0; i < gen_cells.size(); ++i) {
+                AdamsDeg deg = gen_degs[i];
+                ++gen_index[deg];
+                if (!gen_names[i].empty())
+                    continue;
+
+                for (size_t iMap : mod.ind_maps) {
+                    auto& map = maps[iMap];
+                    size_t iMap_json = 0;
+                    while (diag_json.at("maps")[iMap_json].at("name") != map.name)
+                        ++iMap_json;
+                    if (!diag_json.at("maps")[iMap_json].contains("type") || diag_json.at("maps")[iMap_json].at("type") != "quo_skeleton")
+                        continue;
+                    if (deg.t > map.t_max)
+                        continue;
+                    if (std::holds_alternative<MapMod2Ring>(map.map)) {
+                        auto& f = std::get<MapMod2Ring>(map.map);
+                        if (f.fil == 0) {
+                            auto& f_gen = f.images[i];
+                            auto& gen_names_tgt = gen_names_rings[f.to];
+                            if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
+                                gen_cells[i] = GenCell{f.sus, f_gen};
+                                gen_names[i] = StrGenCell(gen_cells[i], gen_names_tgt);
+                                auto& old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                                fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                                ++count;
+                                break;
+                            }
+                        }
+                    }
+                    else if (std::holds_alternative<MapMod2Mod>(map.map)) {
+                        auto& f = std::get<MapMod2Mod>(map.map);
+                        if (f.fil == 0) {
+                            auto& f_gen = f.images[i];
+                            auto& gen_cells_tgt = gen_cells_mods[f.to];
+                            auto& gen_names_ring_tgt = gen_names_rings[mods[f.to].iRing];
+                            if (f_gen && IsNamed(f_gen, gen_cells_tgt, gen_names_ring_tgt)) {
+                                auto gen_cell = TopCell(f_gen, gen_cells_tgt, rings[mods[f.to].iRing]);
+                                if (gen_cell.cell != -1 && IsNamed(gen_cell.poly, gen_names_ring_tgt)) {
+                                    gen_cells[i] = std::move(gen_cell);
+                                    gen_cells[i].cell += f.sus;
+                                    gen_names[i] = StrGenCell(gen_cells[i], gen_names_ring_tgt);
+                                    auto& old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                                    fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                                    ++count;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+        auto& name = rings[iRing].name;
+        auto path = diag_json.at("rings")[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        ResolveNameConflict(gen_names_rings[iRing]);
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL", name));
+        db.save_gen_names(fmt::format("{}_AdamsE2", name), gen_names_rings[iRing]);
+        db.end_transaction();
+    }
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto& name = mods[iMod].name;
+        auto& gen_cells = gen_cells_mods[iMod];
+        auto path = diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        ResolveNameConflict(gen_names_mods[iMod]);
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL, cell=NULL, cell_coeff=NULL", name));
+        db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names_mods[iMod], gen_cells_mods[iMod]);
+        db.end_transaction();
+    }
+    return 0;
+}
+
+int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+
+    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+    const auto& maps = diagram.GetMaps();
+    std::vector<std::vector<std::string>> gen_names_rings(rings.size());
+    std::vector<std::vector<std::string>> gen_names_mods(mods.size());
+    AdamsDeg2d gen_degs_all(rings.size() + mods.size());
+    GenCell2d gen_cells_mods;
+    for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+        auto& name = rings[iRing].name;
+        auto path = diag_json.at("rings")[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        gen_names_rings[iRing] = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+        gen_degs_all[iRing] = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+    }
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto& name = mods[iMod].name;
+        auto path = diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        std::string table = fmt::format("{}_AdamsE2_generators", name);
+        if (!db.has_column(table, "cell")) {
+            db.add_column(table, "cell SMALLINT");
+            db.add_column(table, "cell_coeff TEXT");
+        }
+        gen_names_mods[iMod] = db.load_gen_names(fmt::format("{}_AdamsE2", name));
+        gen_cells_mods.push_back(db.load_gen_cells(fmt::format("{}_AdamsE2", name)));
+        gen_degs_all[rings.size() + iMod] = db.load_gen_adamsdegs(fmt::format("{}_AdamsE2", name));
+    }
+    std::vector<std::map<AdamsDeg, int1d>> gen_indices_all(gen_degs_all.size());
+    for (size_t iCw = 0; iCw < gen_degs_all.size(); ++iCw)
+        for (size_t i = 0; i < gen_degs_all[iCw].size(); ++i)
+            gen_indices_all[iCw][gen_degs_all[iCw][i]].push_back((int)i);
+
+    int count = 0, old_count = -1;
+    while (count != old_count) {
+        old_count = count;
+        /*for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+            auto& ring = rings[iRing];
+            auto& name = rings[iRing].name;
+            auto& gen_names = gen_names_rings[iRing];
+            auto& gen_degs = gen_degs_all[iRing];
+
+            std::map<AdamsDeg, int> gen_index;
+            for (size_t i = 0; i < gen_names.size(); ++i) {
+                AdamsDeg deg = gen_degs[i];
+                ++gen_index[deg];
+                if (!gen_names[i].empty())
+                    continue;
+
+                for (size_t iMap : ring.ind_maps) {
+                    auto& map = maps[iMap];
+                    if (deg.t <= map.t_max) {
+                        auto& f = std::get<MapRing2Ring>(map.map);
+                        auto& f_gen = rings[f.to].gb.Reduce(f.images[i]);
+                        auto& gen_names_tgt = gen_names_rings[f.to];
+                        if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
+                            gen_names[i] = StrPoly(f_gen, gen_names_tgt);
+                            auto& old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                            fmt::print("{}: ({}) --> {}\n", name, old_gen_name, gen_names[i]);
+                            ++count;
+                            break;
+                        }
+                    }
+                }
+            }
+        }*/
+        for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+            auto& mod = mods[iMod];
+            auto& name = mods[iMod].name;
+            auto& gen_cells = gen_cells_mods[iMod];
+            auto& gen_names = gen_names_mods[iMod];
+            auto& gen_degs = gen_degs_all[rings.size() + iMod];
+            auto& gen_indices = gen_indices_all[rings.size() + iMod];
+
+            for (auto& [deg, indices] : gen_indices) {
+                if (std::all_of(indices.begin(), indices.end(), [&gen_names](int i) { return gen_names[i].empty(); }))
+                    continue;
+                for (size_t iMap : mod.ind_maps) {
+                    auto& map = maps[iMap];
+                    size_t iMap_json = 0;
+                    while (diag_json.at("maps")[iMap_json].at("name") != map.name)
+                        ++iMap_json;
+                    if (!diag_json.at("maps")[iMap_json].contains("type") || diag_json.at("maps")[iMap_json].at("type") != "skeleton")
+                        continue;
+                    if (deg.t > map.t_max)
+                        continue;
+                    if (!std::holds_alternative<MapMod2Mod>(map.map))
+                        continue;
+                    auto& f = std::get<MapMod2Mod>(map.map);
+                    if (f.fil != 0)
+                        continue;
+                    auto& gen_names_tgt = gen_names_mods[f.to];
+                    auto& gen_cells_tgt = gen_cells_mods[f.to];
+                    AdamsDeg deg_tgt = deg + AdamsDeg(f.fil, f.fil - f.sus);
+                    if (!ut::has(gen_indices_all[rings.size() + f.to], deg_tgt))
+                        continue;
+                    auto& indices_tgt = gen_indices_all[rings.size() + f.to].at(deg_tgt);
+                    if (std::all_of(indices_tgt.begin(), indices_tgt.end(), [&gen_names_tgt](int i) { return !gen_names_tgt[i].empty(); }))
+                        continue;
+                    int2d fxs, image, kernel, g;
+                    for (size_t i = 0; i < mod.basis.at(deg).size(); ++i)
+                        fxs.push_back(f.map({int(i)}, deg, mods));
+                    lina::SetLinearMap(fxs, image, kernel, g);
+
+                    auto& mod_tgt = mods[f.to];
+                    int gen_index = 0;
+                    for (int i : indices_tgt) {
+                        ++gen_index;
+                        if (!gen_names_tgt[i].empty())
+                            continue;
+                        MMod mi({}, i);
+                        int1d fx = Mod2Indices(mi, mod_tgt.basis.at(deg_tgt));
+                        if (lina::Residue(image, fx).empty()) {
+                            int1d x = lina::GetImage(image, g, fx);
+                            Mod x_alg = Indices2Mod(x, mod.basis.at(deg));
+                            if (IsNamed(x_alg, gen_cells, gen_names)) {
+                                auto gen_cell = TopCell(x_alg, gen_cells, rings[mod.iRing]);
+                                if (gen_cell.cell != -1 && IsNamed(gen_cell.poly, gen_names_rings[mod.iRing])) {
+                                    gen_cells_tgt[i] = std::move(gen_cell);
+                                    gen_cells_tgt[i].cell -= f.sus;
+                                    gen_names_tgt[i] = StrGenCell(gen_cells_tgt[i], gen_names_rings[mod.iRing]);
+                                    auto& old_gen_name = fmt::format("v_{{{},{}{}}}", deg_tgt.stem(), deg_tgt.s, gen_index == 1 ? "" : fmt::format(",{}", gen_index));
+                                    fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names_tgt[i]);
+                                    ++count;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*for (size_t iRing = 0; iRing < rings.size(); ++iRing) {
+        auto& name = rings[iRing].name;
+        auto path = diag_json.at("rings")[iRing].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        ResolveNameConflict(gen_names_rings[iRing]);
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL", name));
+        db.save_gen_names(fmt::format("{}_AdamsE2", name), gen_names_rings[iRing]);
+        db.end_transaction();
+    }*/
+    for (size_t iMod = 0; iMod < mods.size(); ++iMod) {
+        auto& name = mods[iMod].name;
+        auto& gen_cells = gen_cells_mods[iMod];
+        auto path = diag_json.at("modules")[iMod].at("path").get<std::string>();
+        MyDB db(db_dir + "/" + path);
+        ResolveNameConflict(gen_names_mods[iMod]);
+        db.begin_transaction();
+        db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL, cell=NULL, cell_coeff=NULL", name));
+        db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names_mods[iMod], gen_cells_mods[iMod]);
+        db.end_transaction();
+    }
+    return 0;
+}
+
+/* Manage generator names */
+int main_rename_gen(int argc, char** argv, int& index, const char* desc)
+{
+    myio::SubCmdArg1d subcmds = {
+        {"reset", "reset gen_names of modules", main_rename_gen_reset},
+        {"defaultS0", "Set unnamed S0 gen_names by x_{...}", main_rename_gen_defaultS0},
+        {"export", "Export current generator name to a json file", main_rename_gen_export},
+        {"import", "Import generator name from a json file", main_rename_gen_import},
+        {"cell", "Rename generators in zero filtration", main_rename_gen_cell},
+        {"pull_back", "Pull-back names along maps", main_rename_gen_pull_back},
+        {"push_forward", "push-forward names along maps", main_rename_gen_push_forward},
+    };
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+        return error;
+
     return 0;
 }

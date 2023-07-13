@@ -13,13 +13,18 @@ void create_db_version(const myio::Database& db)
 
 int get_db_t_max(const myio::Database& db)
 {
-    if (db.has_table("version")) {
-        try {
-            return db.get_int("select value from version where id=817812698");
+    try {
+        if (db.has_table("version")) {
+            try {
+                return db.get_int("select value from version where id=817812698");
+            }
+            catch (MyException&) {
+                return -1;
+            }
         }
-        catch (MyException&) {
-            return -1;
-        }
+    }
+    catch (MyException&) {
+        return -3;
     }
     return -2;
 }
@@ -45,13 +50,18 @@ public:
 
     int get_timestamp()
     {
-        if (has_table("version")) {
-            try {
-                return get_int("select value from version where id=1954841564");
+        try {
+            if (has_table("version")) {
+                try {
+                    return get_int("select value from version where id=1954841564");
+                }
+                catch (MyException&) {
+                    return -1;
+                }
             }
-            catch (MyException&) {
-                return -1;
-            }
+        }
+        catch (MyException&) {
+            return -3;
         }
         return -2;
     }
@@ -204,6 +214,53 @@ void UtRename(const std::string& old, const std::string& new_)
     }
 }
 
+void UtAppendTmaxToFilename(const std::string& dir)
+{
+    std::regex is_AdamsSS_db_regex("(?!\\w+_t\\d+.db)(\\w*AdamsSS\\w*).db$"); /* match example: *.db */
+    std::smatch match;
+
+    std::vector<std::string> old, new_;
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        std::string filename = entry.path().filename().string();
+        if (std::regex_search(filename, match, is_AdamsSS_db_regex); match[0].matched) {
+            old.push_back(dir + "/" + filename);
+            DbAdamsUt db(dir + "/" + filename);
+            int t_max = get_db_t_max(db);
+            new_.push_back(dir + "/" + fmt::format("{}_t{}.db", match[1].str(), t_max));
+        }
+    }
+    for (size_t i = 0; i < old.size(); ++i) {
+        if (std::rename(old[i].c_str(), new_[i].c_str()) != 0) {
+            fmt::print("Failed: {} --> {}\n", old[i], new_[i]);
+        }
+    }
+}
+
+void UtPrintSSJson(const std::string& dir)
+{
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");                        /* match example: C2h4_AdamsSS_t100.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+)_to_(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2_to_S0.db */
+    std::smatch match;
+
+    std::vector<std::string> old, new_;
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        std::string filename = entry.path().filename().string();
+        if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
+            DbAdamsUt db(dir + "/" + filename);
+            //fmt::print("{{ \"name\": \"{}\", \"path\": \"{}\", \"over\": \"S0\", \"deduce\": \"on\" }},\n", match[1].str(), filename);  ////
+        }
+        else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
+            DbAdamsUt db(dir + "/" + filename);
+            int t_max = db.get_int("select value from version where id=817812698");
+            auto from = db.get_str("select value from version where id=446174262");
+            auto to = db.get_str("select value from version where id=1713085477");
+            int sus = db.get_int("select value from version where id=1585932889");
+            fmt::print("{{ \"name\": \"Map{}{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\", \"sus\": {}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to,
+                       sus, t_max);  ////
+        }
+    }
+}
+
 void UtAddFromTo()
 {
     std::regex is_map_regex("^map(?:_\\w+|)_Adams(?:_res|SS)_(\\w+)_to_(\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
@@ -263,6 +320,32 @@ int main_rename(int argc, char** argv, int& index, const char* desc)
         return error;
 
     UtRename(old, new_);
+    return 0;
+}
+
+int main_app_t_max(int argc, char** argv, int& index, const char* desc)
+{
+    std::string dir = ".";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    UtAppendTmaxToFilename(dir);
+    return 0;
+}
+
+int main_ss_json(int argc, char** argv, int& index, const char* desc)
+{
+    std::string dir = ".";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    UtPrintSSJson(dir);
     return 0;
 }
 
