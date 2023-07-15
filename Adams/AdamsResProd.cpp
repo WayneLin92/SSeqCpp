@@ -722,7 +722,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
     const int sus = dbMap.get_int("select value from version where id=1585932889");
     dbMap.create_tables(table_map);
-    myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
+    myio::Statement stmt_map(dbMap, fmt::format("INSERT OR IGNORE INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
     myio::Statement stmt_t_max(dbMap, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
     myio::Statement stmt_time(dbMap, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
 

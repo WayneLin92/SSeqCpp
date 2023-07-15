@@ -666,10 +666,8 @@ public:
         }
         save_time(tablename, t, time);
 
-        Statement stmt_t_max(*this, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt_t_max.bind_and_step(t);
-        myio::Statement stmt_time(*this, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt_time.step_and_reset();
+        set_db_t_max(*this, t);
+        set_db_time(*this);
 
         end_transaction();
     }
@@ -695,6 +693,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
     DbAdamsRes db(db_filename);
     db.create_tables(tablename);
     gb.set_v_degrees(v_degs);
+    int old_t_max_map = get_db_t_max(db);
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -758,7 +757,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         Mod2d rels_x2m(tt - 1);
         int s_min1 = std::max(0, t - stem_max - 2) - 1; /* This can be -1 */
         for (int s = t - 2; s >= s_min1; --s) {
-            size_t ss = (size_t)s; /* When ss is -1 it will not be used */
+            size_t ss = (size_t)s;                      /* When ss is -1 it will not be used */
             size_t sp1 = size_t(s + 1);
             size_t sp2 = size_t(s + 2);
 
@@ -818,6 +817,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             for (size_t i = 0; i < rels_x2m[s].size(); ++i)
                 gb.push_back_x2m(rels_x2m[s][i], s);
     }
+
+    set_db_t_max(db, std::max({old_t_max_map, t_trunc}));
 }
 
 AdamsRes AdamsRes::load(const std::string& db_filename, const std::string& tablename, int t_trunc, int stem_trunc)
