@@ -34,6 +34,9 @@ void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max);
 int res_P(const std::string& cw, int t_max, int stem_max);
 
+void Coh_M(int1d& v_degs, Mod1d& rels, int t_max);
+
+
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw = "S0";
@@ -117,6 +120,9 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Mod1d tmp;
         int1d tmp_int1d;
         Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
+    }
+    else if (cw == "M") {
+        Coh_M(v_degs, rels, d_max);
     }
     else {
         fmt::print("Unsupported arugment cw={}\n", cw);

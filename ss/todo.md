@@ -1,9 +1,10 @@
 # Adams
 * Add CW(theta4, theta4), Ctheta4, Ctheta5
-* Brown-Gitler
+* Brown-Gitler, Joker
 * Fast multiplication using extensions
 
 # SS
+* Cache multiplications
 * Cache contradictions
 * Smart deduce
 * Simplify pi generators and relations
@@ -13,10 +14,7 @@
 * Support stem_trunc
 
 # html
-* Change title
-* Draw maps
 * KaTeX
-* async load
 * multiplication by theta and g
 * Mark differentials that cannot be zero
 

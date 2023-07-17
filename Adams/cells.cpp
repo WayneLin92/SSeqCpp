@@ -150,6 +150,24 @@ void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
 }
 
 /****************************************************
+ *                     M
+ ***************************************************/
+void Coh_M(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    Mod cell = MMod({}, 0);
+    int dim = 0;
+    for (int j = 0; (1 << j) - 1 <= t_max; ++j) {
+        for (int i = 0; (1 << i) + dim <= t_max; ++i)
+            if (i != j)
+                rels.push_back(MMilnor::P(i, i + 1) * cell);
+        cell = MMilnor::P(j, j + 1) * cell;
+        dim += 1 << j;
+    }
+}
+
+/****************************************************
  *                   j
  ***************************************************/
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
@@ -727,6 +745,12 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         for (int i = 1; i <= 8; ++i) {
             images.push_back(MMod(MMilnor::P(i, i + 1), 0));
         }
+        sus = 1;
+        return;
+    }
+    if ((cw1 == "C2h4" && cw2 == "Csigmasq_0") || (cw1 == "C2h5" && cw2 == "Ctheta4_0") || (cw1 == "C2h6" && cw2 == "Ctheta5_0")) {
+        to = "S0";
+        images = {MMod(MMilnor::P(0, 1), 0)};
         sus = 1;
         return;
     }

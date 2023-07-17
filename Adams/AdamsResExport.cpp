@@ -38,6 +38,27 @@ public:
         create_generators_cell(table_prefix);
     }
 
+    void save_generators_v2(const std::string& table_prefix, const alg2::AdamsDeg1d& gen_degs) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, s, t) VALUES (?1, ?2, ?3);");
+        for (size_t i = 0; i < gen_degs.size(); ++i) {
+            stmt.bind_and_step((int)i, gen_degs[i].s, gen_degs[i].t);
+        }
+    }
+
+    void save_basis_mod_v2(const std::string& table_prefix, const std::map<alg2::AdamsDeg, alg2::MMod1d>& basis) const
+    {
+        Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (id, mon, s, t) VALUES (?1, ?2, ?3, ?4);");
+
+        int count = 0;
+        for (auto& [deg, basis_d] : basis) {
+            for (size_t i = 0; i < basis_d.size(); ++i) {
+                stmt.bind_and_step(count, myio::Serialize(basis_d[i]), deg.s, deg.t);
+                ++count;
+            }
+        }
+    }
+
     void save_generators_cell(const std::string& table_prefix, const alg2::AdamsDeg1d& gen_degs, const alg2::Poly1d& toS0) const
     {
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_generators (id, to_S0, s, t) VALUES (?1, ?2, ?3, ?4);");
@@ -439,6 +460,71 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.end_transaction();
 }
 
+void ExportFreeModAdamsE2(std::string_view mod, std::string_view ring, const alg2::int1d& cells, int t_trunc, int stem_trunc)
+{
+    using namespace alg2;
+
+    const std::string db_ring = fmt::format("{}_AdamsSS.db", ring);
+    const std::string table_ring = fmt::format("{}_AdamsE2", ring);
+    myio::AssertFileExists(db_ring);
+
+    std::string db_out = fmt::format("{}_AdamsSS.db", mod);
+    std::string table_out = fmt::format("{}_AdamsE2", mod);
+
+    MyDB dbRing(db_ring);
+    int t_max_ring = get_db_t_max(dbRing);
+    if (t_trunc > t_max_ring) {
+        t_trunc = t_max_ring;
+        fmt::print("t_max is truncated to {}\n", t_max_ring);
+    }
+
+    AdamsDeg1d v_degs;
+    for (int i : cells)
+        v_degs.push_back(AdamsDeg(0, i));
+
+    auto ring_basis = dbRing.load_basis(table_ring);
+    auto ring_basis_repr = dbRing.load_basis_repr(table_ring);
+
+    std::map<AdamsDeg, MMod1d> basis;
+
+    /* Add new basis */
+    for (int t = 0; t <= t_trunc; ++t) {
+        /* Consider all possible basis in degree t */
+        for (size_t gen_id = v_degs.size(); gen_id-- > 0;) {
+            int t1 = t - v_degs[gen_id].t;
+            if (t1 >= 0) {
+                auto p1 = ring_basis.lower_bound(AdamsDeg{0, t1});
+                auto p2 = ring_basis.lower_bound(AdamsDeg{0, t1 + 1});
+                for (auto p = p1; p != p2; ++p) {
+                    auto deg_mon = p->first + v_degs[gen_id];
+                    if (deg_mon.stem() > stem_trunc)
+                        continue;
+                    for (size_t i = 0; i < p->second.size(); ++i) {
+                        MMod m = MMod(p->second[i], (uint32_t)gen_id);
+                        basis[deg_mon].push_back(m);
+                    }
+                }
+            }
+        }
+    }
+
+    /* Save the results */
+    MyDB dbE2(db_out);
+    dbE2.begin_transaction();
+
+    dbE2.drop_and_create_generators(table_out);
+    dbE2.drop_and_create_relations(table_out);
+    dbE2.drop_and_create_basis(table_out);
+
+    dbE2.save_generators_v2(table_out, v_degs);
+    dbE2.save_gb_mod(table_out, {});
+    dbE2.save_basis_mod_v2(table_out, basis);
+    set_db_t_max(dbE2, t_trunc);
+    set_db_time(dbE2);
+
+    dbE2.end_transaction();
+}
+
 void load_map(const myio::Database& db, std::string_view table_prefix, std::map<int, alg2::int1d>& map_h, int fil)
 {
     using namespace alg2;
@@ -455,7 +541,6 @@ void load_map(const myio::Database& db, std::string_view table_prefix, std::map<
             map_h[LocId(s, v).id()].push_back(i);
     }
 }
-
 
 void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
 {
@@ -754,7 +839,18 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    ExportModAdamsE2(mod, ring, t_max, stem_max);
+    alg::int1d cells;
+    if (mod == "Csigmasq")
+        cells = alg::int1d{0, 15};
+    else if (mod == "Ctheta4")
+        cells = alg::int1d{0, 31};
+    else if (mod == "Ctheta5")
+        cells = alg::int1d{0, 63};
+    
+    if (!cells.empty())
+        ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
+    else
+        ExportModAdamsE2(mod, ring, t_max, stem_max);
     return 0;
 }
 

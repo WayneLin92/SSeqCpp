@@ -255,7 +255,7 @@ void UtPrintSSJson(const std::string& dir)
             auto from = db.get_str("select value from version where id=446174262");
             auto to = db.get_str("select value from version where id=1713085477");
             int sus = db.get_int("select value from version where id=1585932889");
-            fmt::print("{{ \"name\": \"Map{}{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\", \"sus\": {}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to,
+            fmt::print("{{ \"name\": \"{}__{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\", \"sus\": {}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to,
                        sus, t_max);  ////
         }
     }

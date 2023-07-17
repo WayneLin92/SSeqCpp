@@ -446,6 +446,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         }
 
         /* diff lines */
+        js["diffs"] = json::array();
         for (auto& [deg, sc] : nodes_ss.front()) {
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 int src = deg2id.at(deg) + (int)i;
@@ -1252,11 +1253,11 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
                     auto& map = maps[iMap];
                     if (deg.t <= map.t_max) {
                         auto& f = std::get<MapRing2Ring>(map.map);
-                        auto& f_gen = rings[f.to].gb.Reduce(f.images[i]);
+                        auto f_gen = rings[f.to].gb.Reduce(f.images[i]);
                         auto& gen_names_tgt = gen_names_rings[f.to];
                         if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
                             gen_names[i] = StrPoly(f_gen, gen_names_tgt);
-                            auto& old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                            auto old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
                             fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
                             ++count;
                             break;
@@ -1296,7 +1297,7 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
                             if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
                                 gen_cells[i] = GenCell{f.sus, f_gen};
                                 gen_names[i] = StrGenCell(gen_cells[i], gen_names_tgt);
-                                auto& old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                                auto old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
                                 fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
                                 ++count;
                                 break;
@@ -1315,7 +1316,7 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
                                     gen_cells[i] = std::move(gen_cell);
                                     gen_cells[i].cell += f.sus;
                                     gen_names[i] = StrGenCell(gen_cells[i], gen_names_ring_tgt);
-                                    auto& old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
+                                    auto old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
                                     fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
                                     ++count;
                                     break;
@@ -1486,7 +1487,7 @@ int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* 
                                     gen_cells_tgt[i] = std::move(gen_cell);
                                     gen_cells_tgt[i].cell -= f.sus;
                                     gen_names_tgt[i] = StrGenCell(gen_cells_tgt[i], gen_names_rings[mod.iRing]);
-                                    auto& old_gen_name = fmt::format("v_{{{},{}{}}}", deg_tgt.stem(), deg_tgt.s, gen_index == 1 ? "" : fmt::format(",{}", gen_index));
+                                    auto old_gen_name = fmt::format("v_{{{},{}{}}}", deg_tgt.stem(), deg_tgt.s, gen_index == 1 ? "" : fmt::format(",{}", gen_index));
                                     fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names_tgt[i]);
                                     ++count;
                                 }
