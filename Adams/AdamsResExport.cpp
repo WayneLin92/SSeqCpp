@@ -52,7 +52,10 @@ public:
         Statement stmt(*this, "INSERT INTO " + table_prefix + "_basis (id, mon, s, t) VALUES (?1, ?2, ?3, ?4);");
 
         int count = 0;
-        for (auto& [deg, basis_d] : basis) {
+        auto degs = ut::get_keys(basis);
+        std::sort(degs.begin(), degs.end(), [](const alg::AdamsDeg& d1, const alg::AdamsDeg& d2) { return d1.t < d2.t || (d1.t == d2.t && d1.s > d2.s); });
+        for (auto& deg : degs) {
+            auto& basis_d = basis.at(deg);
             for (size_t i = 0; i < basis_d.size(); ++i) {
                 stmt.bind_and_step(count, myio::Serialize(basis_d[i]), deg.s, deg.t);
                 ++count;
