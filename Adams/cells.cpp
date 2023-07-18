@@ -150,6 +150,29 @@ void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
 }
 
 /****************************************************
+ *                 Joker
+ ***************************************************/
+void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 0 && i != 1)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
+    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) <= t_max; ++i)
+        if (i != 0)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
+    for (int i = 0; (1 << i) + (1 << 1) <= t_max; ++i) 
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(1, 2), 0));
+    for (int i = 0; (1 << i) + (1 << 1) + (1 << 1) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(1, 2), 0)));
+}
+
+/****************************************************
  *                     M
  ***************************************************/
 void Coh_M(int1d& v_degs, Mod1d& rels, int t_max)
@@ -644,7 +667,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         }
     }
     if (cw1 == "Ceta") {
-        if (cw2 == "CW_eta_nu" || cw2 == "CW_eta_2" || cw2 == "C2_Ceta" || cw2 == "Ceta_Cnu") {
+        if (cw2 == "CW_eta_nu" || cw2 == "CW_eta_2" || cw2 == "C2_Ceta" || cw2 == "Ceta_Cnu" || cw2 == "Joker") {
             images = {MMod(MMilnor(), 0)};
             return;
         }
@@ -657,7 +680,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     }
     if (cw2 == "C2") {
         if (cw1 == "DC2h4" || cw1 == "DC2h5" || cw1 == "DC2h6") {
-            images = {{}, MMod(MMilnor(), 0)};
+            images = {MMod(MMilnor(), 1)};
             sus = cw1 == "DC2h4" ? 15 : (cw1 == "DC2h5" ? 31 : 63);
             return;
         }
@@ -747,6 +770,22 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         }
         sus = 1;
         return;
+    }
+    if (cw1 == "CW_2_eta" && cw2 == "Joker") {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
+    if (cw1 == "Joker") {
+        if (cw2 == "CW_eta_2") {
+            images = {MMod(MMilnor::P(0, 1), 0)};
+            sus = 1;
+            return;
+        }
+        if (cw2 == "Ceta") {
+            images = {MMod(MMilnor::P(1, 2), 0)};
+            sus = 2;
+            return;
+        }
     }
     if ((cw1 == "C2h4" && cw2 == "Csigmasq_0") || (cw1 == "C2h5" && cw2 == "Ctheta4_0") || (cw1 == "C2h6" && cw2 == "Ctheta5_0")) {
         to = "S0";

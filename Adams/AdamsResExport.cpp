@@ -5,6 +5,7 @@
 #include "main.h"
 #include <cstring>
 #include <map>
+#include <regex>
 
 class MyDB : public myio::DbAdamsSS
 {
@@ -572,9 +573,6 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
 
-    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
-    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
-
     MyDB dbCw1(db_cw1);
     int t_max_cw1 = get_db_t_max(dbCw1);
     MyDB dbCw2(db_cw2);
@@ -595,6 +593,8 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     std::map<int, int1d> map_h;
     load_map(dbResMap, table_map, map_h, fil);
 
+    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
@@ -649,6 +649,110 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
         stmt.bind_and_step(1585932889, std::string("suspension"), sus);
         stmt.bind_and_step(446174262, std::string("from"), from);
         stmt.bind_and_step(1713085477, std::string("to"), to);
+    }
+    set_db_t_max(dbMapAdamsE2, t_trunc);
+    set_db_time(dbMapAdamsE2);
+    dbMapAdamsE2.end_transaction();
+}
+
+void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int t_trunc, int stem_trunc)
+{
+    using namespace alg2;
+
+    myio::AssertFileExists(db_map1);
+    myio::AssertFileExists(db_map2);
+    myio::Database dbMap1(db_map1);
+    myio::Database dbMap2(db_map2);
+    int t_max_map1 = get_db_t_max(dbMap1);
+    int t_max_map2 = get_db_t_max(dbMap2);
+
+    int sus = dbMap1.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
+    int fil = dbMap1.get_int("select value from version where id=651971502");
+
+    int t_max_out = std::min({t_max_map1, t_max_map2});
+    if (t_trunc > t_max_out) {
+        t_trunc = t_max_out;
+        fmt::print("t_max is truncated to {}\n", t_max_out);
+    }
+
+    std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
+    std::smatch match;
+    std::string table1;
+    if (std::regex_search(db_map1, match, is_map_regex); match[0].matched)
+        table1 = fmt::format("map_AdamsE2_{}", match[1].str());
+    else {
+        fmt::print("filename={} not supported.\n", db_map1);
+        throw MyException(0x248b04b, "File name is not supported.");
+    }
+    std::string table2;
+    if (std::regex_search(db_map2, match, is_map_regex); match[0].matched)
+        table2 = fmt::format("map_AdamsE2_{}", match[1].str());
+    else {
+        fmt::print("filename={} not supported.\n", db_map2);
+        throw MyException(0xa833c7c4, "File name is not supported.");
+    }
+    auto images1 = dbMap1.get_column_from_str<Poly>(table1, "map", "ORDER BY id", myio::Deserialize<Poly>);
+    auto images2 = dbMap2.get_column_from_str<Poly>(table2, "map", "ORDER BY id", myio::Deserialize<Poly>);
+    Mod1d images3;
+    for (size_t i = 0; i < images1.size(); ++i)
+        images3.push_back(Mod(images1[i], v0) + Mod(images2[i], v1));
+
+    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+    DbMapAdamsE2 dbMapAdamsE2(db_out);
+    dbMapAdamsE2.recreate_tables(table_out);
+    dbMapAdamsE2.begin_transaction();
+    dbMapAdamsE2.save_map(table_out, images3);
+    {
+        myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(1585932889, std::string("suspension"), sus);
+        stmt.bind_and_step(651971502, std::string("filtration"), fil);
+        stmt.bind_and_step(446174262, std::string("from"), cw1);
+        stmt.bind_and_step(1713085477, std::string("to"), cw2);
+    }
+    set_db_t_max(dbMapAdamsE2, t_trunc);
+    set_db_time(dbMapAdamsE2);
+    dbMapAdamsE2.end_transaction();
+}
+
+void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, alg::int1d cells, int t_trunc, int stem_trunc)
+{
+    using namespace alg2;
+
+    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", cw2);
+    const std::string table_cw2 = fmt::format("{}_AdamsE2", cw2);
+    myio::AssertFileExists(db_cw2);
+
+    MyDB dbCw2(db_cw2);
+    int t_max = get_db_t_max(dbCw2);
+    if (t_trunc > t_max) {
+        t_trunc = t_max;
+        fmt::print("t_max is truncated to {}\n", t_max);
+    }
+
+    auto basis2 = dbCw2.load_basis_mod(table_cw2);
+    Mod1d images;
+    for (size_t i = 0; i < cells.size(); ++i) {
+        AdamsDeg deg(0, cells[i]);
+        if (basis2[deg].size() != 1) {
+            fmt::print("basis size must be 1");
+            throw MyException(0x3eaaea36, "basis size must be 1");
+        }
+        images.push_back(basis2[deg].front());
+    }
+
+    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+    DbMapAdamsE2 dbMapAdamsE2(db_out);
+    dbMapAdamsE2.recreate_tables(table_out);
+    dbMapAdamsE2.begin_transaction();
+    dbMapAdamsE2.save_map(table_out, images);
+    {
+        myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        stmt.bind_and_step(1585932889, std::string("suspension"), cells.front());
+        stmt.bind_and_step(651971502, std::string("filtration"), 0);
+        stmt.bind_and_step(446174262, std::string("from"), cw1);
+        stmt.bind_and_step(1713085477, std::string("to"), cw2);
     }
     set_db_t_max(dbMapAdamsE2, t_trunc);
     set_db_time(dbMapAdamsE2);
@@ -846,7 +950,7 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
         cells = alg::int1d{0, 31};
     else if (mod == "Ctheta5")
         cells = alg::int1d{0, 63};
-    
+
     if (!cells.empty())
         ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
     else
@@ -864,7 +968,20 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
+    if (cw1 == "C2h4" && cw2 == "Csigmasq")
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h4_to_Csigmasq_0.db", "map_AdamsSS_C2h4_to_S0.db", 0, 1, t_max, stem_max);
+    else if (cw1 == "C2h5" && cw2 == "Ctheta4")
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h5_to_Ctheta4_0.db", "map_AdamsSS_C2h5_to_S0.db", 0, 1, t_max, stem_max);
+    else if (cw1 == "C2h6" && cw2 == "Ctheta5")
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, t_max, stem_max);
+    else if (cw1 == "Csigmasq" && cw2 == "DC2h4")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 15}, t_max, stem_max);
+    else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 31}, t_max, stem_max);
+    else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 63}, t_max, stem_max);
+    else
+        ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;
 }
 
