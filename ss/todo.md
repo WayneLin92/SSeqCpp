@@ -1,6 +1,6 @@
 # Adams
-* Add CW(theta4, theta4), Ctheta4, Ctheta5
-* Brown-Gitler, Joker
+* Add CW(theta4, theta4)
+* Brown-Gitler
 * Fast multiplication using extensions
 
 # SS

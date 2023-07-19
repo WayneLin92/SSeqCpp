@@ -718,12 +718,14 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, alg::int1d cells, int t_trunc, int stem_trunc)
+void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& to, const alg::AdamsDeg1d& degs, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
+    std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
+    std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
 
-    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", cw2);
-    const std::string table_cw2 = fmt::format("{}_AdamsE2", cw2);
+    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", to);
+    const std::string table_cw2 = fmt::format("{}_AdamsE2", to);
     myio::AssertFileExists(db_cw2);
 
     MyDB dbCw2(db_cw2);
@@ -733,15 +735,27 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
         fmt::print("t_max is truncated to {}\n", t_max);
     }
 
-    auto basis2 = dbCw2.load_basis_mod(table_cw2);
-    Mod1d images;
-    for (size_t i = 0; i < cells.size(); ++i) {
-        AdamsDeg deg(0, cells[i]);
-        if (basis2[deg].size() != 1) {
-            fmt::print("basis size must be 1");
-            throw MyException(0x3eaaea36, "basis size must be 1");
+    Poly1d images;
+    Mod1d images_mod;
+    if (ut::has(RING_SPECTRA, to)) {
+        auto basis2 = dbCw2.load_basis(table_cw2);
+        for (auto& deg : degs) {
+            if (basis2[deg].size() != 1) {
+                fmt::print("basis size must be 1");
+                throw MyException(0x3eaaea36, "basis size must be 1");
+            }
+            images.push_back(basis2[deg].front());
         }
-        images.push_back(basis2[deg].front());
+    }
+    else {
+        auto basis2 = dbCw2.load_basis_mod(table_cw2);
+        for (auto& deg : degs) {
+            if (basis2[deg].size() != 1) {
+                fmt::print("basis size must be 1");
+                throw MyException(0x3eaaea36, "basis size must be 1");
+            }
+            images_mod.push_back(basis2[deg].front());
+        }
     }
 
     std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
@@ -749,13 +763,16 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
-    dbMapAdamsE2.save_map(table_out, images);
+    if (ut::has(RING_SPECTRA, to))
+        dbMapAdamsE2.save_map(table_out, images);
+    else
+        dbMapAdamsE2.save_map(table_out, images_mod);
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(1585932889, std::string("suspension"), cells.front());
-        stmt.bind_and_step(651971502, std::string("filtration"), 0);
+        stmt.bind_and_step(1585932889, std::string("suspension"), degs.front().stem());
+        stmt.bind_and_step(651971502, std::string("filtration"), degs.front().s);
         stmt.bind_and_step(446174262, std::string("from"), cw1);
-        stmt.bind_and_step(1713085477, std::string("to"), cw2);
+        stmt.bind_and_step(1713085477, std::string("to"), to);
     }
     set_db_t_max(dbMapAdamsE2, t_trunc);
     set_db_time(dbMapAdamsE2);
@@ -978,11 +995,17 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
     else if (cw1 == "C2h6" && cw2 == "Ctheta5")
         ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "DC2h4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 15}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, t_max, stem_max);
+    else if (cw1 == "Csigmasq" && cw2 == "Q_C2h4")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 16}}, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 31}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, t_max, stem_max);
+    else if (cw1 == "Ctheta4" && cw2 == "Q_C2h5")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 32}}, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, alg::int1d{0, 63}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, t_max, stem_max);
+    else if (cw1 == "Ctheta5" && cw2 == "Q_C2h6")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 64}}, t_max, stem_max);
     else
         ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;

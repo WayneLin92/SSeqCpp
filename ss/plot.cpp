@@ -804,6 +804,15 @@ int main_plot_pi(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+void AddCellColumn(MyDB& db, const std::string& name)
+{
+    std::string table = fmt::format("{}_AdamsE2_generators", name);
+    if (!db.has_column(table, "cell")) {
+        db.add_column(table, "cell SMALLINT");
+        db.add_column(table, "cell_coeff TEXT");
+    }
+}
+
 int main_rename_gen_reset(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
@@ -835,6 +844,7 @@ int main_rename_gen_reset(int argc, char** argv, int& index, const char* desc)
         MyDB db(db_dir + "/" + path);
 
         db.begin_transaction();
+        AddCellColumn(db, name);
         db.execute_cmd(fmt::format("UPDATE {}_AdamsE2_generators SET name=NULL, cell=NULL, cell_coeff=NULL", name));
         db.end_transaction();
     }
@@ -987,6 +997,7 @@ int main_rename_gen_import(int argc, char** argv, int& index, const char* desc)
             }
 
             db.begin_transaction();
+            AddCellColumn(db, name);
             db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names, gen_cells);
             db.end_transaction();
         }
@@ -1075,6 +1086,7 @@ int main_rename_gen_cell(int argc, char** argv, int& index, const char* desc)
         }
 
         db.begin_transaction();
+        AddCellColumn(db, name);
         db.save_gen_cells(fmt::format("{}_AdamsE2", name), gen_names, gen_cells);
         db.end_transaction();
     }

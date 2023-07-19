@@ -618,26 +618,23 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         }
         if (cw1 == "RP1_256") {
             images = {{}};
-            for (int i = 1; i <= 8; ++i) {
+            for (int i = 1; i <= 8; ++i)
                 images.push_back(MMod(MMilnor(), i - 1));
-            }
             fil = 1;
             return;
         }
         if (cw1 == "CP1_128") {
             images = {{}, {}};
-            for (int i = 2; i <= 8; ++i) {
+            for (int i = 2; i <= 8; ++i)
                 images.push_back(MMod(MMilnor(), i - 2));
-            }
             fil = 1;
             sus = -1;
             return;
         }
         if (cw1 == "HP1_64") {
             images = {{}, {}, {}};
-            for (int i = 3; i <= 8; ++i) {
+            for (int i = 3; i <= 8; ++i)
                 images.push_back(MMod(MMilnor(), i - 3));
-            }
             fil = 1;
             sus = -3;
             return;
@@ -665,16 +662,94 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             images = {MMod(MMilnor(), 0), {}};
             return;
         }
+        if (cw2 == "Q_DC2h4") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 4)
+                    images.push_back(MMod(MMilnor::P(0, 1), 0));
+                else
+                    images.push_back({});
+            }
+            sus = -14;
+            fil = 1;
+            to = "S0";
+            return;
+        }
+        if (cw2 == "Q_DC2h5") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 5)
+                    images.push_back(MMod(MMilnor::P(0, 1), 0));
+                else
+                    images.push_back({});
+            }
+            sus = -30;
+            fil = 1;
+            to = "S0";
+            return;
+        }
+        if (cw2 == "Q_DC2h6") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 6)
+                    images.push_back(MMod(MMilnor::P(0, 1), 0));
+                else
+                    images.push_back({});
+            }
+            sus = -62;
+            fil = 1;
+            to = "S0";
+            return;
+        }
     }
     if (cw1 == "Ceta") {
         if (cw2 == "CW_eta_nu" || cw2 == "CW_eta_2" || cw2 == "C2_Ceta" || cw2 == "Ceta_Cnu" || cw2 == "Joker") {
             images = {MMod(MMilnor(), 0)};
             return;
         }
+        if (cw2 == "Q_CW_2_eta") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 0)
+                    images.push_back(MMod({}, 0));
+                else
+                    images.push_back({});
+            }
+            sus = 0;
+            fil = 1;
+            to = "S0";
+            return;
+        }
+        if (cw2 == "Q_CW_nu_eta") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 2)
+                    images.push_back(MMod({}, 0));
+                else
+                    images.push_back({});
+            }
+            sus = -3;
+            fil = 1;
+            to = "S0";
+            return;
+        }
     }
     if (cw1 == "Cnu") {
         if (cw2 == "CW_nu_sigma" || cw2 == "CW_nu_eta" || cw2 == "Ceta_Cnu" || cw2 == "Cnu_Csigma") {
             images = {MMod(MMilnor(), 0)};
+            return;
+        }
+        if (cw2 == "Q_CW_eta_nu") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 1)
+                    images.push_back(MMod({}, 0));
+                else
+                    images.push_back({});
+            }
+            sus = -1;
+            fil = 1;
+            to = "S0";
             return;
         }
     }
