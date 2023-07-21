@@ -247,7 +247,7 @@ void UtPrintSSJson(const std::string& dir)
         std::string filename = entry.path().filename().string();
         if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
             DbAdamsUt db(dir + "/" + filename);
-            //fmt::print("{{ \"name\": \"{}\", \"path\": \"{}\", \"over\": \"S0\", \"deduce\": \"on\" }},\n", match[1].str(), filename);  ////
+            // fmt::print("{{ \"name\": \"{}\", \"path\": \"{}\", \"over\": \"S0\", \"deduce\": \"on\" }},\n", match[1].str(), filename);  ////
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
             DbAdamsUt db(dir + "/" + filename);
@@ -255,8 +255,11 @@ void UtPrintSSJson(const std::string& dir)
             auto from = db.get_str("select value from version where id=446174262");
             auto to = db.get_str("select value from version where id=1713085477");
             int sus = db.get_int("select value from version where id=1585932889");
-            fmt::print("{{ \"name\": \"{}__{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\", \"sus\": {}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to,
-                       sus, t_max);  ////
+            int fil = db.get_int("select value from version where id=651971502");
+            std::string str_sus = sus ? fmt::format(", \"sus\": {}", sus) : "";
+            std::string str_fil = fil ? fmt::format(", \"fil\": {}", fil) : "";
+            fmt::print("{{ \"name\": \"{}__{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\"{}{}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to, str_sus,
+                       str_fil, t_max);  ////
         }
     }
 }

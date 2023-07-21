@@ -850,6 +850,10 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         images = {MMod(MMilnor(), 0)};
         return;
     }
+    if (cw1 == "CW_eta_2" && cw2 == "Fphi") {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
     if (cw1 == "Joker") {
         if (cw2 == "CW_eta_2") {
             images = {MMod(MMilnor::P(0, 1), 0)};
@@ -859,6 +863,84 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         if (cw2 == "Ceta") {
             images = {MMod(MMilnor::P(1, 2), 0)};
             sus = 2;
+            return;
+        }
+    }
+    if (cw2 == "Q_Joker") {
+        if (cw1 == "CW_eta_2") {
+            images = {};
+            const int t_max = 256;
+            int1d v_degs_Q;
+            Mod1d rels_Q;
+            Coh_Chn(v_degs_Q, rels_Q, 1, t_max);
+            Mod1d _;
+            int1d min_rels_Q;
+            Groebner gb_Q(t_max, {}, v_degs_Q);
+            gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
+            gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
+
+            int1d v_degs;
+            Mod1d rels;
+            Coh_Joker(v_degs, rels, t_max);
+            Groebner gb(t_max, {}, v_degs);
+            gb.AddRels(rels, t_max);
+
+            for (int i : min_rels_Q) {
+                auto& rel = gb_Q.data()[i];
+                if (gb.Reduce(rel)) {
+                    int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
+                    if (rel_deg == 1)
+                        images.push_back(MMod(MMilnor{}, 0));
+                    else if (rel_deg == 3)
+                        images.push_back(MMod(MMilnor::P(1, 2), 0));
+                    else if (rel_deg == 4)
+                        images.push_back(MMilnor::P(0, 1) * MMod(MMilnor::P(1, 2), 0));
+                    else
+                        throw MyException(0x5c4f5899, "Wrong cell");
+                }
+                else
+                    images.push_back({});
+            }
+            sus = 0;
+            fil = 1;
+            to = "Ceta";
+            return;
+        }
+        if (cw1 == "Ceta") {
+            images = {};
+            const int t_max = 256;
+            int1d v_degs_Q;
+            Mod1d rels_Q;
+            Coh_three_cell(v_degs_Q, rels_Q, 0, 1, t_max);
+            Mod1d _;
+            int1d min_rels_Q;
+            Groebner gb_Q(t_max, {}, v_degs_Q);
+            gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
+            gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
+
+            int1d v_degs;
+            Mod1d rels;
+            Coh_Joker(v_degs, rels, t_max);
+            Groebner gb(t_max, {}, v_degs);
+            gb.AddRels(rels, t_max);
+
+            for (int i : min_rels_Q) {
+                auto& rel = gb_Q.data()[i];
+                if (gb.Reduce(rel)) {
+                    int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
+                    if (rel_deg == 2)
+                        images.push_back(MMod(MMilnor{}, 0));
+                    else if (rel_deg == 4)
+                        images.push_back(MMod(MMilnor::P(1, 2), 0));
+                    else
+                        throw MyException(0x5c4f5899, "Wrong cell");
+                }
+                else
+                    images.push_back({});
+            }
+            sus = -1;
+            fil = 1;
+            to = "CW_2_eta";
             return;
         }
     }
