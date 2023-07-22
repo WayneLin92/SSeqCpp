@@ -653,6 +653,19 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         images = {MMod(MMilnor(), 0)};
         return;
     }
+    if (cw1 == "RP1_256" && cw2 == "tmf_RP1_256") {
+        images = {};
+        int1d v_degs;
+        int1d v_degs_n, tmp_ind1d;
+        const int t_max = 256;
+        Mod1d cell_reduced, tmp;
+        Coh_P(v_degs, tmp, cell_reduced, tmp_ind1d, 1, t_max, t_max, "S0", 0);
+        for (int i = 0; i < 2; ++i)
+            images.push_back(MMod({}, i));
+        for (int i = 2; 7 + 8 * (i - 2) <= t_max; ++i)
+            images.push_back(cell_reduced[size_t(6 + 8 * (i - 2))]);
+        return;
+    }
     if (cw1 == "C2") {
         if (cw2 == "C2h4" || cw2 == "C2h5" || cw2 == "C2h6" || cw2 == "CW_2_eta" || cw2 == "C2_Ceta") {
             images = {MMod(MMilnor(), 0)};
@@ -748,6 +761,38 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
                     images.push_back({});
             }
             sus = -1;
+            fil = 1;
+            to = "S0";
+            return;
+        }
+        if (cw2 == "Q_CW_sigma_nu") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 3)
+                    images.push_back(MMod({}, 0));
+                else
+                    images.push_back({});
+            }
+            sus = -7;
+            fil = 1;
+            to = "S0";
+            return;
+        }
+    }
+    if (cw1 == "Csigma") {
+        if (cw2 == "CW_sigma_nu" || cw2 == "Cnu_Csigma") {
+            images = {MMod(MMilnor(), 0)};
+            return;
+        }
+        if (cw2 == "Q_CW_nu_sigma") {
+            images = {};
+            for (int i = 0; i <= 8; ++i) {
+                if (i == 2)
+                    images.push_back(MMod({}, 0));
+                else
+                    images.push_back({});
+            }
+            sus = -3;
             fil = 1;
             to = "S0";
             return;

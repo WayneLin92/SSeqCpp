@@ -13,7 +13,7 @@ You can stop the program anytime and it can resume later from where it was stopp
 This computation takes 7 seconds on my AMD Ryzen 9 3900X CPU.
 
 ```bash
-./Adams prod 100
+./Adams prod S0 100
 ```
 This computes some chain maps in order to obtain the products in the cohomology of the Steenrod algebra up to total degree of 100. `S0_Adams_res.db` is the input file and it outputs another database file `S0_Adams_res_prod.db`.
 
@@ -22,7 +22,7 @@ You can stop the program anytime and it can resume later from where it was stopp
 This computation takes 16 seconds on my AMD Ryzen 9 3900X CPU.
 
 ```bash
-./Adams export 100
+./Adams export S0 100
 ```
 This generates the cohomology of the Steenrod algebra up to total degree of 100 according to the input file `S0_Adams_res_prod.db`. It outputs another database file `S0_AdamsSS.db`.
 
