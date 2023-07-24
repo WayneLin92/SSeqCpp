@@ -925,10 +925,128 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         sus = 1;
         return;
     }
-    if (cw1 == "CW_2_eta" && cw2 == "Joker") {
+
+    /* (2, eta, nu) */
+    if (cw1 == "CW_2_eta" && (cw2 == "Joker" || cw2 == "CW_2_eta_nu")) {
         images = {MMod(MMilnor(), 0)};
         return;
     }
+    if (cw1 == "CW_nu_eta" && cw2 == "CW_nu_eta_2") {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
+    if (cw1 == "CW_2_eta_nu" && cw2 == "CW_eta_nu") {
+        images = {MMod(MMilnor::P(0, 1), 0)};
+        sus = 1;
+        return;
+    }
+    if (cw1 == "CW_nu_eta_2" && cw2 == "CW_eta_2") {
+        images = {MMod(MMilnor::P(2, 3), 0)};
+        sus = 4;
+        return;
+    }
+    if (cw1 == "CW_eta_nu" && cw2 == "Q_CW_2_eta_nu") {
+        images = {};
+        for (int i = 0; i <= 8; ++i) {
+            if (i == 0)
+                images.push_back(MMod({}, 0));
+            else
+                images.push_back({});
+        }
+        sus = 0;
+        fil = 1;
+        to = "S0";
+        return;
+    }
+    if (cw1 == "CW_eta_2" && cw2 == "Q_CW_nu_eta_2") {
+        images = {};
+        for (int i = 0; i <= 8; ++i) {
+            if (i == 2)
+                images.push_back(MMod({}, 0));
+            else
+                images.push_back({});
+        }
+        sus = -3;
+        fil = 1;
+        to = "S0";
+        return;
+    }
+    if (cw1 == "C2" && cw2 == "Q_CW_nu_eta_2") {
+        images = {};
+        const int t_max = 256;
+        int1d v_degs_Q;
+        Mod1d rels_Q;
+        Coh_Chn(v_degs_Q, rels_Q, 2, t_max);
+        Mod1d _;
+        int1d min_rels_Q;
+        Groebner gb_Q(t_max, {}, v_degs_Q);
+        gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
+        gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
+
+        int1d v_degs;
+        Mod1d rels;
+        Coh_CW_nu_eta_2(v_degs, rels, t_max);
+        Groebner gb(t_max, {}, v_degs);
+        gb.AddRels(rels, t_max);
+
+        for (int i : min_rels_Q) {
+            auto& rel = gb_Q.data()[i];
+            if (gb.Reduce(rel)) {
+                int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
+                if (rel_deg == 6)
+                    images.push_back(MMod({}, 0));
+                else if (rel_deg == 7)
+                    images.push_back(MMod(MMilnor::P(0, 1), 0));
+                else
+                    throw MyException(0x5c4f5899, "Wrong cell");
+            }
+            else
+                images.push_back({});
+        }
+        sus = -5;
+        fil = 1;
+        to = "Cnu";
+        return;
+    }
+    if (cw1 == "Cnu" && cw2 == "Q_CW_2_eta_nu") {
+        images = {};
+        const int t_max = 256;
+        int1d v_degs_Q;
+        Mod1d rels_Q;
+        Coh_Chn(v_degs_Q, rels_Q, 0, t_max);
+        Mod1d _;
+        int1d min_rels_Q;
+        Groebner gb_Q(t_max, {}, v_degs_Q);
+        gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
+        gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
+
+        int1d v_degs;
+        Mod1d rels;
+        Coh_CW_2_eta_nu(v_degs, rels, t_max);
+        Groebner gb(t_max, {}, v_degs);
+        gb.AddRels(rels, t_max);
+
+        for (int i : min_rels_Q) {
+            auto& rel = gb_Q.data()[i];
+            if (gb.Reduce(rel)) {
+                int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
+                if (rel_deg == 3)
+                    images.push_back(MMod({}, 0));
+                else if (rel_deg == 7)
+                    images.push_back(MMod(MMilnor::P(2, 3), 0));
+                else
+                    throw MyException(0x5c4f5899, "Wrong cell");
+            }
+            else
+                images.push_back({});
+        }
+        sus = -2;
+        fil = 1;
+        to = "C2";
+        return;
+    }
+
+
     if (cw1 == "CW_eta_2" && cw2 == "Fphi") {
         images = {MMod(MMilnor(), 0)};
         return;
