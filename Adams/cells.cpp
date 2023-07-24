@@ -149,6 +149,40 @@ void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
     rels.push_back(MMilnor::P(n1, n1 + 1) * MMod(MMilnor::P(n2, n2 + 1), 0) + MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
 }
 
+void Coh_CW_2_eta_nu(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 0)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
+    for (int i = 0; (1 << i) + (1 << 1) + (1 << 0) <= t_max; ++i)
+        if (i != 2)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
+    for (int i = 0; (1 << i) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0))));
+}
+
+void Coh_CW_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 2)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << 2) <= t_max; ++i)
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(2, 3), 0));
+    for (int i = 0; (1 << i) + (1 << 1) + (1 << 2) <= t_max; ++i)
+        if (i != 0)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(2, 3), 0)));
+    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) + (1 << 2) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(0, 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(2, 3), 0))));
+}
+
 /****************************************************
  *                 Joker
  ***************************************************/
@@ -165,7 +199,7 @@ void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max)
     for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) <= t_max; ++i)
         if (i != 0)
             rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
-    for (int i = 0; (1 << i) + (1 << 1) <= t_max; ++i) 
+    for (int i = 0; (1 << i) + (1 << 1) <= t_max; ++i)
         if (i != 1)
             rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(1, 2), 0));
     for (int i = 0; (1 << i) + (1 << 1) + (1 << 1) <= t_max; ++i)
