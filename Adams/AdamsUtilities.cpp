@@ -1,4 +1,5 @@
 #include "algebras/database.h"
+#include "algebras/utility.h"
 #include "main.h"
 #include <array>
 #include <filesystem>
@@ -67,9 +68,8 @@ public:
     }
 };
 
-void UtStatus(const std::string& dir)
+void UtStatus(const std::string& dir, bool sorted)
 {
-    std::regex is_Adams_regex("^(?:\\w+_Adams(?:_res(?:_prod|)|SS).db|)$");     /* match example: C2h4_Adams_res.db, C2h4_Adams_res_prod.db */
     std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                     /* match example: C2h4_Adams_res.db */
     std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
     std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
@@ -77,8 +77,10 @@ void UtStatus(const std::string& dir)
     std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
     std::smatch match;
 
+    std::map<std::string, int> timestamps_spectra;
     std::map<std::string, std::array<std::string, 3>> table_spectra;
     std::map<std::string, std::array<std::string, 3>> table_color_spectra;
+    std::map<std::string, int> timestamps_maps;
     std::map<std::string, std::array<std::string, 2>> table_maps;
     std::map<std::string, std::array<std::string, 2>> table_color_maps;
 
@@ -96,50 +98,66 @@ void UtStatus(const std::string& dir)
         std::string filename = entry.path().filename().string();
         std::string filepath = entry.path().string();
 
-        if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
-            DbAdamsUt db(filepath);
-            table_spectra[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
-            if (current_timestamp - db.get_timestamp() < (3600 * 6))
-                table_color_spectra[match[1].str()][0] = green;
-            else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][0] = blue;
+        {
+            std::string name;
+            int t_max, time, index;
+            if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
+                name = match[1].str();
+                index = 0;
+            }
+            else if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
+                name = match[1].str();
+                index = 1;
+            }
+            else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
+                name = match[1].str();
+                index = 2;
+            }
+            if (!name.empty()) {
+                DbAdamsUt db(filepath);
+                table_spectra[name][index] = fmt::format("{}", get_db_t_max(db));
+                int timestamp = db.get_timestamp();
+                timestamps_spectra[name] = std::max(timestamps_spectra[name], timestamp);
+                if (current_timestamp - timestamp < (3600 * 6))
+                    table_color_spectra[name][index] = green;
+                else if (current_timestamp - timestamp < (3600 * 24))
+                    table_color_spectra[name][index] = blue;
+            }
         }
-        else if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
-            DbAdamsUt db(filepath);
-            table_spectra[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
-            if (current_timestamp - db.get_timestamp() < (3600 * 6))
-                table_color_spectra[match[1].str()][1] = green;
-            else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][1] = blue;
+
+        {
+            std::string name;
+            int t_max, time, index;
+            if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
+                name = match[1].str();
+                index = 0;
+            }
+            else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
+                name = match[1].str();
+                index = 1;
+            }
+            if (!name.empty()) {
+                DbAdamsUt db(filepath);
+                table_maps[name][index] = fmt::format("{}", get_db_t_max(db));
+                int timestamp = db.get_timestamp();
+                timestamps_maps[name] = std::max(timestamps_maps[name], timestamp);
+                if (current_timestamp - timestamp < (3600 * 6))
+                    table_color_maps[name][index] = green;
+                else if (current_timestamp - timestamp < (3600 * 24))
+                    table_color_maps[name][index] = blue;
+            }
         }
-        else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
-            DbAdamsUt db(filepath);
-            table_spectra[match[1].str()][2] = fmt::format("{}", get_db_t_max(db));
-            if (current_timestamp - db.get_timestamp() < (3600 * 6))
-                table_color_spectra[match[1].str()][2] = green;
-            else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_spectra[match[1].str()][2] = blue;
-        }
-        else if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
-            DbAdamsUt db(filepath);
-            table_maps[match[1].str()][0] = fmt::format("{}", get_db_t_max(db));
-            if (current_timestamp - db.get_timestamp() < (3600 * 6))
-                table_color_maps[match[1].str()][0] = green;
-            else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_maps[match[1].str()][0] = blue;
-        }
-        else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
-            DbAdamsUt db(filepath);
-            table_maps[match[1].str()][1] = fmt::format("{}", get_db_t_max(db));
-            if (current_timestamp - db.get_timestamp() < (3600 * 6))
-                table_color_maps[match[1].str()][1] = green;
-            else if (current_timestamp - db.get_timestamp() < (3600 * 24))
-                table_color_maps[match[1].str()][1] = blue;
-        }
+    }
+    auto names_spectra = ut::get_keys(table_spectra);
+    auto names_maps = ut::get_keys(table_maps);
+    if (sorted) {
+        std::sort(names_spectra.begin(), names_spectra.end(), [&timestamps_spectra](const std::string& name1, const std::string& name2) { return timestamps_spectra.at(name1) > timestamps_spectra.at(name2); });
+        std::sort(names_maps.begin(), names_maps.end(), [&timestamps_maps](const std::string& name1, const std::string& name2) { return timestamps_maps.at(name1) > timestamps_maps.at(name2); });
     }
 
     std::array<size_t, 4> spectra_widths = {7, 3, 4, 6};
-    for (auto& [cw, t_maxes] : table_spectra) {
+    for (auto& cw : names_spectra) {
+        auto& t_maxes = table_spectra.at(cw);
         spectra_widths[0] = std::max(spectra_widths[0], cw.size());
         spectra_widths[1] = std::max(spectra_widths[1], t_maxes[0].size());
         spectra_widths[2] = std::max(spectra_widths[2], t_maxes[1].size());
@@ -148,14 +166,16 @@ void UtStatus(const std::string& dir)
     auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3]);
     fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "export");
     fmt::print(fs, white, "-------", white, "---", white, "----", white, "------");
-    for (auto& [cw, t_maxes] : table_spectra) {
+    for (auto& cw : names_spectra) {
+        auto& t_maxes = table_spectra.at(cw);
         const auto& colors = table_color_spectra[cw];
         fmt::print(fs, white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2]);
     }
-    fmt::print("------------------------------------------------\n");
+    fmt::print("----------------------------------------------\n");
 
     std::array<size_t, 3> maps_widths = {3, 3, 6};
-    for (auto& [name, t_maxes] : table_maps) {
+    for (auto& name : names_maps) {
+        auto& t_maxes = table_maps.at(name);
         maps_widths[0] = std::max(maps_widths[0], name.size());
         maps_widths[1] = std::max(maps_widths[1], t_maxes[0].size());
         maps_widths[2] = std::max(maps_widths[2], t_maxes[1].size());
@@ -163,11 +183,12 @@ void UtStatus(const std::string& dir)
     auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
     fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "export");
     fmt::print(fs_map, white, "---", white, "---", white, "------");
-    for (auto& [name, t_maxes] : table_maps) {
+    for (auto& name : names_maps) {
+        auto& t_maxes = table_maps.at(name);
         const auto& colors = table_color_maps[name];
         fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
     }
-    fmt::print("------------------------------------------------\n");
+    fmt::print("----------------------------------------------\n");
 }
 
 void UtRename(const std::string& old, const std::string& new_)
@@ -303,13 +324,19 @@ void UtAddTMax(const std::string& db_filename, int t_max)
 int main_status(int argc, char** argv, int& index, const char* desc)
 {
     std::string dir = ".";
+    myio::string1d options;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"dir", &dir}};
+    myio::CmdArg1d op_args = {{"dir", &dir}, {"options", &options}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+    bool sorted = false;
+    for (auto& op : options) {
+        if (op == "sorted")
+            sorted = true;
+    }
 
-    UtStatus(dir);
+    UtStatus(dir, sorted);
     return 0;
 }
 
