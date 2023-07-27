@@ -106,7 +106,7 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Coh_smash_2cell(v_degs, rels, 0, 1, d_max);
     else if (cw == "Ceta_Cnu")
         Coh_smash_2cell(v_degs, rels, 1, 2, d_max);
-    else if (cw == "Cnu_Csigam")
+    else if (cw == "Cnu_Csigma")
         Coh_smash_2cell(v_degs, rels, 2, 3, d_max);
     else if (cw == "Joker")
         Coh_Joker(v_degs, rels, d_max);

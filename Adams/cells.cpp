@@ -888,7 +888,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             SetCohMapQ3cell_2cell(images, sus, 2, 3);
             return;
         }
-        if (cw1 == "Cnu_Csigam") {
+        if (cw1 == "Cnu_Csigma") {
             SetCohMapQSmash_2cell(images, sus, 2, 3);
             return;
         }
@@ -1045,7 +1045,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         to = "C2";
         return;
     }
-
 
     if (cw1 == "CW_eta_2" && cw2 == "Fphi") {
         images = {MMod(MMilnor(), 0)};

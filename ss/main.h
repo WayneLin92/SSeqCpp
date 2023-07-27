@@ -16,7 +16,7 @@ constexpr int LEVEL_MIN = 2;
 constexpr int R_PERM = 1000;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
-constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
+constexpr size_t MAX_DEPTH = 3;                /* Maximum deduction depth */
 
 inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
@@ -29,8 +29,8 @@ enum class DeduceFlag : uint32_t
     all_x = 4,         /* Deduce dx for all x including linear combinations */
     xy = 8,            /* Deduce dx for all x including linear combinations */
     pi = 16,
-    pi_exact = 32, /* Check exactness of htpy in the try node */
-    pi_def = 64,   /* define generators in pi */
+    pi_exact = 32,     /* Check exactness of htpy in the try node */
+    pi_def = 64,       /* define generators in pi */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -59,6 +59,16 @@ struct Staircase
 
 using Staircases = std::map<AdamsDeg, Staircase>;
 using Staircases1d = std::vector<Staircases>;
+
+struct CofSeqStaircases
+{
+    Staircases1d nodes_i, nodes_q, nodes_d;
+    size_t indexI, indexQ, indexD;
+    std::string nameX, nameY, nameCf;
+    bool isRingX, isRingY, isRingCf;
+    size_t indexX, indexY, indexCf;
+};
+using CofSeqStaircases1d = std::vector<CofSeqStaircases>;
 
 struct PiBase
 {
@@ -238,6 +248,7 @@ protected:
     RingSp1d rings_;
     ModSp1d modules_;
     Map1d maps_;
+    CofSeqStaircases1d cofseqs_;
 
 protected: /* Settings */
     std::vector<size_t> deduce_list_spectra_;
@@ -591,7 +602,5 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
 
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log = false);
-
-
 
 #endif

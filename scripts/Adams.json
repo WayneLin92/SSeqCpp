@@ -1,0 +1,55 @@
+{
+  "CW_complexes": {
+    "CW_2_eta_nu_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 1, 3, 7, 15],
+      "operations": [
+        [0, 1],
+        [1, 3],
+        [3, 7],
+        [7, 15]
+      ]
+    },
+    "CW_sigma_nu_eta_2": {
+      "cells_gen": [0],
+      "cells": [0, 8, 12, 14, 15],
+      "operations": [
+        [0, 8],
+        [8, 12],
+        [12, 14],
+        [14, 15]
+      ]
+    },
+    "CW_eta_nu_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 2, 6, 14],
+      "operations": [
+        [0, 2],
+        [2, 6],
+        [6, 14]
+      ]
+    },
+    "CW_sigma_nu_eta": {
+      "cells_gen": [0],
+      "cells": [0, 8, 12, 14],
+      "operations": [
+        [0, 8],
+        [8, 12],
+        [12, 14]
+      ]
+    },
+    "CW_sigmasq_sigmasq": {
+        "cells": [0, 14, 28]
+    },
+    "CW_theta4_theta4": {
+        "cells": [0, 30, 60]
+    },
+    "CW_theta5_theta5": {
+        "cells": [0, 62, 124]
+    },
+    "CW_2_eta_2_Eq_eta_eta": {},
+    "CW_2_eta_V_eta": {}
+  },
+  "maps": {
+  }
+}
