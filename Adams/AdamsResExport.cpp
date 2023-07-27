@@ -724,15 +724,20 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
     std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
     std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
 
+    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
     const std::string db_cw2 = fmt::format("{}_AdamsSS.db", to);
     const std::string table_cw2 = fmt::format("{}_AdamsE2", to);
+    myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
 
+    MyDB dbCw1(db_cw1);
     MyDB dbCw2(db_cw2);
-    int t_max = get_db_t_max(dbCw2);
-    if (t_trunc > t_max) {
-        t_trunc = t_max;
-        fmt::print("t_max is truncated to {}\n", t_max);
+    int t_max1 = get_db_t_max(dbCw1);
+    int t_max2 = get_db_t_max(dbCw2) - degs.front().t;
+    int t_max_out = std::max(t_max1, t_max2);
+    if (t_trunc > t_max_out) {
+        t_trunc = t_max_out;
+        fmt::print("t_max is truncated to {}\n", t_max_out);
     }
 
     Poly1d images;
@@ -777,7 +782,7 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
         dbMapAdamsE2.save_map(table_out, images_mod);
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(1585932889, std::string("suspension"), degs.front().stem());
+        stmt.bind_and_step(1585932889, std::string("suspension"), -degs.front().stem());
         stmt.bind_and_step(651971502, std::string("filtration"), degs.front().s);
         stmt.bind_and_step(446174262, std::string("from"), cw1);
         stmt.bind_and_step(1713085477, std::string("to"), to);
