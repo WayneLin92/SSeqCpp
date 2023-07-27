@@ -100,7 +100,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
         {
             std::string name;
-            int t_max, time, index;
+            int index;
             if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -127,7 +127,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
         {
             std::string name;
-            int t_max, time, index;
+            int index;
             if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;

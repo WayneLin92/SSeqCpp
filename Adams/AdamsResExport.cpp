@@ -740,21 +740,29 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
     if (ut::has(RING_SPECTRA, to)) {
         auto basis2 = dbCw2.load_basis(table_cw2);
         for (auto& deg : degs) {
-            if (basis2[deg].size() != 1) {
-                fmt::print("basis size must be 1");
-                throw MyException(0x3eaaea36, "basis size must be 1");
+            if (deg != AdamsDeg(-1, -1)) {
+                if (basis2[deg].size() != 1) {
+                    fmt::print("basis size must be 1");
+                    throw MyException(0x3eaaea36, "basis size must be 1");
+                }
+                images.push_back(basis2[deg].front());
             }
-            images.push_back(basis2[deg].front());
+            else
+                images.push_back({});
         }
     }
     else {
         auto basis2 = dbCw2.load_basis_mod(table_cw2);
         for (auto& deg : degs) {
-            if (basis2[deg].size() != 1) {
-                fmt::print("basis size must be 1");
-                throw MyException(0x3eaaea36, "basis size must be 1");
+            if (deg != AdamsDeg(-1, -1)) {
+                if (basis2[deg].size() != 1) {
+                    fmt::print("basis size must be 1");
+                    throw MyException(0x3eaaea36, "basis size must be 1");
+                }
+                images_mod.push_back(basis2[deg].front());
             }
-            images_mod.push_back(basis2[deg].front());
+            else
+                images_mod.push_back({});
         }
     }
 
@@ -998,10 +1006,18 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "Q_C2h4")
         ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 16}}, t_max, stem_max);
+    else if (cw1 == "Csigmasq" && cw2 == "S0_by_sigmasq")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 14 + 2}, {-1, -1}}, t_max, stem_max);
+    else if (cw1 == "Csigmasq" && cw2 == "C2_by_sigmasq")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 15 + 1}, {-1, -1}}, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "Q_C2h5")
         ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 32}}, t_max, stem_max);
+    else if (cw1 == "Ctheta4" && cw2 == "S0_by_theta4")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 30 + 2}, {-1, -1}}, t_max, stem_max);
+    else if (cw1 == "Ctheta4" && cw2 == "C2_by_theta4")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 31 + 1}, {-1, -1}}, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "Q_C2h6")

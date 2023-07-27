@@ -4,6 +4,7 @@
 * Fast multiplication using extensions
 
 # SS
+* Debug why migrate_ss print for (0, n) for every n
 * Cache multiplications
 * Cache contradictions
 * Smart deduce
