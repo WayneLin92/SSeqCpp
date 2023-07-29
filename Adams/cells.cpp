@@ -184,6 +184,49 @@ void Coh_CW_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max)
 }
 
 /****************************************************
+ *               five cells
+ ***************************************************/
+void Coh_CW_2_eta_nu_sigma(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 0)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
+    for (int i = 0; (1 << i) + (1 << 1) + (1 << 0) <= t_max; ++i)
+        if (i != 2)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
+    for (int i = 0; (1 << i) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
+        if (i != 3)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0))));
+    for (int i = 0; (1 << i) + (1 << 4) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(3, 4) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)))));
+}
+
+void Coh_CW_sigma_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max)
+{
+    v_degs = {0};
+    rels.clear();
+    for (int i = 0; (1 << i) <= t_max; ++i)
+        if (i != 3)
+            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
+    for (int i = 0; (1 << i) + (1 << 3) <= t_max; ++i)
+        if (i != 2)
+            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(3, 4), 0));
+    for (int i = 0; (1 << i) + (1 << 2) + (1 << 3) <= t_max; ++i)
+        if (i != 1)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0)));
+    for (int i = 0; (1 << i) + (1 << 1) + (1 << 2) + (1 << 3) <= t_max; ++i)
+        if (i != 0)
+            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0))));
+    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) + (1 << 2) + (1 << 3) <= t_max; ++i)
+        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(0, 1) * (MMilnor::P(1, 2) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0)))));
+}
+
+/****************************************************
  *                 Joker
  ***************************************************/
 void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max)

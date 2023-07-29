@@ -31,6 +31,8 @@ void Coh_three_cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
 void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
 void Coh_CW_2_eta_nu(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_CW_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_CW_2_eta_nu_sigma(int1d& v_degs, Mod1d& rels, int t_max);
+void Coh_CW_sigma_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max);
@@ -114,6 +116,10 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         Coh_CW_2_eta_nu(v_degs, rels, d_max);
     else if (cw == "CW_nu_eta_2")
         Coh_CW_nu_eta_2(v_degs, rels, d_max);
+    else if (cw == "CW_2_eta_nu_sigma")
+        Coh_CW_2_eta_nu_sigma(v_degs, rels, d_max);
+    else if (cw == "CW_sigma_nu_eta_2")
+        Coh_CW_sigma_nu_eta_2(v_degs, rels, d_max);
     else if (cw == "j")
         Coh_j(v_degs, rels, d_max);
     else if (cw == "j_C2")

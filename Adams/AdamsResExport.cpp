@@ -734,7 +734,7 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
     MyDB dbCw2(db_cw2);
     int t_max1 = get_db_t_max(dbCw1);
     int t_max2 = get_db_t_max(dbCw2) - degs.front().t;
-    int t_max_out = std::max(t_max1, t_max2);
+    int t_max_out = std::min(t_max1, t_max2);
     if (t_trunc > t_max_out) {
         t_trunc = t_max_out;
         fmt::print("t_max is truncated to {}\n", t_max_out);
