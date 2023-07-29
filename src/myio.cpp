@@ -202,4 +202,19 @@ int LoadSubCmd(int argc, char** argv, int& index, const char* program, const cha
     return -index;
 }
 
+nlohmann::json load_json(const std::string& file_name)
+{
+    nlohmann::json js;
+    {
+        std::ifstream ifs(file_name);
+        if (ifs.is_open())
+            ifs >> js;
+        else {
+            fmt::print("File ss.json not found\n");
+            throw MyException(0xb8525e9bU, "File ss.json not found");
+        }
+    }
+    return js;
+}
+
 }  // namespace myio

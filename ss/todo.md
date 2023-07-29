@@ -1,4 +1,5 @@
 # Adams
+* Add map of A(1)
 * Add CW(theta4, theta4)
 * Brown-Gitler
 * Fast multiplication using extensions
@@ -15,10 +16,7 @@
 * Support stem_trunc
 
 # html
-* KaTeX
 * multiplication by theta and g
 * Mark differentials that cannot be zero
 
 # Others
-* Trace Cnu d5 in (97, 5)
-* Look at (93, 5), (96, 13)

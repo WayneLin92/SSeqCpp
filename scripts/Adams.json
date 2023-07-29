@@ -1,5 +1,14 @@
 {
   "CW_complexes": {
+    "CW_2_eta_nu": {
+      "cells_gen": [0],
+      "cells": [0, 1, 3, 7],
+      "operations": [
+        [0, 1],
+        [1, 3],
+        [3, 7]
+      ]
+    },
     "CW_2_eta_nu_sigma": {
       "cells_gen": [0],
       "cells": [0, 1, 3, 7, 15],
@@ -39,16 +48,103 @@
       ]
     },
     "CW_sigmasq_sigmasq": {
-        "cells": [0, 14, 28]
+        "cells_gen": [0, 14, 28]
     },
     "CW_theta4_theta4": {
-        "cells": [0, 30, 60]
+        "cells_gen": [0, 30, 60]
     },
     "CW_theta5_theta5": {
-        "cells": [0, 62, 124]
+        "cells_gen": [0, 62, 124]
     },
-    "CW_2_eta_2_Eq_eta_eta": {},
-    "CW_2_eta_V_eta": {}
+    "CW_sigmasq_2_sigmasq": {
+      "cells_gen": [0, 15],
+      "cells": [0, 15, 16, 31],
+      "operations": [
+        [0, 16],
+        [15, 31]
+      ]
+    },
+    "CW_theta4_2_theta4": {
+      "cells_gen": [0, 31],
+      "cells": [0, 31, 32, 63],
+      "operations": [
+        [0, 32],
+        [31, 63]
+      ]
+    },
+    "CW_theta5_2_theta5": {
+      "cells_gen": [0, 63],
+      "cells": [0, 63, 64, 125],
+      "operations": [
+        [0, 64],
+        [63, 125]
+      ]
+    },
+    "Joker": {
+      "cells_gen": [0],
+      "cells": [0, 1, 2, 3, 4],
+      "operations": [
+        [0, 1],
+        [1, 3],
+        [3, 4],
+        [0, 2],
+        [2, 4]
+      ]
+    },
+    "CW_eta_nu_eta_Eq_nu_nu": {
+      "cells_gen": [0],
+      "cells": [0, 2, 4, 6, 8],
+      "operations": [
+        [0, 2],
+        [2, 6],
+        [6, 8],
+        [0, 4],
+        [4, 8]
+      ]
+    },
+    "CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 4, 8, 12, 16],
+      "operations": [
+        [0, 4],
+        [4, 12],
+        [12, 16],
+        [0, 8],
+        [8, 16]
+      ]
+    },
+    "CW_eta_2_eta_Eq_2_nu": {
+      "cells_gen": [0],
+      "cells": [0, 1, 2, 3, 5],
+      "operations": [
+        [0, 2],
+        [2, 3],
+        [3, 5],
+        [0, 1],
+        [1, 5]
+      ]
+    },
+    "CW_eta_2_eta_Eq_nu_2": {
+      "cells_gen": [0],
+      "cells": [0, 2, 3, 4, 5],
+      "operations": [
+        [0, 2],
+        [2, 3],
+        [3, 5],
+        [0, 4],
+        [4, 5]
+      ]
+    },
+    "CW_2_theta5_2_Eq_eta_theta5": {
+      "cells_gen": [0],
+      "cells": [0, 1, 2, 64, 65],
+      "operations": [
+        [0, 1],
+        [0, 64],
+        [1, 65],
+        [0, 2]
+      ]
+    }
   },
   "maps": {
   }

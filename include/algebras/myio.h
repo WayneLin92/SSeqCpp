@@ -6,6 +6,7 @@
 #include <sstream>
 #include <variant>
 #include <vector>
+#include "json.h"
 
 namespace myio {
 
@@ -168,6 +169,11 @@ using SubCmdArg1d = std::vector<SubCmdArg>;
 
 int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
 
+/*********************************************************
+                     json
+ *********************************************************/
+nlohmann::json load_json(const std::string& file_name);
+
 }  // namespace myio
 
 
@@ -191,5 +197,7 @@ struct fmt::formatter<myio::COUT_FLUSH>
         return fmt::format_to(ctx.out(), "");
     }
 };
+
+
 
 #endif /* MYIO_H */

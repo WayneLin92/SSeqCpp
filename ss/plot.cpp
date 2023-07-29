@@ -7,37 +7,6 @@
 #include <fstream>
 #include <regex>
 
-void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohmann::json& diag_json)
-{
-    using json = nlohmann::json;
-    {
-        std::ifstream ifs("ss.json");
-        if (ifs.is_open())
-            ifs >> root_json;
-        else {
-            Logger::LogException(0, 0xb8525e9bU, "File ss.json not found\n");
-            throw MyException(0xb8525e9bU, "File ss.json not found");
-        }
-    }
-    try {
-        json& diagrams = root_json.at("diagrams");
-        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        {
-            std::ifstream ifs(fmt::format("{}/ss.json", dir));
-            if (ifs.is_open())
-                ifs >> diag_json;
-            else {
-                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
-                throw MyException(0xef000cd, "File dir/ss.json not found");
-            }
-        }
-    }
-    catch (nlohmann::detail::exception e) {
-        Logger::LogException(0, e.id, "{}\n", e.what());
-        throw e;
-    }
-}
-
 struct GenCell
 {
     int cell = -1;
@@ -228,6 +197,8 @@ void SmoothenRadii(std::map<AdamsDeg, double>& radii)
                 r = std::sqrt(r * radii_ub.at(d));
     }
 }
+
+void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohmann::json& diag_json);
 
 int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 {

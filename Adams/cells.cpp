@@ -1,6 +1,73 @@
+#include "algebras/myio.h"
 #include "groebner_res.h"
 #include <fmt/core.h>
 #include <regex>
+
+int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, std::string& name)
+{
+    auto js = myio::load_json("Adams.json");
+    try {
+        auto& cws = js.at("CW_complexes");
+        if (!cws.contains(name))
+            return -1;
+        auto& cw_json = cws.at(name); 
+        if (!cw_json.contains("operations"))
+            return -2;
+        int1d cells;
+        for (auto& c : cw_json.at("cells"))
+            cells.push_back(c.get<int>());
+        int1d cells_gen;
+        for (auto& c : cw_json.at("cells_gen"))
+            cells_gen.push_back(c.get<int>());
+        std::sort(cells.begin(), cells.end());
+        std::sort(cells_gen.begin(), cells_gen.end());
+        std::map<int, int1d> ops;
+        for (auto& op : cw_json.at("operations")) {
+            int c0 = op[0].get<int>(), c1 = op[1].get<int>();
+            if (!ut::has(cells, c0) || !ut::has(cells, c1))
+                return -3;
+            op = c1 - c0;
+            if (op & (op - 1))
+                return -4;
+            ops[c0].push_back(c1);
+        }
+        for (auto& [_, cs] : ops)
+            std::sort(cs.begin(), cs.end());
+
+        Mod1d rels2;
+        Mod tmp;
+        for (size_t i = 0; i < cells.size(); ++i) {
+            int c = cells[i];
+            for (int j = 0; (1 << j) + c <= t_max; ++j) {
+                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+                if (ut::has(ops[c], (1 << j) + c)) {
+                    int index = ut::IndexOf(cells, (1 << j) + c);
+                    rel.iaddP(MMod(MMilnor(), index), tmp);
+                }
+                fmt::print("{}\n", rel.Str());
+                rels2.push_back(std::move(rel));
+            }
+        }
+
+        Groebner gb(t_max, {}, cells);
+        int1d min_rels;
+        Mod1d cell_reduced;
+        gb.AddRels(rels2, t_max, min_rels);
+        gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+
+        v_degs = gb.v_degs();
+        if (v_degs != cells_gen)
+            return -5;
+        rels.clear();
+        for (int i : min_rels)
+            rels.push_back(gb.data()[i]);
+    }
+    catch (nlohmann::detail::exception& e) {
+        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
+        throw e;
+    }
+    return 0;
+}
 
 /****************************************************
  *                   S0

@@ -37,6 +37,7 @@ void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max);
 void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max);
+int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, std::string& name);
 int res_P(const std::string& cw, int t_max, int stem_max);
 
 void Coh_M(int1d& v_degs, Mod1d& rels, int t_max);
@@ -138,8 +139,8 @@ int main_res(int argc, char** argv, int& index, const char* desc)
     else if (cw == "M") {
         Coh_M(v_degs, rels, d_max);
     }
-    else {
-        fmt::print("Unsupported arugment cw={}\n", cw);
+    else if (int error = CohFromJson(v_degs, rels, d_max, cw)) {
+        fmt::print("Error({}) - Unsupported arugment cw={}\n", error, cw);
         return -1;
     }
 

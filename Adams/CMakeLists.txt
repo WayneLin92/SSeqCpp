@@ -1,6 +1,6 @@
 add_executable(Adams AdamsRes.cpp groebner_res.h groebner_res.cpp groebner_res_const.h groebner_res_const.cpp AdamsResProd.cpp AdamsResExport.cpp AdamsCell.cpp cells.cpp main.h main.cpp AdamsUtilities.cpp)
 target_compile_features(Adams PRIVATE cxx_std_17)
-target_include_directories(Adams PRIVATE ../include ../thirdparty/fmt)
+target_include_directories(Adams PRIVATE ../include ../thirdparty/fmt ../thirdparty/nlohmann_json)
 target_link_libraries(Adams PRIVATE algebras fmt)
 
 IF (WIN32)

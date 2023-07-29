@@ -24,7 +24,7 @@ if(MSVC)
     # message(STATUS ${CMAKE_CXX_FLAGS_RELEASE})
 endif()
 
-target_include_directories(algebras PRIVATE ../include/algebras ../thirdparty/fmt ../thirdparty/sqlite3)
+target_include_directories(algebras PRIVATE ../include/algebras ../thirdparty/fmt ../thirdparty/nlohmann_json ../thirdparty/sqlite3)
 target_link_libraries(algebras PRIVATE sqlite3 fmt)
 
 target_compile_features(algebras PRIVATE cxx_std_17)

@@ -9,33 +9,31 @@
 #include <fstream>
 #include <regex>
 
+void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohmann::json& diag_json)
+{
+    using json = nlohmann::json;
+
+    root_json = myio::load_json("ss.json");
+    try {
+        json& diagrams = root_json.at("diagrams");
+        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
+        diag_json = myio::load_json(fmt::format("{}/ss.json", dir));
+    }
+    catch (nlohmann::detail::exception& e) {
+        Logger::LogException(0, e.id, "{}\n", e.what());
+        throw e;
+    }
+}
+
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log)
 {
     using json = nlohmann::json;
-    json js;
-    {
-        std::ifstream ifs("ss.json");
-        if (ifs.is_open())
-            ifs >> js;
-        else {
-            Logger::LogException(0, 0xb8525e9bU, "File ss.json not found\n");
-            throw MyException(0xb8525e9bU, "File ss.json not found");
-        }
-    }
+    json js = myio::load_json("ss.json");
 
     try {
         json& diagrams = js.at("diagrams");
         std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        json diagram;
-        {
-            std::ifstream ifs(fmt::format("{}/ss.json", dir));
-            if (ifs.is_open())
-                ifs >> diagram;
-            else {
-                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
-                throw MyException(0xef000cd, "File dir/ss.json not found");
-            }
-        }
+        json diagram = myio::load_json(fmt::format("{}/ss.json", dir));
         if (log) {
             auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
@@ -61,7 +59,7 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
             isRing.push_back(0);
         }
     }
-    catch (nlohmann::detail::exception e) {
+    catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());
         throw e;
     }
@@ -70,30 +68,12 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
 Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 {
     using json = nlohmann::json;
-    json js;
-    {
-        std::ifstream ifs("ss.json");
-        if (ifs.is_open())
-            ifs >> js;
-        else {
-            Logger::LogException(0, 0xb8525e9bU, "File ss.json not found\n");
-            throw MyException(0xb8525e9bU, "File ss.json not found");
-        }
-    }
+    json js = myio::load_json("ss.json");
 
     try {
         json& diagrams = js.at("diagrams");
         std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        json diagram;
-        {
-            std::ifstream ifs(fmt::format("{}/ss.json", dir));
-            if (ifs.is_open())
-                ifs >> diagram;
-            else {
-                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
-                throw MyException(0xef000cd, "File dir/ss.json not found");
-            }
-        }
+        json diagram = myio::load_json(fmt::format("{}/ss.json", dir));
         if (log) {
             auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
@@ -238,7 +218,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             maps_.push_back(std::move(map));
         }
     }
-    catch (nlohmann::detail::exception e) {
+    catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());
         throw e;
     }
@@ -252,30 +232,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 void Diagram::save(std::string diagram_name, DeduceFlag flag)
 {
     using json = nlohmann::json;
-    json js;
-    {
-        std::ifstream ifs("ss.json");
-        if (ifs.is_open())
-            ifs >> js;
-        else {
-            Logger::LogException(0, 0x10ebb3c3, "File ss.json not found\n");
-            throw MyException(0x10ebb3c3, "File ss.json not found");
-        }
-    }
+    json js = myio::load_json("ss.json");
+
     std::map<std::string, std::string> paths;
     try {
         json& diagrams = js.at("diagrams");
         std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        json diagram;
-        {
-            std::ifstream ifs(fmt::format("{}/ss.json", dir));
-            if (ifs.is_open())
-                ifs >> diagram;
-            else {
-                Logger::LogException(0, 0xef000cd, fmt::format("File {}/ss.json not found\n", dir));
-                throw MyException(0xef000cd, "File dir/ss.json not found");
-            }
-        }
+        json diagram = myio::load_json(fmt::format("{}/ss.json", dir));
 
         /* #save rings */
         json& json_rings = diagram["rings"];
@@ -338,7 +301,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
 
         ////TODO: save pi_map
     }
-    catch (nlohmann::detail::exception e) {
+    catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());
         throw e;
     }

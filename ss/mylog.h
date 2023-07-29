@@ -84,7 +84,7 @@ public:
     {
         std::string_view indent(INDENT, depth * 2);
         line_.clear();
-        fmt::format_to(std::back_inserter(line_), "{}error({:#x}) - ", indent, code);
+        fmt::format_to(std::back_inserter(line_), "{}Error({:#x}) - ", indent, code);
         fmt::format_to(std::back_inserter(line_), args...);
         if (depth == 0) {
             fmt::print(fmt::fg(fmt::color::red), "{}", line_);
