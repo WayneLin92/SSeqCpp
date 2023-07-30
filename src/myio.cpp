@@ -210,8 +210,8 @@ nlohmann::json load_json(const std::string& file_name)
         if (ifs.is_open())
             ifs >> js;
         else {
-            fmt::print("File ss.json not found\n");
-            throw MyException(0xb8525e9bU, "File ss.json not found");
+            fmt::print("File {} not found\n", file_name);
+            throw MyException(0xb8525e9bU, "Json file not found");
         }
     }
     return js;
