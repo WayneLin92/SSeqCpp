@@ -509,8 +509,8 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
             int c0 = op[0].get<int>(), c1 = op[1].get<int>();
             if (!ut::has(cells, c0) || !ut::has(cells, c1))
                 return -3;
-            op = c1 - c0;
-            if (op & (op - 1))
+            int n = c1 - c0;
+            if (n & (n - 1))
                 return -4;
             ops[c0].push_back(c1);
         }
