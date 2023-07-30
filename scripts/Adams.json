@@ -1,5 +1,143 @@
 {
   "CW_complexes": {
+    "CW_sigmasq_sigmasq": {
+        "cells_gen": [0, 14, 28]
+    },
+    "CW_theta4_theta4": {
+        "cells_gen": [0, 30, 60]
+    },
+    "CW_theta5_theta5": {
+        "cells_gen": [0, 62, 124]
+    },
+    "S0": {
+      "cells_gen": [0],
+      "cells": [0],
+      "operations": []
+    },
+    "C2": {
+      "cells_gen": [0],
+      "cells": [0, 1],
+      "operations": [
+        [0, 1]
+      ]
+    },
+    "Ceta": {
+      "cells_gen": [0],
+      "cells": [0, 2],
+      "operations": [
+        [0, 2]
+      ]
+    },
+    "Cnu": {
+      "cells_gen": [0],
+      "cells": [0, 4],
+      "operations": [
+        [0, 4]
+      ]
+    },
+    "Csigma": {
+      "cells_gen": [0],
+      "cells": [0, 8],
+      "operations": [
+        [0, 8]
+      ]
+    },
+    "C2h4": {
+      "cells_gen": [0],
+      "cells": [0, 1, 16],
+      "operations": [
+        [0, 1],
+        [0, 16]
+      ]
+    },
+    "C2h5": {
+      "cells_gen": [0],
+      "cells": [0, 1, 32],
+      "operations": [
+        [0, 1],
+        [0, 32]
+      ]
+    },
+    "C2h6": {
+      "cells_gen": [0],
+      "cells": [0, 1, 64],
+      "operations": [
+        [0, 1],
+        [0, 64]
+      ]
+    },
+    "DC2h4": {
+      "cells_gen": [0, 15],
+      "cells": [0, 15, 16],
+      "operations": [
+        [0, 16],
+        [15, 16]
+      ]
+    },
+    "DC2h5": {
+      "cells_gen": [0, 31],
+      "cells": [0, 31, 32],
+      "operations": [
+        [0, 32],
+        [31, 32]
+      ]
+    },
+    "DC2h6": {
+      "cells_gen": [0, 63],
+      "cells": [0, 63, 64],
+      "operations": [
+        [0, 64],
+        [63, 64]
+      ]
+    },
+    "CW_2_eta": {
+      "cells_gen": [0],
+      "cells": [0, 1, 3],
+      "operations": [
+        [0, 1],
+        [1, 3]
+      ]
+    },
+    "CW_eta_nu": {
+      "cells_gen": [0],
+      "cells": [0, 2, 6],
+      "operations": [
+        [0, 2],
+        [2, 6]
+      ]
+    },
+    "CW_nu_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 4, 12],
+      "operations": [
+        [0, 4],
+        [4, 12]
+      ]
+    },
+    "CW_eta_2": {
+      "cells_gen": [0],
+      "cells": [0, 2, 3],
+      "operations": [
+        [0, 2],
+        [2, 3]
+      ]
+    },
+    "CW_nu_eta": {
+      "cells_gen": [0],
+      "cells": [0, 4, 6],
+      "operations": [
+        [0, 4],
+        [4, 6]
+      ]
+    },
+    "CW_sigma_nu": {
+      "cells_gen": [0],
+      "cells": [0, 8, 12],
+      "operations": [
+        [0, 8],
+        [8, 12]
+      ]
+    },
     "CW_2_eta_nu": {
       "cells_gen": [0],
       "cells": [0, 1, 3, 7],
@@ -7,6 +145,33 @@
         [0, 1],
         [1, 3],
         [3, 7]
+      ]
+    },
+    "CW_eta_nu_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 2, 6, 14],
+      "operations": [
+        [0, 2],
+        [2, 6],
+        [6, 14]
+      ]
+    },
+    "CW_nu_eta_2": {
+      "cells_gen": [0],
+      "cells": [0, 4, 6, 7],
+      "operations": [
+        [0, 4],
+        [4, 6],
+        [6, 7]
+      ]
+    },
+    "CW_sigma_nu_eta": {
+      "cells_gen": [0],
+      "cells": [0, 8, 12, 14],
+      "operations": [
+        [0, 8],
+        [8, 12],
+        [12, 14]
       ]
     },
     "CW_2_eta_nu_sigma": {
@@ -29,38 +194,12 @@
         [14, 15]
       ]
     },
-    "CW_eta_nu_sigma": {
-      "cells_gen": [0],
-      "cells": [0, 2, 6, 14],
-      "operations": [
-        [0, 2],
-        [2, 6],
-        [6, 14]
-      ]
-    },
-    "CW_sigma_nu_eta": {
-      "cells_gen": [0],
-      "cells": [0, 8, 12, 14],
-      "operations": [
-        [0, 8],
-        [8, 12],
-        [12, 14]
-      ]
-    },
-    "CW_sigmasq_sigmasq": {
-        "cells_gen": [0, 14, 28]
-    },
-    "CW_theta4_theta4": {
-        "cells_gen": [0, 30, 60]
-    },
-    "CW_theta5_theta5": {
-        "cells_gen": [0, 62, 124]
-    },
     "CW_sigmasq_2_sigmasq": {
       "cells_gen": [0, 15],
       "cells": [0, 15, 16, 31],
       "operations": [
         [0, 16],
+        [15, 16],
         [15, 31]
       ]
     },
@@ -69,15 +208,17 @@
       "cells": [0, 31, 32, 63],
       "operations": [
         [0, 32],
+        [31, 32],
         [31, 63]
       ]
     },
     "CW_theta5_2_theta5": {
       "cells_gen": [0, 63],
-      "cells": [0, 63, 64, 125],
+      "cells": [0, 63, 64, 127],
       "operations": [
         [0, 64],
-        [63, 125]
+        [63, 64],
+        [63, 127]
       ]
     },
     "Joker": {
@@ -144,8 +285,314 @@
         [1, 65],
         [0, 2]
       ]
+    },
+    "CW_2_V_eta": {
+      "cells_gen": [0],
+      "cells": [0, 1, 2],
+      "operations": [
+        [0, 1],
+        [0, 2]
+      ]
+    },
+    "CW_eta_V_nu": {
+      "cells_gen": [0],
+      "cells": [0, 2, 4],
+      "operations": [
+        [0, 2],
+        [0, 4]
+      ]
+    },
+    "CW_nu_V_sigma": {
+      "cells_gen": [0],
+      "cells": [0, 4, 8],
+      "operations": [
+        [0, 4],
+        [0, 8]
+      ]
     }
   },
   "maps": {
+    "CW_eta_nu_to_CW_eta_nu_sigma": {
+      "from": "CW_eta_nu",
+      "to": "CW_eta_nu_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_sigma_nu_to_CW_sigma_nu_eta": {
+      "from": "CW_sigma_nu",
+      "to": "CW_sigma_nu_eta",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_eta_nu_sigma_to_CW_nu_sigma": {
+      "from": "CW_eta_nu_sigma",
+      "to": "CW_nu_sigma",
+      "sus": 2,
+      "images": [
+        [0, 2]
+      ]
+    },
+    "CW_nu_sigma_to_S0_by_eta": {
+      "from": "CW_nu_sigma",
+      "to": "S0",
+      "total": "CW_eta_nu_sigma",
+      "sus": -1
+    },
+    "Csigma_to_Ceta_by_nu": {
+      "from": "Csigma",
+      "to": "Ceta",
+      "total": "CW_eta_nu_sigma",
+      "sus": -5
+    },
+    "CW_sigma_nu_eta_to_CW_nu_eta": {
+      "from": "CW_sigma_nu_eta",
+      "to": "CW_nu_eta",
+      "sus": 8,
+      "images": [
+        [0, 8]
+      ]
+    },
+    "CW_nu_eta_to_S0_by_sigma": {
+      "from": "CW_nu_eta",
+      "to": "S0",
+      "total": "CW_sigma_nu_eta",
+      "sus": -7
+    },
+    "Ceta_to_Csigma_by_nu": {
+      "from": "Ceta",
+      "to": "Csigma",
+      "total": "CW_sigma_nu_eta",
+      "sus": -11
+    },
+    "CW_2_eta_nu_to_CW_2_eta_nu_sigma": {
+      "from": "CW_2_eta_nu",
+      "to": "CW_2_eta_nu_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_sigma_nu_eta_to_CW_sigma_nu_eta_2": {
+      "from": "CW_sigma_nu_eta",
+      "to": "CW_sigma_nu_eta_2",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_2_eta_nu_sigma_to_CW_eta_nu_sigma": {
+      "from": "CW_2_eta_nu_sigma",
+      "to": "CW_eta_nu_sigma",
+      "sus": 1,
+      "images": [
+        [0, 1]
+      ]
+    },
+    "CW_eta_nu_sigma_to_S0_by_2": {
+      "from": "CW_eta_nu_sigma",
+      "to": "S0",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": 0
+    },
+    "CW_nu_sigma_to_C2_by_eta": {
+      "from": "CW_nu_sigma",
+      "to": "C2",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": -2
+    },
+    "Csigma_to_CW_2_eta_by_nu": {
+      "from": "Csigma",
+      "to": "CW_2_eta",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": -6
+    },
+    "CW_sigma_nu_eta_2_to_CW_nu_eta_2": {
+      "from": "CW_sigma_nu_eta_2",
+      "to": "CW_nu_eta_2",
+      "sus": 8,
+      "images": [
+        [0, 8]
+      ]
+    },
+    "CW_nu_eta_2_to_S0_by_sigma": {
+      "from": "CW_nu_eta_2",
+      "to": "S0",
+      "total": "CW_sigma_nu_eta_2",
+      "sus": -7
+    },
+    "CW_eta_2_to_Csigma_by_nu": {
+      "from": "CW_eta_2",
+      "to": "Csigma",
+      "total": "CW_sigma_nu_eta_2",
+      "sus": -11
+    },
+    "C2_to_CW_sigma_nu_by_eta": {
+      "from": "C2",
+      "to": "CW_sigma_nu",
+      "total": "CW_sigma_nu_eta_2",
+      "sus": -13
+    },
+    "DC2h4_to_CW_sigmasq_2_sigmasq": {
+      "from": "DC2h4",
+      "to": "CW_sigmasq_2_sigmasq",
+      "sus": 0,
+      "images": [
+        [0],
+        [15]
+      ]
+    },
+    "CW_sigmasq_2_sigmasq_to_C2h4": {
+      "from": "CW_sigmasq_2_sigmasq",
+      "to": "C2h4",
+      "sus": 15,
+      "images": [
+        [15]
+      ]
+    },
+    "C2h4_to_S0_by_sigmasq": {
+      "from": "C2h4",
+      "to": "S0",
+      "total": "CW_sigmasq_2_sigmasq",
+      "sus": -14
+    },
+    "DC2h5_to_CW_theta4_2_theta4": {
+      "from": "DC2h5",
+      "to": "CW_theta4_2_theta4",
+      "sus": 0,
+      "images": [
+        [0],
+        [31]
+      ]
+    },
+    "CW_theta4_2_theta4_to_C2h5": {
+      "from": "CW_theta4_2_theta4",
+      "to": "C2h5",
+      "sus": 31,
+      "images": [
+        [31]
+      ]
+    },
+    "C2h5_to_S0_by_theta4": {
+      "from": "C2h5",
+      "to": "S0",
+      "total": "CW_theta4_2_theta4",
+      "sus": -30
+    },
+    "DC2h6_to_CW_theta5_2_theta5": {
+      "from": "DC2h6",
+      "to": "CW_theta5_2_theta5",
+      "sus": 0,
+      "images": [
+        [0],
+        [63]
+      ]
+    },
+    "CW_theta5_2_theta5_to_C2h6": {
+      "from": "CW_theta5_2_theta5",
+      "to": "C2h6",
+      "sus": 63,
+      "images": [
+        [63]
+      ]
+    },
+    "C2h6_to_S0_by_theta5": {
+      "from": "C2h6",
+      "to": "S0",
+      "total": "CW_theta5_2_theta5",
+      "sus": -62
+    },
+    "CW_eta_nu_to_CW_eta_nu_eta_Eq_nu_nu": {
+      "from": "CW_eta_nu",
+      "to": "CW_eta_nu_eta_Eq_nu_nu",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Cnu_to_CW_eta_nu_eta_Eq_nu_nu": {
+      "from": "Cnu",
+      "to": "CW_eta_nu_eta_Eq_nu_nu",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_eta_nu_eta_Eq_nu_nu_to_Cnu": {
+      "from": "CW_eta_nu_eta_Eq_nu_nu",
+      "to": "Cnu",
+      "sus": 4,
+      "images": [
+        [0, 4]
+      ]
+    },
+    "CW_eta_nu_eta_Eq_nu_nu_to_CW_nu_eta": {
+      "from": "CW_eta_nu_eta_Eq_nu_nu",
+      "to": "CW_nu_eta",
+      "sus": 2,
+      "images": [
+        [0, 2]
+      ]
+    },
+    "Cnu_to_Q_CW_eta_nu_eta_Eq_nu_nu": {
+      "from": "Cnu",
+      "to": "CW_eta_nu",
+      "total": "CW_eta_nu_eta_Eq_nu_nu",
+      "sus": -3
+    },
+    "CW_nu_eta_to_Q_CW_eta_nu_eta_Eq_nu_nu": {
+      "from": "CW_nu_eta",
+      "to": "Cnu",
+      "total": "CW_eta_nu_eta_Eq_nu_nu",
+      "sus": -1
+    },
+
+    "CW_nu_sigma_to_CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "from": "CW_nu_sigma",
+      "to": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Csigma_to_CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "from": "Csigma",
+      "to": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "CW_nu_sigma_nu_Eq_sigma_sigma_to_Csigma": {
+      "from": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "to": "Csigma",
+      "sus": 8,
+      "images": [
+        [0, 8]
+      ]
+    },
+    "CW_nu_sigma_nu_Eq_sigma_sigma_to_CW_sigma_nu": {
+      "from": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "to": "CW_sigma_nu",
+      "sus": 4,
+      "images": [
+        [0, 4]
+      ]
+    },
+    "Csigma_to_Q_CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "from": "Csigma",
+      "to": "CW_nu_sigma",
+      "total": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "sus": -7
+    },
+    "CW_sigma_nu_to_Q_CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "from": "CW_sigma_nu",
+      "to": "Csigma",
+      "total": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "sus": -3
+    }
   }
 }

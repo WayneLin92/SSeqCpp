@@ -19,28 +19,9 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }
 
-void Coh_S0(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_tmf(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_ko(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_X2(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
-void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max);
-void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
-void Coh_DC2hn(int1d& v_degs, Mod1d& rels, int n, int t_max);
-void Coh_three_cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
-void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max);
-void Coh_CW_2_eta_nu(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_CW_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_CW_2_eta_nu_sigma(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_CW_sigma_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_j(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max);
-void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max);
-int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, std::string& name);
 int res_P(const std::string& cw, int t_max, int stem_max);
-
-void Coh_M(int1d& v_degs, Mod1d& rels, int t_max);
+int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
+int Coh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
@@ -59,90 +40,14 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 
     std::regex is_P_regex("^(?:tmf_|X2_|)(?:R|C|H)P(?:m|)\\d+_(?:m|)\\d+$"); /* match example: RP1_4, CPm1_10 */
     std::smatch match;
-    if (std::regex_search(cw, match, is_P_regex); match[0].matched)
+    if (std::regex_search(cw, match, is_P_regex); match[0].matched) ////
         return res_P(cw, t_max, stem_max);
 
-    int d_max = std::min(t_max, stem_max);
     int1d v_degs;
     Mod1d rels;
-    if (cw == "S0")
-        Coh_S0(v_degs, rels, d_max);
-    else if (cw == "X2")
-        Coh_X2(v_degs, rels, d_max);
-    else if (cw == "tmf")
-        Coh_tmf(v_degs, rels, d_max);
-    else if (cw == "ko")
-        Coh_ko(v_degs, rels, d_max);
-    else if (cw == "C2")
-        Coh_Chn(v_degs, rels, 0, d_max);
-    else if (cw == "Ceta")
-        Coh_Chn(v_degs, rels, 1, d_max);
-    else if (cw == "Cnu")
-        Coh_Chn(v_degs, rels, 2, d_max);
-    else if (cw == "Csigma")
-        Coh_Chn(v_degs, rels, 3, d_max);
-    else if (cw == "C2h4")
-        Coh_C2hn(v_degs, rels, 4, d_max);
-    else if (cw == "C2h5")
-        Coh_C2hn(v_degs, rels, 5, d_max);
-    else if (cw == "C2h6")
-        Coh_C2hn(v_degs, rels, 6, d_max);
-    else if (cw == "DC2h4")
-        Coh_DC2hn(v_degs, rels, 4, d_max);
-    else if (cw == "DC2h5")
-        Coh_DC2hn(v_degs, rels, 5, d_max);
-    else if (cw == "DC2h6")
-        Coh_DC2hn(v_degs, rels, 6, d_max);
-    else if (cw == "CW_2_eta")
-        Coh_three_cell(v_degs, rels, 0, 1, d_max);
-    else if (cw == "CW_eta_nu")
-        Coh_three_cell(v_degs, rels, 1, 2, d_max);
-    else if (cw == "CW_nu_sigma")
-        Coh_three_cell(v_degs, rels, 2, 3, d_max);
-    else if (cw == "CW_eta_2")
-        Coh_three_cell(v_degs, rels, 1, 0, d_max);
-    else if (cw == "CW_nu_eta")
-        Coh_three_cell(v_degs, rels, 2, 1, d_max);
-    else if (cw == "CW_sigma_nu")
-        Coh_three_cell(v_degs, rels, 3, 2, d_max);
-    else if (cw == "C2_Ceta")
-        Coh_smash_2cell(v_degs, rels, 0, 1, d_max);
-    else if (cw == "Ceta_Cnu")
-        Coh_smash_2cell(v_degs, rels, 1, 2, d_max);
-    else if (cw == "Cnu_Csigma")
-        Coh_smash_2cell(v_degs, rels, 2, 3, d_max);
-    else if (cw == "Joker")
-        Coh_Joker(v_degs, rels, d_max);
-    else if (cw == "CW_2_eta_nu")
-        Coh_CW_2_eta_nu(v_degs, rels, d_max);
-    else if (cw == "CW_nu_eta_2")
-        Coh_CW_nu_eta_2(v_degs, rels, d_max);
-    else if (cw == "CW_2_eta_nu_sigma")
-        Coh_CW_2_eta_nu_sigma(v_degs, rels, d_max);
-    else if (cw == "CW_sigma_nu_eta_2")
-        Coh_CW_sigma_nu_eta_2(v_degs, rels, d_max);
-    else if (cw == "j")
-        Coh_j(v_degs, rels, d_max);
-    else if (cw == "j_C2")
-        Coh_j_C2(v_degs, rels, d_max);
-    else if (cw == "tmf_C2")
-        Coh_tmf_Chn(v_degs, rels, 0, d_max);
-    else if (cw == "tmf_Ceta")
-        Coh_tmf_Chn(v_degs, rels, 1, d_max);
-    else if (cw == "tmf_Cnu")
-        Coh_tmf_Chn(v_degs, rels, 2, d_max);
-    else if (cw == "Fphi") {
-        Mod1d tmp;
-        int1d tmp_int1d;
-        Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
-    }
-    else if (cw == "M") {
-        Coh_M(v_degs, rels, d_max);
-    }
-    else if (int error = CohFromJson(v_degs, rels, d_max, cw)) {
-        fmt::print("Error({}) - Unsupported arugment cw={}\n", error, cw);
+    int d_max = std::min(t_max, stem_max);
+    if (int error = Coh(v_degs, rels, d_max, cw))
         return -1;
-    }
 
     std::string db_filename = cw + "_Adams_res.db";
     std::string tablename = cw + "_Adams_res";

@@ -3,72 +3,6 @@
 #include <fmt/core.h>
 #include <regex>
 
-int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, std::string& name)
-{
-    auto js = myio::load_json("Adams.json");
-    try {
-        auto& cws = js.at("CW_complexes");
-        if (!cws.contains(name))
-            return -1;
-        auto& cw_json = cws.at(name); 
-        if (!cw_json.contains("operations"))
-            return -2;
-        int1d cells;
-        for (auto& c : cw_json.at("cells"))
-            cells.push_back(c.get<int>());
-        int1d cells_gen;
-        for (auto& c : cw_json.at("cells_gen"))
-            cells_gen.push_back(c.get<int>());
-        std::sort(cells.begin(), cells.end());
-        std::sort(cells_gen.begin(), cells_gen.end());
-        std::map<int, int1d> ops;
-        for (auto& op : cw_json.at("operations")) {
-            int c0 = op[0].get<int>(), c1 = op[1].get<int>();
-            if (!ut::has(cells, c0) || !ut::has(cells, c1))
-                return -3;
-            op = c1 - c0;
-            if (op & (op - 1))
-                return -4;
-            ops[c0].push_back(c1);
-        }
-        for (auto& [_, cs] : ops)
-            std::sort(cs.begin(), cs.end());
-
-        Mod1d rels2;
-        Mod tmp;
-        for (size_t i = 0; i < cells.size(); ++i) {
-            int c = cells[i];
-            for (int j = 0; (1 << j) + c <= t_max; ++j) {
-                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
-                if (ut::has(ops[c], (1 << j) + c)) {
-                    int index = ut::IndexOf(cells, (1 << j) + c);
-                    rel.iaddP(MMod(MMilnor(), index), tmp);
-                }
-                fmt::print("{}\n", rel.Str());
-                rels2.push_back(std::move(rel));
-            }
-        }
-
-        Groebner gb(t_max, {}, cells);
-        int1d min_rels;
-        Mod1d cell_reduced;
-        gb.AddRels(rels2, t_max, min_rels);
-        gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
-
-        v_degs = gb.v_degs();
-        if (v_degs != cells_gen)
-            return -5;
-        rels.clear();
-        for (int i : min_rels)
-            rels.push_back(gb.data()[i]);
-    }
-    catch (nlohmann::detail::exception& e) {
-        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
-        throw e;
-    }
-    return 0;
-}
-
 /****************************************************
  *                   S0
  ***************************************************/
@@ -408,6 +342,7 @@ void normalize_RP(int n1, int n2, int& n1_, int& n2_)  //// TODO: normalize CP a
     n1_ = n1;
     n2_ = n2;
     int T = Period_RP(n2 - n1);
+    fmt::print("T={}\n", T);
     if (T >= 0) {
         if (n1 < 0 && T < -n1 * 2) {
             int shift = ((-n1) / T + 1) * T;
@@ -553,6 +488,76 @@ void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, 
         rels.push_back(gb.data()[i]);
 }
 
+int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max, const std::string& name)
+{
+    auto js = myio::load_json("Adams.json");
+    try {
+        auto& cws = js.at("CW_complexes");
+        if (!cws.contains(name))
+            return -1;
+        auto& cw_json = cws.at(name);
+        if (!cw_json.contains("operations"))
+            return -2;
+        int1d cells;
+        for (auto& c : cw_json.at("cells"))
+            cells.push_back(c.get<int>());
+        int1d cells_gen;
+        for (auto& c : cw_json.at("cells_gen"))
+            cells_gen.push_back(c.get<int>());
+        std::map<int, int1d> ops;
+        for (auto& op : cw_json.at("operations")) {
+            int c0 = op[0].get<int>(), c1 = op[1].get<int>();
+            if (!ut::has(cells, c0) || !ut::has(cells, c1))
+                return -3;
+            op = c1 - c0;
+            if (op & (op - 1))
+                return -4;
+            ops[c0].push_back(c1);
+        }
+        for (auto& [_, cs] : ops)
+            std::sort(cs.begin(), cs.end());
+
+        Mod1d rels2;
+        Mod tmp;
+        for (size_t i = 0; i < cells.size(); ++i) {
+            int c = cells[i];
+            for (int j = 0; (1 << j) + c <= t_max; ++j) {
+                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+                if (ut::has(ops[c], (1 << j) + c)) {
+                    int index = ut::IndexOf(cells, (1 << j) + c);
+                    rel.iaddP(MMod(MMilnor(), index), tmp);
+                }
+                rels2.push_back(std::move(rel));
+            }
+        }
+
+        Groebner gb(t_max, {}, cells);
+        min_rels.clear();
+        gb.AddRels(rels2, t_max, min_rels);
+        gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+
+        v_degs = gb.v_degs();
+        ut::RemoveIf(v_degs, [t_max](int i) { return i > t_max; });
+        if (v_degs != cells_gen)
+            return -5;
+        rels.clear();
+        for (int i : min_rels)
+            rels.push_back(gb.data()[i]);
+    }
+    catch (nlohmann::detail::exception& e) {
+        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
+        throw e;
+    }
+    return 0;
+}
+
+int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name)
+{
+    Mod1d cell_reduced;
+    int1d min_rels;
+    return CohFromJsonV2(v_degs, rels, cell_reduced, min_rels, t_max, name);
+}
+
 /****************************************************
                      # Maps
  ***************************************************/
@@ -674,7 +679,7 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
             sus = (n2_ - m2_) << hopf;
             return;
         }
-        else if (n1 == m2 + 1) { /*## connecting map */
+        else if (n1 == m2 + 1) { /*## attaching map */
             int1d v_degs_n, tmp_ind1d;
             Mod1d cell_reduced_n, tmp, tmp1;
             Coh_P(v_degs_n, tmp, cell_reduced_n, tmp_ind1d, n1, n2, std::min(n2 << hopf, 256), "S0", hopf);
@@ -689,7 +694,7 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
             images.clear();
             for (size_t i = 0; i < rels_m.size(); ++i) {
                 if (gb.Reduce(rels_m[i])) {
-                    int cell = (rels_m[i].GetLead().deg_m() + v_degs_m[rels_m[i].GetLead().v()]) << hopf;
+                    int cell = ((rels_m[i].GetLead().deg_m() + v_degs_m[rels_m[i].GetLead().v()]) << hopf) + std::min(m1, 0);
                     images.push_back(cell_reduced_n[size_t(cell - n1)]);
                 }
                 else {
@@ -736,6 +741,190 @@ void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
     images = {MMod(MMilnor::P(n1, n1 + 1), 0)};
     sus = 1 << n1;
     return;
+}
+
+int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
+{
+    if (cw == "S0")
+        Coh_S0(v_degs, rels, d_max);
+    else if (cw == "X2")
+        Coh_X2(v_degs, rels, d_max);
+    else if (cw == "tmf")
+        Coh_tmf(v_degs, rels, d_max);
+    else if (cw == "ko")
+        Coh_ko(v_degs, rels, d_max);
+    else if (cw == "C2")
+        Coh_Chn(v_degs, rels, 0, d_max);
+    else if (cw == "Ceta")
+        Coh_Chn(v_degs, rels, 1, d_max);
+    else if (cw == "Cnu")
+        Coh_Chn(v_degs, rels, 2, d_max);
+    else if (cw == "Csigma")
+        Coh_Chn(v_degs, rels, 3, d_max);
+    else if (cw == "C2h4")
+        Coh_C2hn(v_degs, rels, 4, d_max);
+    else if (cw == "C2h5")
+        Coh_C2hn(v_degs, rels, 5, d_max);
+    else if (cw == "C2h6")
+        Coh_C2hn(v_degs, rels, 6, d_max);
+    else if (cw == "DC2h4")
+        Coh_DC2hn(v_degs, rels, 4, d_max);
+    else if (cw == "DC2h5")
+        Coh_DC2hn(v_degs, rels, 5, d_max);
+    else if (cw == "DC2h6")
+        Coh_DC2hn(v_degs, rels, 6, d_max);
+    else if (cw == "CW_2_eta")
+        Coh_three_cell(v_degs, rels, 0, 1, d_max);
+    else if (cw == "CW_eta_nu")
+        Coh_three_cell(v_degs, rels, 1, 2, d_max);
+    else if (cw == "CW_nu_sigma")
+        Coh_three_cell(v_degs, rels, 2, 3, d_max);
+    else if (cw == "CW_eta_2")
+        Coh_three_cell(v_degs, rels, 1, 0, d_max);
+    else if (cw == "CW_nu_eta")
+        Coh_three_cell(v_degs, rels, 2, 1, d_max);
+    else if (cw == "CW_sigma_nu")
+        Coh_three_cell(v_degs, rels, 3, 2, d_max);
+    else if (cw == "C2_Ceta")
+        Coh_smash_2cell(v_degs, rels, 0, 1, d_max);
+    else if (cw == "Ceta_Cnu")
+        Coh_smash_2cell(v_degs, rels, 1, 2, d_max);
+    else if (cw == "Cnu_Csigma")
+        Coh_smash_2cell(v_degs, rels, 2, 3, d_max);
+    else if (cw == "Joker")
+        Coh_Joker(v_degs, rels, d_max);
+    else if (cw == "CW_2_eta_nu")
+        Coh_CW_2_eta_nu(v_degs, rels, d_max);
+    else if (cw == "CW_nu_eta_2")
+        Coh_CW_nu_eta_2(v_degs, rels, d_max);
+    else if (cw == "CW_2_eta_nu_sigma")
+        Coh_CW_2_eta_nu_sigma(v_degs, rels, d_max);
+    else if (cw == "CW_sigma_nu_eta_2")
+        Coh_CW_sigma_nu_eta_2(v_degs, rels, d_max);
+    else if (cw == "j")
+        Coh_j(v_degs, rels, d_max);
+    else if (cw == "j_C2")
+        Coh_j_C2(v_degs, rels, d_max);
+    else if (cw == "tmf_C2")
+        Coh_tmf_Chn(v_degs, rels, 0, d_max);
+    else if (cw == "tmf_Ceta")
+        Coh_tmf_Chn(v_degs, rels, 1, d_max);
+    else if (cw == "tmf_Cnu")
+        Coh_tmf_Chn(v_degs, rels, 2, d_max);
+    else if (cw == "Fphi") {
+        Mod1d tmp;
+        int1d tmp_int1d;
+        Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
+    }
+    else if (cw == "M") {
+        Coh_M(v_degs, rels, d_max);
+    }
+    else if (int error = CohFromJson(v_degs, rels, d_max, cw)) {
+        fmt::print("Error({}) - Unsupported arugment cw={}\n", error, cw);
+        return -1;
+    }
+    return 0;
+}
+
+int MapCohFromJson(const std::string& name, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
+{
+    auto js = myio::load_json("Adams.json");
+    try {
+        auto& cws = js.at("CW_complexes");
+        auto& maps = js.at("maps");
+        if (!maps.contains(name))
+            return -1;
+        auto& map_json = maps.at(name);
+        from = map_json.at("from").get<std::string>();
+        to = map_json.at("to").get<std::string>();
+        sus = map_json.at("sus").get<int>();
+        images = {};
+        if (map_json.contains("images")) {
+            fil = 0;
+            int1d cells_gen_to;
+            for (auto& c : cws.at(to).at("cells_gen"))
+                cells_gen_to.push_back(c.get<int>());
+            int1d cells_gen_from;
+            for (auto& c : cws.at(from).at("cells_gen"))
+                cells_gen_from.push_back(c.get<int>());
+            auto& images_json = map_json.at("images");
+            if (images_json.size() != cells_gen_to.size())
+                return -2;
+            for (size_t i = 0; i < images_json.size(); ++i) {
+                int1d im_array;
+                for (auto& im_i : images_json[i])
+                    im_array.push_back(im_i.get<int>());
+                if (im_array.empty())
+                    images.push_back({});
+                else {
+                    int cell = im_array.back();
+                    if (sus != cell - cells_gen_to[i])
+                        return -3;
+                    int v = ut::IndexOf(cells_gen_from, im_array[0]);
+                    if (v == -1)
+                        return -4;
+                    Mod image = MMod({}, v);
+                    for (size_t j = 1; j < im_array.size(); ++j) {
+                        int n = im_array[j] - im_array[j - 1];
+                        if ((n & (n - 1)) != 0)
+                            return -5;
+                        image = MMilnor::Sq(n) * image;
+                    }
+                    images.push_back(std::move(image));
+                }
+            }
+        }
+        else if (map_json.contains("total")) {
+            fil = 1;
+            std::string total = map_json.at("total");
+            const int t_max = 256;
+            int1d v_degs_to;
+            Mod1d rels_to;
+            Mod1d cell_reduced_to;
+            int1d min_rels_to;
+            CohFromJsonV2(v_degs_to, rels_to, cell_reduced_to, min_rels_to, t_max, to);
+            Groebner gb_to(t_max, {}, v_degs_to);
+            gb_to.AddRels(rels_to, t_max, min_rels_to);
+
+            int1d v_degs_from;
+            Mod1d rels_from;
+            Mod1d cells_reduced_from;
+            int1d min_rels_from;
+            CohFromJsonV2(v_degs_from, rels_from, cells_reduced_from, min_rels_from, t_max, from);
+
+            int1d v_degs;
+            Mod1d rels;
+            Coh(v_degs, rels, t_max, total);
+            Groebner gb(t_max, {}, v_degs);
+            gb.AddRels(rels, t_max);
+
+            int1d cells_from;
+            for (auto& c : cws.at(from).at("cells"))
+                cells_from.push_back(c.get<int>());
+
+            for (int i : min_rels_to) {
+                auto& rel = gb_to.data()[i];
+                if (gb.Reduce(rel)) {
+                    int rel_deg = rel.GetLead().deg_m() + v_degs_to[rel.GetLead().v()];
+                    int index = ut::IndexOf(cells_from, rel_deg + sus - 1);
+                    if (index == -1)
+                        return -6;
+                    if (index >= (int)cells_reduced_from.size())
+                        return -7;
+                    images.push_back(cells_reduced_from[index]);
+                }
+                else
+                    images.push_back({});
+            }
+        }
+        else
+            return -8;
+    }
+    catch (nlohmann::detail::exception& e) {
+        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
+        throw e;
+    }
+    return 0;
 }
 
 void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
@@ -1256,7 +1445,9 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         sus = 1;
         return;
     }
-
-    fmt::print("map not supported.\n");
-    throw MyException(0x8636b4b2, "map not supported.");
+    std::string name = fmt::format("{}_to_{}", cw1, cw2);
+    if (int error = MapCohFromJson(name, from, to, images, sus, fil)) {
+        fmt::print("Error({}) - map not supported.\n", error);
+        throw MyException(0x8636b4b2, "map not supported.");
+    }
 }
