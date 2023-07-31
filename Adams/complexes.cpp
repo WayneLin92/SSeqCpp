@@ -342,7 +342,6 @@ void normalize_RP(int n1, int n2, int& n1_, int& n2_)  //// TODO: normalize CP a
     n1_ = n1;
     n2_ = n2;
     int T = Period_RP(n2 - n1);
-    fmt::print("T={}\n", T);
     if (T >= 0) {
         if (n1 < 0 && T < -n1 * 2) {
             int shift = ((-n1) / T + 1) * T;

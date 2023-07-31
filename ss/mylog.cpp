@@ -54,7 +54,7 @@ void Logger::LogCmd(int argc, char** argv)
 void Logger::LogSummary(std::string_view category, int count)
 {
     line_.clear();
-    fmt::format_to(std::back_inserter(line_), "Summary - {}: {}\n", category, count);
+    fmt::format_to(std::back_inserter(line_), "Summary - {}: {}          \n", category, count);
     fmt::print("{}", line_);
     fmt::print(fout_main_, "{}", line_);
     if (fout_deduce_)
