@@ -489,6 +489,8 @@ void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, 
 
 int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max, const std::string& name)
 {
+    if (!myio::FileExists("Adams.json"))
+        return -1;
     auto js = myio::load_json("Adams.json");
     try {
         auto& cws = js.at("CW_complexes");

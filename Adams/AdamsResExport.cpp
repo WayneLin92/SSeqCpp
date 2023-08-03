@@ -718,7 +718,7 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& to, const alg::AdamsDeg1d& degs, int t_trunc, int stem_trunc)
+void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& to, const alg::AdamsDeg1d& degs, int sus, int fil, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
     std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
@@ -782,8 +782,8 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
         dbMapAdamsE2.save_map(table_out, images_mod);
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        stmt.bind_and_step(1585932889, std::string("suspension"), -degs.front().stem());
-        stmt.bind_and_step(651971502, std::string("filtration"), degs.front().s);
+        stmt.bind_and_step(1585932889, std::string("suspension"), sus);
+        stmt.bind_and_step(651971502, std::string("filtration"), fil);
         stmt.bind_and_step(446174262, std::string("from"), cw1);
         stmt.bind_and_step(1713085477, std::string("to"), to);
     }
@@ -1008,25 +1008,31 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
     else if (cw1 == "C2h6" && cw2 == "Ctheta5")
         ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "DC2h4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "Q_C2h4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 16}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 16}}, 0, 1, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "S0_by_sigmasq")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 14 + 2}, {-1, -1}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 14 + 2}, {-1, -1}}, -14, 2, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "C2_by_sigmasq")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 15 + 1}, {-1, -1}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 15 + 1}, {-1, -1}}, -15, 1, t_max, stem_max);
+    else if (cw1 == "Csigmasq" && cw2 == "S0")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 14, 0, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "Q_C2h5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 32}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 32}}, 0, 1, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "S0_by_theta4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 30 + 2}, {-1, -1}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 30 + 2}, {-1, -1}}, -30, 2, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "C2_by_theta4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 31 + 1}, {-1, -1}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 31 + 1}, {-1, -1}}, -31, 1, t_max, stem_max);
+    else if (cw1 == "Ctheta4" && cw2 == "S0")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 30, 0, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "Q_C2h6")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 64}}, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 64}}, 0, 1, t_max, stem_max);
+    else if (cw1 == "Ctheta5" && cw2 == "S0")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 62, 0, t_max, stem_max);
     else
         ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;

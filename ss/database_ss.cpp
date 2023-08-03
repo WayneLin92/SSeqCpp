@@ -204,7 +204,6 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     db.drop_and_create_basis_ss(table_prefix);
     db.save_basis_ss(table_prefix, nodes_ss);
 
-    db.begin_transaction();
     db.drop_and_create_pi_relations(name);
     db.drop_and_create_pi_basis(name);
     db.drop_and_create_pi_definitions(name);
