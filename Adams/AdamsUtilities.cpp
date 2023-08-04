@@ -1,4 +1,5 @@
 #include "algebras/database.h"
+#include "algebras/myio.h"
 #include "algebras/utility.h"
 #include "main.h"
 #include <array>
@@ -191,6 +192,73 @@ void UtStatus(const std::string& dir, bool sorted)
     fmt::print("----------------------------------------------\n");
 }
 
+void UtExport(const std::string& dir)
+{
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::smatch match;
+
+    std::map<std::string, std::array<int, 2>> table_spectra, table_maps;
+
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        std::string filename = entry.path().filename().string();
+        std::string filepath = entry.path().string();
+
+        {
+            std::string name;
+            int index;
+            if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
+                name = match[1].str();
+                index = 0;
+            }
+            else if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
+                name = match[1].str();
+                index = 1;
+            }
+            if (!name.empty()) {
+                DbAdamsUt db(filepath);
+                table_spectra[name][index] = get_db_t_max(db);
+            }
+        }
+
+        {
+            std::string name;
+            int index;
+            if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
+                name = match[1].str();
+                index = 0;
+            }
+            else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
+                name = match[1].str();
+                index = 1;
+            }
+            if (!name.empty()) {
+                DbAdamsUt db(filepath);
+                table_maps[name][index] = get_db_t_max(db);
+            }
+        }
+    }
+    auto names_spectra = ut::get_keys(table_spectra);
+    auto names_maps = ut::get_keys(table_maps);
+    ut::RemoveIf(names_spectra, [&table_spectra](std::string& cw) { return table_spectra.at(cw)[0] <= table_spectra.at(cw)[1]; });
+    ut::RemoveIf(names_maps, [&table_maps](std::string& map) { return table_maps.at(map)[0] <= table_maps.at(map)[1]; });
+
+    for (auto& cw : names_spectra)
+        fmt::print("./Adams export_mod {} S0 200\n", cw);
+    for (auto& map : names_maps)
+        fmt::print("./Adams export_map {} 200\n", std::regex_replace(map, std::regex("_to_"), " "));
+    fmt::print("\nrm -r download\nmkdir download\n");
+    fmt::print("cp ");
+    for (auto& cw : names_spectra)
+        fmt::print("{}_AdamsSS.db ", cw);
+    fmt::print("download\n");
+    for (auto& map : names_maps)
+        fmt::print("map_AdamsSS_{}.db ", map);
+    fmt::print("download\n");
+}
+
 void UtRename(const std::string& old, const std::string& new_)
 {
     std::regex is_db_regex(".db$"); /* match example: *.db */
@@ -340,6 +408,20 @@ int main_status(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+int main_ut_export(int argc, char** argv, int& index, const char* desc)
+{
+    std::string dir = ".";
+    myio::string1d options;
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    UtExport(dir);
+    return 0;
+}
+
 int main_rename(int argc, char** argv, int& index, const char* desc)
 {
     std::string old, new_;
@@ -396,5 +478,20 @@ int main_add_t_max(int argc, char** argv, int& index, const char* desc)
         return error;
 
     UtAddTMax(db_filename, t_max);
+    return 0;
+}
+
+int main_ut(int argc, char** argv, int& index, const char* desc)
+{
+    myio::SubCmdArg1d subcmds = {
+        {"export", "Print commands for exporting new results", main_ut_export},
+        {"rename", "For compatibility: rename files", main_rename},
+        {"app_t_max", "append t_max to filenames", main_app_t_max},
+        {"ss_json", "print info for ss.json", main_ss_json},
+        {"add_from_to", "For compatibility: add from to info to databases of maps", main_add_from_to},
+        {"add_t_max", "For compatibility: add t_max info to the database", main_add_t_max},
+    };
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+        return error;
     return 0;
 }
