@@ -317,6 +317,8 @@
         [0, 2]
       ]
     },
+
+    "#-------------- V -----------------": {},
     "CW_2_V_eta": {
       "cells_gen": [0],
       "cells": [0, 1, 2],
@@ -341,6 +343,33 @@
         [0, 8]
       ]
     },
+
+    "#-------------- A -----------------": {},
+    "CW_2_A_eta" : {
+      "cells_gen": [0, 1],
+      "cells": [2],
+      "operations": [
+        [0, 2],
+        [1, 2]
+      ]
+    },
+    "CW_eta_A_nu" : {
+      "cells_gen": [0, 2],
+      "cells": [4],
+      "operations": [
+        [0, 4],
+        [2, 4]
+      ]
+    },
+    "CW_nu_A_sigma" : {
+      "cells_gen": [0, 4],
+      "cells": [8],
+      "operations": [
+        [0, 8],
+        [4, 8]
+      ]
+    },
+
     "C2_C2": {
       "cells_gen": [0],
       "cells": [0, 1, 1, 2],
@@ -781,6 +810,54 @@
     },
 
     "#-------------- V -----------------": {},
+    "C2_to_CW_2_V_eta": {
+      "from": "C2",
+      "to": "CW_2_V_eta",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Ceta_to_CW_2_V_eta": {
+      "from": "Ceta",
+      "to": "CW_2_V_eta",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Ceta_to_CW_eta_V_nu": {
+      "from": "Ceta",
+      "to": "CW_eta_V_nu",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Cnu_to_CW_eta_V_nu": {
+      "from": "Cnu",
+      "to": "CW_eta_V_nu",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Cnu_to_CW_nu_V_sigma": {
+      "from": "Cnu",
+      "to": "CW_nu_V_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
+    "Csigma_to_CW_nu_V_sigma": {
+      "from": "Csigma",
+      "to": "CW_nu_V_sigma",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
+    },
     "CW_2_V_eta_to_C2_Ceta": {
       "from": "CW_2_V_eta",
       "to": "C2_Ceta",
