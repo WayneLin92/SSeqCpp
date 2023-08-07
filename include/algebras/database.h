@@ -92,7 +92,7 @@ public:
         return result;
     }
 
-    int step() const;
+    [[nodiscard]] int step() const;
 
 private:
     /***** suger template bind functions *****/
