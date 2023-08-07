@@ -63,7 +63,9 @@ using Staircases1d = std::vector<Staircases>;
 struct CofSeqStaircases
 {
     Staircases1d nodes_i, nodes_q, nodes_d;
+    bool isVirtI, isVirtQ, isVirtD;
     size_t indexI, indexQ, indexD;
+    AdamsDeg degI, degQ, degD;
     std::string nameX, nameY, nameCf;
     bool isRingX, isRingY, isRingCf;
     size_t indexX, indexY, indexCf;

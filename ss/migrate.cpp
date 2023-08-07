@@ -36,7 +36,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                                 }
                             }
                             else {
-                                if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r)) {
+                                if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r - 1)) {
                                     Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
                                     count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], int1d{}, r - 1, true);
                                 }

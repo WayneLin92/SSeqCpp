@@ -37,3 +37,6 @@ $P_k^{k+m}$ is the Thom space of $k\lambda_m$ over $RP^m$.
 
 ## Massey products
 $g=\langle h_0h_3^2,h_0,h_1,h_2\rangle$
+
+## Programming
+Search for S0 nontrivial differentials. `^[^\s].*S0 \(.*=\[\d.*\]`

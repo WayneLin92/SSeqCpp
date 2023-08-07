@@ -1016,7 +1016,7 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
     else if (cw1 == "Csigmasq" && cw2 == "C2_by_sigmasq")
         ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 15 + 1}, {-1, -1}}, -15, 1, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 14, 0, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 15, 0, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "Q_C2h5")
@@ -1026,13 +1026,15 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
     else if (cw1 == "Ctheta4" && cw2 == "C2_by_theta4")
         ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 31 + 1}, {-1, -1}}, -31, 1, t_max, stem_max);
     else if (cw1 == "Ctheta4" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 30, 0, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 31, 0, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "Q_C2h6")
         ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 64}}, 0, 1, t_max, stem_max);
+    else if (cw1 == "Ctheta5" && cw2 == "Q_CW_2_theta5_2_Eq_eta_theta5")
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2h6", {{1, 2}, {1, 65}}, 0, 1, t_max, stem_max);
     else if (cw1 == "Ctheta5" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 62, 0, t_max, stem_max);
+        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 63, 0, t_max, stem_max);
     else
         ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
     return 0;

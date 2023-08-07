@@ -90,6 +90,36 @@
         [63, 64]
       ]
     },
+    "C2_Ceta": {
+      "cells_gen": [0],
+      "cells": [0, 1, 2, 3],
+      "operations": [
+        [0, 1],
+        [0, 2],
+        [1, 3],
+        [2, 3]
+      ]
+    },
+    "Ceta_Cnu": {
+      "cells_gen": [0],
+      "cells": [0, 2, 4, 6],
+      "operations": [
+        [0, 2],
+        [0, 4],
+        [2, 6],
+        [4, 6]
+      ]
+    },
+    "Cnu_Csigma": {
+      "cells_gen": [0],
+      "cells": [0, 4, 8, 12],
+      "operations": [
+        [0, 4],
+        [0, 8],
+        [4, 12],
+        [8, 12]
+      ]
+    },
     "CW_2_eta": {
       "cells_gen": [0],
       "cells": [0, 1, 3],
@@ -718,9 +748,9 @@
         [0]
       ]
     },
-    "CW_2_theta5_2_Eq_eta_theta5_to_DC2h5": {
+    "CW_2_theta5_2_Eq_eta_theta5_to_DC2h6": {
       "from": "CW_2_theta5_2_Eq_eta_theta5",
-      "to": "DC2h5",
+      "to": "DC2h6",
       "sus": 1,
       "images": [
         [0, 1],
@@ -743,8 +773,8 @@
         [0, 1, 65]
       ]
     },
-    "DC2h5_to_Q_CW_2_theta5_2_Eq_eta_theta5": {
-      "from": "DC2h5",
+    "DC2h6_to_Q_CW_2_theta5_2_Eq_eta_theta5": {
+      "from": "DC2h6",
       "to": "Ceta",
       "total": "CW_2_theta5_2_Eq_eta_theta5",
       "sus": 0

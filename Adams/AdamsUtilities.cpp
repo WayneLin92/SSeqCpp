@@ -254,6 +254,7 @@ void UtExport(const std::string& dir)
     for (auto& cw : names_spectra)
         fmt::print("{}_AdamsSS.db ", cw);
     fmt::print("download\n");
+    fmt::print("cp ");
     for (auto& map : names_maps)
         fmt::print("map_AdamsSS_{}.db ", map);
     fmt::print("download\n");
@@ -327,44 +328,70 @@ void UtAppendTmaxToFilename(const std::string& dir)
 
 void UtPrintSSJson(const std::string& dir)
 {
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");                        /* match example: C2h4_AdamsSS_t100.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+)_to_(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2_to_S0.db */
-    std::smatch match;
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");              /* match example: C2h4_AdamsSS_t100.db */
+    std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)_to_(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2_to_S0.db */
+    std::smatch match, match1;
 
-    std::vector<std::string> old, new_;
+    std::map<std::string, std::array<int, 2>> table_maps; /* name -> [t_max, index] */
+    std::vector<std::string> outputs;
+    std::vector<std::string> paths;
+    std::vector<int> toBeRemoved;
+
+    int index = 0;
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
         std::string filename = entry.path().filename().string();
         if (std::regex_search(filename, match, is_AdamsSS_regex); match[0].matched) {
-            DbAdamsUt db(dir + "/" + filename);
+            // DbAdamsUt db(dir + "/" + filename);
             // fmt::print("{{ \"name\": \"{}\", \"path\": \"{}\", \"over\": \"S0\", \"deduce\": \"on\" }},\n", match[1].str(), filename);  ////
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
-            DbAdamsUt db(dir + "/" + filename);
-            int t_max = db.get_int("select value from version where id=817812698");
-            auto from = db.get_str("select value from version where id=446174262");
-            auto to = db.get_str("select value from version where id=1713085477");
-            int sus = db.get_int("select value from version where id=1585932889");
-            int fil = db.get_int("select value from version where id=651971502");
-            std::string str_sus = sus ? fmt::format(", \"sus\": {}", sus) : "";
-            std::string str_fil = fil ? fmt::format(", \"fil\": {}", fil) : "";
-            fmt::print("{{ \"name\": \"{}__{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\"{}{}, \"t_max\": {} }},\n", match[1].str(), match[2].str(), match[1].str(), match[2].str(), filename, from, to, str_sus,
-                       str_fil, t_max);  ////
+            try {
+                DbAdamsUt db(dir + "/" + filename);
+                int t_max = db.get_int("select value from version where id=817812698");
+                auto from = db.get_str("select value from version where id=446174262");
+                auto to = db.get_str("select value from version where id=1713085477");
+                int sus = db.get_int("select value from version where id=1585932889");
+                int fil = db.get_int("select value from version where id=651971502");
+                std::string str_sus = sus ? fmt::format(", \"sus\": {}", sus) : "";
+                std::string str_fil = fil ? fmt::format(", \"fil\": {}", fil) : "";
+                std::string name = fmt::format("{}__{}", match[1].str(), match[2].str());
+                if (ut::has(table_maps, name)) {
+                    if (table_maps.at(name)[0] < t_max) {
+                        toBeRemoved.push_back(table_maps.at(name)[1]);
+                        table_maps.at(name) = {t_max, index};
+                    }
+                }
+                else
+                    table_maps[name] = {t_max, index};
+                std::string tpl = "{{ \"name\": \"{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\"{}{}, \"t_max\": {} }},\n";
+                outputs.push_back(fmt::format(tpl, name, match[1].str(), match[2].str(), filename, from, to, str_sus, str_fil, t_max));  ////
+                paths.push_back(filename);
+                ++index;
+            }
+            catch (MyException&) {
+                fmt::print("Keep {}\n", filename);
+            }
         }
     }
+
+    for (auto& [name, t_max_index] : table_maps)
+        fmt::print("{}", outputs[t_max_index[1]]);
+    fmt::print("\n");
+    for (int i : toBeRemoved)
+        fmt::print("Remove {}\n", paths[i]);
 }
 
-void UtAddFromTo()
+void UtAddFromTo(const std::string& dir)
 {
-    std::regex is_map_regex("^map(?:_\\w+|)_Adams(?:_res|SS)_(\\w+)_to_(\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_regex("^map_Adams(?:_res|SS)_(\\w+)_to_(\\w+?)(?:_t\\d+|).db$"); /* match example: map_Adams_res_C2_to_S0.db */
 
     std::vector<std::string> matched_filenames;
-    std::string path = ".";
-    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
         std::string filename = entry.path().filename().string();
         std::smatch match;
 
         if (std::regex_search(filename, match, is_map_regex); match[0].matched) {
-            DbAdamsUt db(filename);
+            DbAdamsUt db(dir + "/" + filename);
             if (db.has_table("version")) {
                 try {
                     db.get_str("select value from version where id=446174262"); /* from */
@@ -422,7 +449,7 @@ int main_ut_export(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_rename(int argc, char** argv, int& index, const char* desc)
+int main_ut_rename(int argc, char** argv, int& index, const char* desc)
 {
     std::string old, new_;
 
@@ -435,7 +462,7 @@ int main_rename(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_app_t_max(int argc, char** argv, int& index, const char* desc)
+int main_ut_app_t_max(int argc, char** argv, int& index, const char* desc)
 {
     std::string dir = ".";
 
@@ -448,7 +475,7 @@ int main_app_t_max(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_ss_json(int argc, char** argv, int& index, const char* desc)
+int main_ut_ss_json(int argc, char** argv, int& index, const char* desc)
 {
     std::string dir = ".";
 
@@ -461,13 +488,20 @@ int main_ss_json(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_add_from_to(int, char**, int&, const char*)
+int main_ut_add_from_to(int argc, char** argv, int& index, const char* desc)
 {
-    UtAddFromTo();
+    std::string dir = ".";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    UtAddFromTo(dir);
     return 0;
 }
 
-int main_add_t_max(int argc, char** argv, int& index, const char* desc)
+int main_ut_add_t_max(int argc, char** argv, int& index, const char* desc)
 {
     std::string db_filename;
     int t_max = 0;
@@ -485,11 +519,11 @@ int main_ut(int argc, char** argv, int& index, const char* desc)
 {
     myio::SubCmdArg1d subcmds = {
         {"export", "Print commands for exporting new results", main_ut_export},
-        {"rename", "For compatibility: rename files", main_rename},
-        {"app_t_max", "append t_max to filenames", main_app_t_max},
-        {"ss_json", "print info for ss.json", main_ss_json},
-        {"add_from_to", "For compatibility: add from to info to databases of maps", main_add_from_to},
-        {"add_t_max", "For compatibility: add t_max info to the database", main_add_t_max},
+        {"rename", "For compatibility: rename files", main_ut_rename},
+        {"app_t_max", "append t_max to filenames", main_ut_app_t_max},
+        {"ss_json", "print info for ss.json", main_ut_ss_json},
+        {"add_from_to", "For compatibility: add from to info to databases of maps", main_ut_add_from_to},
+        {"add_t_max", "For compatibility: add t_max info to the database", main_ut_add_t_max},
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
