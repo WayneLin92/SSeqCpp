@@ -987,6 +987,10 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         images = {MMod(MMilnor(), 0)};
         return;
     }
+    if (cw1 == "CW_sigma_nu_eta_2" && cw2 == "tmf") {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
     if (cw1 == "RP1_256" && cw2 == "tmf_RP1_256") {
         images = {};
         int1d v_degs;
