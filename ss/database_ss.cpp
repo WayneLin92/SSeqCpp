@@ -201,7 +201,7 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
 
     /* insert into the database */
     db.begin_transaction();
-    db.drop_and_create_basis_ss(table_prefix);
+    db.drop_and_create_ss(table_prefix);
     db.save_basis_ss(table_prefix, nodes_ss);
 
     db.drop_and_create_pi_relations(name);
@@ -233,6 +233,31 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 
         Diagram diagram(diagram_name, DeduceFlag::no_op);
         int count = diagram.DeduceTrivialDiffs();
+        diagram.save(diagram_name, DeduceFlag::no_op);
+    }
+
+    return 0;
+}
+
+int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    fmt::print("Confirm to reset_cofseq {}\n", diagram_name);
+    if (myio::UserConfirm()) {
+        std::vector<std::string> names, paths;
+        std::vector<int> isRing;
+        GetAllDbNames(diagram_name, names, paths, isRing);
+        for (size_t i = 0; i < names.size(); ++i)
+            generate_ss(names[i], paths[i], isRing[i]);
+
+        Diagram diagram(diagram_name, DeduceFlag::cofseq);
+        //int count = diagram.DeduceTrivialCofSeqDiffs();
         diagram.save(diagram_name, DeduceFlag::no_op);
     }
 

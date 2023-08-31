@@ -82,7 +82,7 @@ struct IndexMMod
 {
     MMod m;
     unsigned i, index;
-    bool operator<(IndexMMod rhs)
+    bool operator<(IndexMMod rhs) const
     {
         return rhs.m < m;
     }

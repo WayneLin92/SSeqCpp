@@ -31,12 +31,12 @@ int1d Deserialize<int1d>(const std::string& str)
     return result;
 }
 
-Database::Database(const std::string& filename)
+Database::Database(std::string filename) : filename_(std::move(filename))
 {
-    if (myio::FileExists(filename))
+    if (myio::FileExists(filename_))
         newFile_ = false;
-    if (sqlite3_open(filename.c_str(), &conn_) != SQLITE_OK) {
-        fmt::print("Cannot open database {}\n", filename);
+    if (sqlite3_open(filename_.c_str(), &conn_) != SQLITE_OK) {
+        fmt::print("Cannot open database {}\n", filename_);
         throw MyException(0x8de81e80, "Cannot open database");
     }
 }
@@ -63,8 +63,8 @@ void Database::sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const
 {
     int error_code = sqlite3_prepare_v2(conn_, zSql, int(strlen(zSql)) + 1, ppStmt, NULL);
     if (error_code != SQLITE_OK) {
-        std::cout << "0xbce2dcfeU: Sqlite3 compiling " + std::string(zSql) + " :" + sqlite3_errstr(error_code) << '\n';
-        throw MyException(0xbce2dcfeU, std::string("Sqlite3 compiling ") + zSql + " :" + sqlite3_errstr(error_code));
+        fmt::print("{} - 0xbce2dcfeU: Sqlite3 compiling {}: {}\n", filename_, zSql, sqlite3_errstr(error_code));
+        throw MyException(0xbce2dcfeU, "Sqlite3 compiling error");
     }
 }
 
@@ -72,8 +72,8 @@ void Database::sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) co
 {
     int error_code = sqlite3_prepare_v2(conn_, sql.c_str(), int(sql.size()) + 1, ppStmt, NULL);
     if (error_code != SQLITE_OK) {
-        std::cout << "0xda6ab7f6U: Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code) << '\n';
-        throw MyException(0xda6ab7f6U, "Sqlite3 compiling " + sql + " :" + sqlite3_errstr(error_code));
+        fmt::print("{} - 0xda6ab7f6U: Sqlite3 compiling {}: {}\n", filename_, sql, sqlite3_errstr(error_code));
+        throw MyException(0xda6ab7f6U, "Sqlite3 compiling error");
     }
 }
 
@@ -91,7 +91,8 @@ int Database::get_int(const std::string& sql) const
     if (stmt.step() == SQLITE_ROW)
         if (stmt.column_type(0) == SQLITE_INTEGER)
             return stmt.column_int(0);
-    throw MyException(0xeffbf28c, "Failed to get_int using: " + sql);
+    fmt::print("{} - 0xeffbf28c: Failed to get_int() using {}\n", filename_, sql);
+    throw MyException(0xeffbf28c, "Failed to get_int()");
 }
 
 int Database::get_int(const std::string& sql, int default_) const
@@ -100,8 +101,10 @@ int Database::get_int(const std::string& sql, int default_) const
     if (stmt.step() == SQLITE_ROW) {
         if (stmt.column_type(0) == SQLITE_INTEGER)
             return stmt.column_int(0);
-        else
-            throw MyException(0xa429d1aU, "Incorrect type using: " + sql);
+        else {
+            fmt::print("{} - 0xa429d1aU: Failed to get_int() using {}\n", filename_, sql);
+            throw MyException(0xa429d1aU, "Incorrect type");
+        }
     }
     return default_;
 }
@@ -112,7 +115,8 @@ std::string Database::get_str(const std::string& sql) const
     if (stmt.step() == SQLITE_ROW)
         if (stmt.column_type(0) == SQLITE_TEXT)
             return stmt.column_str(0);
-    throw MyException(0xeffbf28c, "Failed to get_str using: " + sql);
+    fmt::print("{} - 0xeffbf28c: Failed to get_str() using {}\n", filename_, sql);
+    throw MyException(0xeffbf28c, "Failed to get_str()");
 }
 
 std::vector<int> Database::get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const

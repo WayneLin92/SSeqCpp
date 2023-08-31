@@ -44,7 +44,7 @@ void generate_db(const std::string& name, int t_max, int r = 2)
     db.create_generators(table_prefix);
     db.create_relations(table_prefix);
     db.create_basis(table_prefix);
-    db.drop_and_create_basis_ss(table_prefix);
+    db.drop_and_create_ss(table_prefix);
     db.save_basis_ss(table_prefix, nodes_ss);
 
     db.drop_and_create_pi_relations(name);

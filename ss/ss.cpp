@@ -494,7 +494,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
     int depth = int(ring.nodes_ss.size() - 2);
     const Poly poly_x = Indices2Poly(x, ring.basis.at(deg_x));
     const Staircase& sc_dx = GetRecentSc(ring.nodes_ss, deg_dx);
-    const auto [first_dx, count_dx] = CountPossDrTgt(ring.nodes_ss, ring.t_max, deg_dx, r);
+    auto [first_dx, count_dx] = CountPossDrTgt(ring.nodes_ss, ring.t_max, deg_dx, r);
     if (count_dx == 0 || count_dx > deduce_count_max_)
         return 0;
     unsigned j_max = 1 << count_dx;
@@ -606,30 +606,29 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
         }
     }
     for (size_t iMap : ring.ind_maps) { /* Loop over map */
-        auto& map = maps_[iMap];
-        if (deg_dx.t > map.t_max)
+        auto map = (MapRing2Ring*)maps_[iMap].get();
+        if (deg_dx.t > map->t_max)
             continue;
-        auto& f = std::get<MapRing2Ring>(map.map);
-        auto fx = f.map(x, deg_x, rings_);
+        auto fx = map->map(x, deg_x, *this);
         if (!fx.empty()) {
             bool fdx_always_zero = true;
             for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                 dx.clear();
                 for (int k : two_expansion(j))
                     dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
-                int1d fdx = f.map(dx, deg_dx, rings_);
-                if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(rings_[f.to].nodes_ss, deg_dx), fdx, r)) {
+                int1d fdx = map->map(dx, deg_dx, *this);
+                if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(rings_[map->to].nodes_ss, deg_dx), fdx, r)) {
                     fdx_always_zero = false;
                     break;
                 }
             }
-            if (fdx_always_zero && IsNewDiff(rings_[f.to].nodes_ss, deg_x, fx, {}, r)) {
+            if (fdx_always_zero && IsNewDiff(rings_[map->to].nodes_ss, deg_x, fx, {}, r)) {
                 if (!printed_dx) {
                     printed_dx = true;
                     Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                 }
-                Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map.display,  rings_[f.to].name), deg_x, fx, {}, r);
-                count += SetRingDiffGlobal(f.to, deg_x, fx, {}, r, true);
+                Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  rings_[map->to].name), deg_x, fx, {}, r);
+                count += SetRingDiffGlobal(map->to, deg_x, fx, {}, r, true);
             }
         }
     }
@@ -653,7 +652,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
     int depth = int(nodes_ss.size() - 2);
     const Mod poly_x = Indices2Mod(x, basis.at(deg_x));
     const Staircase& sc_dx = GetRecentSc(nodes_ss, deg_dx);
-    const auto [first_dx, count_dx] = CountPossDrTgt(nodes_ss, t_max, deg_dx, r);
+    auto [first_dx, count_dx] = CountPossDrTgt(nodes_ss, t_max, deg_dx, r);
     if (count_dx == 0 || count_dx > deduce_count_max_)
         return 0;
     unsigned j_max = 1 << count_dx;
@@ -709,87 +708,59 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
     }
     for (size_t iMap : mod.ind_maps) { /* Loop over map */
         auto& map = maps_[iMap];
-        if (deg_dx.t > map.t_max)
+        if (deg_dx.t > map->t_max)
             continue;
 
-        if (std::holds_alternative<MapMod2Ring>(map.map)) {
-            auto& f = std::get<MapMod2Ring>(map.map);
-            auto fx = f.map(x, deg_x, modules_, rings_);
+        size_t to;
+        if (map->isToRing(to)) {
+            auto fx = map->map(x, deg_x, *this);
             if (!fx.empty()) {
-                AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
+                AdamsDeg deg_fx = deg_x + map->deg;
                 AdamsDeg deg_fdx = deg_fx + AdamsDeg(r, r - 1);
                 bool fdx_always_zero = true;
                 for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                     dx.clear();
                     for (int k : two_expansion(j))
                         dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
-                    int1d fdx = f.map(dx, deg_dx, modules_, rings_);
-                    if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(rings_[f.to].nodes_ss, deg_fdx), fdx, r)) {
+                    int1d fdx = map->map(dx, deg_dx, *this);
+                    if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(rings_[to].nodes_ss, deg_fdx), fdx, r)) {
                         fdx_always_zero = false;
                         break;
                     }
                 }
-                if (fdx_always_zero && IsNewDiff(rings_[f.to].nodes_ss, deg_fx, fx, {}, r)) {
+                if (fdx_always_zero && IsNewDiff(rings_[to].nodes_ss, deg_fx, fx, {}, r)) {
                     if (!printed_dx) {
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map.display,  rings_[f.to].name), deg_fx, fx, {}, r);
-                    count += SetRingDiffGlobal(f.to, deg_fx, fx, {}, r, true);
-                }
-            }
-        }
-        else if (std::holds_alternative<MapMod2Mod>(map.map)) {
-            auto& f = std::get<MapMod2Mod>(map.map);
-            auto fx = f.map(x, deg_x, modules_);
-            if (!fx.empty()) {
-                AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
-                AdamsDeg deg_fdx = deg_fx + AdamsDeg(r, r - 1);
-                bool fdx_always_zero = true;
-                for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
-                    dx.clear();
-                    for (int k : two_expansion(j))
-                        dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
-                    int1d fdx = f.map(dx, deg_dx, modules_);
-                    if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(modules_[f.to].nodes_ss, deg_fdx), fdx, r)) {
-                        fdx_always_zero = false;
-                        break;
-                    }
-                }
-                if (fdx_always_zero && IsNewDiff(modules_[f.to].nodes_ss, deg_fx, fx, {}, r)) {
-                    if (!printed_dx) {
-                        printed_dx = true;
-                        Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
-                    }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map.display,  modules_[f.to].name), deg_fx, fx, {}, r);
-                    count += SetModuleDiffGlobal(f.to, deg_fx, fx, {}, r, true);
+                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  rings_[to].name), deg_fx, fx, {}, r);
+                    count += SetRingDiffGlobal(to, deg_fx, fx, {}, r, true);
                 }
             }
         }
         else {
-            auto& f = std::get<MapMod2ModV2>(map.map);
-            auto fx = f.map(x, deg_x, modules_, maps_);
+            auto fx = map->map(x, deg_x, *this);
             if (!fx.empty()) {
-                AdamsDeg deg_fx = deg_x + AdamsDeg(f.fil, f.fil - f.sus);
+                AdamsDeg deg_fx = deg_x + map->deg;
                 AdamsDeg deg_fdx = deg_fx + AdamsDeg(r, r - 1);
                 bool fdx_always_zero = true;
                 for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                     dx.clear();
                     for (int k : two_expansion(j))
                         dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
-                    int1d fdx = f.map(dx, deg_dx, modules_, maps_);
-                    if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(modules_[f.to].nodes_ss, deg_fdx), fdx, r)) {
+                    int1d fdx = map->map(dx, deg_dx, *this);
+                    if (!fdx.empty() && !IsZeroOnLevel(GetRecentSc(modules_[to].nodes_ss, deg_fdx), fdx, r)) {
                         fdx_always_zero = false;
                         break;
                     }
                 }
-                if (fdx_always_zero && IsNewDiff(modules_[f.to].nodes_ss, deg_fx, fx, {}, r)) {
+                if (fdx_always_zero && IsNewDiff(modules_[to].nodes_ss, deg_fx, fx, {}, r)) {
                     if (!printed_dx) {
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map.display,  modules_[f.to].name), deg_fx, fx, {}, r);
-                    count += SetModuleDiffGlobal(f.to, deg_fx, fx, {}, r, true);
+                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  modules_[to].name), deg_fx, fx, {}, r);
+                    count += SetModuleDiffGlobal(to, deg_fx, fx, {}, r, true);
                 }
             }
         }

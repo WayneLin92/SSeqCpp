@@ -587,37 +587,37 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 
 void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
 {
-    //int t_max = rings_.t_max;
-    //auto& gb = rings_.gb;
-    //auto& basis = rings_.basis;
-    //auto& nodes_ss = rings_.nodes_ss;
-    //auto& pi_gb = rings_.pi_gb;
-    //auto& nodes_pi_basis = rings_.nodes_pi_basis;
-    //auto& pi_gen_Einf = rings_.pi_gen_Einf;
+    // int t_max = rings_.t_max;
+    // auto& gb = rings_.gb;
+    // auto& basis = rings_.basis;
+    // auto& nodes_ss = rings_.nodes_ss;
+    // auto& pi_gb = rings_.pi_gb;
+    // auto& nodes_pi_basis = rings_.nodes_pi_basis;
+    // auto& pi_gen_Einf = rings_.pi_gen_Einf;
 
-    //int count_ss_old = count_ss;
+    // int count_ss_old = count_ss;
 
-    //Poly tmp;
-    //for (int t = 1; t <= t_max; ++t) {
-    //    for (int s = 0; s <= t; ++s) {
-    //        AdamsDeg deg(s, t);
-    //        if (deg.stem() < deg_min.stem() || deg.s < deg_min.s)
-    //            continue;
-    //        algZ::Mon1d pi_basis_d = GenBasis(pi_gb, deg, nodes_pi_basis);
-    //        if (basis.find(deg) != basis.end()) {
-    //            /* Add new boundaries to ss */
-    //            int2d boundaries = GetRingGbEinf(deg);
-    //            const int r = deg.s + 1;
-    //            const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
-    //            for (int1d& boundary : boundaries) {
-    //                if (!boundaries.empty()) {
-    //                    const int count1 = SetRingDiffGlobal(deg_src, {}, boundary, r);
-    //                    if (count1 > 0) {
-    //                        Logger::LogDiffBoun(depth, enumReason::htpy2ss, "S0", deg, boundary);
-    //                        count_ss += count1;
-    //                    }
-    //                }
-    //            }
+    // Poly tmp;
+    // for (int t = 1; t <= t_max; ++t) {
+    //     for (int s = 0; s <= t; ++s) {
+    //         AdamsDeg deg(s, t);
+    //         if (deg.stem() < deg_min.stem() || deg.s < deg_min.s)
+    //             continue;
+    //         algZ::Mon1d pi_basis_d = GenBasis(pi_gb, deg, nodes_pi_basis);
+    //         if (basis.find(deg) != basis.end()) {
+    //             /* Add new boundaries to ss */
+    //             int2d boundaries = GetRingGbEinf(deg);
+    //             const int r = deg.s + 1;
+    //             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
+    //             for (int1d& boundary : boundaries) {
+    //                 if (!boundaries.empty()) {
+    //                     const int count1 = SetRingDiffGlobal(deg_src, {}, boundary, r);
+    //                     if (count1 > 0) {
+    //                         Logger::LogDiffBoun(depth, enumReason::htpy2ss, "S0", deg, boundary);
+    //                         count_ss += count1;
+    //                     }
+    //                 }
+    //             }
 
     //            /* Construct the projection map */
     //            auto& basis_d = basis.at(deg);
@@ -697,45 +697,45 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //        }
     //    }
     //}
-    //if (count_ss_old != count_ss)
+    // if (count_ss_old != count_ss)
     //    UpdatePossEinf(rings_.nodes_ss, rings_.basis_ss_possEinf);
 }
 
 void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
 {
-    //auto& ssCof = modules_[iCof];
-    //int t_max = ssCof.t_max;
-    //auto& gb = ssCof.gb;
-    //auto& basis = ssCof.basis;
-    //auto& nodes_ss = ssCof.nodes_ss;
-    //auto& pi_gb = ssCof.pi_gb;
-    //auto& nodes_pi_basis = ssCof.nodes_pi_basis;
-    //auto& pi_gen_Einf = ssCof.pi_gen_Einf;
-    //auto& pi_qt = ssCof.nodes_pi_qt;
+    // auto& ssCof = modules_[iCof];
+    // int t_max = ssCof.t_max;
+    // auto& gb = ssCof.gb;
+    // auto& basis = ssCof.basis;
+    // auto& nodes_ss = ssCof.nodes_ss;
+    // auto& pi_gb = ssCof.pi_gb;
+    // auto& nodes_pi_basis = ssCof.nodes_pi_basis;
+    // auto& pi_gen_Einf = ssCof.pi_gen_Einf;
+    // auto& pi_qt = ssCof.nodes_pi_qt;
 
-    //int count_ss_old = count_ss;
+    // int count_ss_old = count_ss;
 
-    //Mod tmp;
-    //for (int t = 0; t <= t_max; ++t) {
-    //    for (int s = 0; s <= t; ++s) {
-    //        AdamsDeg deg(s, t);
-    //        if (deg.stem() < deg_min.stem() || deg.s < deg_min.s)
-    //            continue;
-    //        algZ::MMod1d pi_basis_d = GenBasis(pi_gb, deg, rings_.nodes_pi_basis);
-    //        if (basis.find(deg) != basis.end()) {
-    //            /* Add new boundaries to ss */
-    //            int2d boundaries = GetModuleGbEinf(iCof, deg);
-    //            const int r = deg.s + 1;
-    //            const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
-    //            for (auto& boundary : boundaries) {
-    //                if (!boundaries.empty()) {
-    //                    const int count1 = SetModuleDiffGlobal(iCof, deg_src, {}, boundary, r);
-    //                    if (count1 > 0) {
-    //                        Logger::LogDiffBoun(depth, enumReason::htpy2ss, ssCof.name, deg, boundary);
-    //                        count_ss += count1;
-    //                    }
-    //                }
-    //            }
+    // Mod tmp;
+    // for (int t = 0; t <= t_max; ++t) {
+    //     for (int s = 0; s <= t; ++s) {
+    //         AdamsDeg deg(s, t);
+    //         if (deg.stem() < deg_min.stem() || deg.s < deg_min.s)
+    //             continue;
+    //         algZ::MMod1d pi_basis_d = GenBasis(pi_gb, deg, rings_.nodes_pi_basis);
+    //         if (basis.find(deg) != basis.end()) {
+    //             /* Add new boundaries to ss */
+    //             int2d boundaries = GetModuleGbEinf(iCof, deg);
+    //             const int r = deg.s + 1;
+    //             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
+    //             for (auto& boundary : boundaries) {
+    //                 if (!boundaries.empty()) {
+    //                     const int count1 = SetModuleDiffGlobal(iCof, deg_src, {}, boundary, r);
+    //                     if (count1 > 0) {
+    //                         Logger::LogDiffBoun(depth, enumReason::htpy2ss, ssCof.name, deg, boundary);
+    //                         count_ss += count1;
+    //                     }
+    //                 }
+    //             }
 
     //            /* Construct the projection map */
     //            auto& basis_d = basis.at(deg);
@@ -826,7 +826,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //        }
     //    }
     //}
-    //if (count_ss_old != count_ss)
+    // if (count_ss_old != count_ss)
     //    UpdatePossEinf(ssCof.nodes_ss, ssCof.basis_ss_possEinf);
 }
 
@@ -862,12 +862,12 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //}
 
     ///* multiplicative structures */
-    //int old_count_homotopy = count_homotopy;
-    //std::vector<size_t> indices_start(all_basis_ss_.size(), 0);
-    //while (true) {
-    //    { /* sphere */
-    //        auto& pi_gb = rings_.pi_gb;
-    //        size_t iSS = 0;
+    // int old_count_homotopy = count_homotopy;
+    // std::vector<size_t> indices_start(all_basis_ss_.size(), 0);
+    // while (true) {
+    //     { /* sphere */
+    //         auto& pi_gb = rings_.pi_gb;
+    //         size_t iSS = 0;
 
     //        algZ::Poly1d new_rels;
     //        size_t indices_end = pi_gb.data().size();
@@ -1046,7 +1046,7 @@ int Diagram::DeduceExtensions2tor()
     //    }
     //    AddPiRelsRing(std::move(new_rels));
     //}
-    //for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
+    // for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
     //    auto& ssCof = modules_[iCof];
     //    ut::map_seq2d<int, 0> torCof;
     //    for (size_t stem = 0; stem < ssCof.basis_ss_possEinf.data.size(); ++stem) {
@@ -1099,52 +1099,52 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     int count_htpy = 0;
 
     /* Populate `basis_S0` and `basis_Cofs` */
-    //algZ::Mon2d basis_S0(size_t(rings_.t_max + 1));
-    //std::vector<algZ::MMod2d> basis_Cofs(modules_.size());
-    //for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
-    //    basis_Cofs[iCof].resize(size_t(modules_[iCof].t_max + 1));
-    //if (depth == 0) {
-    //    for (auto& [deg, pi_basis_d] : rings_.nodes_pi_basis.front())
-    //        for (auto& m : pi_basis_d.nodes_pi_basis)
-    //            basis_S0[deg.stem()].push_back(m);  //
-    //    for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
-    //        for (auto& [deg, pi_basis_d] : modules_[iCof].nodes_pi_basis.front())
-    //            for (auto& m : pi_basis_d.nodes_pi_basis)
-    //                basis_Cofs[iCof][deg.stem()].push_back(m);
-    //}
-    //else {
-    //    std::set<AdamsDeg> degs_S0;
-    //    for (auto& pi_basis_i : rings_.nodes_pi_basis)
-    //        for (auto& [deg, _] : pi_basis_i)
-    //            degs_S0.insert(deg);
-    //    for (AdamsDeg deg : degs_S0)
-    //        for (auto& m : GetRecentPiBasis(rings_.nodes_pi_basis, deg)->nodes_pi_basis)
-    //            basis_S0[deg.stem()].push_back(m);
-    //    std::set<AdamsDeg> degs_Cof;
-    //    for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
-    //        degs_Cof.clear();
-    //        for (auto& pi_basis_i : modules_[iCof].nodes_pi_basis)
-    //            for (auto& [deg, _] : pi_basis_i)
-    //                degs_Cof.insert(deg);
-    //        for (AdamsDeg deg : degs_Cof)
-    //            for (auto& m : GetRecentPiBasis(modules_[iCof].nodes_pi_basis, deg)->nodes_pi_basis)
-    //                basis_Cofs[iCof][deg.stem()].push_back(m);
-    //    }
-    //}
-    //int1d O1s_S0, O2s_S0, isSingle_S0;
-    //PossMoreEinfFirstS_Ring(O1s_S0, O2s_S0, isSingle_S0);
-    //algZ::Poly tmp;
-    //algZ::Mod tmpm;
+    // algZ::Mon2d basis_S0(size_t(rings_.t_max + 1));
+    // std::vector<algZ::MMod2d> basis_Cofs(modules_.size());
+    // for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
+    //     basis_Cofs[iCof].resize(size_t(modules_[iCof].t_max + 1));
+    // if (depth == 0) {
+    //     for (auto& [deg, pi_basis_d] : rings_.nodes_pi_basis.front())
+    //         for (auto& m : pi_basis_d.nodes_pi_basis)
+    //             basis_S0[deg.stem()].push_back(m);  //
+    //     for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
+    //         for (auto& [deg, pi_basis_d] : modules_[iCof].nodes_pi_basis.front())
+    //             for (auto& m : pi_basis_d.nodes_pi_basis)
+    //                 basis_Cofs[iCof][deg.stem()].push_back(m);
+    // }
+    // else {
+    //     std::set<AdamsDeg> degs_S0;
+    //     for (auto& pi_basis_i : rings_.nodes_pi_basis)
+    //         for (auto& [deg, _] : pi_basis_i)
+    //             degs_S0.insert(deg);
+    //     for (AdamsDeg deg : degs_S0)
+    //         for (auto& m : GetRecentPiBasis(rings_.nodes_pi_basis, deg)->nodes_pi_basis)
+    //             basis_S0[deg.stem()].push_back(m);
+    //     std::set<AdamsDeg> degs_Cof;
+    //     for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
+    //         degs_Cof.clear();
+    //         for (auto& pi_basis_i : modules_[iCof].nodes_pi_basis)
+    //             for (auto& [deg, _] : pi_basis_i)
+    //                 degs_Cof.insert(deg);
+    //         for (AdamsDeg deg : degs_Cof)
+    //             for (auto& m : GetRecentPiBasis(modules_[iCof].nodes_pi_basis, deg)->nodes_pi_basis)
+    //                 basis_Cofs[iCof][deg.stem()].push_back(m);
+    //     }
+    // }
+    // int1d O1s_S0, O2s_S0, isSingle_S0;
+    // PossMoreEinfFirstS_Ring(O1s_S0, O2s_S0, isSingle_S0);
+    // algZ::Poly tmp;
+    // algZ::Mod tmpm;
 
-    //algZ::Poly1d new_rels_S0;
-    //algZ::Mod2d new_rels_Cofs(modules_.size());
-    //int1d f_changed(modules_.size(), 0);
-    //AdamsDeg2d deg_perms_Cof(modules_.size());
-    //for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
-    //    auto& ssCof = modules_[iCof];
-    //    auto& pi_f = ssCof.nodes_pi_qt;
-    //    int d_f = ssCof.deg_qt.t;
-    //    auto& h = rings_.pi_gb.Gen((uint32_t)iCof);
+    // algZ::Poly1d new_rels_S0;
+    // algZ::Mod2d new_rels_Cofs(modules_.size());
+    // int1d f_changed(modules_.size(), 0);
+    // AdamsDeg2d deg_perms_Cof(modules_.size());
+    // for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
+    //     auto& ssCof = modules_[iCof];
+    //     auto& pi_f = ssCof.nodes_pi_qt;
+    //     int d_f = ssCof.deg_qt.t;
+    //     auto& h = rings_.pi_gb.Gen((uint32_t)iCof);
 
     //    int1d O1s_Cof, O2s_Cof, isSingle_Cof;
     //    PossMoreEinfFirstS_Mod(iCof, O1s_Cof, O2s_Cof, isSingle_Cof);
@@ -1496,20 +1496,20 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //        }
     //    }
     //}
-    //AddPiRelsRing(std::move(new_rels_S0));
-    //for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
+    // AddPiRelsRing(std::move(new_rels_S0));
+    // for (size_t iCof = 0; iCof < modules_.size(); ++iCof) {
     //    AddPiRelsCof(iCof, std::move(new_rels_Cofs[iCof]));
     //    if (f_changed[iCof])
     //        AddPiRelsByNat(iCof);
     //}
-    //int sum_perms = 0;
-    //for (size_t iCof = 0; iCof < deg_perms_Cof.size(); ++iCof) {
+    // int sum_perms = 0;
+    // for (size_t iCof = 0; iCof < deg_perms_Cof.size(); ++iCof) {
     //    for (auto& deg_x : deg_perms_Cof[iCof]) {
     //        SetPermanentCycle(depth, iCof, deg_x);
     //        ++sum_perms;
     //    }
     //}
-    //if (count_htpy + sum_perms) {
+    // if (count_htpy + sum_perms) {
     //    int count_ss = 0;
     //    SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
     //    if (sum_perms)
@@ -1592,13 +1592,13 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
 
 void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, DeduceFlag flag)
 {
-    //SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
-    //count_htpy += DeduceTrivialExtensions(depth);
-    //if (flag & DeduceFlag::pi_exact)
-    //    count_htpy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
+    // SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
+    // count_htpy += DeduceTrivialExtensions(depth);
+    // if (flag & DeduceFlag::pi_exact)
+    //     count_htpy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
 
-    //algZ::Poly tmp;
-    //algZ::Mod tmpm;
+    // algZ::Poly tmp;
+    // algZ::Mod tmpm;
     ///* top cell maps */
     //{
     //    algZ::Poly1d new_rels_S0; /* By exactness h * qi = 0 */
@@ -1695,18 +1695,18 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //}
 
     ///* multiplicative structures */
-    //std::vector<size_t> i_start(all_basis_ss_.size(), 0);
-    //int t_max = rings_.t_max;
-    //for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
-    //    if (t_max < modules_[iCof].t_max)
-    //        t_max = modules_[iCof].t_max;
-    //int t = 0;
-    //while (t <= t_max) {
-    //    if (ut::has(rings_.pi_gb.leads_group_by_t(), t)) { /* sphere */
-    //        auto& pi_gb = rings_.pi_gb;
-    //        size_t iSS = 0;
-    //        auto& indices = pi_gb.leads_group_by_t().at(t);
-    //        size_t indices_size = indices.size();
+    // std::vector<size_t> i_start(all_basis_ss_.size(), 0);
+    // int t_max = rings_.t_max;
+    // for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
+    //     if (t_max < modules_[iCof].t_max)
+    //         t_max = modules_[iCof].t_max;
+    // int t = 0;
+    // while (t <= t_max) {
+    //     if (ut::has(rings_.pi_gb.leads_group_by_t(), t)) { /* sphere */
+    //         auto& pi_gb = rings_.pi_gb;
+    //         size_t iSS = 0;
+    //         auto& indices = pi_gb.leads_group_by_t().at(t);
+    //         size_t indices_size = indices.size();
 
     //        for (size_t i = i_start[iSS]; i < indices_size; ++i) {
     //            std::cout << "S0  t=" << t << '/' << t_max << "  i=" << i << '/' << indices.size() << "                \r";
@@ -1901,8 +1901,8 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 
     DeduceFlag flag = DeduceFlag::pi;
     for (auto& f : strFlags) {
-        if (f == "exact")
-            flag = flag | DeduceFlag::pi_exact;
+        // if (f == "exact")
+        //     flag = flag | DeduceFlag::pi_exact;
     }
 
     Diagram diagram(diagram_name, flag);

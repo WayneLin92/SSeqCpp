@@ -157,10 +157,11 @@ private:
 
 protected:
     bool newFile_ = true;
+    std::string filename_;
 
 public:
     Database() = default;
-    explicit Database(const std::string& filename);
+    explicit Database(std::string filename);
     ~Database();
     void disconnect();
 

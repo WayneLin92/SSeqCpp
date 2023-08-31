@@ -89,7 +89,7 @@ constexpr std::array<std::pair<int, int>, 3> coor_Ceta = {std::make_pair(3, 0), 
 constexpr std::array<std::pair<int, int>, 15> coor_Cnu = {std::make_pair(9, 5), {10, 6}, {11, 2}, {11, 3}, {11, 4}, {11, 5}, {11, 6}, {11, 7}, {5, 1}, {6, 2}, {7, 2}, {7, 3}, {7, 4}, {8, 3}, {9, 4}};
 constexpr std::array<std::pair<int, int>, 8> coor_Csigma = {std::make_pair(15, 6), {15, 7}, {15, 8}, {1, 1}, {2, 2}, {3, 1}, {3, 2}, {3, 3}};
 constexpr std::array<std::pair<int, int>, 7> coor_j = {std::make_pair(2, 2), {3, 1}, {3, 2}, {3, 3}, {7, 2}, {7, 3}, {7, 4}};
-template<typename Arr>
+template <typename Arr>
 constexpr auto perm_degs(Arr coor, AdamsDeg mod)
 {
     std::array<AdamsDeg, coor.size()> result = {};
@@ -344,8 +344,8 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
         int count_homotopy1 = 0;
         SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
         DeduceTrivialExtensions(depth + 1);
-        if (flag & DeduceFlag::pi_exact)
-            DeduceExtensionsByExactness(0, 100, depth + 1);
+        // if (flag & DeduceFlag::pi_exact)
+        //     DeduceExtensionsByExactness(0, 100, depth + 1);
     }
 
     const size_t num_cw = rings_.size() + modules_.size();
@@ -433,8 +433,8 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
             flag = flag | DeduceFlag::xy;
         else if (f == "pi")
             flag = flag | DeduceFlag::pi;
-        else if (f == "exact")
-            flag = flag | DeduceFlag::pi_exact;
+        // else if (f == "exact")
+        //     flag = flag | DeduceFlag::pi_exact;
         else {
             std::cout << "Not a supported flag: " << f << '\n';
             return 100;
@@ -448,8 +448,8 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
         int count_homotopy1 = 0;
         diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
         diagram.DeduceTrivialExtensions(0);
-        if (flag & DeduceFlag::pi_exact)
-            diagram.DeduceExtensionsByExactness(0, 100, 0);
+        // if (flag & DeduceFlag::pi_exact)
+        //     diagram.DeduceExtensionsByExactness(0, 100, 0);
     }
     count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
     if (flag & DeduceFlag::pi) {
@@ -516,11 +516,11 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
- int main_deduce(int, char**, int&, const char*);
- int main_deduce_ext(int, char**, int&, const char*);
- int main_deduce_ext_def(int, char**, int&, const char*);
- int main_deduce_ext_def2(int, char**, int&, const char*);
- int main_deduce_ext_2tor(int, char**, int&, const char*);
+int main_deduce(int, char**, int&, const char*);
+int main_deduce_ext(int, char**, int&, const char*);
+int main_deduce_ext_def(int, char**, int&, const char*);
+int main_deduce_ext_def2(int, char**, int&, const char*);
+int main_deduce_ext_2tor(int, char**, int&, const char*);
 
 /* Deduce differentials and extensions */
 int main_deduce(int argc, char** argv, int& index, const char* desc)

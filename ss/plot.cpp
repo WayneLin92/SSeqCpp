@@ -467,108 +467,86 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
     */
     for (size_t iMap = 0; iMap < maps.size(); ++iMap) {
         auto& map = maps[iMap];
+        size_t from, to;
         json js;
         js["maps"] = json::object();
         auto& map_json = js["maps"];
 
-        if (std::holds_alternative<MapRing2Ring>(map.map)) {
-            auto& f = std::get<MapRing2Ring>(map.map);
-            auto& nodes_ss = rings[f.from].nodes_ss;
-            js["from"] = rings[f.from].name;
-            js["to"] = rings[f.to].name;
+        if (map->isFromRing(from)) {
+            if (!map->isToRing(to))
+                throw MyException(0x189448f, "Incorrect map type");
+            auto& nodes_ss = rings[from].nodes_ss;
+            js["from"] = rings[from].name;
+            js["to"] = rings[to].name;
             js["sus"] = 0;
-            auto& deg2id1 = all_deg2id[f.from];
-            auto& deg2id2 = all_deg2id[f.to];
+            auto& deg2id1 = all_deg2id[from];
+            auto& deg2id2 = all_deg2id[to];
             for (auto& [deg, sc] : nodes_ss.front()) {
-                if (deg.t > map.t_max)
+                if (deg.t > map->t_max)
                     break;
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    int1d fx = f.map(sc.basis[i], deg, rings);
+                    int1d fx = map->map(sc.basis[i], deg, diagram);
                     if (!fx.empty()) {
                         auto key = std::to_string(deg2id1.at(deg) + (int)i);
                         map_json[key] = json::array();
-                        int1d fx_ss = lina::GetInvImage(rings[f.to].nodes_ss.front().at(deg).basis, fx);
+                        int1d fx_ss = lina::GetInvImage(rings[to].nodes_ss.front().at(deg).basis, fx);
                         for (int j : fx_ss)
                             map_json[key].push_back(deg2id2.at(deg) + j);
                     }
                 }
             }
         }
-        else if (std::holds_alternative<MapMod2Ring>(map.map)) {
-            auto& f = std::get<MapMod2Ring>(map.map);
-            auto& nodes_ss = mods[f.from].nodes_ss;
-            js["from"] = mods[f.from].name;
-            js["to"] = rings[f.to].name;
-            js["sus"] = f.sus;
-            auto& deg2id1 = all_deg2id[f.from + rings.size()];
-            auto& deg2id2 = all_deg2id[f.to];
-            for (auto& [deg, sc] : nodes_ss.front()) {
-                if (deg.t > map.t_max)
-                    break;
-                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
-                for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    int1d fx = f.map(sc.basis[i], deg, mods, rings);
-                    if (!fx.empty()) {
-                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
-                        map_json[key] = json::array();
-                        int1d fx_ss = lina::GetInvImage(rings[f.to].nodes_ss.front().at(deg_fx).basis, fx);
-                        for (int j : fx_ss)
-                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
-                    }
-                }
-            }
-        }
-        else if (std::holds_alternative<MapMod2Mod>(map.map)) {
-            auto& f = std::get<MapMod2Mod>(map.map);
-            auto& nodes_ss = mods[f.from].nodes_ss;
-            js["from"] = mods[f.from].name;
-            js["to"] = mods[f.to].name;
-            js["sus"] = f.sus;
-            auto& deg2id1 = all_deg2id[f.from + rings.size()];
-            auto& deg2id2 = all_deg2id[f.to + rings.size()];
-            for (auto& [deg, sc] : nodes_ss.front()) {
-                if (deg.t > map.t_max)
-                    break;
-                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
-                for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    int1d fx = f.map(sc.basis[i], deg, mods);
-                    if (!fx.empty()) {
-                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
-                        map_json[key] = json::array();
-                        int1d fx_ss = lina::GetInvImage(mods[f.to].nodes_ss.front().at(deg_fx).basis, fx);
-                        for (int j : fx_ss)
-                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
-                    }
-                }
-            }
-        }
         else {
-            auto& f = std::get<MapMod2ModV2>(map.map);
-            auto& nodes_ss = mods[f.from].nodes_ss;
-            js["from"] = mods[f.from].name;
-            js["to"] = mods[f.to].name;
-            js["sus"] = f.sus;
-            auto& deg2id1 = all_deg2id[f.from + rings.size()];
-            auto& deg2id2 = all_deg2id[f.to + rings.size()];
-            for (auto& [deg, sc] : nodes_ss.front()) {
-                if (deg.t > map.t_max)
-                    break;
-                AdamsDeg deg_fx = deg + AdamsDeg(f.fil, f.fil - f.sus);
-                for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    int1d fx = f.map(sc.basis[i], deg, mods, maps);
-                    if (!fx.empty()) {
-                        auto key = std::to_string(deg2id1.at(deg) + (int)i);
-                        map_json[key] = json::array();
-                        int1d fx_ss = lina::GetInvImage(mods[f.to].nodes_ss.front().at(deg_fx).basis, fx);
-                        for (int j : fx_ss)
-                            map_json[key].push_back(deg2id2.at(deg_fx) + j);
+            if (map->isToRing(to)) {
+                auto& nodes_ss = mods[from].nodes_ss;
+                js["from"] = mods[from].name;
+                js["to"] = rings[to].name;
+                js["sus"] = -map->deg.stem();
+                auto& deg2id1 = all_deg2id[from + rings.size()];
+                auto& deg2id2 = all_deg2id[to];
+                for (auto& [deg, sc] : nodes_ss.front()) {
+                    if (deg.t > map->t_max)
+                        break;
+                    AdamsDeg deg_fx = deg + map->deg;
+                    for (size_t i = 0; i < sc.levels.size(); ++i) {
+                        int1d fx = map->map(sc.basis[i], deg, diagram);
+                        if (!fx.empty()) {
+                            auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                            map_json[key] = json::array();
+                            int1d fx_ss = lina::GetInvImage(rings[to].nodes_ss.front().at(deg_fx).basis, fx);
+                            for (int j : fx_ss)
+                                map_json[key].push_back(deg2id2.at(deg_fx) + j);
+                        }
+                    }
+                }
+            }
+            else {
+                auto& nodes_ss = mods[from].nodes_ss;
+                js["from"] = mods[from].name;
+                js["to"] = mods[to].name;
+                js["sus"] = -map->deg.stem();
+                auto& deg2id1 = all_deg2id[from + rings.size()];
+                auto& deg2id2 = all_deg2id[to + rings.size()];
+                for (auto& [deg, sc] : nodes_ss.front()) {
+                    if (deg.t > map->t_max)
+                        break;
+                    AdamsDeg deg_fx = deg + map->deg;
+                    for (size_t i = 0; i < sc.levels.size(); ++i) {
+                        int1d fx = map->map(sc.basis[i], deg, diagram);
+                        if (!fx.empty()) {
+                            auto key = std::to_string(deg2id1.at(deg) + (int)i);
+                            map_json[key] = json::array();
+                            int1d fx_ss = lina::GetInvImage(mods[to].nodes_ss.front().at(deg_fx).basis, fx);
+                            for (int j : fx_ss)
+                                map_json[key].push_back(deg2id2.at(deg_fx) + j);
+                        }
                     }
                 }
             }
         }
 
-        auto out = fmt::output_file(plot_dir + "/" + map.name + ".js");
-        out.print("globalThis.DATA_JSON_{} = {};\n", map.name, js.dump());
+        auto out = fmt::output_file(plot_dir + "/" + map->name + ".js");
+        out.print("globalThis.DATA_JSON_{} = {};\n", map->name, js.dump());
     }
 
     return 0;
@@ -1233,15 +1211,14 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
                     continue;
 
                 for (size_t iMap : ring.ind_maps) {
-                    auto& map = maps[iMap];
-                    if (deg.t <= map.t_max) {
-                        auto& f = std::get<MapRing2Ring>(map.map);
-                        auto f_gen = rings[f.to].gb.Reduce(f.images[i]);
-                        auto& gen_names_tgt = gen_names_rings[f.to];
+                    auto map = (MapRing2Ring*)maps[iMap].get();
+                    if (deg.t <= map->t_max) {
+                        auto f_gen = rings[map->to].gb.Reduce(map->images[i]);
+                        auto& gen_names_tgt = gen_names_rings[map->to];
                         if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
                             gen_names[i] = StrPoly(f_gen, gen_names_tgt);
                             auto old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
-                            fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                            fmt::print("({}) {} {} --> {}\n", map->display, name, old_gen_name, gen_names[i]);
                             ++count;
                             break;
                         }
@@ -1264,43 +1241,41 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
                     continue;
 
                 for (size_t iMap : mod.ind_maps) {
-                    auto& map = maps[iMap];
+                    auto map1 = maps[iMap].get();
                     size_t iMap_json = 0;
-                    while (diag_json.at("maps")[iMap_json].at("name") != map.name)
+                    while (diag_json.at("maps")[iMap_json].at("name") != map1->name)
                         ++iMap_json;
                     if (!diag_json.at("maps")[iMap_json].contains("type") || diag_json.at("maps")[iMap_json].at("type") != "quo_skeleton")
                         continue;
-                    if (deg.t > map.t_max)
+                    if (deg.t > map1->t_max)
                         continue;
-                    if (std::holds_alternative<MapMod2Ring>(map.map)) {
-                        auto& f = std::get<MapMod2Ring>(map.map);
-                        if (f.fil == 0) {
-                            auto& f_gen = f.images[i];
-                            auto& gen_names_tgt = gen_names_rings[f.to];
+                    if (auto map = dynamic_cast<MapMod2Ring*>(map1); map != nullptr) {
+                        if (map->deg.s == 0) {
+                            auto& f_gen = map->images[i];
+                            auto& gen_names_tgt = gen_names_rings[map->to];
                             if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
-                                gen_cells[i] = GenCell{f.sus, f_gen};
+                                gen_cells[i] = GenCell{map->deg.s, f_gen};
                                 gen_names[i] = StrGenCell(gen_cells[i], gen_names_tgt);
                                 auto old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
-                                fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                                fmt::print("({}) {} {} --> {}\n", map->display, name, old_gen_name, gen_names[i]);
                                 ++count;
                                 break;
                             }
                         }
                     }
-                    else if (std::holds_alternative<MapMod2Mod>(map.map)) {
-                        auto& f = std::get<MapMod2Mod>(map.map);
-                        if (f.fil == 0) {
-                            auto& f_gen = f.images[i];
-                            auto& gen_cells_tgt = gen_cells_mods[f.to];
-                            auto& gen_names_ring_tgt = gen_names_rings[mods[f.to].iRing];
+                    else if (auto map = dynamic_cast<MapMod2Mod*>(map1); map != nullptr) {
+                        if (map->deg.s == 0) {
+                            auto& f_gen = map->images[i];
+                            auto& gen_cells_tgt = gen_cells_mods[map->to];
+                            auto& gen_names_ring_tgt = gen_names_rings[mods[map->to].iRing];
                             if (f_gen && IsNamed(f_gen, gen_cells_tgt, gen_names_ring_tgt)) {
-                                auto gen_cell = TopCell(f_gen, gen_cells_tgt, rings[mods[f.to].iRing]);
+                                auto gen_cell = TopCell(f_gen, gen_cells_tgt, rings[mods[map->to].iRing]);
                                 if (gen_cell.cell != -1 && IsNamed(gen_cell.poly, gen_names_ring_tgt)) {
                                     gen_cells[i] = std::move(gen_cell);
-                                    gen_cells[i].cell += f.sus;
+                                    gen_cells[i].cell += -map->deg.stem();
                                     gen_names[i] = StrGenCell(gen_cells[i], gen_names_ring_tgt);
                                     auto old_gen_name = fmt::format("v_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
-                                    fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names[i]);
+                                    fmt::print("({}) {} {} --> {}\n", map->display, name, old_gen_name, gen_names[i]);
                                     ++count;
                                     break;
                                 }
@@ -1400,10 +1375,10 @@ int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* 
 
                 for (size_t iMap : ring.ind_maps) {
                     auto& map = maps[iMap];
-                    if (deg.t <= map.t_max) {
+                    if (deg.t <= map->t_max) {
                         auto& f = std::get<MapRing2Ring>(map.map);
-                        auto& f_gen = rings[f.to].gb.Reduce(f.images[i]);
-                        auto& gen_names_tgt = gen_names_rings[f.to];
+                        auto& f_gen = rings[to].gb.Reduce(f.images[i]);
+                        auto& gen_names_tgt = gen_names_rings[to];
                         if (f_gen && IsNamed(f_gen, gen_names_tgt)) {
                             gen_names[i] = StrPoly(f_gen, gen_names_tgt);
                             auto& old_gen_name = fmt::format("x_{{{},{}{}}}", gen_degs[i].stem(), gen_degs[i].s, gen_index[gen_degs[i]] == 1 ? "" : fmt::format(",{}", gen_index[gen_degs[i]]));
@@ -1427,33 +1402,32 @@ int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* 
                 if (std::all_of(indices.begin(), indices.end(), [&gen_names](int i) { return gen_names[i].empty(); }))
                     continue;
                 for (size_t iMap : mod.ind_maps) {
-                    auto& map = maps[iMap];
+                    auto map = dynamic_cast<MapMod2Mod*>(maps[iMap].get());
+                    if (map == nullptr)
+                        continue;
                     size_t iMap_json = 0;
-                    while (diag_json.at("maps")[iMap_json].at("name") != map.name)
+                    while (diag_json.at("maps")[iMap_json].at("name") != map->name)
                         ++iMap_json;
                     if (!diag_json.at("maps")[iMap_json].contains("type") || diag_json.at("maps")[iMap_json].at("type") != "skeleton")
                         continue;
-                    if (deg.t > map.t_max)
+                    if (deg.t > map->t_max)
                         continue;
-                    if (!std::holds_alternative<MapMod2Mod>(map.map))
+                    if (map->deg.s != 0)
                         continue;
-                    auto& f = std::get<MapMod2Mod>(map.map);
-                    if (f.fil != 0)
+                    auto& gen_names_tgt = gen_names_mods[map->to];
+                    auto& gen_cells_tgt = gen_cells_mods[map->to];
+                    AdamsDeg deg_tgt = deg + map->deg;
+                    if (!ut::has(gen_indices_all[rings.size() + map->to], deg_tgt))
                         continue;
-                    auto& gen_names_tgt = gen_names_mods[f.to];
-                    auto& gen_cells_tgt = gen_cells_mods[f.to];
-                    AdamsDeg deg_tgt = deg + AdamsDeg(f.fil, f.fil - f.sus);
-                    if (!ut::has(gen_indices_all[rings.size() + f.to], deg_tgt))
-                        continue;
-                    auto& indices_tgt = gen_indices_all[rings.size() + f.to].at(deg_tgt);
+                    auto& indices_tgt = gen_indices_all[rings.size() + map->to].at(deg_tgt);
                     if (std::all_of(indices_tgt.begin(), indices_tgt.end(), [&gen_names_tgt](int i) { return !gen_names_tgt[i].empty(); }))
                         continue;
                     int2d fxs, image, kernel, g;
                     for (size_t i = 0; i < mod.basis.at(deg).size(); ++i)
-                        fxs.push_back(f.map({int(i)}, deg, mods));
+                        fxs.push_back(map->map({int(i)}, deg, diagram));
                     lina::SetLinearMap(fxs, image, kernel, g);
 
-                    auto& mod_tgt = mods[f.to];
+                    auto& mod_tgt = mods[map->to];
                     int gen_index = 0;
                     for (int i : indices_tgt) {
                         ++gen_index;
@@ -1468,10 +1442,10 @@ int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* 
                                 auto gen_cell = TopCell(x_alg, gen_cells, rings[mod.iRing]);
                                 if (gen_cell.cell != -1 && IsNamed(gen_cell.poly, gen_names_rings[mod.iRing])) {
                                     gen_cells_tgt[i] = std::move(gen_cell);
-                                    gen_cells_tgt[i].cell -= f.sus;
+                                    gen_cells_tgt[i].cell += map->deg.stem();
                                     gen_names_tgt[i] = StrGenCell(gen_cells_tgt[i], gen_names_rings[mod.iRing]);
                                     auto old_gen_name = fmt::format("v_{{{},{}{}}}", deg_tgt.stem(), deg_tgt.s, gen_index == 1 ? "" : fmt::format(",{}", gen_index));
-                                    fmt::print("({}) {} {} --> {}\n", map.display, name, old_gen_name, gen_names_tgt[i]);
+                                    fmt::print("({}) {} {} --> {}\n", map->display, name, old_gen_name, gen_names_tgt[i]);
                                     ++count;
                                 }
                             }

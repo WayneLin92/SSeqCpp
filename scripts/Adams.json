@@ -929,6 +929,14 @@
       "images": [
         [0]
       ]
+    },
+    "CW_sigma_nu_eta_2_to_tmf": {
+      "from": "CW_sigma_nu_eta_2",
+      "to": "tmf",
+      "sus": 0,
+      "images": [
+        [0]
+      ]
     }
   }
 }

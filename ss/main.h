@@ -6,6 +6,7 @@
 #include "pigroebner.h"
 #include <set>
 #include <variant>
+#include <memory>
 
 inline const char* PROGRAM = "ss";
 inline const char* VERSION = "Version:\n  1.2 (2023-07-09)";
@@ -16,7 +17,7 @@ constexpr int LEVEL_MIN = 2;
 constexpr int R_PERM = 1000;
 constexpr int LEVEL_PERM = LEVEL_MAX - R_PERM; /* Level of Permanant cycles */
 
-constexpr size_t MAX_DEPTH = 3;                /* Maximum deduction depth */
+constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
 
 inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
@@ -28,9 +29,9 @@ enum class DeduceFlag : uint32_t
     fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
     all_x = 4,         /* Deduce dx for all x including linear combinations */
     xy = 8,            /* Deduce dx for all x including linear combinations */
-    pi = 16,
-    pi_exact = 32,     /* Check exactness of htpy in the try node */
-    pi_def = 64,       /* define generators in pi */
+    cofseq = 16,       /* Consider cofiber sequence */
+    pi = 32,           /* Consider homotopy */
+    pi_def = 64,       /* Define generators in pi */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -62,13 +63,14 @@ using Staircases1d = std::vector<Staircases>;
 
 struct CofSeqStaircases
 {
-    Staircases1d nodes_i, nodes_q, nodes_d;
-    bool isVirtI, isVirtQ, isVirtD;
-    size_t indexI, indexQ, indexD;
-    AdamsDeg degI, degQ, degD;
-    std::string nameX, nameY, nameCf;
-    bool isRingX, isRingY, isRingCf;
-    size_t indexX, indexY, indexCf;
+    std::string name;
+    std::array<Staircases1d, 3> nodes_ss;
+    std::array<bool, 3> isV2;
+    std::array<size_t, 3> indexMap;
+    std::array<AdamsDeg, 3> degMap;
+    std::array<std::string, 3> nameCw;
+    std::array<bool, 3> isRing;
+    std::array<size_t, 3> indexCw;
 };
 using CofSeqStaircases1d = std::vector<CofSeqStaircases>;
 
@@ -187,59 +189,162 @@ struct ModSp
 };
 using ModSp1d = std::vector<ModSp>;
 
-struct Map;
-using Map1d = std::vector<Map>;
+class Diagram;
 
-struct MapRing2Ring  ////TODO: Add pi_images
+class Map
 {
-    size_t from, to;
-    std::vector<Poly> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const RingSp1d& rings) const;
-};
-
-struct MapMod2Mod
-{
-    size_t from, to;
-    int fil, sus;
-    std::vector<Mod> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods) const;
-};
-
-struct MapMod2ModV2
-{
-    size_t from, to, over;
-    int fil, sus;
-    std::vector<Mod> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const Map1d& maps) const;
-};
-
-struct MapMod2Ring
-{
-    size_t from, to;
-    int fil, sus;
-    std::vector<Poly> images;
-    int1d map(const int1d& x, AdamsDeg deg_x, const ModSp1d& mods, const RingSp1d& rings) const;
-};
-
-struct MapMulRing
-{
-    size_t index;
-    int sus;
-    Poly factor;
-};
-
-struct MapRing2Mod
-{
-    size_t from, to;
-    int sus;
-    Mod factor;
-};
-
-struct Map
-{
+public:
     std::string name, display;
-    int t_max;
-    std::variant<MapRing2Ring, MapMod2Mod, MapMod2ModV2, MapMod2Ring, MapMulRing, MapRing2Mod> map;
+    int t_max = -1;
+    AdamsDeg deg;
+
+public:
+    Map() {}
+    Map(std::string name, std::string display, int t_max, AdamsDeg deg) : name(std::move(name)), display(std::move(display)), t_max(t_max), deg(deg) {}
+    virtual ~Map() {}
+    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const = 0;
+    virtual bool isFromRing(size_t& from) const = 0;
+    virtual bool isToRing(size_t& to) const = 0;
+};
+using PMap1d = std::vector<std::unique_ptr<Map>>;
+
+class MapRing2Ring : public Map  ////TODO: Add pi_images
+{
+public:
+    size_t from, to;
+    std::vector<Poly> images;
+    MapRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return true;
+    }
+};
+
+class MapMod2Mod : public Map
+{
+public:
+    size_t from, to;
+    std::vector<Mod> images;
+    MapMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Mod> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return false;
+    }
+};
+
+class MapMod2ModV2 : public Map
+{
+public:
+    size_t from, to, over;
+    std::vector<Mod> images;
+    MapMod2ModV2(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, size_t over, std::vector<Mod> images)
+        : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
+    {
+    }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return false;
+    }
+};
+
+class MapMod2Ring : public Map
+{
+public:
+    size_t from, to;
+    std::vector<Poly> images;
+    MapMod2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
+    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return true;
+    }
+};
+
+class MapMod2RingV2 : public Map
+{
+public:
+    size_t from, to, over;
+    std::vector<Poly> images;
+    MapMod2RingV2(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, size_t over, std::vector<Poly> images)
+        : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
+    {
+    }
+    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return true;
+    }
+};
+
+class MapMulRing : public Map
+{
+public:
+    size_t index;
+    Poly factor;
+    MapMulRing(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
+    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->index;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->index;
+        return true;
+    }
+};
+
+class MapRing2Mod : public Map
+{
+public:
+    size_t from, to;
+    Mod factor;
+    MapRing2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, Mod factor) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), factor(std::move(factor)) {}
+    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    bool isFromRing(size_t& from) const
+    {
+        from = this->from;
+        return true;
+    }
+    bool isToRing(size_t& to) const
+    {
+        to = this->to;
+        return false;
+    }
 };
 
 class Diagram
@@ -249,7 +354,7 @@ public:
 protected:
     RingSp1d rings_;
     ModSp1d modules_;
-    Map1d maps_;
+    PMap1d maps_;
     CofSeqStaircases1d cofseqs_;
 
 protected: /* Settings */
@@ -523,9 +628,14 @@ public:
     DBSS() = default;
     explicit DBSS(const std::string& filename) : DbAdamsSS(filename) {}
 
-    void create_basis_ss(const std::string& table_prefix) const
+    void create_ss(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, base TEXT, diff TEXT, level SMALLINT, s SMALLINT, t SMALLINT)");
+    }
+
+    void create_cofseq_ss(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (index SMALLINT, id INTEGER, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT, PRIMARY KEY (index, id)");
     }
 
     void create_pi_generators_mod(const std::string& table_prefix) const
@@ -538,10 +648,16 @@ public:
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_generators_def (id INTEGER PRIMARY KEY, def TINYINT, map_ids TEXT, multipliers TEXT, mult_name TEXT, fils TEXT)");
     }
 
-    void drop_and_create_basis_ss(const std::string& table_prefix) const
+    void drop_and_create_ss(const std::string& table_prefix) const
     {
         drop_table(table_prefix + "_ss");
-        create_basis_ss(table_prefix);
+        create_ss(table_prefix);
+    }
+
+    void drop_and_create_cofseq_ss(const std::string& table_prefix) const
+    {
+        drop_table(table_prefix + "_ss");
+        create_cofseq_ss(table_prefix);
     }
 
     void drop_and_create_pi_generators_mod(const std::string& table_prefix) const
