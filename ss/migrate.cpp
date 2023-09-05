@@ -21,7 +21,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                 for (auto& [deg, _] : nodes_ss1.front()) {
                     if (deg.t > t_max2)
                         break;
-                    const auto& sc1 = diagram1.GetRecentSc(nodes_ss1, deg);
+                    const auto& sc1 = ut::GetRecentValue(nodes_ss1, deg);
                     for (size_t i = 0; i < sc1.levels.size(); ++i) {
                         if (sc1.levels[i] > LEVEL_MAX / 2) {
                             int r = LEVEL_MAX - sc1.levels[i];
@@ -65,7 +65,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                 for (auto& [deg, _] : nodes_ss1.front()) {
                     if (deg.t > t_max2)
                         break;
-                    const auto& sc1 = diagram1.GetRecentSc(nodes_ss1, deg);
+                    const auto& sc1 = ut::GetRecentValue(nodes_ss1, deg);
                     for (size_t i = 0; i < sc1.levels.size(); ++i) {
                         if (sc1.levels[i] > LEVEL_MAX / 2) {
                             int r = LEVEL_MAX - sc1.levels[i];
@@ -381,7 +381,7 @@ int main_truncate(int argc, char** argv, int index, const char* desc)
     GetAllDbNames(diagram_name, names, paths, isRing);
     for (size_t k = 0; k < names.size(); ++k) {
         DBSS db(paths[k]);
-        auto nodes_ss = db.load_basis_ss(names[k]);
+        auto nodes_ss = db.load_ss(names[k]);
         int t_max = nodes_ss.rbegin()->first.t;
 
         for (auto& [d, sc] : nodes_ss) {
@@ -395,7 +395,7 @@ int main_truncate(int argc, char** argv, int index, const char* desc)
         }
 
         db.begin_transaction();
-        db.update_basis_ss(names[k], nodes_ss);
+        db.update_ss(names[k], nodes_ss);
         db.end_transaction();
     }
 

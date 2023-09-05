@@ -240,8 +240,8 @@ const T get(std::vector<T>& map, size_t k, T default_)
 }
 
 /* Obtain a vector of keys */
-template <typename T>
-auto get_keys(const T& map)
+template <typename Map>
+auto get_keys(const Map& map)
 {
     std::vector<std::remove_cv_t<decltype(map.begin()->first)>> result;
     for (auto p = map.begin(); p != map.end(); ++p)
@@ -267,10 +267,26 @@ bool has(const T& map, const K& key)
     return map.find(key) != map.end();
 }
 
+template <typename Maps, typename K>
+auto& GetRecentValue(Maps& maps, const K& key)
+{
+    for (auto p = maps.rbegin(); p != maps.rend(); ++p)
+        if (auto result = p->find(key); result != p->end())
+            return result->second;
+    throw std::out_of_range("Recent Value not found");
+}
+
 template <typename T>
 int IndexOf(const std::vector<T>& vec, const T& key)
 {
-    auto it = find(vec.begin(), vec.end(), key);
+    auto it = std::find(vec.begin(), vec.end(), key);
+    return it != vec.end() ? int(it - vec.begin()) : -1;
+}
+
+template <typename T, typename FnEq>
+int IndexOf(const std::vector<T>& vec, FnEq fnEq)
+{
+    auto it = std::find_if(vec.begin(), vec.end(), fnEq);
     return it != vec.end() ? int(it - vec.begin()) : -1;
 }
 

@@ -658,7 +658,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int t_trunc, int stem_trunc)
+void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int d1, int t_trunc, int stem_trunc)
 {
     using namespace alg2;
     std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
@@ -697,7 +697,7 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             throw MyException(0xa833c7c4, "File name is not supported.");
         }
         images2 = dbMap2.get_column_from_str<Poly>(table2, "map", "ORDER BY id", myio::Deserialize<Poly>);
-        sus = dbMap2.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
+        sus = dbMap2.get_int("select value from version where id=1585932889") - d1; /* cw1->Sigma^sus cw2 */
         fil = dbMap2.get_int("select value from version where id=651971502");
     }
 
@@ -1017,15 +1017,15 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
         return error;
 
     if (cw1 == "C2h4" && cw2 == "Csigmasq")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h4_to_Csigmasq_0.db", "map_AdamsSS_C2h4_to_S0.db", 0, 1, t_max, stem_max);
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h4_to_Csigmasq_0.db", "map_AdamsSS_C2h4_to_S0.db", 0, 1, 15, t_max, stem_max);
     else if (cw1 == "C2h5" && cw2 == "Ctheta4")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h5_to_Ctheta4_0.db", "map_AdamsSS_C2h5_to_S0.db", 0, 1, t_max, stem_max);
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h5_to_Ctheta4_0.db", "map_AdamsSS_C2h5_to_S0.db", 0, 1, 31, t_max, stem_max);
     else if (cw1 == "C2h6" && cw2 == "Ctheta5")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, t_max, stem_max);
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, 63, t_max, stem_max);
     else if (cw1 == "CW_2_theta5_2_Eq_eta_theta5" && cw2 == "Ctheta5")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_Ctheta5_0.db", "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_S0.db", 0, 1, t_max, stem_max);
+        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_Ctheta5_0.db", "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_S0.db", 0, 1, 63, t_max, stem_max);
     else if (cw1 == "Csigma" && cw2 == "Csigmasq")
-        ExportMapSumAdamsE2(cw1, cw2, "", "map_AdamsSS_Csigma_to_S0.db", 0, 1, t_max, stem_max);
+        ExportMapSumAdamsE2(cw1, cw2, "", "map_AdamsSS_Csigma_to_S0.db", 0, 1, 15, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "DC2h4")
         ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, 0, 0, t_max, stem_max);
     else if (cw1 == "Csigmasq" && cw2 == "Q_C2h4")

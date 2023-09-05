@@ -154,7 +154,7 @@ int1d MapMod2RingV2::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram)
     return result;
 }
 
-int1d MapMulRing::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
+int1d MapMulRing2Ring::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
 {
     int1d result;
     if (!x.empty()) {
@@ -167,7 +167,7 @@ int1d MapMulRing::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) co
     return result;
 }
 
-int1d MapRing2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
+int1d MapMulRing2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
 {
     int1d result;
     if (!x.empty()) {
@@ -178,6 +178,21 @@ int1d MapRing2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) c
         if (fx_alg) {
             AdamsDeg deg_fx = deg_x + deg;
             result = Mod2Indices(fx_alg, mods[to].basis.at(deg_fx));
+        }
+    }
+    return result;
+}
+
+int1d MapMulMod2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
+{
+    int1d result;
+    if (!x.empty()) {
+        auto& mods = diagram.GetModules();
+        auto x_alg = Indices2Mod(x, mods[index].basis.at(deg_x));
+        auto fx_alg = mods[index].gb.Reduce(factor * x_alg);
+        if (fx_alg) {
+            AdamsDeg deg_fx = deg_x + deg;
+            result = Mod2Indices(fx_alg, mods[index].basis.at(deg_fx));
         }
     }
     return result;
@@ -265,7 +280,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
             auto& map = maps_[iMap];
             if (deg_x.t <= map->t_max) {
                 size_t to;
-                if (map->isToRing(to)) {
+                if (map->IsToRing(to)) {
                     int1d fdx;
                     if (deg_dx.t <= map->t_max)
                         fdx = map->map(dx, deg_dx, *this);

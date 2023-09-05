@@ -23,92 +23,14 @@ public:
     MyDB() = default;
     explicit MyDB(const std::string& filename) : DBSS(filename) {}
 
-    void create_basis_products(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_basis_products (id1 INTEGER, id2 INTEGER, prod TEXT, PRIMARY KEY(id1, id2));");
-    }
-
-    void drop_and_create_basis_products(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_basis_products");
-        create_basis_products(table_prefix);
-    }
-
     void create_pi_basis_products(const std::string& table_prefix) const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis_products (id1 INTEGER, id2 INTEGER, prod TEXT, O SMALLINT, PRIMARY KEY(id1, id2));");
     }
 
-    void drop_and_create_pi_basis_products(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_pi_basis_products");
-        create_pi_basis_products(table_prefix);
-    }
-
     void create_pi_basis_maps_S0() const
     {
         execute_cmd("CREATE TABLE IF NOT EXISTS S0_pi_basis_maps (id INTEGER PRIMARY KEY, to_C2 TEXT, to_Ceta TEXT, to_Cnu TEXT, to_Csigma TEXT, O_C2 SMALLINT, O_Ceta SMALLINT, O_Cnu SMALLINT, O_Csigma SMALLINT);");
-    }
-
-    void drop_and_create_pi_basis_maps_S0() const
-    {
-        drop_table("S0_pi_basis_maps");
-        create_pi_basis_maps_S0();
-    }
-
-    void create_pi_basis_maps_Cof(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_pi_basis_maps (id INTEGER PRIMARY KEY, to_S0 TEXT, O_S0 SMALLINT);");
-    }
-
-    void drop_and_create_pi_basis_maps_Cof(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_pi_basis_maps");
-        create_pi_basis_maps_Cof(table_prefix);
-    }
-
-    void create_ss_products(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_products (id1 INTEGER, id2 INTEGER, prod TEXT, PRIMARY KEY(id1, id2));");
-    }
-
-    void drop_and_create_ss_products(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_ss_products");
-        create_ss_products(table_prefix);
-    }
-
-    void create_ss_diff(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_diffs (src INTEGER PRIMARY KEY, r SMALLINT, tgt TEXT);");
-    }
-
-    void drop_and_create_ss_diff(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_ss_diffs");
-        create_ss_diff(table_prefix);
-    }
-
-    void create_ss_nd(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_nd (src INTEGER PRIMARY KEY, r SMALLINT, tgt TEXT);");
-    }
-
-    void drop_and_create_ss_nd(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_ss_nd");
-        create_ss_nd(table_prefix);
-    }
-
-    void create_ss_stable_levels(const std::string& table_prefix) const
-    {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss_stable_levels (s SMALLINT, t SMALLINT, l SMALLINT, PRIMARY KEY(s, t));");
-    }
-
-    void drop_and_create_ss_stable_levels(const std::string& table_prefix) const
-    {
-        drop_table(table_prefix + "_ss_stable_levels");
-        create_ss_stable_levels(table_prefix);
     }
 
     GenCell1d load_gen_cells(const std::string& table_prefix) const
@@ -126,39 +48,6 @@ public:
         for (size_t i = 0; i < gen_names.size(); ++i)
             if (!gen_names[i].empty())
                 stmt.bind_and_step(gen_names[i], gen_cells[i].cell, myio::Serialize(gen_cells[i].poly), (int)i);
-    }
-
-    void load_basis_v2(const std::string& table_prefix, Mon1d& basis, AdamsDeg1d& deg_basis) const
-    {
-        Statement stmt(*this, "SELECT mon, s, t FROM " + table_prefix + "_basis ORDER BY id");
-        int count = 0;
-        while (stmt.step() == MYSQLITE_ROW) {
-            basis.push_back(myio::Deserialize<Mon>(stmt.column_str(0)));
-            deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
-        }
-        // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
-    }
-
-    void load_basis_mod_v2(const std::string& table_prefix, MMod1d& basis, AdamsDeg1d& deg_basis) const
-    {
-        Statement stmt(*this, "SELECT mon, s, t FROM " + table_prefix + "_basis ORDER BY id");
-        int count = 0;
-        while (stmt.step() == MYSQLITE_ROW) {
-            basis.push_back(myio::Deserialize<MMod>(stmt.column_str(0)));
-            deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
-        }
-        // myio::Logger::out() << "basis loaded from " << table_prefix << "_basis, size=" << basis.size() << '\n';
-    }
-
-    void load_basis_ss_v2(const std::string& table_prefix, int2d& nodes_ss, AdamsDeg1d& deg_basis) const
-    {
-        Statement stmt(*this, "SELECT base, s, t FROM " + table_prefix + "_ss ORDER BY id");
-        int count = 0;
-        while (stmt.step() == MYSQLITE_ROW) {
-            nodes_ss.push_back(myio::Deserialize<int1d>(stmt.column_str(0)));
-            deg_basis.push_back(AdamsDeg(stmt.column_int(1), stmt.column_int(2)));
-        }
-        // myio::Logger::out() << "basis loaded from " << table_prefix << "_ss, size=" << ss.size() << '\n';
     }
 };
 
@@ -467,13 +356,15 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
     */
     for (size_t iMap = 0; iMap < maps.size(); ++iMap) {
         auto& map = maps[iMap];
+        if (map->isMul())
+            continue;
         size_t from, to;
         json js;
         js["maps"] = json::object();
         auto& map_json = js["maps"];
 
-        if (map->isFromRing(from)) {
-            if (!map->isToRing(to))
+        if (map->IsFromRing(from)) {
+            if (!map->IsToRing(to))
                 throw MyException(0x189448f, "Incorrect map type");
             auto& nodes_ss = rings[from].nodes_ss;
             js["from"] = rings[from].name;
@@ -497,7 +388,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             }
         }
         else {
-            if (map->isToRing(to)) {
+            if (map->IsToRing(to)) {
                 auto& nodes_ss = mods[from].nodes_ss;
                 js["from"] = mods[from].name;
                 js["to"] = rings[to].name;

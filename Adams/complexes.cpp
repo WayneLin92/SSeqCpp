@@ -487,6 +487,45 @@ void Coh_Fphi(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, 
         rels.push_back(gb.data()[i]);
 }
 
+void Coh_Fphi_n(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n_max, int t_max)
+{
+    int1d v_degs2 = {0};
+    for (int n = 1; n <= n_max && n <= t_max; ++n)
+        v_degs2.push_back(n + 1);
+
+    Mod1d rels2;
+    Mod tmp;
+    /* Sq^k * x^n = (k, n - k) x^{n + k} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+        for (int n = 1; n <= n_max && n + k <= t_max; ++n) {
+            Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), n);
+            if (k <= n && !(k & (n - k)) && n + k <= n_max)
+                rel.iaddP(MMod(MMilnor(), n + k), tmp);
+            rels2.push_back(std::move(rel));
+        }
+    }
+    /* Sq^k * x^{-1} = (k, 1) x^{k-1} */
+    for (size_t i = 0; (1 << i) <= t_max; ++i) {
+        size_t k = (size_t)1 << i;
+
+        Mod rel = MMilnor::Sq((uint32_t)k) * MMod(MMilnor(), 0);
+        if (k > 1 && k - 1 <= n_max)
+            rel.iaddP(MMod(MMilnor(), k - 1), tmp);
+        rels2.push_back(std::move(rel));
+    }
+
+    Groebner gb(t_max, {}, v_degs2);
+    min_rels.clear();
+    gb.AddRels(rels2, t_max, min_rels);
+    gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+
+    v_degs = gb.v_degs();
+    rels.clear();
+    for (int i : min_rels)
+        rels.push_back(gb.data()[i]);
+}
+
 int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max, const std::string& name)
 {
     if (!myio::FileExists("Adams.json"))
@@ -816,6 +855,16 @@ int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         Mod1d tmp;
         int1d tmp_int1d;
         Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
+    }
+    else if (cw == "Fphi4") {
+        Mod1d tmp;
+        int1d tmp_int1d;
+        Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, 4, d_max);
+    }
+    else if (cw == "Fphi6") {
+        Mod1d tmp;
+        int1d tmp_int1d;
+        Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, 6, d_max);
     }
     else if (cw == "M") {
         Coh_M(v_degs, rels, d_max);

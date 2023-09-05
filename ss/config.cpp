@@ -92,13 +92,14 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
+            myio::AssertFileExists(abs_path);
             DBSS db(abs_path);
             RingSp ring;
             ring.name = name;
             ring.basis = db.load_basis(table_prefix);
             ring.degs_basis_order_by_stem = OrderDegsByStem(ring.basis);
             ring.t_max = ring.basis.rbegin()->first.t;
-            ring.nodes_ss = {db.load_basis_ss(table_prefix), {}};
+            ring.nodes_ss = {db.load_ss(table_prefix), {}};
             ring.nodes_ss.reserve(MAX_DEPTH + 3);
             ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
 
@@ -126,6 +127,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             std::string abs_path = fmt::format("{}/{}", dir, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
+            myio::AssertFileExists(abs_path);
             DBSS db(abs_path);
             ModSp mod;
             mod.name = name;
@@ -135,7 +137,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             mod.basis = db.load_basis_mod(table_prefix);
             mod.degs_basis_order_by_stem = OrderDegsByStem(mod.basis);
             mod.t_max = mod.basis.rbegin()->first.t;
-            mod.nodes_ss = {db.load_basis_ss(table_prefix), {}};
+            mod.nodes_ss = {db.load_ss(table_prefix), {}};
             mod.nodes_ss.reserve(MAX_DEPTH + 1);
             Mod1d xs = db.load_gb_mod(table_prefix, DEG_MAX);
             mod.gb = GroebnerMod(&ring.gb, mod.t_max, {}, std::move(xs));
@@ -157,8 +159,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
         std::smatch match;
 
-        json& json_maps = diagram.at("maps");
-        std::map<std::string, size_t> json_maps_indices;
+        json json_maps = diagram.at("maps");
+        if (flag & DeduceFlag::cofseq) {
+            for (auto& item : diagram.at("maps_v2"))
+                json_maps.push_back(item);
+        }
         maps_.reserve(json_maps.size());
         for (auto& json_map : json_maps) {
             auto name = json_map.at("name").get<std::string>();
@@ -167,9 +172,10 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
             int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
             AdamsDeg deg(fil, fil - sus);
-            
+
             std::string path = json_map.at("path").get<std::string>();
             std::string abs_path = fmt::format("{}/{}", dir, path);
+            myio::AssertFileExists(abs_path);
             DBSS db(abs_path);
             std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
             std::string table;
@@ -182,7 +188,31 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             }
 
             std::unique_ptr<Map> map;
-            if (GetRingIndexByName(from) != -1) {
+            if (json_map.contains("factor")) {
+                auto& strt_factor = json_map.at("factor");
+                int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
+                AdamsDeg deg_factor(s, stem + s);
+                if (int index_from = GetRingIndexByName(from); index_from != -1) {
+                    if (int index_to = GetRingIndexByName(to); index_to != -1) {
+                        MyException::Assert(index_from == index_to, "index_from == index_to");
+                        Poly factor = rings_[index_from].basis.at(deg_factor)[i_factor];
+                        map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg, (size_t)index_from, std::move(factor));
+                    }
+                    else {
+                        index_to = GetModuleIndexByName(to);
+                        Mod factor = modules_[index_to].basis.at(deg_factor)[i_factor];
+                        map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg, (size_t)index_from, (size_t)index_to, std::move(factor));
+                    }
+                }
+                else {
+                    index_from = GetModuleIndexByName(from);
+                    int index_to = GetModuleIndexByName(to);
+                    MyException::Assert(index_from == index_to, "index_from == index_to");
+                    Poly factor = rings_[modules_[index_from].iRing].basis.at(deg_factor)[i_factor];
+                    map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg, (size_t)index_from, std::move(factor));
+                }
+            }
+            else if (GetRingIndexByName(from) != -1) {
                 size_t index_from = (size_t)GetRingIndexByName(from);
                 size_t index_to = (size_t)GetRingIndexByName(to);
                 MyException::Assert(index_from != -1 && index_to != -1, "index_from != -1 && index_to != -1");
@@ -197,7 +227,14 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     size_t index_to = (size_t)GetRingIndexByName(to);
                     MyException::Assert(index_to != -1, "index_to != -1");
                     auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
-                    map = std::make_unique<MapMod2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                    if (!json_map.contains("over")) {
+                        map = std::make_unique<MapMod2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                    }
+                    else {
+                        std::string over = json_map.at("over").get<std::string>();
+                        int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
+                        map = std::make_unique<MapMod2RingV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                    }
                 }
                 else {
                     size_t index_to = (size_t)GetModuleIndexByName(to);
@@ -208,40 +245,57 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     }
                     else {
                         std::string over = json_map.at("over").get<std::string>();
-                        size_t index_map = 0;
-                        while (index_map < maps_.size() && maps_[index_map]->name != over)
-                            ++index_map;
+                        int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
                         map = std::make_unique<MapMod2ModV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
                     }
                 }
                 modules_[index_from].ind_maps.push_back(maps_.size());
             }
-            json_maps_indices[name] = maps_.size();
             maps_.push_back(std::move(map));
         }
 
         if (flag & DeduceFlag::cofseq) {
             auto& json_cofseqs = diagram.at("cofseqs");
-            auto& json_maps_v2 = diagram.at("maps_v2");
             std::vector<std::string> cofseq_maps;
             for (auto& json_cofseq : json_cofseqs) {
-                CofSeqStaircases cofseq;
+                CofSeq cofseq;
                 cofseq.name = json_cofseq.at("name").get<std::string>();
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
                 auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
                 bool fileExists = myio::FileExists(abs_path_cofseq);
                 DBSS db(path_cofseq);
-                db.create_cofseq_ss(cofseq.name);
+                db.create_cofseq(fmt::format("cofseq_{}", cofseq.name));
                 std::array<std::string, 3> maps_names = {json_cofseq.at("i").get<std::string>(), json_cofseq.at("q").get<std::string>(), json_cofseq.at("d").get<std::string>()};
-                for (size_t i = 0; i < maps_names.size(); ++i) {
-                    if (ut::has(json_maps_indices, maps_names[i])) {
-                        size_t index = json_maps_indices.at(maps_names[i]);
-                        auto& json_map = json_maps[index];
-                        auto& map_ = maps_[index];
-                        //cofseq.degMap[i] = AdamsDeg(map_.);
+                for (size_t iMap = 0; iMap < maps_names.size(); ++iMap) {
+                    size_t index = (size_t)GetMapIndexByName(maps_names[iMap]);
+                    const auto& map = maps_[index];
+                    cofseq.indexMap[iMap] = index;
+                    cofseq.degMap[iMap] = map->deg;
+                    cofseq.isRing[iMap] = map->IsFromRing(cofseq.indexCw[iMap]);
+                    cofseq.nameCw[iMap] = cofseq.isRing[iMap] ? rings_[cofseq.indexCw[iMap]].name : modules_[cofseq.indexCw[iMap]].name;
+                    cofseq.nodes_ss[iMap] = cofseq.isRing[iMap] ? &rings_[cofseq.indexCw[iMap]].nodes_ss : &modules_[cofseq.indexCw[iMap]].nodes_ss;
+
+                    cofseq.nodes_cofseq[iMap].resize(cofseq.nodes_ss[iMap]->size());
+                    if (!fileExists) { /* Initialize cofseq */
+                        auto& front_cofseq = cofseq.nodes_cofseq[iMap].front();
+                        for (auto& [deg, sc] : cofseq.nodes_ss[iMap]->front()) {
+                            size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM);
+                            size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
+                            for (size_t i = first_PC; i < last_PC; ++i) {
+                                front_cofseq[deg].basis.push_back(sc.basis[i]);
+                                front_cofseq[deg].diffs.push_back(NULL_DIFF);
+                                front_cofseq[deg].levels.push_back(LEVEL_MAX);
+                            }
+                        }
                     }
-                    else {
-                    }
+                }
+                if (fileExists) { /* Load cofseq from database */
+                    auto& node_cofseq = db.load_cofseq(fmt::format("cofseq_{}", cofseq.name));
+                    for (size_t i = 0; i < cofseq.nodes_cofseq.size(); ++i)
+                        cofseq.nodes_cofseq[i].front() = std::move(node_cofseq[i]);
+                }
+                else { /* Add differentials in cofseq */
+
                 }
             }
         }
@@ -279,7 +333,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             db.begin_transaction();
             size_t iRing = (size_t)GetRingIndexByName(name);
             auto& ring = rings_[iRing];
-            db.update_basis_ss(table_prefix, ring.nodes_ss[1]);
+            db.update_ss(table_prefix, ring.nodes_ss[1]);
 
             if (flag & DeduceFlag::pi) {
                 db.drop_and_create_pi_relations(name);
@@ -309,7 +363,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             db.begin_transaction();
             size_t iMod = (size_t)GetModuleIndexByName(name);
             auto& mod = modules_[iMod];
-            db.update_basis_ss(table_prefix, mod.nodes_ss[1]);
+            db.update_ss(table_prefix, mod.nodes_ss[1]);
 
             if (flag & DeduceFlag::pi) {
                 db.drop_and_create_pi_relations(name);
@@ -327,7 +381,10 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             db.end_transaction();
         }
 
-        ////TODO: save pi_map
+        /* #save cofseq */
+        if (flag & DeduceFlag::cofseq) {
+
+        }
     }
     catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());

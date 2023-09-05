@@ -89,15 +89,6 @@ bool Diagram::IsZeroOnLevel(const Staircase& sc, const int1d& x, int level)
     return lina::Residue(sc.basis.begin(), sc.basis.begin() + first_l, x).empty();
 }
 
-const Staircase& Diagram::GetRecentSc(const Staircases1d& nodes_ss, AdamsDeg deg)
-{
-    for (auto p = nodes_ss.rbegin(); p != nodes_ss.rend(); ++p)
-        if (p->find(deg) != p->end())
-            return p->at(deg);
-    Logger::LogException(0, 0x553989e0U, "RecentStaircase not found. deg={}\n", deg);
-    throw MyException(0x553989e0U, "RecentStaircase not found.");
-}
-
 /**
  * Apply the change of the staircase to the current history
  */

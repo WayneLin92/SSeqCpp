@@ -22,7 +22,21 @@ void DBSS::save_pi_generators_mod(const std::string& table_prefix, const AdamsDe
         stmt.bind_and_step((int)i, myio::Serialize(gen_Einf[i]), gen_degs[i].s, gen_degs[i].t);
 }
 
-void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const
+void DBSS::update_ss(const std::string& table_prefix, const Staircases& nodes_ss) const
+{
+    std::map<AdamsDeg, int> indices = load_basis_indices(table_prefix);
+    Statement stmt(*this, "UPDATE " + table_prefix + "_ss SET base=?1, diff=?2, level=?3 WHERE id=?4;");
+    for (const auto& [deg, basis_ss_d] : nodes_ss) {
+        for (size_t i = 0; i < basis_ss_d.basis.size(); ++i) {
+            if (basis_ss_d.diffs[i] == NULL_DIFF)
+                stmt.bind_and_step(myio::Serialize(basis_ss_d.basis[i]), myio::SQL_NULL(), basis_ss_d.levels[i], indices[deg] + (int)i);
+            else
+                stmt.bind_and_step(myio::Serialize(basis_ss_d.basis[i]), myio::Serialize(basis_ss_d.diffs[i]), basis_ss_d.levels[i], indices[deg] + (int)i);
+        }
+    }
+}
+
+void DBSS::save_ss(const std::string& table_prefix, const Staircases& nodes_ss) const
 {
     Statement stmt(*this, "INSERT INTO " + table_prefix + "_ss (id, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
     int count = 0;
@@ -34,6 +48,26 @@ void DBSS::save_basis_ss(const std::string& table_prefix, const Staircases& node
                 stmt.bind_and_step(count++, myio::Serialize(basis_ss_d.basis[i]), myio::SQL_NULL(), basis_ss_d.levels[i], deg.s, deg.t);
             else
                 stmt.bind_and_step(count++, myio::Serialize(basis_ss_d.basis[i]), myio::Serialize(basis_ss_d.diffs[i]), basis_ss_d.levels[i], deg.s, deg.t);
+        }
+    }
+}
+
+void DBSS::save_cofseq(const std::string& table, const CofSeq& cofseq) const
+{
+    if (get_int("SELECT COUNT(*) FROM " + table) == 0) {
+        Statement stmt(*this, "INSERT INTO " + table + " (index, base, diff, level, s, t) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);");
+        for (size_t iC = 0; iC < cofseq.nodes_cofseq.size(); ++iC) {
+            auto& node = cofseq.nodes_cofseq[iC].front();
+            auto degs = OrderDegsV2(node);
+            for (const auto& deg : degs) {
+                auto& basis_ss_d = ut::GetRecentValue(cofseq.nodes_cofseq[iC], deg);
+                for (size_t i = 0; i < basis_ss_d.basis.size(); ++i) {
+                    if (basis_ss_d.diffs[i] == NULL_DIFF)
+                        stmt.bind_and_step((int)iC, myio::Serialize(basis_ss_d.basis[i]), myio::SQL_NULL(), basis_ss_d.levels[i], deg.s, deg.t);
+                    else
+                        stmt.bind_and_step((int)iC, myio::Serialize(basis_ss_d.basis[i]), myio::Serialize(basis_ss_d.diffs[i]), basis_ss_d.levels[i], deg.s, deg.t);
+                }
+            }
         }
     }
 }
@@ -103,21 +137,7 @@ std::map<AdamsDeg, int> DBSS::load_basis_indices(const std::string& table_prefix
     return result;
 }
 
-void DBSS::update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& nodes_ss) const
-{
-    std::map<AdamsDeg, int> indices = load_basis_indices(table_prefix);
-    Statement stmt(*this, "UPDATE " + table_prefix + "_ss SET base=?1, diff=?2, level=?3 WHERE id=?4;");
-    for (const auto& [deg, basis_ss_d] : nodes_ss) {
-        for (size_t i = 0; i < basis_ss_d.basis.size(); ++i) {
-            if (basis_ss_d.diffs[i] == NULL_DIFF)
-                stmt.bind_and_step(myio::Serialize(basis_ss_d.basis[i]), myio::SQL_NULL(), basis_ss_d.levels[i], indices[deg] + (int)i);
-            else
-                stmt.bind_and_step(myio::Serialize(basis_ss_d.basis[i]), myio::Serialize(basis_ss_d.diffs[i]), basis_ss_d.levels[i], indices[deg] + (int)i);
-        }
-    }
-}
-
-Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
+Staircases DBSS::load_ss(const std::string& table_prefix) const
 {
     Staircases nodes_ss;
     Statement stmt(*this, "SELECT base, COALESCE(diff, \"-1\"), level, s, t FROM " + table_prefix + "_ss;");
@@ -135,6 +155,27 @@ Staircases DBSS::load_basis_ss(const std::string& table_prefix) const
         nodes_ss[deg].diffs.push_back(std::move(diff));
     }
     return nodes_ss;
+}
+
+std::array<CofSeqStaircases, 3> DBSS::load_cofseq(const std::string& table) const
+{
+    std::array<CofSeqStaircases, 3> node_cofseq;
+    Statement stmt(*this, "SELECT index, base, COALESCE(diff, \"-1\"), level, s, t FROM " + table);
+    int count = 0;
+    while (stmt.step() == MYSQLITE_ROW) {
+        ++count;
+        size_t index = (size_t)stmt.column_int(0);
+        int1d base = myio::Deserialize<int1d>(stmt.column_str(1));
+        int level = stmt.column_int(3);
+        AdamsDeg deg = {stmt.column_int(4), stmt.column_int(5)};
+
+        node_cofseq[index][deg].basis.push_back(std::move(base));
+        node_cofseq[index][deg].levels.push_back(level);
+
+        int1d diff = myio::Deserialize<int1d>(stmt.column_str(2));
+        node_cofseq[index][deg].diffs.push_back(std::move(diff));
+    }
+    return node_cofseq;
 }
 
 void DBSS::load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const
@@ -202,7 +243,7 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     /* insert into the database */
     db.begin_transaction();
     db.drop_and_create_ss(table_prefix);
-    db.save_basis_ss(table_prefix, nodes_ss);
+    db.save_ss(table_prefix, nodes_ss);
 
     db.drop_and_create_pi_relations(name);
     db.drop_and_create_pi_basis(name);
@@ -257,7 +298,7 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
             generate_ss(names[i], paths[i], isRing[i]);
 
         Diagram diagram(diagram_name, DeduceFlag::cofseq);
-        //int count = diagram.DeduceTrivialCofSeqDiffs();
+        // int count = diagram.DeduceTrivialCofSeqDiffs();
         diagram.save(diagram_name, DeduceFlag::no_op);
     }
 

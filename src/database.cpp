@@ -91,7 +91,6 @@ int Database::get_int(const std::string& sql) const
     if (stmt.step() == SQLITE_ROW)
         if (stmt.column_type(0) == SQLITE_INTEGER)
             return stmt.column_int(0);
-    fmt::print("{} - 0xeffbf28c: Failed to get_int() using {}\n", filename_, sql);
     throw MyException(0xeffbf28c, "Failed to get_int()");
 }
 
@@ -102,7 +101,6 @@ int Database::get_int(const std::string& sql, int default_) const
         if (stmt.column_type(0) == SQLITE_INTEGER)
             return stmt.column_int(0);
         else {
-            fmt::print("{} - 0xa429d1aU: Failed to get_int() using {}\n", filename_, sql);
             throw MyException(0xa429d1aU, "Incorrect type");
         }
     }
@@ -115,7 +113,6 @@ std::string Database::get_str(const std::string& sql) const
     if (stmt.step() == SQLITE_ROW)
         if (stmt.column_type(0) == SQLITE_TEXT)
             return stmt.column_str(0);
-    fmt::print("{} - 0xeffbf28c: Failed to get_str() using {}\n", filename_, sql);
     throw MyException(0xeffbf28c, "Failed to get_str()");
 }
 

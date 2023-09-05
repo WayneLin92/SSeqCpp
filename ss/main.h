@@ -4,9 +4,9 @@
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
 #include "pigroebner.h"
+#include <memory>
 #include <set>
 #include <variant>
-#include <memory>
 
 inline const char* PROGRAM = "ss";
 inline const char* VERSION = "Version:\n  1.2 (2023-07-09)";
@@ -57,22 +57,30 @@ struct Staircase
     int2d diffs; /* element {-1} means null */
     int1d levels;
 };
-
 using Staircases = std::map<AdamsDeg, Staircase>;
 using Staircases1d = std::vector<Staircases>;
 
-struct CofSeqStaircases
+struct CofSeqStaircase
+{
+    int2d basis;
+    int2d diffs; /* element {-1} means null */
+    int1d levels;
+};
+using CofSeqStaircases = std::map<AdamsDeg, CofSeqStaircase>;
+using CofSeqStaircases1d = std::vector<CofSeqStaircases>;
+
+struct CofSeq
 {
     std::string name;
-    std::array<Staircases1d, 3> nodes_ss;
-    std::array<bool, 3> isV2;
     std::array<size_t, 3> indexMap;
     std::array<AdamsDeg, 3> degMap;
-    std::array<std::string, 3> nameCw;
     std::array<bool, 3> isRing;
     std::array<size_t, 3> indexCw;
+    std::array<std::string, 3> nameCw;
+    std::array<Staircases1d*, 3> nodes_ss;
+    std::array<CofSeqStaircases1d, 3> nodes_cofseq;
 };
-using CofSeqStaircases1d = std::vector<CofSeqStaircases>;
+using CofSeq1d = std::vector<CofSeq>;
 
 struct PiBase
 {
@@ -202,9 +210,13 @@ public:
     Map() {}
     Map(std::string name, std::string display, int t_max, AdamsDeg deg) : name(std::move(name)), display(std::move(display)), t_max(t_max), deg(deg) {}
     virtual ~Map() {}
+    virtual bool IsFromRing(size_t& from) const = 0;
+    virtual bool IsToRing(size_t& to) const = 0;
+    virtual bool isMul() /* in maps_v2 */
+    {
+        return false;
+    }
     virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const = 0;
-    virtual bool isFromRing(size_t& from) const = 0;
-    virtual bool isToRing(size_t& to) const = 0;
 };
 using PMap1d = std::vector<std::unique_ptr<Map>>;
 
@@ -214,17 +226,17 @@ public:
     size_t from, to;
     std::vector<Poly> images;
     MapRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
         return true;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return true;
     }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class MapMod2Mod : public Map
@@ -233,17 +245,17 @@ public:
     size_t from, to;
     std::vector<Mod> images;
     MapMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Mod> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
-        return true;
+        return false;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return false;
     }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class MapMod2ModV2 : public Map
@@ -255,17 +267,17 @@ public:
         : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
     {
     }
-    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
-        return true;
+        return false;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return false;
     }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class MapMod2Ring : public Map
@@ -274,17 +286,17 @@ public:
     size_t from, to;
     std::vector<Poly> images;
     MapMod2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
-        return true;
+        return false;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return true;
     }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class MapMod2RingV2 : public Map
@@ -296,55 +308,86 @@ public:
         : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
     {
     }
-    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
-        return true;
+        return false;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return true;
     }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
-class MapMulRing : public Map
+class MapMulRing2Ring : public Map
 {
 public:
     size_t index;
     Poly factor;
-    MapMulRing(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
-    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    MapMulRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
+    bool IsFromRing(size_t& from) const
     {
         from = this->index;
         return true;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->index;
         return true;
     }
+    bool isMul()
+    {
+        return true;
+    }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
-class MapRing2Mod : public Map
+class MapMulRing2Mod : public Map
 {
 public:
     size_t from, to;
     Mod factor;
-    MapRing2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, Mod factor) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), factor(std::move(factor)) {}
-    virtual int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
-    bool isFromRing(size_t& from) const
+    MapMulRing2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, Mod factor) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), factor(std::move(factor)) {}
+    bool IsFromRing(size_t& from) const
     {
         from = this->from;
         return true;
     }
-    bool isToRing(size_t& to) const
+    bool IsToRing(size_t& to) const
     {
         to = this->to;
         return false;
     }
+    bool isMul()
+    {
+        return true;
+    }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+};
+
+class MapMulMod2Mod : public Map
+{
+public:
+    size_t index;
+    Poly factor;
+    MapMulMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
+    bool IsFromRing(size_t& from) const
+    {
+        from = this->index;
+        return false;
+    }
+    bool IsToRing(size_t& to) const
+    {
+        to = this->index;
+        return false;
+    }
+    bool isMul()
+    {
+        return true;
+    }
+    int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class Diagram
@@ -355,7 +398,7 @@ protected:
     RingSp1d rings_;
     ModSp1d modules_;
     PMap1d maps_;
-    CofSeqStaircases1d cofseqs_;
+    CofSeq1d cofseqs_;
 
 protected: /* Settings */
     std::vector<size_t> deduce_list_spectra_;
@@ -373,12 +416,6 @@ public:
     void save(std::string diagram_name, DeduceFlag flag);
 
 public: /* Getters */
-    /* Return the newest version of the staircase in history */
-    static auto GetRecentSc(const Staircases1d& nodes_ss, AdamsDeg deg) -> const Staircase&;
-    static auto GetRecentSc(Staircases1d& nodes_ss, AdamsDeg deg) -> Staircase&
-    {
-        return const_cast<Staircase&>(GetRecentSc((const Staircases1d&)(nodes_ss), deg));
-    }
     static auto GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDeg deg) -> const PiBase*;
     static auto GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, AdamsDeg deg) -> const PiBaseMod*;
 
@@ -424,6 +461,14 @@ public: /* Getters */
     {
         for (size_t i = 0; i < modules_.size(); ++i)
             if (modules_[i].name == name)
+                return (int)i;
+        return -1;
+    }
+
+    int GetMapIndexByName(const std::string& name) const
+    {
+        for (size_t i = 0; i < modules_.size(); ++i)
+            if (maps_[i]->name == name)
                 return (int)i;
         return -1;
     }
@@ -630,12 +675,12 @@ public:
 
     void create_ss(const std::string& table_prefix) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, base TEXT, diff TEXT, level SMALLINT, s SMALLINT, t SMALLINT)");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT)");
     }
 
-    void create_cofseq_ss(const std::string& table_prefix) const
+    void create_cofseq(const std::string& table) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (index SMALLINT, id INTEGER, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT, PRIMARY KEY (index, id)");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table + " (index SMALLINT, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT");
     }
 
     void create_pi_generators_mod(const std::string& table_prefix) const
@@ -657,7 +702,7 @@ public:
     void drop_and_create_cofseq_ss(const std::string& table_prefix) const
     {
         drop_table(table_prefix + "_ss");
-        create_cofseq_ss(table_prefix);
+        create_cofseq(table_prefix);
     }
 
     void drop_and_create_pi_generators_mod(const std::string& table_prefix) const
@@ -672,15 +717,20 @@ public:
         create_pi_def(table_prefix);
     }
 
+public:
+    void update_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
+    void save_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
+    void save_cofseq(const std::string& table, const CofSeq& cofseq) const;
     void save_pi_generators_mod(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Mod1d& gen_Einf) const;
-    void save_basis_ss(const std::string& table_prefix, const Staircases& nodes_ss) const;
     void save_pi_basis(const std::string& table_prefix, const PiBasis& basis) const;
     void save_pi_basis_mod(const std::string& table_prefix, const PiBasisMod& basis) const;
     void save_pi_def(const std::string& table_prefix, const std::vector<EnumDef>& pi_gen_defs, const std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
+
+public:
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
-    void update_basis_ss(const std::string& table_prefix, const std::map<AdamsDeg, Staircase>& nodes_ss) const;
-    Staircases load_basis_ss(const std::string& table_prefix) const;
+    Staircases load_ss(const std::string& table_prefix) const;
+    std::array<CofSeqStaircases, 3> load_cofseq(const std::string& table) const;
     void load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };
 
