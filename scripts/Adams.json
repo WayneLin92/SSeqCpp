@@ -347,7 +347,7 @@
     "#-------------- A -----------------": {},
     "CW_2_A_eta" : {
       "cells_gen": [0, 1],
-      "cells": [2],
+      "cells": [0, 1, 2],
       "operations": [
         [0, 2],
         [1, 2]
@@ -355,7 +355,7 @@
     },
     "CW_eta_A_nu" : {
       "cells_gen": [0, 2],
-      "cells": [4],
+      "cells": [0, 2, 4],
       "operations": [
         [0, 4],
         [2, 4]
@@ -363,7 +363,7 @@
     },
     "CW_nu_A_sigma" : {
       "cells_gen": [0, 4],
-      "cells": [8],
+      "cells": [0, 4, 8],
       "operations": [
         [0, 8],
         [4, 8]
