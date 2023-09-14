@@ -169,25 +169,9 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             auto name = json_map.at("name").get<std::string>();
             auto display = json_map.contains("display") ? json_map["display"].get<std::string>() : name;
             auto t_max = json_map["t_max"].get<int>();
-            int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
-            int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
-            AdamsDeg deg(fil, fil - sus);
-
-            std::string path = json_map.at("path").get<std::string>();
-            std::string abs_path = fmt::format("{}/{}", dir, path);
-            myio::AssertFileExists(abs_path);
-            DBSS db(abs_path);
             std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
-            std::string table;
-            if (std::regex_search(path, match, is_map_regex); match[0].matched) {
-                table = fmt::format("map_AdamsE2_{}", match[1].str());
-            }
-            else {
-                fmt::print("filename={} not supported.\n", path);
-                throw MyException(0x839393b2, "File name is not supported.");
-            }
-
             std::unique_ptr<Map> map;
+
             if (json_map.contains("factor")) {
                 auto& strt_factor = json_map.at("factor");
                 int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
@@ -196,12 +180,12 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     if (int index_to = GetRingIndexByName(to); index_to != -1) {
                         MyException::Assert(index_from == index_to, "index_from == index_to");
                         Poly factor = rings_[index_from].basis.at(deg_factor)[i_factor];
-                        map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg, (size_t)index_from, std::move(factor));
+                        map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg_factor, (size_t)index_from, std::move(factor));
                     }
                     else {
                         index_to = GetModuleIndexByName(to);
                         Mod factor = modules_[index_to].basis.at(deg_factor)[i_factor];
-                        map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg, (size_t)index_from, (size_t)index_to, std::move(factor));
+                        map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg_factor, (size_t)index_from, (size_t)index_to, std::move(factor));
                     }
                 }
                 else {
@@ -209,47 +193,66 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     int index_to = GetModuleIndexByName(to);
                     MyException::Assert(index_from == index_to, "index_from == index_to");
                     Poly factor = rings_[modules_[index_from].iRing].basis.at(deg_factor)[i_factor];
-                    map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg, (size_t)index_from, std::move(factor));
+                    map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg_factor, (size_t)index_from, std::move(factor));
                 }
-            }
-            else if (GetRingIndexByName(from) != -1) {
-                size_t index_from = (size_t)GetRingIndexByName(from);
-                size_t index_to = (size_t)GetRingIndexByName(to);
-                MyException::Assert(index_from != -1 && index_to != -1, "index_from != -1 && index_to != -1");
-                auto images = db.get_column_from_str<Poly>(table, "map", "ORDER BY id", myio::Deserialize<Poly>);
-                map = std::make_unique<MapRing2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
-                rings_[index_from].ind_maps.push_back(maps_.size());
             }
             else {
-                size_t index_from = (size_t)GetModuleIndexByName(from);
-                MyException::Assert(index_from != -1, "index_from != -1");
-                if (GetRingIndexByName(to) != -1) {
-                    size_t index_to = (size_t)GetRingIndexByName(to);
-                    MyException::Assert(index_to != -1, "index_to != -1");
-                    auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
-                    if (!json_map.contains("over")) {
-                        map = std::make_unique<MapMod2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
-                    }
-                    else {
-                        std::string over = json_map.at("over").get<std::string>();
-                        int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
-                        map = std::make_unique<MapMod2RingV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
-                    }
+                int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
+                int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
+                AdamsDeg deg(fil, fil - sus);
+
+                std::string path = json_map.at("path").get<std::string>();
+                std::string abs_path = fmt::format("{}/{}", dir, path);
+                myio::AssertFileExists(abs_path);
+                DBSS db(abs_path);
+                std::string table;
+                if (std::regex_search(path, match, is_map_regex); match[0].matched) {
+                    table = fmt::format("map_AdamsE2_{}", match[1].str());
                 }
                 else {
-                    size_t index_to = (size_t)GetModuleIndexByName(to);
-                    MyException::Assert(index_to != -1, "index_to != -1");
-                    auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
-                    if (!json_map.contains("over")) {
-                        map = std::make_unique<MapMod2Mod>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                    fmt::print("filename={} not supported.\n", path);
+                    throw MyException(0x839393b2, "File name is not supported.");
+                }
+
+                if (GetRingIndexByName(from) != -1) {
+                    size_t index_from = (size_t)GetRingIndexByName(from);
+                    size_t index_to = (size_t)GetRingIndexByName(to);
+                    MyException::Assert(index_from != -1 && index_to != -1, "index_from != -1 && index_to != -1");
+                    auto images = db.get_column_from_str<Poly>(table, "map", "ORDER BY id", myio::Deserialize<Poly>);
+                    map = std::make_unique<MapRing2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                    rings_[index_from].ind_maps.push_back(maps_.size());
+                }
+                else {
+                    size_t index_from = (size_t)GetModuleIndexByName(from);
+                    MyException::Assert(index_from != -1, "index_from != -1");
+                    if (GetRingIndexByName(to) != -1) {
+                        size_t index_to = (size_t)GetRingIndexByName(to);
+                        MyException::Assert(index_to != -1, "index_to != -1");
+                        auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
+                        if (!json_map.contains("over")) {
+                            map = std::make_unique<MapMod2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                        }
+                        else {
+                            std::string over = json_map.at("over").get<std::string>();
+                            int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
+                            map = std::make_unique<MapMod2RingV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                        }
                     }
                     else {
-                        std::string over = json_map.at("over").get<std::string>();
-                        int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
-                        map = std::make_unique<MapMod2ModV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                        size_t index_to = (size_t)GetModuleIndexByName(to);
+                        MyException::Assert(index_to != -1, "index_to != -1");
+                        auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
+                        if (!json_map.contains("over")) {
+                            map = std::make_unique<MapMod2Mod>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                        }
+                        else {
+                            std::string over = json_map.at("over").get<std::string>();
+                            int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
+                            map = std::make_unique<MapMod2ModV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                        }
                     }
+                    modules_[index_from].ind_maps.push_back(maps_.size());
                 }
-                modules_[index_from].ind_maps.push_back(maps_.size());
             }
             maps_.push_back(std::move(map));
         }
@@ -263,7 +266,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
                 auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
                 bool fileExists = myio::FileExists(abs_path_cofseq);
-                DBSS db(path_cofseq);
+                DBSS db(abs_path_cofseq);
                 db.create_cofseq(fmt::format("cofseq_{}", cofseq.name));
                 std::array<std::string, 3> maps_names = {json_cofseq.at("i").get<std::string>(), json_cofseq.at("q").get<std::string>(), json_cofseq.at("d").get<std::string>()};
                 for (size_t iMap = 0; iMap < maps_names.size(); ++iMap) {
@@ -297,12 +300,15 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                 else { /* Add differentials in cofseq */
 
                 }
+                cofseqs_.push_back(std::move(cofseq));
             }
         }
     }
-    catch (nlohmann::detail::exception& e) {
+    /*catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());
         throw e;
+    }*/
+    catch (NoException&) {
     }
 
     /*if (flag & DeduceFlag::homotopy)
@@ -383,7 +389,17 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
 
         /* #save cofseq */
         if (flag & DeduceFlag::cofseq) {
-
+            auto& json_cofseqs = diagram.at("cofseqs");
+            std::vector<std::string> cofseq_maps;
+            for (size_t i = 0; i < cofseqs_.size(); ++i) {
+                auto path_cofseq = json_cofseqs[i].at("path").get<std::string>();
+                auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
+                auto name = json_cofseqs[i].at("name").get<std::string>();
+                DBSS db(abs_path_cofseq);
+                auto table = fmt::format("cofseq_{}", name);
+                db.create_cofseq(table);
+                db.save_cofseq(table, cofseqs_[i]);
+            }
         }
     }
     catch (nlohmann::detail::exception& e) {

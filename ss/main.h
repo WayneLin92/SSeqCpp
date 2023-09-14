@@ -467,7 +467,7 @@ public: /* Getters */
 
     int GetMapIndexByName(const std::string& name) const
     {
-        for (size_t i = 0; i < modules_.size(); ++i)
+        for (size_t i = 0; i < maps_.size(); ++i)
             if (maps_[i]->name == name)
                 return (int)i;
         return -1;
@@ -680,7 +680,7 @@ public:
 
     void create_cofseq(const std::string& table) const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS " + table + " (index SMALLINT, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT");
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table + " (iC SMALLINT, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT)");
     }
 
     void create_pi_generators_mod(const std::string& table_prefix) const
@@ -734,6 +734,14 @@ public:
     void load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };
 
+inline std::optional<std::string> SerializeDiff(const int1d& dx)
+{
+    std::optional<std::string> result;
+    if (dx == NULL_DIFF)
+        return result;
+    result = myio::Serialize(dx);
+    return result;
+}
 std::ostream& operator<<(std::ostream& sout, const int1d& arr);
 
 /* Order by (t, -s) */

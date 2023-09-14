@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <optional>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -127,6 +128,14 @@ private:
             bind_null(iCol);
         else
             bind_blob(iCol, data);
+    }
+    template <typename T>
+    void bind_tpl(int iCol, const std::optional<T>& data) const
+    {
+        if (data.has_value())
+            bind_tpl(iCol, data.value());
+        else
+            bind_null(iCol);
     }
     template <typename T0, typename... T>
     void bind_tpl(int iCol, const T0& data, const T&... args) const

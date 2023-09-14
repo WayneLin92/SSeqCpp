@@ -6,6 +6,7 @@
 
 
 int main_reset_ss(int, char**, int&, const char*);
+int main_reset_cofseq(int, char**, int&, const char*);
 int main_reset_pi(int, char**, int&, const char*);
 int main_resetfrom(int, char**, int&, const char*);
 int main_add_diff(int, char**, int&, const char*);
@@ -30,6 +31,7 @@ int main(int argc, char** argv)
     bench::Timer timer;
     myio::SubCmdArg1d subcmds = {
         {"reset_ss", "Initialize the ss tables", main_reset_ss},
+        {"reset_cofseq", "Initialize the ss tables", main_reset_cofseq},
         {"reset_pi", "Initialize the homotopy tables", main_reset_pi},
         {"resetfrom", "Initialize from another diagram", main_resetfrom},
         {"add_diff", "Manually input a differential into the ss table", main_add_diff},

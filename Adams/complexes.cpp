@@ -617,6 +617,14 @@ bool IsFP(const std::string& cw)
     return match_RP[0].matched;
 }
 
+int IsFphi_n(const std::string& cw)
+{
+    std::regex regex("^Fphi(\\d+)$"); /* match example: Fphi4 */
+    std::smatch match;
+    std::regex_search(cw, match, regex);
+    return match[0].matched ? std::stoi(match[1].str()) : 0;
+}
+
 void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2)
 {
     std::regex words_regex("^(R|C|H)P(m|)(\\d+)_(m|)(\\d+)$"); /* match example: CP1_4 */
@@ -785,6 +793,7 @@ void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
 
 int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
 {
+    std::smatch match;
     if (cw == "S0")
         Coh_S0(v_degs, rels, d_max);
     else if (cw == "X2")
@@ -856,15 +865,11 @@ int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         int1d tmp_int1d;
         Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
     }
-    else if (cw == "Fphi4") {
+    else if (std::regex_search(cw, match, std::regex("^Fphi(\\d+)$")); match[0].matched) { /* Fphi_n */
         Mod1d tmp;
         int1d tmp_int1d;
-        Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, 4, d_max);
-    }
-    else if (cw == "Fphi6") {
-        Mod1d tmp;
-        int1d tmp_int1d;
-        Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, 6, d_max);
+        int n = std::stoi(match[1].str());
+        Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, n, d_max);
     }
     else if (cw == "M") {
         Coh_M(v_degs, rels, d_max);
@@ -1246,10 +1251,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             return;
         }
     }
-    if (IsFP(cw1) && IsFP(cw2)) {
-        SetCohMapFP2FP(cw1, cw2, from, to, images, sus, fil);
-        return;
-    }
     if (cw1 == "j" && cw2 == "j_C2") {
         images = {MMod(MMilnor(), 0), MMod(MMilnor(), 1)};
         return;
@@ -1267,14 +1268,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     }
     if (cw1 == "RP1_6" && cw2 == "CW_2_eta") {
         images = {MMod(MMilnor(), 0)};
-        sus = 1;
-        return;
-    }
-    if (cw1 == "Fphi" && cw2 == "RP1_256") {
-        images = {};
-        for (int i = 1; i <= 8; ++i) {
-            images.push_back(MMod(MMilnor::P(i, i + 1), 0));
-        }
         sus = 1;
         return;
     }
@@ -1399,7 +1392,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         return;
     }
 
-    if (cw1 == "CW_eta_2" && cw2 == "Fphi") {
+    if (cw1 == "CW_eta_2" && cw2 == "Fphi4") {
         images = {MMod(MMilnor(), 0)};
         return;
     }
@@ -1498,6 +1491,30 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         images = {MMod(MMilnor::P(0, 1), 0)};
         sus = 1;
         return;
+    }
+    if (IsFP(cw1) && IsFP(cw2)) {
+        SetCohMapFP2FP(cw1, cw2, from, to, images, sus, fil);
+        return;
+    }
+    if (int n1 = IsFphi_n(cw1), n2 = IsFphi_n(cw2); 0 < n1 && n1 < n2) {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
+    if (cw1 == "Fphi" && cw2 == "RP1_256") {
+        images = {};
+        for (int i = 1; i <= 8; ++i)
+            images.push_back(MMod(MMilnor::P(i, i + 1), 0));
+        sus = 1;
+        return;
+    }
+    if (int n = IsFphi_n(cw1)) {
+        if (cw2 == fmt::format("RP1_{}", n)) {
+            images = {};
+            for (int i = 1; (1 << i) - 1 <= n; ++i)
+                images.push_back(MMod(MMilnor::P(i, i + 1), 0));
+            sus = 1;
+            return;
+        }
     }
     std::string name = fmt::format("{}_to_{}", cw1, cw2);
     if (int error = MapCohFromJson(name, from, to, images, sus, fil)) {
