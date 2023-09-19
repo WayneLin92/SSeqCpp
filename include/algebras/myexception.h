@@ -19,6 +19,7 @@ public:
         return id_;
     }
 
+    static void Assert(bool statement, const char* message);
     static void Assert(bool statement, const std::string& message);
 
 protected:

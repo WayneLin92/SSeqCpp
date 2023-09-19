@@ -285,7 +285,7 @@ const PiBaseMod* Diagram::GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, A
 
 int Diagram::PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
-    if (nodes_ss.front().find(deg) != nodes_ss.front().end()) {
+    if (ut::has(nodes_ss.front(), deg)) {
         const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
         size_t i_start_perm = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);
@@ -302,7 +302,7 @@ void Diagram::UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>
 
 int Diagram::PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg)  //// TODO: improve
 {
-    if (nodes_ss.front().find(deg) != nodes_ss.front().end()) {
+    if (ut::has(nodes_ss.front(), deg)) {
         const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);

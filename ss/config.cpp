@@ -240,7 +240,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     }
                     else {
                         size_t index_to = (size_t)GetModuleIndexByName(to);
-                        MyException::Assert(index_to != -1, "index_to != -1");
+                        MyException::Assert(index_to != -1, fmt::format("{}: index_to != -1", to));
                         auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
                         if (!json_map.contains("over")) {
                             map = std::make_unique<MapMod2Mod>(name, display, t_max, deg, index_from, index_to, std::move(images));

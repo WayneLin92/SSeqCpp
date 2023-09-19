@@ -8,24 +8,25 @@ bool Diagram::IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
     r_max = std::min(r_max, deg.s);
     for (int r1 = LEVEL_MIN; r1 <= r_max; ++r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
-        if (nodes_ss.front().find(d_src) != nodes_ss.front().end())
+        if (ut::has(nodes_ss.front(), d_src))
             if (GetMaxLevelWithNull(ut::GetRecentValue(nodes_ss, d_src)) >= LEVEL_MAX - r1)
                 return true;
     }
     return false;
 }
 
-bool Diagram::IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min)
+bool Diagram::IsPossTgtCofSeq(const CofSeq& cofseq, size_t index, AdamsDeg deg, int r_max)
 {
-    int r_max = (deg.t - deg.s * 3 + 2) / 2;
-    for (int r = r_min; r <= r_max; ++r) {
-        AdamsDeg d_tgt = deg + AdamsDeg{r, r - 1};
-        if (d_tgt.t > t_max)
-            return true;
-        if (nodes_ss.front().find(d_tgt) != nodes_ss.front().end()) {
-            if (GetMaxLevelWithNull(ut::GetRecentValue(nodes_ss, d_tgt)) >= r)
+    r_max = std::min(r_max, deg.s);
+    const size_t index_prev = (index + 2) % 3;
+    const auto& deg_map = cofseq.degMap[index_prev];
+    const auto& nodes_cofseq_from = cofseq.nodes_cofseq[index_prev];
+    const auto& nodes_ss_from = *cofseq.nodes_ss[index_prev];
+    for (int r1 = deg_map.s; r1 <= r_max; ++r1) {
+        AdamsDeg d_src = deg - AdamsDeg{r1, deg_map.t};
+        if (PossEinf(nodes_ss_from, d_src))
+            if (PossMoreEinf(nodes_ss_from, d_src) || GetMaxLevelWithNull(ut::GetRecentValue(nodes_cofseq_from, d_src)) >= LEVEL_MAX - r1)
                 return true;
-        }
     }
     return false;
 }
@@ -271,6 +272,120 @@ void Diagram::SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg 
 }
 
 void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
+{
+    AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
+    if (deg_x.s < 0) {
+        Logger::LogException(int(nodes_ss.size() - 2), 0x7dc5fa8cU, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx_, r);
+        throw SSException(0x7dc5fa8cU, "No source for the image.");
+    }
+
+    /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
+    const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_dx);
+    size_t first_r = GetFirstIndexOnLevel(sc, r);
+    int1d dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, dx_);
+    if (dx.empty()) {
+        if (x != NULL_DIFF && !x.empty())
+            SetDiffSc(name, nodes_ss, deg_x, x, {-1}, r + 1);
+        return;
+    }
+
+    int1d image_new;
+    int level_image_new = -1;
+    if (x == NULL_DIFF) {
+        /* If the source is unknown, check if it can be hit and then insert it to the end of level r. */
+        size_t first_rp2 = GetFirstIndexOnLevel(sc, r + 1);
+        dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp2, dx);
+        if (!dx.empty()) {
+            if (!IsPossTgt(nodes_ss, deg_dx, r)) {
+                Logger::LogException(int(nodes_ss.size() - 2), 0x75989376U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx, r);
+                throw SSException(0x75989376U, "No source for the image.");
+            }
+            UpdateStaircase(nodes_ss, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
+        }
+    }
+    else {
+        /* Otherwise insert it to the beginning of level r */
+        UpdateStaircase(nodes_ss, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);
+    }
+
+    if (level_image_new != -1) {
+        if (level_image_new < LEVEL_MAX / 2) {
+            /* Add a d_{r1-1} image */
+            AdamsDeg deg_image_new = deg_dx + AdamsDeg{level_image_new, level_image_new - 1};
+            SetImageSc(name, nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
+        }
+        else {
+            /* Add a d_r1 cycle */
+            int r_image = LEVEL_MAX - level_image_new;
+            AdamsDeg deg_image_new = deg_dx - AdamsDeg{r_image, r_image - 1};
+            SetDiffSc(name, nodes_ss, deg_image_new, image_new, {-1}, r_image + 1);
+        }
+    }
+}
+
+void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r)
+{
+    const size_t index_next = (index + 1) % 3;
+    const auto& deg_map = cofseq.degMap[index];
+    const auto& nodes_ss = *cofseq.nodes_ss[index];
+
+    AdamsDeg deg_dx = deg_x + AdamsDeg{r, deg_map.t};
+
+    /* If x is zero then dx is in Im(d_{r-1}) */
+    if (x_.empty()) {
+        if (dx != NULL_DIFF && !dx.empty())
+            SetImageScCofseq(cofseq, index_next, deg_dx, dx, {-1}, r - 1);
+        return;
+    }
+
+    const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_x);
+    size_t first_Nmr = GetFirstIndexOnLevel(sc, LEVEL_MAX - r);
+    int1d x = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_Nmr, x_);
+    if (x.empty()) {
+        /* If x is in Ker(d_r) then dx is in Im(d_{r-1}) */
+        if (dx != NULL_DIFF && !dx.empty())
+            SetImageScCofseq(cofseq, index_next, deg_dx, dx, {-1}, r - 1);
+        return;
+    }
+
+    int1d image_new;
+    int level_image_new = -1;
+    if (dx == NULL_DIFF) {
+        /* If the target is unknown, insert it to the end of level N-r. */
+        size_t first_Nmrp1 = GetFirstIndexOnLevel(sc, LEVEL_MAX - r + 1);
+        x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, x);
+        if (!x.empty())
+            UpdateStaircase(nodes_ss, deg_x, sc, first_Nmrp1, x, {-1}, LEVEL_MAX - r, image_new, level_image_new);
+    }
+    else if (dx.empty()) {
+        /* If the target is zero, insert it to the end of level N-r-1 */
+        UpdateStaircase(nodes_ss, deg_x, sc, first_Nmr, x, {-1}, LEVEL_MAX - r - 1, image_new, level_image_new);
+    }
+    else {
+        /* Otherwise insert it to the beginning of level N-r */
+        UpdateStaircase(nodes_ss, deg_x, sc, first_Nmr, x, dx, LEVEL_MAX - r, image_new, level_image_new);
+    }
+
+    if (level_image_new != -1) {
+        if (level_image_new < LEVEL_MAX / 2) {
+            /* Add a d_{r1-1} image */
+            AdamsDeg deg_image_new = deg_x + AdamsDeg{level_image_new, level_image_new - 1};
+            SetImageScCofseq(cofseq, index_next, deg_image_new, image_new, {-1}, level_image_new - 1);
+        }
+        else {
+            /* Add a d_{r1} cycle */
+            int r_image = LEVEL_MAX - level_image_new;
+            AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, r_image - 1};
+            SetDiffScCofseq(cofseq, index, deg_image_new, image_new, {}, r_image);
+        }
+    }
+
+    /* Add image */
+    if (dx != NULL_DIFF && !dx.empty())
+        SetImageScCofseq(cofseq, index_next, deg_dx, dx, x, r);
+}
+
+void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
 {
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
     if (deg_x.s < 0) {

@@ -60,15 +60,7 @@ struct Staircase
 using Staircases = std::map<AdamsDeg, Staircase>;
 using Staircases1d = std::vector<Staircases>;
 
-struct CofSeqStaircase
-{
-    int2d basis;
-    int2d diffs; /* element {-1} means null */
-    int1d levels;
-};
-using CofSeqStaircases = std::map<AdamsDeg, CofSeqStaircase>;
-using CofSeqStaircases1d = std::vector<CofSeqStaircases>;
-
+/* cw1 --map1--> cw2 --map2--> cw3 --map3--> cw1 */
 struct CofSeq
 {
     std::string name;
@@ -78,7 +70,7 @@ struct CofSeq
     std::array<size_t, 3> indexCw;
     std::array<std::string, 3> nameCw;
     std::array<Staircases1d*, 3> nodes_ss;
-    std::array<CofSeqStaircases1d, 3> nodes_cofseq;
+    std::array<Staircases1d, 3> nodes_cofseq;
 };
 using CofSeq1d = std::vector<CofSeq>;
 
@@ -500,18 +492,15 @@ private: /* Staircase */
     static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
 
 private: /* ss */
-    /* Return if it is possibly a new dr target for r<=r_max
+    /* Return if deg has possibly a new dr target for r<=r_max
      * Warning: This does check if ss[deg] is trivial
      */
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
-
+    static bool IsPossTgtCofSeq(const CofSeq& cofseq, size_t index, AdamsDeg deg, int r_max);
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
     {
         return IsPossTgt(nodes_ss, deg, R_PERM);
     }
-
-    /* Return if it is possibly a new dr source for r>=r_min */
-    static bool IsPossSrc(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r_min);
 
     /* Return the first index with level >=`level_min` such that all levels above are already fixed */
     static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
@@ -542,9 +531,12 @@ private: /* ss */
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
     void SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
-
     /* Add an image. dx must be nonempty. */
     void SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
+    /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
+    void SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r);
+    /* Add an image. dx must be nonempty. */
+    void SetImageScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r);
 
     /**
      * Add d_r(x)=dx;
@@ -730,7 +722,7 @@ public:
     /* load the minimum id in every degree */
     std::map<AdamsDeg, int> load_basis_indices(const std::string& table_prefix) const;
     Staircases load_ss(const std::string& table_prefix) const;
-    std::array<CofSeqStaircases, 3> load_cofseq(const std::string& table) const;
+    std::array<Staircases, 3> load_cofseq(const std::string& table) const;
     void load_pi_def(const std::string& table_prefix, std::vector<EnumDef>& pi_gen_defs, std::vector<std::vector<GenConstraint>>& pi_gen_def_mons) const;
 };
 

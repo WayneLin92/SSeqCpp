@@ -154,9 +154,9 @@ Staircases DBSS::load_ss(const std::string& table_prefix) const
     return nodes_ss;
 }
 
-std::array<CofSeqStaircases, 3> DBSS::load_cofseq(const std::string& table) const
+std::array<Staircases, 3> DBSS::load_cofseq(const std::string& table) const
 {
-    std::array<CofSeqStaircases, 3> node_cofseq;
+    std::array<Staircases, 3> node_cofseq;
     Statement stmt(*this, "SELECT iC, base, COALESCE(diff, \"-1\"), level, s, t FROM " + table);
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {
