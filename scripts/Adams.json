@@ -420,7 +420,7 @@
         [3, 4]
       ]
     },
-    "CW_2_A_sigam" : {
+    "CW_2_A_sigma" : {
       "cells_gen": [0, 7],
       "cells": [0, 7, 8],
       "operations": [
@@ -749,6 +749,21 @@
       "total": "CW_eta_nu_eta_Eq_nu_nu",
       "sus": -5
     },
+    "CW_eta_nu_eta_Eq_nu_nu_to_CW_eta_A_nu": {
+      "from": "CW_eta_nu_eta_Eq_nu_nu",
+      "to": "CW_eta_A_nu",
+      "sus": 4,
+      "images": [
+        [0, 4],
+        [0, 2, 6]
+      ]
+    },
+    "CW_eta_A_nu_to_Q_CW_eta_nu_eta_Eq_nu_nu": {
+      "from": "CW_eta_A_nu",
+      "to": "Ceta",
+      "total": "CW_eta_nu_eta_Eq_nu_nu",
+      "sus": -3
+    },
 
     "#----------------- CW_nu_sigma_nu_Eq_sigma_sigma -----------------": {},
     "CW_nu_sigma_to_CW_nu_sigma_nu_Eq_sigma_sigma": {
@@ -809,6 +824,21 @@
       "total": "CW_nu_sigma_nu_Eq_sigma_sigma",
       "sus": -11
     },
+    "CW_nu_sigma_nu_Eq_sigma_sigma_to_CW_nu_A_sigma": {
+      "from": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "to": "CW_nu_A_sigma",
+      "sus": 8,
+      "images": [
+        [0, 8],
+        [0, 4, 12]
+      ]
+    },
+    "CW_nu_A_sigma_to_Q_CW_nu_sigma_nu_Eq_sigma_sigma": {
+      "from": "CW_nu_A_sigma",
+      "to": "Cnu",
+      "total": "CW_nu_sigma_nu_Eq_sigma_sigma",
+      "sus": -7
+    },
 
     "#----------------- CW_eta_2_eta_Eq_2_nu -----------------": {},
     "CW_eta_2_to_CW_eta_2_eta_Eq_2_nu": {
@@ -868,6 +898,21 @@
       "to": "CW_2_V_eta",
       "total": "CW_eta_2_eta_Eq_2_nu",
       "sus": -2
+    },
+    "CW_eta_2_eta_Eq_2_nu_to_CW_eta_A_nu": {
+      "from": "CW_eta_2_eta_Eq_2_nu",
+      "to": "CW_eta_A_nu",
+      "sus": 1,
+      "images": [
+        [0, 1],
+        [0, 2, 3]
+      ]
+    },
+    "CW_eta_A_nu_to_Q_CW_eta_2_eta_Eq_2_nu": {
+      "from": "CW_eta_A_nu",
+      "to": "Ceta",
+      "total": "CW_eta_2_eta_Eq_2_nu",
+      "sus": 0
     },
 
     "#-------------- CW_eta_2_eta_Eq_nu_2 -----------------": {},
@@ -1340,7 +1385,7 @@
       ]
     },
     "CW_eta_A_sigma_to_Csigma": {
-      "from": "CW_2_A_sigma",
+      "from": "CW_eta_A_sigma",
       "to": "Csigma",
       "sus": 0,
       "images": [
@@ -1357,7 +1402,7 @@
       ]
     },
     "CW_nu_A_sigma_to_Csigma": {
-      "from": "CW_2_A_sigma",
+      "from": "CW_nu_A_sigma",
       "to": "Csigma",
       "sus": 0,
       "images": [
