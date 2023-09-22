@@ -190,10 +190,10 @@ public:
     /* Leadings[i] is the set of monomials that end with generator i.
      * The result is used to generate basis of $P/I$.
      */
-    Mon2d GetLeadings(size_t gens_size) const
+    Mon2d GetLeadings() const
     {
         Mon2d result;
-        result.resize(gens_size);
+        result.resize(gen_degs_.size());
         for (size_t i = 0; i < data_.size(); ++i)
             result[leads_[i].back().g()].push_back(leads_[i]);
         return result;
