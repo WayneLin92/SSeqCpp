@@ -293,12 +293,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     }
                 }
                 if (fileExists) { /* Load cofseq from database */
-                    auto& node_cofseq = db.load_cofseq(fmt::format("cofseq_{}", cofseq.name));
+                    auto node_cofseq = db.load_cofseq(fmt::format("cofseq_{}", cofseq.name));
                     for (size_t i = 0; i < cofseq.nodes_cofseq.size(); ++i)
                         cofseq.nodes_cofseq[i].front() = std::move(node_cofseq[i]);
                 }
                 else { /* Add differentials in cofseq */
-
                 }
                 cofseqs_.push_back(std::move(cofseq));
             }

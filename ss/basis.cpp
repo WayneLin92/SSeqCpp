@@ -33,9 +33,10 @@ void generate_db(const std::string& diagram, const std::string& name, int t_max,
                     auto deg_mon = p->first + gen_degs[gen_id];
                     for (size_t i = 0; i < p->second.size(); ++i) {
                         Mon& m = p->second[i];
-                        if (!m || (int)gen_id <= m[0].g()) {
+                        if (!m || (int)gen_id >= m.backg()) {
                             Mon mon = m * Mon::Gen((uint32_t)gen_id);
                             if (gen_id >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&mon](const Mon& _m) { return divisible(_m, mon); })) {
+                                //std::cout << divisible(leads[1][0], mon) << '\n';
                                 basis_new[deg_mon].push_back(std::move(mon));
                             }
                         }
@@ -63,8 +64,19 @@ void generate_db(const std::string& diagram, const std::string& name, int t_max,
     /* insert into the database */
     db.begin_transaction();
     db.create_generators(table_prefix);
-    db.create_relations(table_prefix);
-    db.create_basis(table_prefix);
+    db.drop_and_create_relations(table_prefix);
+    std::map<AdamsDeg, Poly1d> gb_for_db;
+    for (auto& p : gb.data()) {
+        auto deg = GetDeg(p.GetLead(), gen_degs);
+        gb_for_db[deg].push_back(p);
+    }
+    db.save_gb(table_prefix, gb_for_db);
+
+    db.drop_and_create_basis(table_prefix);
+    std::map<AdamsDeg, int2d> repr;
+    for (auto it = basis.begin(); it != basis.end(); ++it)
+        repr[it->first].resize(it->second.size());
+    db.save_basis(table_prefix, basis, repr);
     db.drop_and_create_ss(table_prefix);
     db.save_ss(table_prefix, nodes_ss);
 
@@ -78,14 +90,14 @@ void generate_db(const std::string& diagram, const std::string& name, int t_max,
 int main_add_basis(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram, name;
-    int t_max = 0;
+    int t_max = 0, r = 2;
 
-    myio::CmdArg1d args = {{"diagram", &diagram}, {"name", &name}, {"t_max", &t_max}};  // TODO: with diagram only
+    myio::CmdArg1d args = {{"diagram", &diagram}, {"name", &name}, {"r", &r}, {"t_max", &t_max}};  // TODO: with diagram only
     myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    generate_db(diagram, name, t_max, 2);
+    generate_db(diagram, name, t_max, r);
 
     return 0;
 }
