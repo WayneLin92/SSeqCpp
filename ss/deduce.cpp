@@ -4,7 +4,7 @@
 #include <set>
 
 /* Deduce zero differentials for degree reason */
-int Diagram::DeduceTrivialDiffs()
+int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
 {
     int old_count = 0, count = 0;
     const size_t num_cw = rings_.size() + modules_.size();
@@ -13,7 +13,7 @@ int Diagram::DeduceTrivialDiffs()
             auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
             auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
             int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
-            for (auto& [d, basis_ss_d] : nodes_ss.front()) {
+            for (auto& [d, _] : nodes_ss.front()) {
                 const Staircase& sc = ut::GetRecentValue(nodes_ss, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.diffs[i] == NULL_DIFF) {
@@ -23,7 +23,7 @@ int Diagram::DeduceTrivialDiffs()
                             int r1 = NextRTgt(nodes_ss, t_max, d, r);
                             if (r != r1) {
                                 Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::degree, name, d, sc.basis[i], {}, r1 - 1);
-                                SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r1 - 1, true);
+                                SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r1 - 1, true, flag);
                                 ++count;
                             }
                         }
@@ -32,8 +32,65 @@ int Diagram::DeduceTrivialDiffs()
                             int r1 = NextRSrc(nodes_ss, d, r);
                             if (r != r1) {
                                 Logger::LogDiffInv(int(nodes_ss.size() - 2), enumReason::degree, name, d, {}, sc.basis[i], r1 + 1);
-                                SetCwDiffGlobal(iCw, d - AdamsDeg(r1 + 1, r1), {}, sc.basis[i], r1 + 1, true);
+                                SetCwDiffGlobal(iCw, d - AdamsDeg(r1 + 1, r1), {}, sc.basis[i], r1 + 1, true, flag);
                                 ++count;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (old_count != count)
+            old_count = count;
+        else
+            break;
+    }
+    return count;
+}
+
+/* Deduce zero differentials for degree reason */
+int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop after two rounds. remove while(true).
+{
+    int old_count = 0, count = 0;
+    while (true) {
+        for (auto& cofseq : cofseqs_) {
+            for (size_t iCs = 0; iCs < 3; ++iCs) {
+                size_t iCs1 = (iCs + 2) % 3;
+                size_t iCs2 = (iCs + 1) % 3;
+                const int stem_map1 = cofseq.degMap[iCs1].stem();
+                auto& name = cofseq.name;
+                auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+                for (auto& [d, _] : nodes_cofseq.front()) {
+                    const Staircase& sc = ut::GetRecentValue(nodes_cofseq, d);
+                    for (size_t i = 0; i < sc.levels.size(); ++i) {
+                        if (sc.diffs[i] == NULL_DIFF) {
+                            if (sc.levels[i] > LEVEL_PERM) {
+                                const int r = LEVEL_MAX - sc.levels[i];
+                                /* Find the first possible d_{r1} target for r1>=r */
+                                int r1 = NextRTgtCofseq(cofseq, iCs, d, r);
+                                if (r != r1) {
+                                    if (r1 != R_PERM) {
+                                        Logger::LogDiff(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, sc.basis[i], {}, r1 - 1);
+                                        SetDiffLeibnizCofseq(cofseq, iCs, d, sc.basis[i], {}, r1 - 1, flag);
+                                        ++count;
+                                    }
+                                    else {
+                                        r1 = NextRSrcCofseq(cofseq, iCs, d, R_PERM);
+                                        Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, {}, sc.basis[i], r1 + 1);
+                                        SetDiffLeibnizCofseq(cofseq, iCs1, d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1), {}, sc.basis[i], r1 + 1, flag);
+                                        ++count;
+                                    }
+                                }
+                            }
+                            else if (sc.levels[i] <= LEVEL_PERM) {
+                                const int r = sc.levels[i];
+                                int r1 = NextRSrcCofseq(cofseq, iCs, d, r);
+                                if (r != r1) {
+                                    int1d dx = sc.basis[i];
+                                    Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, {}, dx, r1 + 1);
+                                    SetDiffLeibnizCofseq(cofseq, iCs1, d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1), {}, dx, r1 + 1, flag);
+                                    ++count;
+                                }
                             }
                         }
                     }
@@ -150,7 +207,7 @@ int Diagram::DeduceManual()
                             const int r = LEVEL_MAX - sc.levels[i];
                             if (IsPermanent(name, deg, r)) {
                                 Logger::LogDiff(depth, enumReason::manual, name, deg, sc.basis[i], {}, R_PERM - 1);
-                                SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true);
+                                SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true, DeduceFlag::no_op);
                                 ++count;
                             }
                         }
@@ -174,24 +231,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
         Logger::LogDiff(depth + 1, enumReason::try_, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
-        int count_trivial = DeduceTrivialDiffs();
-
-        /*if (flag & DeduceFlag::set_diff)
-            DeduceDiffs(depth + 1, 0);*/
-        /*if (flag & DeduceFlag::pi) {
-            int count_ss1 = 0, count_homotopy1 = 0;
-            AdamsDeg deg_min = deg_x - AdamsDeg(0, 1);
-            if (iCw >= rings_.size())
-                deg_min = deg_min - modules_[iCw - rings_.size()].deg_qt;
-            if (count_trivial) {
-                deg_min.t = deg_min.stem();
-                deg_min.s = 0;
-            }
-            SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-            DeduceTrivialExtensions(depth + 1);
-            if (flag & DeduceFlag::pi_exact)
-                DeduceExtensionsByExactness(deg_min.stem(), 100, depth + 1);
-        }*/
+        DeduceTrivialDiffs(flag);
     }
     catch (SSException&) {
         bException = true;
@@ -303,8 +343,8 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 Logger::LogDiff(depth, enumReason::deduce, name, deg, x, dx, r);
             else
                 Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
-            SetCwDiffGlobal(iCw, deg_src, x, dx, r, true);
-            int count_trivial = DeduceTrivialDiffs();
+            SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
+            int count_trivial = DeduceTrivialDiffs(flag);
             count += count_trivial;
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
             /*if (flag & DeduceFlag::pi) {
@@ -326,9 +366,9 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
             Logger::ClearDepth();
             if ((flag & DeduceFlag::xy) && nd.r > 0) {
                 if (iCw < rings_.size())
-                    count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r);
+                    count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r, flag);
                 else
-                    count += SetModuleDiffLeibnizV2(iCw - rings_.size(), deg, nd.x, nd.r);
+                    count += SetModuleDiffLeibnizV2(iCw - rings_.size(), deg, nd.x, nd.r, flag);
             }
         }
     }
@@ -339,7 +379,7 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 {
     int count = 0;
 
-    DeduceTrivialDiffs();
+    DeduceTrivialDiffs(flag);
     if (flag & DeduceFlag::pi) {
         int count_homotopy1 = 0;
         SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
@@ -385,7 +425,7 @@ int Diagram::DeduceDiffsV2()
                     if (sc.levels[i] > LEVEL_PERM) {
                         const int r = LEVEL_MAX - sc.levels[i];
                         auto& x = sc.basis[i];
-                        count += SetRingDiffLeibnizV2(iRing, deg, x, r);
+                        count += SetRingDiffLeibnizV2(iRing, deg, x, r, DeduceFlag::no_op);
                     }
                 }
             }
@@ -405,7 +445,7 @@ int Diagram::DeduceDiffsV2()
                     if (sc.levels[i] > LEVEL_PERM) {
                         const int r = LEVEL_MAX - sc.levels[i];
                         auto& x = sc.basis[i];
-                        count += SetModuleDiffLeibnizV2(iMod, deg, x, r);
+                        count += SetModuleDiffLeibnizV2(iMod, deg, x, r, DeduceFlag::no_op);
                     }
                 }
             }
@@ -479,6 +519,41 @@ int main_deduce_diff_v2(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+int main_deduce_cofseq(int argc, char** argv, int& index, const char* desc)
+{
+    int stem_min = 0, stem_max = 261;
+    std::string diagram_name = "default";
+    std::vector<std::string> strFlags;
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    DeduceFlag flag = DeduceFlag::cofseq;
+    for (auto& f : strFlags) {
+        if (f == "all_x")
+            flag = flag | DeduceFlag::all_x;
+        else if (f == "xy")
+            flag = flag | DeduceFlag::xy;
+        else if (f == "pi")
+            flag = flag | DeduceFlag::pi;
+        else {
+            std::cout << "Not a supported flag: " << f << '\n';
+            return 100;
+        }
+    }
+
+    Diagram diagram(diagram_name, flag);
+
+    int count = 0;
+    count = diagram.DeduceDiffsCofseq(stem_min, stem_max, 0, flag);
+    diagram.save(diagram_name, flag);
+    Logger::LogSummary("Changed differentials", count);
+
+    return 0;
+}
+
 int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
@@ -516,7 +591,6 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_deduce(int, char**, int&, const char*);
 int main_deduce_ext(int, char**, int&, const char*);
 int main_deduce_ext_def(int, char**, int&, const char*);
 int main_deduce_ext_def2(int, char**, int&, const char*);
@@ -526,8 +600,9 @@ int main_deduce_ext_2tor(int, char**, int&, const char*);
 int main_deduce(int argc, char** argv, int& index, const char* desc)
 {
     myio::SubCmdArg1d subcmds = {
-        {"diff", "Deduce differentials", main_deduce_diff},
+        {"diff", "Deduce differentials in ss", main_deduce_diff},
         {"diff_v2", "Deduce d(xy) or d(f(x)) when dx is uncertain", main_deduce_diff_v2},
+        {"cofseq", "Deduce differentials in cofseq", main_deduce_cofseq},
         {"ext", "Deduce extensions", main_deduce_ext},
         {"ext_def", "Define decomposables", main_deduce_ext_def},
         {"ext_def2", "Define indecomposables", main_deduce_ext_def2},

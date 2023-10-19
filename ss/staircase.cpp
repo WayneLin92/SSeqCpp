@@ -9,7 +9,7 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
     level_image = -1;
 
     size_t i = i_insert;
-    while (!x.empty()) {
+    while (!x.empty() && i < sc.basis.size()) {
         std::swap(x, sc.basis[i]);
         std::swap(dx, sc.diffs[i]);
         std::swap(level, sc.levels[i]);
@@ -18,12 +18,18 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
         for (size_t j = i_insert; j < i; ++j) {
             if (std::binary_search(x.begin(), x.end(), sc.basis[j][0])) {
                 x = lina::add(x, sc.basis[j]);
-                if (level == sc.levels[j] && dx != int1d{-1})
+                if (level == sc.levels[j] && dx != NULL_DIFF)
                     dx = lina::add(dx, sc.diffs[j]);
             }
         }
     }
-    if (dx != int1d{-1} && !dx.empty()) {
+    if (!x.empty()) {
+        sc.basis.push_back(x);
+        sc.diffs.push_back(dx);
+        sc.levels.push_back(level);
+        return;
+    }
+    else if (!dx.empty() && dx != NULL_DIFF) {
         image = std::move(dx);
         level_image = LEVEL_MAX - level;
     }
@@ -33,7 +39,7 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
         for (size_t j = i_insert; j < i; ++j) {
             if (std::binary_search(sc.basis[i].begin(), sc.basis[i].end(), sc.basis[j][0])) {
                 sc.basis[i] = lina::add(sc.basis[i], sc.basis[j]);
-                if (sc.levels[i] == sc.levels[j] && sc.diffs[i] != int1d{-1})
+                if (sc.levels[i] == sc.levels[j] && sc.diffs[i] != NULL_DIFF)
                     sc.diffs[i] = lina::add(sc.diffs[i], sc.diffs[j]);
             }
         }
@@ -72,11 +78,11 @@ size_t Diagram::GetFirstIndexOfNullOnLevel(const Staircase& sc, int level)
 }
 
 /* Return -1 if not found */
-int Diagram::GetMaxLevelWithNull(const Staircase& sc)
+int Diagram::GetMaxLevelWithND(const Staircase& sc)
 {
     size_t i = sc.levels.size();
     while (i-- > 0) {
-        if (sc.diffs[i] == int1d{-1})
+        if (sc.diffs[i] == NULL_DIFF)
             return sc.levels[i];
     }
     return -1;
@@ -97,4 +103,15 @@ void Diagram::UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Stairc
     if (nodes_ss.back().find(deg) == nodes_ss.back().end())
         nodes_ss.back()[deg] = sc_i;
     triangularize(nodes_ss.back()[deg], i_insert, x, dx, level, image, level_image);
+}
+
+int1d Residue(int1d x, const Staircases1d& nodes_ss, AdamsDeg deg, int level)
+{
+    int1d result;
+    if (x.empty())
+        return result;
+    auto& sc_ss = ut::GetRecentValue(nodes_ss, deg);
+    size_t first_PC = GetFirstIndexOnLevel(sc_ss, level);
+    result = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_PC, std::move(x));
+    return result;
 }

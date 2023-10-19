@@ -16,11 +16,12 @@ enum class enumReason : uint32_t
     exact_ih,  /* By long exact sequence i*h */
     exact_qi,  /* By long exact sequence q*i */
     def,       /* By definition */
+    cofseq_b,  /* ss Boundary from cofseq logic */
     try_,      /* Try */
     migrate,   /* Migration */
     manual,    /* By other source of knowledge */
 };
-constexpr std::array REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "deduce_v2", "exact_hq", "exact_ih", "exact_qi", "def", "try", "migrate", "manual"};
+constexpr std::array REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "deduce_v2", "exact_hq", "exact_ih", "exact_qi", "def", "cofseq_b", "try", "migrate", "manual"};
 inline const char* INDENT = "          ";
 
 /* There should be at least one global instance to close the files */

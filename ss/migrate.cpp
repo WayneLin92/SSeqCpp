@@ -6,6 +6,7 @@
 /* Add the differentials from diagram1 to diagram2 */
 void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
 {
+    auto flag = DeduceFlag::no_op;
     int count = 0;
     int1d diff;
     const size_t num_cw = diagram1.GetRings().size() + diagram1.GetModules().size();
@@ -32,13 +33,13 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             if (diff != NULL_DIFF) {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], diff, r)) {
                                     Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], diff, r);
-                                    count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], diff, r, true);
+                                    count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], diff, r, true, flag);
                                 }
                             }
                             else {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r - 1)) {
                                     Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
-                                    count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], int1d{}, r - 1, true);
+                                    count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], int1d{}, r - 1, true, flag);
                                 }
                             }
                         }
@@ -47,7 +48,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                             if (diagram2.IsNewDiff(nodes_ss2, deg_src, {}, sc1.basis[i], r)) {
                                 Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis[i], r);
-                                count += diagram2.SetRingDiffGlobal(iCw2, deg_src, {}, sc1.basis[i], r, true);
+                                count += diagram2.SetRingDiffGlobal(iCw2, deg_src, {}, sc1.basis[i], r, true, flag);
                             }
                         }
                     }
@@ -76,13 +77,13 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             if (diff != NULL_DIFF) {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], diff, r)) {
                                     Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], diff, r);
-                                    count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], diff, r, true);
+                                    count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], diff, r, true, flag);
                                 }
                             }
                             else {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r - 1)) {
                                     Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
-                                    count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], int1d{}, r - 1, true);
+                                    count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], int1d{}, r - 1, true, flag);
                                 }
                             }
                         }
@@ -91,7 +92,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                             if (diagram2.IsNewDiff(nodes_ss2, deg_src, {}, sc1.basis[i], r)) {
                                 Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis[i], r);
-                                count += diagram2.SetModuleDiffGlobal(iMod2, deg_src, {}, sc1.basis[i], r, true);
+                                count += diagram2.SetModuleDiffGlobal(iMod2, deg_src, {}, sc1.basis[i], r, true, flag);
                             }
                         }
                     }
@@ -248,7 +249,7 @@ void ImportChuaD2(Diagram& diagram)
 
     for (auto& [deg, x_d] : x) {
         for (size_t i = 0; i < x_d.size(); ++i)
-            diagram.SetRingDiffGlobal(0, deg, x_d[i], dx[deg][i], 2, false);
+            diagram.SetRingDiffGlobal(0, deg, x_d[i], dx[deg][i], 2, false, DeduceFlag::no_op);
     }
 }
 

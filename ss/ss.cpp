@@ -3,48 +3,25 @@
 #include "mylog.h"
 #include <fmt/ranges.h>
 
+void pop_front(Staircase& sc)
+{
+    sc.basis.erase(sc.basis.begin());
+    sc.diffs.erase(sc.diffs.begin());
+    sc.levels.erase(sc.levels.begin());
+}
+
 bool Diagram::IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
 {
     r_max = std::min(r_max, deg.s);
+    if (r_max < LEVEL_MIN)
+        return false;
     for (int r1 = LEVEL_MIN; r1 <= r_max; ++r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
         if (ut::has(nodes_ss.front(), d_src))
-            if (GetMaxLevelWithNull(ut::GetRecentValue(nodes_ss, d_src)) >= LEVEL_MAX - r1)
+            if (GetMaxLevelWithND(ut::GetRecentValue(nodes_ss, d_src)) >= LEVEL_MAX - r1)
                 return true;
     }
     return false;
-}
-
-bool Diagram::IsPossTgtCofSeq(const CofSeq& cofseq, size_t index, AdamsDeg deg, int r_max)
-{
-    r_max = std::min(r_max, deg.s);
-    const size_t index_prev = (index + 2) % 3;
-    const auto& deg_map = cofseq.degMap[index_prev];
-    const auto& nodes_cofseq_from = cofseq.nodes_cofseq[index_prev];
-    const auto& nodes_ss_from = *cofseq.nodes_ss[index_prev];
-    for (int r1 = deg_map.s; r1 <= r_max; ++r1) {
-        AdamsDeg d_src = deg - AdamsDeg{r1, deg_map.stem() + r1};
-        if (PossEinf(nodes_ss_from, d_src))
-            if (PossMoreEinf(nodes_ss_from, d_src) || GetMaxLevelWithNull(ut::GetRecentValue(nodes_cofseq_from, d_src)) >= LEVEL_MAX - r1)
-                return true;
-    }
-    return false;
-}
-
-int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg)
-{
-    auto& sc = ut::GetRecentValue(nodes_ss, deg);
-    int result = LEVEL_MAX - LEVEL_MIN;
-    for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= LEVEL_PERM;) {
-        if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
-            int r = LEVEL_MAX - sc.levels[i];
-            if (IsPossTgt(nodes_ss, deg + AdamsDeg{r, r - 1}, r - 1))
-                break;
-            else
-                result = sc.levels[i];
-        }
-    }
-    return result;
 }
 
 size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min)
@@ -65,6 +42,22 @@ size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDe
     return result;
 }
 
+int Diagram::GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg)
+{
+    auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    int result = LEVEL_MAX - LEVEL_MIN;
+    for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= LEVEL_PERM;) {
+        if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
+            int r = LEVEL_MAX - sc.levels[i];
+            if (IsPossTgt(nodes_ss, deg + AdamsDeg{r, r - 1}, r - 1))
+                break;
+            else
+                result = sc.levels[i];
+        }
+    }
+    return result;
+}
+
 std::pair<int, int> Diagram::CountPossDrTgt(const Staircases1d& nodes_ss, int t_max, const AdamsDeg& deg_tgt, int r) const
 {
     std::pair<int, int> result;
@@ -74,7 +67,7 @@ std::pair<int, int> Diagram::CountPossDrTgt(const Staircases1d& nodes_ss, int t_
         result.second = (int)GetFirstIndexOfFixedLevels(nodes_ss, deg_tgt, LEVEL_MAX - r + 1) - result.first;
     }
     else if (deg_tgt.t > t_max)
-        result = {-1, 100000};
+        result = {-1, 100000}; /* Infinitely many possibilities */
     else
         result = {-1, 0};
     return result;
@@ -93,22 +86,15 @@ std::pair<int, int> Diagram::CountPossDrSrc(const Staircases1d& nodes_ss, const 
     return result;
 }
 
-bool AboveVanishing(AdamsDeg deg)
-{
-    return 3 * (deg.s - 1) > deg.t;
-}
-
 int Diagram::NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const
 {
-    AdamsDeg deg_tgt;
-    int count = 0, index = -1;
     for (int r1 = r; r1 <= R_PERM; ++r1) {
         if (deg.t + r1 - 1 > t_max)
             return r1;
         AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 - 1};
-        if (AboveVanishing(d_tgt) && !ut::has(nodes_ss.front(), d_tgt))
+        if (AboveS0Vanishing(d_tgt) && !ut::has(nodes_ss.front(), d_tgt))
             return R_PERM;
-        auto [index, count] = CountPossDrTgt(nodes_ss, t_max, d_tgt, r1);
+        auto [_, count] = CountPossDrTgt(nodes_ss, t_max, d_tgt, r1);
         if (count > 0)
             return r1;
     }
@@ -117,69 +103,67 @@ int Diagram::NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int
 
 int Diagram::NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const
 {
-    AdamsDeg deg_src;
-    int count = 0, index = -1;
-    int r_max = std::min(r, deg.s - 1);
-    const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+    int r_max = std::min(r, deg.s);
     for (int r1 = r_max; r1 >= LEVEL_MIN; --r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
-        auto [index, count] = CountPossDrSrc(nodes_ss, d_src, r1);
+        auto [_, count] = CountPossDrSrc(nodes_ss, d_src, r1);
         if (count > 0)
             return r1;
     }
     return -1;
 }
 
-void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds)
+void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const
 {
     nds.clear();
     const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
     for (size_t i = 0; i < sc.diffs.size(); ++i) {
-        if (sc.diffs[i] == NULL_DIFF) {
-            NullDiff nd;
-            if (sc.levels[i] > LEVEL_PERM) {
-                int r = LEVEL_MAX - sc.levels[i];
-                AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
-                auto [index, count] = CountPossDrTgt(nodes_ss, t_max, deg_tgt, r);
-                nd.r = r;
-                nd.first = index;
-                nd.count = count;
-                if (nd.count > 10)
-                    continue;
-            }
-            else if (sc.levels[i] < LEVEL_MAX / 2) {
-                int r = sc.levels[i];
-                AdamsDeg deg_src = deg - AdamsDeg{r, r - 1};
-                auto [index, count] = CountPossDrSrc(nodes_ss, deg_src, r);
-                nd.r = -r;
-                nd.first = index;
-                nd.count = count;
-                if (nd.count > deduce_count_max_)
-                    continue;
-            }
-            else
-                continue;
+        if (sc.diffs[i] != NULL_DIFF)
+            continue;
 
-            size_t j = i + 1;
-            while (j < sc.levels.size() && sc.diffs[j] == NULL_DIFF && sc.levels[i] == sc.levels[j])
-                ++j;
-            if (!(flag & DeduceFlag::all_x)) {
-                for (size_t k = 0; k < j - i; ++k) {
-                    nd.x = sc.basis[i + k];
-                    nds.push_back(nd);
-                }
-            }
-            else {
-                const unsigned k_max = unsigned(1) << (j - i);
-                for (unsigned k = 1; k < k_max; ++k) {
-                    nd.x.clear();
-                    for (int l : two_expansion(k))
-                        nd.x = lina::add(nd.x, sc.basis[i + l]);
-                    nds.push_back(nd);
-                }
-            }
-            i = j - 1;
+        NullDiff nd;
+        if (sc.levels[i] > LEVEL_PERM) {
+            int r = LEVEL_MAX - sc.levels[i];
+            AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
+            auto [index, count] = CountPossDrTgt(nodes_ss, t_max, deg_tgt, r);
+            nd.r = r;
+            nd.first = index;
+            nd.count = count;
+            if (nd.count > deduce_count_max_)
+                continue;
         }
+        else if (sc.levels[i] < LEVEL_MAX / 2) {
+            int r = sc.levels[i];
+            AdamsDeg deg_src = deg - AdamsDeg{r, r - 1};
+            auto [index, count] = CountPossDrSrc(nodes_ss, deg_src, r);
+            nd.r = -r;
+            nd.first = index;
+            nd.count = count;
+            if (nd.count > deduce_count_max_)
+                continue;
+        }
+        else
+            continue;
+
+        size_t j = i + 1;
+        while (j < sc.levels.size() && sc.diffs[j] == NULL_DIFF && sc.levels[i] == sc.levels[j])
+            ++j;
+        if (flag & DeduceFlag::all_x) {
+            const unsigned k_max = unsigned(1) << (j - i);
+            for (unsigned k = 1; k < k_max; ++k) {
+                nd.x.clear();
+                for (int l : two_expansion(k))
+                    nd.x = lina::add(nd.x, sc.basis[i + l]);
+                nds.push_back(nd);
+            }
+        }
+        else {
+            for (size_t k = 0; k < j - i; ++k) {
+                nd.x = sc.basis[i + k];
+                nds.push_back(nd);
+            }
+        }
+        i = j - 1;
     }
 }
 
@@ -206,31 +190,35 @@ bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
     if (x.empty())
         return !dx.empty() && !IsZeroOnLevel(ut::GetRecentValue(nodes_ss, deg_dx), dx, r);
-    int1d dx1 = GetDiff(nodes_ss, deg_x, x, r);  // TODO: optimize the allocation
+    int1d dx1 = GetDiff(nodes_ss, deg_x, x, r);  //// TODO: optimize the allocation
     if (dx1 == NULL_DIFF)
         return true;
     int1d diff = lina::add(dx, dx1);
     return !diff.empty() && !IsZeroOnLevel(ut::GetRecentValue(nodes_ss, deg_dx), diff, r);
 }
 
-void Diagram::SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r)
+void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, DeduceFlag flag)
 {
+    /* NULL_DIFF checking */
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
-
-    /* If x is zero then dx is in Im(d_{r-1}) */
-    if (x_.empty()) {
-        if (dx != NULL_DIFF && !dx.empty())
-            SetImageSc(name, nodes_ss, deg_dx, dx, {-1}, r - 1);
+    if (x_ == NULL_DIFF) {
+        SetImageSc(iCw, deg_dx, dx, NULL_DIFF, r, flag);
         return;
     }
 
+    /* Triangularize x */
+    if (x_.empty()) {
+        if (dx != NULL_DIFF && !dx.empty())
+            SetImageSc(iCw, deg_dx, dx, NULL_DIFF, r - 1, flag);
+        return;
+    }
+    auto& nodes_ss = (iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
     const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_x);
     size_t first_Nmr = GetFirstIndexOnLevel(sc, LEVEL_MAX - r);
     int1d x = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_Nmr, x_);
     if (x.empty()) {
-        /* If x is in Ker(d_r) then dx is in Im(d_{r-1}) */
         if (dx != NULL_DIFF && !dx.empty())
-            SetImageSc(name, nodes_ss, deg_dx, dx, {-1}, r - 1);
+            SetImageSc(iCw, deg_dx, dx, NULL_DIFF, r - 1, flag);
         return;
     }
 
@@ -241,38 +229,52 @@ void Diagram::SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg 
         size_t first_Nmrp1 = GetFirstIndexOnLevel(sc, LEVEL_MAX - r + 1);
         x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, x);
         if (!x.empty())
-            UpdateStaircase(nodes_ss, deg_x, sc, first_Nmrp1, x, {-1}, LEVEL_MAX - r, image_new, level_image_new);
+            UpdateStaircase(nodes_ss, deg_x, sc, first_Nmrp1, x, NULL_DIFF, LEVEL_MAX - r, image_new, level_image_new);
     }
     else if (dx.empty()) {
         /* If the target is zero, insert it to the end of level N-r-1 */
-        UpdateStaircase(nodes_ss, deg_x, sc, first_Nmr, x, {-1}, LEVEL_MAX - r - 1, image_new, level_image_new);
+        ++r;
+        UpdateStaircase(nodes_ss, deg_x, sc, first_Nmr, x, NULL_DIFF, LEVEL_MAX - r, image_new, level_image_new);
     }
     else {
         /* Otherwise insert it to the beginning of level N-r */
         UpdateStaircase(nodes_ss, deg_x, sc, first_Nmr, x, dx, LEVEL_MAX - r, image_new, level_image_new);
     }
 
-    if (level_image_new != -1) {
-        if (level_image_new < LEVEL_MAX / 2) {
-            /* Add a d_{r1-1} image */
-            AdamsDeg deg_image_new = deg_x + AdamsDeg{level_image_new, level_image_new - 1};
-            SetImageSc(name, nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
-        }
-        else {
-            /* Add a d_{r1} cycle */
-            int r_image = LEVEL_MAX - level_image_new;
-            AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, r_image - 1};
-            SetDiffSc(name, nodes_ss, deg_image_new, image_new, {}, r_image);
+    /* ss to cofseq */
+    if ((flag & DeduceFlag::cofseq) && r == R_PERM) {
+        const auto& ind_cofs = !(iCw & FLAG_MOD) ? rings_[iCw].ind_cofs : modules_[iCw ^ FLAG_MOD].ind_cofs;
+        for (auto& ind_cof : ind_cofs) {
+            auto& cofseq = cofseqs_[ind_cof.iCof];
+            auto iCs = (size_t)ind_cof.iCs;
+            if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_x))
+                SetDiffScCofseq(cofseq, ind_cof.iCs, deg_x, x, NULL_DIFF, 0, flag);
         }
     }
 
-    /* Add image */
-    if (dx != NULL_DIFF && !dx.empty())
-        SetImageSc(name, nodes_ss, deg_dx, dx, x, r);
+    if (level_image_new != -1) {
+        if (level_image_new < LEVEL_MAX / 2) {
+            /* Set an image */
+            AdamsDeg deg_image_new = deg_x + AdamsDeg{level_image_new, level_image_new - 1};
+            SetImageSc(iCw, deg_image_new, image_new, NULL_DIFF, level_image_new - 1, flag);
+        }
+        else {
+            /* Set a cycle */
+            int r_image = LEVEL_MAX - level_image_new;
+            AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, r_image - 1};
+            SetDiffSc(iCw, deg_image_new, image_new, NULL_DIFF, r_image + 1, flag);
+        }
+    }
+
+    /* Set the image */
+    if (!dx.empty() && dx != NULL_DIFF)
+        SetImageSc(iCw, deg_dx, dx, x, r, flag);
 }
 
-void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
+void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag)
 {
+    const auto& name = !(iCw & FLAG_MOD) ? rings_[iCw].name : modules_[iCw ^ FLAG_MOD].name;
+    auto& nodes_ss = !(iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
 
     /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
@@ -280,8 +282,8 @@ void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg
     size_t first_r = GetFirstIndexOnLevel(sc, r);
     int1d dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, dx_);
     if (dx.empty()) {
-        if (x != NULL_DIFF && !x.empty())
-            SetDiffSc(name, nodes_ss, deg_x, x, {-1}, r + 1);
+        if (x != NULL_DIFF)
+            SetDiffSc(iCw, deg_x, x, NULL_DIFF, r + 1, flag);
         return;
     }
 
@@ -289,14 +291,14 @@ void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg
     int level_image_new = -1;
     if (x == NULL_DIFF) {
         /* If the source is unknown, check if it can be hit and then insert it to the end of level r. */
-        size_t first_rp2 = GetFirstIndexOnLevel(sc, r + 1);
-        dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp2, dx);
+        size_t first_rp1 = GetFirstIndexOnLevel(sc, r + 1);
+        dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp1, std::move(dx));
         if (!dx.empty()) {
             if (!IsPossTgt(nodes_ss, deg_dx, r)) {
                 Logger::LogException(int(nodes_ss.size() - 2), 0x75989376U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx, r);
                 throw SSException(0x75989376U, "No source for the image.");
             }
-            UpdateStaircase(nodes_ss, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
+            UpdateStaircase(nodes_ss, deg_dx, sc, first_rp1, dx, x, r, image_new, level_image_new);
         }
     }
     else {
@@ -304,42 +306,61 @@ void Diagram::SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg
         UpdateStaircase(nodes_ss, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);
     }
 
+    /* ss to cofseq */
+    if (flag & DeduceFlag::cofseq) {
+        const auto& ind_cofs = !(iCw & FLAG_MOD) ? rings_[iCw].ind_cofs : modules_[iCw ^ FLAG_MOD].ind_cofs;
+        for (auto& ind_cof : ind_cofs) {
+            auto& cofseq = cofseqs_[ind_cof.iCof];
+            auto iCs = (size_t)ind_cof.iCs;
+            if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_dx))
+                ReSetImageScCofseq(cofseq, ind_cof.iCs, deg_dx, flag);
+        }
+    }
+
     if (level_image_new != -1) {
         if (level_image_new < LEVEL_MAX / 2) {
-            /* Add a d_{r1-1} image */
+            /* Set an image */
             AdamsDeg deg_image_new = deg_dx + AdamsDeg{level_image_new, level_image_new - 1};
-            SetImageSc(name, nodes_ss, deg_image_new, image_new, {-1}, level_image_new - 1);
+            SetImageSc(iCw, deg_image_new, image_new, NULL_DIFF, level_image_new - 1, flag);
         }
         else {
-            /* Add a d_r1 cycle */
+            /* Set a cycle */
             int r_image = LEVEL_MAX - level_image_new;
             AdamsDeg deg_image_new = deg_dx - AdamsDeg{r_image, r_image - 1};
-            SetDiffSc(name, nodes_ss, deg_image_new, image_new, {-1}, r_image + 1);
+            SetDiffSc(iCw, deg_image_new, image_new, NULL_DIFF, r_image + 1, flag);
         }
     }
 }
 
-void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r)
+void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, DeduceFlag flag)
 {
-    const size_t index_next = (index + 1) % 3;
-    auto& nodes_cofseq = cofseq.nodes_cofseq[index];
-    const auto& stem_map = cofseq.degMap[index].stem();
+    const size_t iCs1 = (iCs + 2) % 3;
+    const size_t iCs2 = (iCs + 1) % 3;
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+    auto& nodes_ss = *cofseq.nodes_ss[iCs];
+    int stem_map = cofseq.degMap[iCs].stem();
+    int stem_map1 = cofseq.degMap[iCs1].stem();
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, stem_map + r};
 
-    /* If x is zero then dx is in Im(d_{r-1}) */
-    if (x_.empty()) {
-        if (dx != NULL_DIFF && !dx.empty())
-            SetImageScCofseq(cofseq, index_next, deg_dx, dx, NULL_DIFF, r - 1);
+    /* NULL_DIFF checking */
+    if (x_ == NULL_DIFF) {
+        SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r, flag);
         return;
     }
 
+    /* Triangularize x */
+    if (x_.empty()) { //// TODO: Remove this
+        if (dx != NULL_DIFF && !dx.empty())
+            SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r - 1, flag);
+        return;
+    }
+    int1d x = Residue(x_, nodes_ss, deg_x, LEVEL_PERM);
     const Staircase& sc = ut::GetRecentValue(nodes_cofseq, deg_x);
     size_t first_Nmr = GetFirstIndexOnLevel(sc, LEVEL_MAX - r);
-    int1d x = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_Nmr, x_);
+    x = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_Nmr, std::move(x));
     if (x.empty()) {
-        /* If x is in Ker(d_r) then dx is in Im(d_{r-1}) */
         if (dx != NULL_DIFF && !dx.empty())
-            SetImageScCofseq(cofseq, index_next, deg_dx, dx, NULL_DIFF, r - 1);
+            SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r - 1, flag);
         return;
     }
 
@@ -348,7 +369,7 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, cons
     if (dx == NULL_DIFF) {
         /* If the target is unknown, insert it to the end of level N-r. */
         size_t first_Nmrp1 = GetFirstIndexOnLevel(sc, LEVEL_MAX - r + 1);
-        x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, x);
+        x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, std::move(x));
         if (!x.empty())
             UpdateStaircase(nodes_cofseq, deg_x, sc, first_Nmrp1, x, NULL_DIFF, LEVEL_MAX - r, image_new, level_image_new);
     }
@@ -363,73 +384,87 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, cons
 
     if (level_image_new != -1) {
         if (level_image_new < LEVEL_MAX / 2) {
-            /* Add a d_{r1-1} image */
+            /* Set an image */
             AdamsDeg deg_image_new = deg_x + AdamsDeg{level_image_new, stem_map + level_image_new};
-            SetImageScCofseq(cofseq, index_next, deg_image_new, image_new, NULL_DIFF, level_image_new - 1);
+            SetImageScCofseq(cofseq, iCs2, deg_image_new, image_new, NULL_DIFF, level_image_new - 1, flag);
         }
         else {
-            /* Add a d_{r1} cycle */
+            /* Set a cycle */
             int r_image = LEVEL_MAX - level_image_new;
-            AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, stem_map + r_image};
-            SetDiffScCofseq(cofseq, (index + 2) % 3, deg_image_new, image_new, {}, r_image);
+            AdamsDeg deg_image_new = deg_x - AdamsDeg{r_image, stem_map1 + r_image};
+            SetDiffScCofseq(cofseq, iCs1, deg_image_new, image_new, NULL_DIFF, r_image + 1, flag);
         }
     }
 
-    /* Add image */
+    /* Set image */
     if (dx != NULL_DIFF && !dx.empty())
-        SetImageScCofseq(cofseq, index_next, deg_dx, dx, x, r);
+        SetImageScCofseq(cofseq, iCs2, deg_dx, dx, x, r, flag);
 }
 
-void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r)
+void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag)
 {
-    const size_t index_prev = (index + 2) % 3;
-    auto& nodes_cofseq = cofseq.nodes_cofseq[index];
-    auto& name = cofseq.nameCw[index];
-    const auto& stem_map = cofseq.degMap[index_prev].stem();
-    AdamsDeg deg_x = deg_dx - AdamsDeg{r, stem_map + r};
+    const size_t iCs1 = (iCs + 2) % 3;
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+    auto& nodes_ss = *cofseq.nodes_ss[iCs];
+    auto& name = cofseq.nameCw[iCs];
+    int stem_map = cofseq.degMap[iCs].stem();
+    int stem_map1 = cofseq.degMap[iCs1].stem();
+    AdamsDeg deg_x = deg_dx - AdamsDeg{r, stem_map1 + r};
 
-    /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
+    int1d dx = Residue(dx_, nodes_ss, deg_dx, LEVEL_PERM);
     const Staircase& sc = ut::GetRecentValue(nodes_cofseq, deg_dx);
     size_t first_r = GetFirstIndexOnLevel(sc, r);
-    int1d dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, dx_);
+    dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, std::move(dx));
     if (dx.empty()) {
-        if (x != NULL_DIFF && !x.empty())
-            SetDiffScCofseq(cofseq, index_prev, deg_x, x, {-1}, r + 1);
+        if (x != NULL_DIFF)
+            SetDiffScCofseq(cofseq, iCs1, deg_x, x, NULL_DIFF, r + 1, flag);
         return;
     }
 
     int1d image_new;
     int level_image_new = -1;
     if (x == NULL_DIFF) {
-        /* If the source is unknown, check if it can be hit and then insert it to the end of level r. */
-        size_t first_rp2 = GetFirstIndexOnLevel(sc, r + 1);
-        dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp2, dx);
+        /* If the source is unknown, insert it to the end of level r. */
+        size_t first_rp1 = GetFirstIndexOnLevel(sc, r + 1);
+        dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp1, std::move(dx));
         if (!dx.empty()) {
-            if (!IsPossTgtCofSeq(cofseq, index, deg_dx, r)) {
-                Logger::LogException(int(nodes_cofseq.size() - 2), 0x75989376U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx, r);
-                throw SSException(0x75989376U, "No source for the image.");
+            UpdateStaircase(nodes_cofseq, deg_dx, sc, first_rp1, dx, x, r, image_new, level_image_new);
+
+            /* cofseq to ss */
+            if (r == -1) {
+                Staircase& sc1 = ut::GetRecentValue(nodes_cofseq, deg_dx);
+                pop_front(sc1);
+                Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::cofseq_b, cofseq.nameCw[iCs], deg_dx, {}, dx, R_PERM + 1);
+                size_t iCw = cofseq.isRing[iCs] ? cofseq.indexCw[iCs] : cofseq.indexCw[iCs] | FLAG_MOD;
+                SetImageSc(iCw, deg_dx, dx, NULL_DIFF, R_PERM, flag);
             }
-            UpdateStaircase(nodes_cofseq, deg_dx, sc, first_rp2, dx, x, r, image_new, level_image_new);
         }
     }
     else {
-        /* Otherwise insert it to the beginning of level r */
+        /* Otherwise insert it to the beginning of level r *///// TODO: Improve. Insert it to the end of known level r
         UpdateStaircase(nodes_cofseq, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);
     }
 
     if (level_image_new != -1) {
         if (level_image_new < LEVEL_MAX / 2) {
-            /* Add a d_{r1-1} image */
+            /* Set an image */
             AdamsDeg deg_image_new = deg_dx + AdamsDeg{level_image_new, stem_map + level_image_new};
-            SetImageScCofseq(cofseq, (index + 1) % 3, deg_image_new, image_new, NULL_DIFF, level_image_new - 1);
+            SetImageScCofseq(cofseq, (iCs + 1) % 3, deg_image_new, image_new, NULL_DIFF, level_image_new - 1, flag);
         }
         else {
-            /* Add a d_r1 cycle */
+            /* Set a cycle */
             int r_image = LEVEL_MAX - level_image_new;
-            AdamsDeg deg_image_new = deg_dx - AdamsDeg{r_image, stem_map + r_image};
-            SetDiffScCofseq(cofseq, index_prev, deg_image_new, image_new, NULL_DIFF, r_image + 1);
+            AdamsDeg deg_image_new = deg_dx - AdamsDeg{r_image, stem_map1 + r_image};
+            SetDiffScCofseq(cofseq, iCs1, deg_image_new, image_new, NULL_DIFF, r_image + 1, flag);
         }
     }
+}
+
+void Diagram::ReSetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, DeduceFlag flag)
+{
+    const auto& nodes_ss = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].nodes_ss : modules_[cofseq.indexCw[iCs]].nodes_ss;
+
+    return;
 }
 
 int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag)
@@ -456,13 +491,7 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
                 AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
 
-                if (flag & DeduceFlag::fast_try_diff) {
-                    auto& degs_changed = nodes_ss.back();
-                    if (!ut::has(degs_changed, deg_y) && !ut::has(degs_changed, deg_xy) && !ut::has(degs_changed, deg_dxy))
-                        continue;
-                }
-
-                Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();
+                Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();  //// TODO: precompute
                 Poly poly_y = Indices2Poly(sc_y.basis[i], basis.at(deg_y));
                 Poly poly_xy = ring.gb.Reduce(poly_x * poly_y);
                 int1d xy = poly_xy ? Poly2Indices(poly_xy, basis.at(deg_xy)) : int1d{};
@@ -478,7 +507,7 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
-                    SetDiffSc(ring.name, nodes_ss, deg_xy, xy, dxy, R);
+                    SetDiffSc(iRing, deg_xy, xy, dxy, R, flag);
                     ++count;
                 }
             }
@@ -504,12 +533,6 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
                 AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
 
-                if (flag & DeduceFlag::fast_try_diff) {
-                    auto& degs_changed = nodes_ss.back();
-                    if (!ut::has(degs_changed, deg_y) && !ut::has(degs_changed, deg_xy) && !ut::has(degs_changed, deg_dxy))
-                        continue;
-                }
-
                 Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();
 
                 Mod poly_y = Indices2Mod(sc_y.basis[i], basis.at(deg_y));
@@ -527,7 +550,7 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
-                    SetDiffSc(mod.name, nodes_ss, deg_xy, xy, dxy, R);
+                    SetDiffSc(iMod | FLAG_MOD, deg_xy, xy, dxy, R, flag);
                     ++count;
                 }
             }
@@ -563,12 +586,6 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
             AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
             AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
 
-            if (flag & DeduceFlag::fast_try_diff) {
-                auto& degs_changed = nodes_ss.back();
-                if (!ut::has(degs_changed, deg_y) && !ut::has(degs_changed, deg_xy) && !ut::has(degs_changed, deg_dxy))
-                    continue;
-            }
-
             Mod poly_dx = (R == r && !dx.empty()) ? Indices2Mod(dx, basis.at(deg_dx)) : Mod();
 
             Poly poly_y = Indices2Poly(sc_y.basis[i], ring.basis.at(deg_y));
@@ -586,7 +603,7 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
             }
 
             if (!xy.empty() || !dxy.empty()) {
-                SetDiffSc(mod.name, nodes_ss, deg_xy, xy, dxy, R);
+                SetDiffSc(iMod | FLAG_MOD, deg_xy, xy, dxy, R, flag);
                 ++count;
             }
         }
@@ -594,7 +611,7 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
     return count;
 }
 
-int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r)
+int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -655,7 +672,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                                 Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                             }
                             Logger::LogDiff(depth, enumReason::deduce_v2, ring.name, deg_xy, xy, dxy, r);
-                            count += SetRingDiffGlobal(iRing, deg_xy, xy, dxy, r, true);
+                            count += SetRingDiffGlobal(iRing, deg_xy, xy, dxy, r, true, flag);
                         }
                     }
                 }
@@ -708,7 +725,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                                 Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                             }
                             Logger::LogDiff(depth, enumReason::deduce_v2, mod.name, deg_xy, xy, dxy, r);
-                            count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true);
+                            count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true, flag);
                         }
                     }
                 }
@@ -737,8 +754,8 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                     printed_dx = true;
                     Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                 }
-                Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  rings_[map->to].name), deg_x, fx, {}, r);
-                count += SetRingDiffGlobal(map->to, deg_x, fx, {}, r, true);
+                Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, rings_[map->to].name), deg_x, fx, {}, r);
+                count += SetRingDiffGlobal(map->to, deg_x, fx, {}, r, true, flag);
             }
         }
     }
@@ -746,7 +763,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
     return count;
 }
 
-int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r)
+int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
 {
     int count = 0;
 
@@ -810,7 +827,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                             Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                         }
                         Logger::LogDiff(depth, enumReason::deduce_v2, mod.name, deg_xy, xy, dxy, r);
-                        count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true);
+                        count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true, flag);
                     }
                 }
             }
@@ -843,8 +860,8 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  rings_[to].name), deg_fx, fx, {}, r);
-                    count += SetRingDiffGlobal(to, deg_fx, fx, {}, r, true);
+                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, rings_[to].name), deg_fx, fx, {}, r);
+                    count += SetRingDiffGlobal(to, deg_fx, fx, {}, r, true, flag);
                 }
             }
         }
@@ -869,8 +886,8 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display,  modules_[to].name), deg_fx, fx, {}, r);
-                    count += SetModuleDiffGlobal(to, deg_fx, fx, {}, r, true);
+                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, modules_[to].name), deg_fx, fx, {}, r);
+                    count += SetModuleDiffGlobal(to, deg_fx, fx, {}, r, true, flag);
                 }
             }
         }
@@ -879,7 +896,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
     return count;
 }
 
-int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r)
+int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -909,7 +926,7 @@ int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x
                 Poly poly_xy = ring.gb.Reduce(poly_x * poly_y);
                 if (poly_xy) {
                     int1d xy = Poly2Indices(poly_xy, basis.at(deg_xy));  // TODO: consider moving allocations out of the loop
-                    SetImageSc(ring.name, nodes_ss, deg_xy, xy, {-1}, r);
+                    SetImageSc(iRing, deg_xy, xy, {-1}, r, flag);
                     ++count;
                 }
             }
@@ -932,7 +949,7 @@ int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x
                 Mod poly_xy = mod.gb.Reduce(poly_x * poly_y);
                 if (poly_xy) {
                     int1d xy = Mod2Indices(poly_xy, mod.basis.at(deg_xy));
-                    SetImageSc(mod.name, nodes_ss, deg_xy, xy, {-1}, r);
+                    SetImageSc(iMod | FLAG_MOD, deg_xy, xy, {-1}, r, flag);
                     ++count;
                 }
             }
@@ -941,7 +958,7 @@ int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x
     return count;
 }
 
-int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r)
+int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
 {
     int count = 0;
     auto& mod = modules_[iMod];
@@ -969,7 +986,90 @@ int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& 
             Mod poly_xy = mod.gb.Reduce(poly_y * poly_x);
             if (poly_xy) {
                 int1d xy = Mod2Indices(poly_xy, mod.basis.at(deg_xy));
-                SetImageSc(mod.name, nodes_ss, deg_xy, xy, {-1}, r);
+                SetImageSc(iMod | FLAG_MOD, deg_xy, xy, {-1}, r, flag);
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag)
+{
+    int count = 0;
+    size_t iCs2 = (iCs + 1) % 3;
+    bool isRing1 = cofseq.isRing[iCs], isRing2 = cofseq.isRing[iCs2];
+    auto& ring = isRing1 ? rings_[cofseq.indexCw[iCs]] : rings_[modules_[cofseq.indexCw[iCs]].iRing];
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+    using BasisVariant = std::variant<std::map<AdamsDeg, Mon1d>*, std::map<AdamsDeg, MMod1d>*>;
+    BasisVariant basis1 = isRing1 ? BasisVariant(&ring.basis) : BasisVariant(&modules_[cofseq.indexCw[iCs]].basis);
+    BasisVariant basis2 = isRing2 ? BasisVariant(&ring.basis) : BasisVariant(&modules_[cofseq.indexCw[iCs2]].basis);
+    Poly poly_x, poly_dx;
+    Mod mod_x, mod_dx;
+    if (!x.empty()) {
+        if (isRing1)
+            poly_x = Indices2Poly(x, std::get<0>(basis1)->at(deg_x));
+        else
+            mod_x = Indices2Mod(x, std::get<1>(basis1)->at(deg_x));
+    }
+    int stem_map = cofseq.degMap[iCs].stem();
+    AdamsDeg deg_dx = deg_x + AdamsDeg(r, r + stem_map);
+    if (!dx.empty()) {
+        if (isRing2)
+            poly_dx = Indices2Poly(dx, ring.basis.at(deg_dx));
+        else
+            mod_dx = Indices2Mod(dx, std::get<1>(basis2)->at(deg_dx));
+    }
+    int t_max = cofseq.t_max[iCs];
+    int t_max2 = cofseq.t_max[iCs2];
+    for (auto& [deg_a, _] : ring.nodes_ss.front()) {
+        const AdamsDeg deg_ax = deg_x + deg_a;
+        AdamsDeg deg_adx = deg_ax + AdamsDeg(r, r + stem_map);
+        const Staircase& sc_a = ut::GetRecentValue(ring.nodes_ss, deg_a);
+
+        size_t first_PC = GetFirstIndexOnLevel(sc_a, LEVEL_PERM);
+        size_t last_PC = GetFirstIndexOnLevel(sc_a, LEVEL_PERM + 1);
+        for (size_t i = first_PC; i < last_PC; ++i) {
+            Poly poly_a = Indices2Poly(sc_a.basis[i], ring.basis.at(deg_a));
+
+            int1d ax;
+            if (x.empty())
+                ;
+            else if (deg_ax.t > t_max)
+                ax = NULL_DIFF;
+            else {
+                if (isRing1) {
+                    Poly poly_ax = ring.gb.Reduce(poly_a * poly_x);
+                    ax = poly_ax ? Poly2Indices(poly_ax, ring.basis.at(deg_ax)) : int1d{};
+                    ax = Residue(std::move(ax), ring.nodes_ss, deg_ax, LEVEL_PERM);
+                }
+                else {
+                    Mod mod_ax = modules_[cofseq.indexCw[iCs]].gb.Reduce(poly_a * mod_x);
+                    ax = mod_ax ? Mod2Indices(mod_ax, std::get<1>(basis1)->at(deg_ax)) : int1d{};
+                    ax = Residue(std::move(ax), *cofseq.nodes_ss[iCs], deg_ax, LEVEL_PERM);
+                }
+            }
+
+            int1d adx;
+            if (dx.empty())
+                ;
+            else if (deg_adx.t > t_max2)
+                adx = NULL_DIFF;
+            else if (isRing2) {
+                Poly poly_adx = ring.gb.Reduce(poly_a * poly_dx);
+                if (poly_adx) {
+                    adx = Poly2Indices(poly_adx, ring.basis.at(deg_adx));
+                    adx = Residue(std::move(adx), ring.nodes_ss, deg_adx, LEVEL_PERM);
+                }
+            }
+            else {
+                Mod poly_adx = modules_[cofseq.indexCw[iCs2]].gb.Reduce(poly_a * mod_dx);
+                if (poly_adx)
+                    adx = Residue(Mod2Indices(poly_adx, std::get<1>(basis2)->at(deg_adx)), *cofseq.nodes_ss[iCs2], deg_adx, LEVEL_PERM);
+            }
+
+            if ((!ax.empty() && ax != NULL_DIFF) || (!adx.empty() && adx != NULL_DIFF)) {
+                SetDiffScCofseq(cofseq, iCs, deg_ax, ax, adx, r, flag);
                 ++count;
             }
         }

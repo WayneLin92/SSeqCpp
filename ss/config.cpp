@@ -100,7 +100,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             ring.degs_basis_order_by_stem = OrderDegsByStem(ring.basis);
             ring.t_max = ring.basis.rbegin()->first.t;
             ring.nodes_ss = {db.load_ss(table_prefix), {}};
-            ring.nodes_ss.reserve(MAX_DEPTH + 3);
+            ring.nodes_ss.reserve(MAX_DEPTH + 1);
             ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
 
             if (flag & DeduceFlag::pi) {
@@ -257,49 +257,74 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             maps_.push_back(std::move(map));
         }
 
+        /*# Load cofseqs */
         if (flag & DeduceFlag::cofseq) {
             auto& json_cofseqs = diagram.at("cofseqs");
             std::vector<std::string> cofseq_maps;
+            int iCof = -1;
             for (auto& json_cofseq : json_cofseqs) {
+                ++iCof;
                 CofSeq cofseq;
                 cofseq.name = json_cofseq.at("name").get<std::string>();
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
                 auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
                 bool fileExists = myio::FileExists(abs_path_cofseq);
-                DBSS db(abs_path_cofseq);
-                db.create_cofseq(fmt::format("cofseq_{}", cofseq.name));
                 std::array<std::string, 3> maps_names = {json_cofseq.at("i").get<std::string>(), json_cofseq.at("q").get<std::string>(), json_cofseq.at("d").get<std::string>()};
-                for (size_t iMap = 0; iMap < maps_names.size(); ++iMap) {
-                    size_t index = (size_t)GetMapIndexByName(maps_names[iMap]);
+                for (size_t iCs = 0; iCs < 3; ++iCs) {
+                    size_t index = (size_t)GetMapIndexByName(maps_names[iCs]);
                     const auto& map = maps_[index];
-                    cofseq.indexMap[iMap] = index;
-                    cofseq.degMap[iMap] = map->deg;
-                    cofseq.isRing[iMap] = map->IsFromRing(cofseq.indexCw[iMap]);
-                    cofseq.nameCw[iMap] = cofseq.isRing[iMap] ? rings_[cofseq.indexCw[iMap]].name : modules_[cofseq.indexCw[iMap]].name;
-                    cofseq.nodes_ss[iMap] = cofseq.isRing[iMap] ? &rings_[cofseq.indexCw[iMap]].nodes_ss : &modules_[cofseq.indexCw[iMap]].nodes_ss;
+                    cofseq.indexMap[iCs] = index;
+                    cofseq.degMap[iCs] = map->deg;
+                    cofseq.isRing[iCs] = map->IsFromRing(cofseq.indexCw[iCs]);
+                    if (cofseq.isRing[iCs])
+                        rings_[cofseq.indexCw[iCs]].ind_cofs.push_back(IndexCof{iCof, (int)iCs});
+                    else
+                        modules_[cofseq.indexCw[iCs]].ind_cofs.push_back(IndexCof{iCof, (int)iCs});
+                    cofseq.nameCw[iCs] = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].name : modules_[cofseq.indexCw[iCs]].name;
+                    cofseq.t_max[iCs] = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].t_max : modules_[cofseq.indexCw[iCs]].t_max;
+                    cofseq.nodes_ss[iCs] = cofseq.isRing[iCs] ? &rings_[cofseq.indexCw[iCs]].nodes_ss : &modules_[cofseq.indexCw[iCs]].nodes_ss;
 
-                    cofseq.nodes_cofseq[iMap].resize(cofseq.nodes_ss[iMap]->size());
+                    cofseq.nodes_cofseq[iCs].resize(cofseq.nodes_ss[iCs]->size());
+                    cofseq.nodes_cofseq[iCs].reserve(MAX_DEPTH + 1);
                     if (!fileExists) { /* Initialize cofseq */
-                        auto& front_cofseq = cofseq.nodes_cofseq[iMap].front();
-                        for (auto& [deg, sc] : cofseq.nodes_ss[iMap]->front()) {
+                        auto& front_cofseq = cofseq.nodes_cofseq[iCs].front();
+                        for (auto& [deg, sc] : cofseq.nodes_ss[iCs]->front()) {
                             size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM);
                             size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
                             for (size_t i = first_PC; i < last_PC; ++i) {
                                 front_cofseq[deg].basis.push_back(sc.basis[i]);
                                 front_cofseq[deg].diffs.push_back(NULL_DIFF);
-                                front_cofseq[deg].levels.push_back(LEVEL_MAX);
+                                front_cofseq[deg].levels.push_back(LEVEL_MAX - map->deg.s);
                             }
                         }
                     }
                 }
                 if (fileExists) { /* Load cofseq from database */
+                    DBSS db(abs_path_cofseq);
+                    db.create_cofseq(fmt::format("cofseq_{}", cofseq.name));
                     auto node_cofseq = db.load_cofseq(fmt::format("cofseq_{}", cofseq.name));
                     for (size_t i = 0; i < cofseq.nodes_cofseq.size(); ++i)
                         cofseq.nodes_cofseq[i].front() = std::move(node_cofseq[i]);
                 }
-                else { /* Add differentials in cofseq */
+                cofseqs_.push_back(cofseq);
+                if (!fileExists) { /* Add differentials in cofseq */
+                    for (size_t iCs = 0; iCs < 3; ++iCs) {
+                        size_t iCs2 = (iCs + 1) % 3;
+                        const auto& map = maps_[cofseq.indexMap[iCs]];
+                        for (auto& [deg, sc] : cofseq.nodes_cofseq[iCs].front()) {
+                            if (deg.t > map->t_max)
+                                continue;
+                            for (size_t i = 0; i < sc.levels.size(); ++i) {
+                                const auto& x = sc.basis[i];
+                                int1d dx = Residue(map->map(x, deg, *this), *cofseq.nodes_ss[iCs2], deg + cofseq.degMap[iCs], LEVEL_PERM);
+                                if (IsNewDiffCofseq(cofseqs_.back(), iCs, deg, x, dx, cofseq.degMap[iCs].s)) {
+                                    SetDiffLeibnizCofseq(cofseqs_.back(), iCs, deg, x, dx, cofseq.degMap[iCs].s, flag);
+                                }
+                            }
+                        }
+                    }
+                    DeduceTrivialDiffsCofseq(flag);
                 }
-                cofseqs_.push_back(std::move(cofseq));
             }
         }
     }
@@ -395,9 +420,11 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
                 auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
                 auto name = json_cofseqs[i].at("name").get<std::string>();
                 DBSS db(abs_path_cofseq);
+                db.begin_transaction();
                 auto table = fmt::format("cofseq_{}", name);
                 db.create_cofseq(table);
                 db.save_cofseq(table, cofseqs_[i]);
+                db.end_transaction();
             }
         }
     }

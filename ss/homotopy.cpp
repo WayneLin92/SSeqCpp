@@ -486,9 +486,9 @@ std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
     return result;
 }
 
-void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)
+void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x) //// TODO: correct this
 {
-    auto& nodes_ss = modules_[iMod].nodes_ss;
+    /*auto& nodes_ss = modules_[iMod].nodes_ss;
     if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
         const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_x);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
@@ -511,7 +511,7 @@ void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)
     else {
         Logger::LogException(0, 0xccd5e2c4U, "Permanent cycle not found. {} deg={}.\n", modules_[iMod].name, deg_x);
         throw MyException(0xccd5e2c4U, "Permanent cycle not found");
-    }
+    }*/
 }
 
 void Diagram::AddPiRelsRing(size_t iRing, algZ::Poly1d rels)

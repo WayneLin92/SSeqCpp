@@ -269,9 +269,10 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
         for (size_t i = 0; i < names.size(); ++i)
             generate_ss(names[i], paths[i], isRing[i]);
 
-        Diagram diagram(diagram_name, DeduceFlag::no_op);
-        int count = diagram.DeduceTrivialDiffs();
-        diagram.save(diagram_name, DeduceFlag::no_op);
+        auto flag = DeduceFlag::no_op;
+        Diagram diagram(diagram_name, flag);
+        int count = diagram.DeduceTrivialDiffs(flag);
+        diagram.save(diagram_name, flag);
     }
 
     return 0;

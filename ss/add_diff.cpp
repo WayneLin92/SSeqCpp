@@ -31,12 +31,13 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
+    auto flag = DeduceFlag::no_op;
+
     AdamsDeg deg_x(s, stem + s);
-    AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
     int1d x = myio::Deserialize<int1d>(x_str);
     int1d dx = myio::Deserialize<int1d>(dx_str);
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, flag);
 
     /* #Check if x, dx are valid */
     std::sort(x.begin(), x.end());
@@ -55,7 +56,7 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     }
     if (!dx.empty()) {
         AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
-        if (ss.find(deg_dx) == ss.end()) {
+        if (!ut::has(ss, deg_dx)) {
             fmt::print("deg_dx not found\n");
             return -103;
         }
@@ -69,11 +70,11 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     int count = 0;
     if (isRing) {
         size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-        count += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false);
+        count += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
     }
     else {
         size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
-        count += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false);
+        count += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
     }
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Logger::LogSummary("Changed differentials", count);
@@ -83,6 +84,64 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
         Logger::LogSummary("Changed differentials", count);
         diagram.save(diagram_name, DeduceFlag::no_op);
     }
-    fmt::print("Done\n");
+    return 0;
+}
+
+int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
+{
+    int stem = 0, s = 0, r = 0;
+    std::string x_str, dx_str;
+    std::string cofseq_name;
+    int iCs = 0;
+    std::string diagram_name = "mix-exact";
+
+    myio::CmdArg1d args = {{"cofseq", &cofseq_name}, {"index", &iCs}, {"stem", &stem}, {"s", &s}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    AdamsDeg deg_x(s, stem + s);
+    int1d x = myio::Deserialize<int1d>(x_str);
+    int1d dx = myio::Deserialize<int1d>(dx_str);
+
+    auto flag = DeduceFlag::cofseq;
+
+    Diagram diagram(diagram_name, flag);
+
+    /* #Check if x, dx are valid */
+    int index_cofseq = diagram.GetCofSeqIndexByName(cofseq_name);
+    auto& cofseq = diagram.GetCofSeqs()[index_cofseq]; //// const
+
+    std::sort(x.begin(), x.end());
+    std::sort(dx.begin(), dx.end());
+    auto& ss1 = cofseq.nodes_ss[iCs]->front();
+    auto& ss2 = cofseq.nodes_ss[(iCs + 1) % 3]->front();
+    if (!x.empty()) {
+        if (!ut::has(ss1, deg_x)) {
+            fmt::print("deg_x not found\n");
+            return -101;
+        }
+        if (x.front() < 0 || ss1.at(deg_x).levels.size() <= (size_t)x.back()) {
+            fmt::print("Invalid x\n");
+            return -102;
+        }
+    }
+    if (!dx.empty()) {
+        int stem_map = cofseq.degMap[iCs].stem();
+        AdamsDeg deg_dx = deg_x + AdamsDeg(r, stem_map + r);
+        if (!ut::has(ss2, deg_dx)) {
+            fmt::print("deg_dx not found\n");
+            return -103;
+        }
+        if (dx.front() < 0 || ss2.at(deg_dx).levels.size() <= (size_t)dx.back()) {
+            fmt::print("Invalid dx\n");
+            return -104;
+        }
+    }
+
+    /* #Add diff */
+    int count = diagram.SetDiffLeibnizCofseq(cofseq, iCs, deg_x, x, dx, r, flag);
+    diagram.save(diagram_name, DeduceFlag::cofseq);
+    Logger::LogSummary("Changed differentials", count);
     return 0;
 }

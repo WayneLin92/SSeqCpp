@@ -9,7 +9,7 @@
 #include <variant>
 
 inline const char* PROGRAM = "ss";
-inline const char* VERSION = "Version:\n  1.2 (2023-07-09)";
+inline const char* VERSION = "Version:\n  2.0 (2023-10-06)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -25,13 +25,12 @@ inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 enum class DeduceFlag : uint32_t
 {
     no_op = 0,
-    set_diff = 1,
-    fast_try_diff = 2, /* SetDiffLeibniz will update only partially in the try node */
-    all_x = 4,         /* Deduce dx for all x including linear combinations */
-    xy = 8,            /* Deduce dx for all x including linear combinations */
-    cofseq = 16,       /* Consider cofiber sequence */
-    pi = 32,           /* Consider homotopy */
-    pi_def = 64,       /* Define generators in pi */
+    all_x = 1,          /* Deduce dx for all x including linear combinations */
+    xy = 2,             /* Deduce dx for all x including linear combinations */
+    cofseq = 4,         /* Consider cofiber sequence */
+    pi = 8,             /* Consider homotopy */
+    pi_def = 16,        /* Define generators in pi */
+    no_save = 32,       /* Do not save the database */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -69,6 +68,7 @@ struct CofSeq
     std::array<bool, 3> isRing;
     std::array<size_t, 3> indexCw;
     std::array<std::string, 3> nameCw;
+    std::array<int, 3> t_max;
     std::array<Staircases1d*, 3> nodes_ss;
     std::array<Staircases1d, 3> nodes_cofseq;
 };
@@ -127,6 +127,7 @@ struct NullDiff
 {
     int1d x;
     int r;
+    int direction = 0;
     int first, count;
 };
 
@@ -140,12 +141,18 @@ struct GenConstraint
     int O;
 };
 
+struct IndexCof
+{
+    int iCof, iCs;
+};
+
 struct RingSp
 {
     /* #metadata */
     std::string name;
     int t_max = -1;
     std::vector<size_t> ind_mods, ind_maps;
+    std::vector<IndexCof> ind_cofs;
 
     /* #ss */
     Groebner gb;
@@ -171,6 +178,7 @@ struct ModSp
     int t_max = -1;
     size_t iRing;
     std::vector<size_t> ind_maps;
+    std::vector<IndexCof> ind_cofs;
 
     /* #ss */
     GroebnerMod gb;
@@ -382,6 +390,8 @@ public:
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
+constexpr size_t FLAG_MOD = 1 << 16;
+
 class Diagram
 {
 
@@ -441,6 +451,16 @@ public: /* Getters */
         return maps_;
     }
 
+    auto& GetCofSeqs()
+    {
+        return cofseqs_;
+    }
+
+    auto& GetCofSeqs() const
+    {
+        return cofseqs_;
+    }
+
     int GetRingIndexByName(const std::string& name) const
     {
         for (size_t i = 0; i < rings_.size(); ++i)
@@ -465,6 +485,14 @@ public: /* Getters */
         return -1;
     }
 
+    int GetCofSeqIndexByName(const std::string& name) const
+    {
+        for (size_t i = 0; i < cofseqs_.size(); ++i)
+            if (cofseqs_[i].name == name)
+                return (int)i;
+        return -1;
+    }
+
     auto& GetRingByName(const std::string& name) const
     {
         for (auto& ring : rings_)
@@ -485,10 +513,11 @@ public: /* Getters */
      * Return a level such that nontrivial diffs in >= level will not be longer.
      */
     static int GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg);
+    static int GetFirstFixedLevelForPlotCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg);
 
 private: /* Staircase */
     static size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level);
-    static int GetMaxLevelWithNull(const Staircase& sc);
+    static int GetMaxLevelWithND(const Staircase& sc);
     static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
 
 private: /* ss */
@@ -496,7 +525,7 @@ private: /* ss */
      * Warning: This does check if ss[deg] is trivial
      */
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
-    static bool IsPossTgtCofSeq(const CofSeq& cofseq, size_t index, AdamsDeg deg, int r_max);
+    static bool IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r_max);
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
     {
         return IsPossTgt(nodes_ss, deg, R_PERM);
@@ -504,12 +533,17 @@ private: /* ss */
 
     /* Return the first index with level >=`level_min` such that all levels above are already fixed */
     static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
+    static size_t GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int level_min);
 
     /* Count the number of all possible d_r targets. Return (count, index). */
     auto CountPossDrTgt(const Staircases1d& nodes_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
+    /* Warning: this assumes that there shall not be more Einf elements */
+    auto CountPossDrTgtCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
 
     /* Count the number of all possible d_r sources. Return (count, index). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& nodes_ss, const AdamsDeg& deg_src, int r) const;
+    /* Warning: this assumes that there shall not be more Einf elements */
+    std::pair<int, int> Diagram::CountPossDrSrcCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_src, int r) const;
 
     /*
      * Return the smallest r1>=r such that d_{r1} has a possible target
@@ -518,6 +552,7 @@ private: /* ss */
      * Return R_PERM if not found
      */
     int NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const;
+    int NextRTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
     /*
      * Return the largest r1<=r such that d_{r1} has a possible source
@@ -525,18 +560,22 @@ private: /* ss */
      * Return -1 if not found
      */
     int NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const;
+    int NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiffSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r);
-    /* Add an image. dx must be nonempty. */
-    void SetImageSc(std::string_view name, Staircases1d& nodes_ss, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r);
+    void SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag);
+    /* Add an image. dx must be nonempty and not null. x must be nonempty. */
+    void SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r, DeduceFlag flag);
+
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiffScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r);
-    /* Add an image. dx must be nonempty. */
-    void SetImageScCofseq(CofSeq& cofseq, size_t index, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r);
+    void SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, DeduceFlag flag);
+    /* Add an image. dx must be nonempty and not null. x must be nonempty. */
+    void SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag);
+    /* Retriangulate when ss changes */
+    void ReSetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, DeduceFlag flag);
 
     /**
      * Add d_r(x)=dx;
@@ -546,9 +585,11 @@ private:
      * dx should not be null.
      */
     int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
-    int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r);
+    /** This version deduces d(xy) even if dx is unknown */
+    int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
     int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
-    int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r);
+    /** This version deduces d(xy) even if dx is unknown */
+    int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
 
 public:
     /* Add a node */
@@ -561,7 +602,8 @@ public:
     void UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
-    void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds);
+    void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const;
+    void CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const;
 
     /**
      * Check first if it is a new differential before adding it.
@@ -569,26 +611,35 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
-    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
-    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag = DeduceFlag::no_op);
+    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
+    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
+    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_r(y)=0 (y on level < LEVEL_MAX - r);
      */
-    int SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r);
-    int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r);
+    int SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
+    int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
+
+    int SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag);
+    int SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
 
 public: /* Differentials */
     bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
-    int DeduceTrivialDiffs();
+    bool IsNewDiffCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
+    int DeduceTrivialDiffs(DeduceFlag flag);
+    int DeduceTrivialDiffsCofseq(DeduceFlag flag);
     int DeduceManual();
     /* Return 0 if there is no exception */
     int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
+    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
     int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
     /* Deduce d(xy) no matter what dx is */
     int DeduceDiffsV2();
+
+    int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, DeduceFlag flag);
+    int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag flag);
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
@@ -768,7 +819,17 @@ inline bool BelowS0VanishingLine(AdamsDeg deg)
     return 3 * deg.s <= deg.t + 3;
 }
 
+/* Strictly above the vanishing line */
+inline bool AboveS0Vanishing(AdamsDeg deg)
+{
+    return 3 * (deg.s - 1) > deg.t;
+}
+
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
+
+/* Compute x mod (level-1) */
+int1d Residue(int1d x, const Staircases1d& nodes_ss, AdamsDeg deg, int level);
+
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log = false);
 
 #endif

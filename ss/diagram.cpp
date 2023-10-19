@@ -10,6 +10,11 @@ void Diagram::AddNode(DeduceFlag flag)
         ring.nodes_ss.push_back({});
     for (auto& mod : modules_)
         mod.nodes_ss.push_back({});
+    if (flag & DeduceFlag::cofseq) {
+        for (auto& cofseq : cofseqs_)
+            for (size_t iCs = 0; iCs < 3; ++iCs)
+                cofseq.nodes_cofseq[iCs].push_back({});
+    }
 
     if (flag & DeduceFlag::pi) {
         for (auto& ring : rings_) {
@@ -32,6 +37,12 @@ void Diagram::PopNode(DeduceFlag flag)
         ring.nodes_ss.pop_back();
     for (auto& mod : modules_)
         mod.nodes_ss.pop_back();
+    if (flag & DeduceFlag::cofseq) {
+        for (auto& cofseq : cofseqs_)
+            for (size_t iCs = 0; iCs < 3; ++iCs)
+                cofseq.nodes_cofseq[iCs].pop_back();
+    }
+
     if (flag & DeduceFlag::pi) {
         for (auto& ring : rings_) {
             ring.pi_gb.PopNode();
@@ -161,8 +172,10 @@ int1d MapMulRing2Ring::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagra
         auto& rings = diagram.GetRings();
         auto x_alg = Indices2Poly(x, rings[index].basis.at(deg_x));
         auto fx_alg = rings[index].gb.Reduce(x_alg * factor);
-        if (fx_alg)
-            result = Poly2Indices(fx_alg, rings[index].basis.at(deg_x));
+        if (fx_alg) {
+            AdamsDeg deg_fx = deg_x + deg;
+            result = Poly2Indices(fx_alg, rings[index].basis.at(deg_fx));
+        }
     }
     return result;
 }
@@ -203,12 +216,12 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
     int count = 0;
     auto& ring = rings_[iRing];
     auto& nodes_ss = ring.nodes_ss;
-    int depth = int(nodes_ss.size() - 2);
 
     if (newCertain || IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
+        int depth = int(nodes_ss.size() - 2);
         AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
         if (x.empty())
-            count += SetRingBoundaryLeibniz(iRing, deg_dx, dx, r - 1);
+            count += SetRingBoundaryLeibniz(iRing, deg_dx, dx, r - 1, flag);
         else {
             int r_min = LEVEL_MIN;
             while (r_min < r && !IsNewDiff(nodes_ss, deg_x, x, {}, r_min))  // TODO: improve this
@@ -266,7 +279,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
 
     if (newCertain || IsNewDiff(nodes_ss, deg_x, x, dx, r)) {
         if (x.empty())
-            count += SetModuleBoundaryLeibniz(iMod, deg_dx, dx, r - 1);
+            count += SetModuleBoundaryLeibniz(iMod, deg_dx, dx, r - 1, flag);
         else {
             int r_min = LEVEL_MIN;
             while (r_min < r && !IsNewDiff(nodes_ss, deg_x, x, {}, r_min))  // TODO: improve this

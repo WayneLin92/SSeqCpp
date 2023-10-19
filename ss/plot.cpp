@@ -53,12 +53,12 @@ public:
 
 constexpr double BULLET_RADIUS = 0.08f;
 
-double GetRadius(int n)
+double GetRadius(double n)
 {
     double length = BULLET_RADIUS * 3 * (n - 1);
     if (length > 1 - BULLET_RADIUS * 6)
         length = 1 - BULLET_RADIUS * 6;
-    double sep = n > 1 ? length / (n - 1) : BULLET_RADIUS * 3;
+    double sep = n > 1.01 ? length / (n - 1) : BULLET_RADIUS * 3;
     return sep / 3;
 }
 
@@ -89,6 +89,218 @@ void SmoothenRadii(std::map<AdamsDeg, double>& radii)
 
 void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohmann::json& diag_json);
 
+/* -20 degree */
+constexpr double COS_BULLET_ANGLE = 0.9396926228224405;
+constexpr double SIN_BULLET_ANGLE = -0.3420201377303428;
+
+void plotBullets(const Staircases1d& nodes_ss, std::variant<const RingSp*, const ModSp*> pCw, const std::map<AdamsDeg, int>& deg2id, nlohmann::json& js)
+{
+    std::map<AdamsDeg, double> radii;
+    for (auto& [d, sc] : nodes_ss.front())
+        radii[d] = GetRadius((int)sc.levels.size());
+    SmoothenRadii(radii);
+
+    for (auto& [deg, sc] : nodes_ss.front()) {
+        int n = (int)sc.levels.size();
+        double bottom_right_x = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1);
+        double bottom_right_y = (double)deg.s + radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1);
+        int stable_level = Diagram::GetFirstFixedLevelForPlot(nodes_ss, deg);
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            js["bullets"].push_back(nlohmann::json::object());
+            auto& bullet = js["bullets"].back();
+            bullet["x"] = bottom_right_x - radii.at(deg) * 3 * COS_BULLET_ANGLE * double((int)i);
+            bullet["y"] = bottom_right_y - radii.at(deg) * 3 * SIN_BULLET_ANGLE * double((int)i);
+            bullet["r"] = radii.at(deg);
+            bullet["b"] = sc.basis[i];
+
+            if (!sc.basis[i].empty()) {
+                size_t index = (size_t)sc.basis[i].front();
+                bool isGen = std::holds_alternative<const RingSp*>(pCw) ? std::get<const RingSp*>(pCw)->basis.at(deg)[index].IsGen() : std::get<const ModSp*>(pCw)->basis.at(deg)[index].IsGen();
+                bullet["c"] = isGen ? "blue" : "black";
+            }
+            else
+                bullet["c"] = "black";
+
+            if (sc.diffs[i] == NULL_DIFF)
+                bullet["d"] = nullptr;
+            else
+                bullet["d"] = sc.diffs[i];
+
+            if (sc.levels[i] >= stable_level) {
+                if (sc.diffs[i] == NULL_DIFF)
+                    bullet["p"] = R_PERM;
+                else
+                    bullet["p"] = 10000 - sc.levels[i];
+            }
+            else if (sc.levels[i] > 5000 || sc.diffs[i] == NULL_DIFF)
+                bullet["p"] = R_PERM;
+            else
+                bullet["p"] = sc.levels[i];
+
+            bullet["l"] = sc.levels[i];
+            bullet["i0"] = deg2id.at(deg);
+        }
+    }
+}
+
+void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const std::map<AdamsDeg, int>& deg2id, nlohmann::json& js)
+{
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+    auto& nodes_ss = *cofseq.nodes_ss[iCs];
+
+    std::map<AdamsDeg, double> radii;
+    for (auto& [d, sc_d] : nodes_cofseq.front())
+        radii[d] = (double)sc_d.levels.size();
+    for (auto& [d, _] : nodes_ss.front())
+        radii[d] += 1.0;
+    for (auto& [d, _] : radii)
+        radii[d] = GetRadius(radii[d]);
+
+    SmoothenRadii(radii);
+    for (auto& [deg, _] : radii) {
+        int n = 0;
+        if (ut::has(nodes_cofseq.front(), deg))
+            n = (int)nodes_cofseq.front().at(deg).levels.size();
+        int extra_b = 0;
+
+        if (Diagram::PossMoreEinf(nodes_ss, deg)) {
+            extra_b = 1;
+            js["bullets_p"].push_back(nlohmann::json::object());
+            auto& bullet = js["bullets_p"].back();
+
+            bullet["x"] = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1 + extra_b);
+            bullet["y"] = (double)deg.s - radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1 + extra_b);
+            bullet["r"] = radii.at(deg);
+            bullet["c"] = "grey";
+        }
+
+        if (!ut::has(nodes_cofseq.front(), deg))
+            continue;
+        auto& sc = nodes_cofseq.front().at(deg);
+        double bottom_right_x = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1 + extra_b);
+        double bottom_right_y = (double)deg.s - radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1 + extra_b);
+        int stable_level = Diagram::GetFirstFixedLevelForPlotCofseq(cofseq, iCs, deg);
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            js["bullets"].push_back(nlohmann::json::object());
+            auto& bullet = js["bullets"].back();
+            bullet["x"] = bottom_right_x - radii.at(deg) * 3 * COS_BULLET_ANGLE * double((int)i + extra_b);
+            bullet["y"] = bottom_right_y + radii.at(deg) * 3 * SIN_BULLET_ANGLE * double((int)i + extra_b);
+            bullet["r"] = radii.at(deg);
+            bullet["b"] = sc.basis[i];
+
+            if (!sc.basis[i].empty()) {
+                size_t index = (size_t)sc.basis[i].front();
+                bool isGen = cofseq.isRing[iCs] ? diagram.GetRings()[cofseq.indexCw[iCs]].basis.at(deg)[index].IsGen() : diagram.GetModules()[cofseq.indexCw[iCs]].basis.at(deg)[index].IsGen();
+                bullet["c"] = isGen ? "blue" : "black";
+            }
+            else
+                bullet["c"] = "black";
+
+            if (sc.diffs[i] == NULL_DIFF)
+                bullet["d"] = nullptr;
+            else
+                bullet["d"] = sc.diffs[i];
+
+            if (sc.levels[i] >= stable_level) {
+                if (sc.diffs[i] == NULL_DIFF)
+                    bullet["p"] = R_PERM;
+                else
+                    bullet["p"] = 10000 - sc.levels[i];
+            }
+            else if (sc.levels[i] > 5000 || sc.diffs[i] == NULL_DIFF)
+                bullet["p"] = R_PERM;
+            else
+                bullet["p"] = sc.levels[i];
+
+            bullet["l"] = sc.levels[i];
+            bullet["i0"] = deg2id.at(deg);
+        }
+    }
+}
+
+void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, bool forCofseq = false)
+{
+    using json = nlohmann::json;
+    size_t first_PC = 0;
+    for (auto& [deg, sc] : nodes_ss.front()) {
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            Poly bi = Indices2Poly(sc.basis[i], ring.basis.at(deg));
+            for (size_t j = 0; j < degs_factors.size(); ++j) {
+                const AdamsDeg deg_prod = degs_factors[j] + deg;
+                if (deg_prod.t > ring.t_max)
+                    break;
+                auto alg_prod = ring.gb.Reduce(bjs[j] * bi);
+                if (!alg_prod)
+                    continue;
+                int1d prod = Poly2Indices(alg_prod, ring.basis.at(deg_prod));
+                if (forCofseq) {
+                    prod = Residue(std::move(prod), ring.nodes_ss, deg_prod, LEVEL_PERM);
+                    if (prod.empty())
+                        continue;
+                }
+
+                prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
+
+                js["prods"].push_back(json::object());
+                auto& prod_json = js["prods"].back();
+                prod_json["i"] = deg2id.at(deg) + i;
+                prod_json["j"] = indices_factors[j];
+                prod_json["p"] = json::array();
+                for (size_t k = 0; k < prod.size(); ++k)
+                    prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
+                prod_json["l"] = 1;
+            }
+        }
+    }
+}
+
+void plotModuleStrLines(const Staircases1d& nodes_ss, const ModSp& mod, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, bool forCofseq = false)
+{
+    using json = nlohmann::json;
+    size_t first_PC = 0;
+    for (auto& [deg, sc] : nodes_ss.front()) {
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            Mod bi = Indices2Mod(sc.basis[i], mod.basis.at(deg));
+            for (size_t j = 0; j < degs_factors.size(); ++j) {
+                const AdamsDeg deg_prod = degs_factors[j] + deg;
+                if (deg_prod.t > mod.t_max)
+                    break;
+                auto alg_prod = mod.gb.Reduce(bjs[j] * bi);
+                if (!alg_prod)
+                    continue;
+
+                int1d prod = Mod2Indices(alg_prod, mod.basis.at(deg_prod));
+                if (forCofseq) {
+                    prod = Residue(std::move(prod), mod.nodes_ss, deg_prod, LEVEL_PERM);
+                    if (prod.empty())
+                        continue;
+                }
+                prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
+
+                js["prods"].push_back(json::object());
+                auto& prod_json = js["prods"].back();
+                prod_json["i"] = deg2id.at(deg) + i;
+                prod_json["j"] = indices_factors[j];
+                prod_json["p"] = json::array();
+                for (size_t k = 0; k < prod.size(); ++k)
+                    prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
+                prod_json["l"] = 1;
+            }
+        }
+    }
+}
+
+std::map<AdamsDeg, int> get_deg2id(const Staircases1d& nodes_ss)
+{
+    std::map<AdamsDeg, int> deg2id;
+    int index = 0;
+    for (auto& [d, sc_d] : nodes_ss.front()) {
+        deg2id[d] = index;
+        index += (int)sc_d.levels.size();
+    }
+    return deg2id;
+}
+
 int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 {
     std::string diagram_name = "default";
@@ -112,6 +324,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 
     /*
     {
+      "type": "ring",
       "gen_names": [],
       "basis": [[1, 2], [1, 2, 3, 4]],
       "bullets": [{"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0}],
@@ -135,6 +348,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         auto& ring = isRing ? rings[iCw] : rings[mods[iMod].iRing];
 
         json js;
+        js["type"] = isRing ? "ring" : "module";
         if (!isRing)
             js["over"] = ring.name;
 
@@ -181,69 +395,20 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             }
         }
 
-        ///* ss */
-
-        std::map<AdamsDeg, double> radii;
-        all_deg2id.push_back({});
-        std::map<AdamsDeg, int>& deg2id = all_deg2id.back();
-        {
-            int index = 0;
-            for (auto& [d, ss_d] : nodes_ss.front()) {
-                radii[d] = GetRadius((int)ss_d.levels.size());
-                deg2id[d] = index;
-                index += (int)ss_d.levels.size();
-            }
-        }
-        SmoothenRadii(radii);
-        for (auto& [deg, sc] : nodes_ss.front()) {
-            int n = (int)sc.levels.size();
-            double bottom_right_x = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1);
-            double bottom_right_y = (double)deg.s + radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1);
-            int stable_level = diagram.GetFirstFixedLevelForPlot(nodes_ss, deg);
-            for (size_t i = 0; i < sc.levels.size(); ++i) {
-                js["bullets"].push_back(json::object());
-                auto& bullet = js["bullets"].back();
-                bullet["x"] = bottom_right_x - radii.at(deg) * 3 * COS_BULLET_ANGLE * double(i);
-                bullet["y"] = bottom_right_y - radii.at(deg) * 3 * SIN_BULLET_ANGLE * double(i);
-                bullet["r"] = radii.at(deg);
-                bullet["b"] = sc.basis[i];
-
-                if (!sc.basis[i].empty()) {
-                    size_t index = (size_t)sc.basis[i].front();
-                    if (isRing ? ring.basis.at(deg)[index].IsGen() : mods[iMod].basis.at(deg)[index].IsGen())
-                        bullet["c"] = "blue";
-                    else
-                        bullet["c"] = "black";
-                }
-                else
-                    bullet["c"] = "black";
-
-                if (sc.diffs[i] == NULL_DIFF)
-                    bullet["d"] = nullptr;
-                else
-                    bullet["d"] = sc.diffs[i];
-
-                if (sc.levels[i] >= stable_level) {
-                    if (sc.diffs[i] == NULL_DIFF)
-                        bullet["p"] = R_PERM;
-                    else
-                        bullet["p"] = 10000 - sc.levels[i];
-                }
-                else if (sc.levels[i] > 5000 || sc.diffs[i] == NULL_DIFF)
-                    bullet["p"] = R_PERM;
-                else
-                    bullet["p"] = sc.levels[i];
-
-                bullet["l"] = sc.levels[i];
-                bullet["i0"] = deg2id.at(deg);
-            }
-        }
+        /* ss */
+        all_deg2id.push_back(get_deg2id(nodes_ss));
+        const auto& deg2id = all_deg2id.back();
+        if (isRing)
+            plotBullets(nodes_ss, &ring, deg2id, js);
+        else
+            plotBullets(nodes_ss, &mods[iMod], deg2id, js);
 
         /* struct lines */
+        js["prods"] = json::array();
         AdamsDeg1d degs_factors;
         Poly1d bjs;
         int1d indices_factors;
-        std::map<AdamsDeg, int>& deg2id_ring = isRing ? deg2id : all_deg2id[mods[iMod].iRing];
+        const std::map<AdamsDeg, int>& deg2id_ring = isRing ? deg2id : all_deg2id[mods[iMod].iRing];
         for (auto& strt_factor : diag_json.at("rings")[isRing ? iCw : mods[iMod].iRing].at("plot_factors")[0]) {
             int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
             degs_factors.push_back(AdamsDeg(s, stem + s));
@@ -251,59 +416,10 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             indices_factors.push_back(deg2id_ring.at(degs_factors.back()) + i_factor);
         }
 
-        if (isRing) {
-            for (auto& [deg, sc] : nodes_ss.front()) {
-                for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    Poly bi = Indices2Poly(sc.basis[i], ring.basis.at(deg));
-                    for (size_t j = 0; j < degs_factors.size(); ++j) {
-                        const AdamsDeg deg_prod = degs_factors[j] + deg;
-                        if (deg_prod.t > ring.t_max)
-                            break;
-                        auto alg_prod = ring.gb.Reduce(bjs[j] * bi);
-                        if (alg_prod) {
-                            int1d prod = Poly2Indices(alg_prod, ring.basis.at(deg_prod));
-                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
-
-                            js["prods"].push_back(json::object());
-                            auto& prod_json = js["prods"].back();
-                            prod_json["i"] = deg2id.at(deg) + i;
-                            prod_json["j"] = indices_factors[j];
-                            prod_json["p"] = json::array();
-                            for (size_t k = 0; k < prod.size(); ++k)
-                                prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
-                            prod_json["l"] = 1;
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            auto& mod = mods[iMod];
-            for (auto& [deg, sc] : nodes_ss.front()) {
-                for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    Mod bi = Indices2Mod(sc.basis[i], mod.basis.at(deg));
-                    for (size_t j = 0; j < degs_factors.size(); ++j) {
-                        const AdamsDeg deg_prod = degs_factors[j] + deg;
-                        if (deg_prod.t > mod.t_max)
-                            break;
-                        auto alg_prod = mod.gb.Reduce(bjs[j] * bi);
-                        if (alg_prod) {
-                            int1d prod = Mod2Indices(alg_prod, mod.basis.at(deg_prod));
-                            prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
-
-                            js["prods"].push_back(json::object());
-                            auto& prod_json = js["prods"].back();
-                            prod_json["i"] = deg2id.at(deg) + i;
-                            prod_json["j"] = indices_factors[j];
-                            prod_json["p"] = json::array();
-                            for (size_t k = 0; k < prod.size(); ++k)
-                                prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
-                            prod_json["l"] = 1;
-                        }
-                    }
-                }
-            }
-        }
+        if (isRing)
+            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js);
+        else
+            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js);
 
         /* diff lines */
         js["diffs"] = json::array();
@@ -349,17 +465,18 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 
     /*
     {
+      "type": "map",
       "from": "C2",
       "to": "S0",
       "maps": {"2": [0, 1]}
     }
     */
-    for (size_t iMap = 0; iMap < maps.size(); ++iMap) {
-        auto& map = maps[iMap];
+    for (auto& map : maps) {
         if (map->isMul())
             continue;
         size_t from, to;
         json js;
+        js["type"] = "map";
         js["maps"] = json::object();
         auto& map_json = js["maps"];
 
@@ -438,6 +555,142 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 
         auto out = fmt::output_file(plot_dir + "/" + map->name + ".js");
         out.print("globalThis.DATA_JSON_{} = {};\n", map->name, js.dump());
+    }
+
+    return 0;
+}
+
+int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
+{
+    std::string diagram_name = "default";
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    using json = nlohmann::json;
+    json root_json, diag_json;
+    LoadJson(diagram_name, root_json, diag_json);
+    std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
+    std::string plot_dir = root_json.at("dir_website_ss").get<std::string>() + "/" + diag_json.at("dir_plot").get<std::string>();
+    myio::AssertFolderExists(plot_dir);
+
+    Diagram diagram(diagram_name, DeduceFlag::cofseq);
+    const auto& rings = diagram.GetRings();
+    const auto& mods = diagram.GetModules();
+    const auto& maps = diagram.GetMaps();
+    const auto& cofseqs = diagram.GetCofSeqs();
+
+    /*
+    {
+      "type": "cofseq",
+      "names": ["S0", "C2", "S0"],
+      "degs_maps": [0, 1, 0],
+      "ss_groups": [
+        {
+          "bullets": {"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0},
+          "prods": {"i": 0, "j"(factor): 1, "p": [0, 1], "l"(is structure line): 0},
+          "diffs": {"i": 0, "j": [0, 1], "r": 2},
+          "nds": {"i": 0, "r": 2}
+        },
+        {}, {}
+      ]
+    }
+    */
+    constexpr double BULLET_ANGLE = -20.0f / 180 * 3.1415926f;
+    const double COS_BULLET_ANGLE = std::cos(BULLET_ANGLE);
+    const double SIN_BULLET_ANGLE = std::sin(BULLET_ANGLE);
+
+    for (auto& cofseq : cofseqs) {
+        json js;
+        js["type"] = "cofseq";
+        js["names"] = cofseq.nameCw;
+        js["degs_maps"] = {{cofseq.degMap[0].stem(), cofseq.degMap[0].s}, {cofseq.degMap[1].stem(), cofseq.degMap[1].s}, {cofseq.degMap[2].stem(), cofseq.degMap[2].s}};
+        js["cofseq_groups"] = {json::object(), json::object(), json::object()};
+        for (size_t iCs = 0; iCs < cofseq.degMap.size(); ++iCs) {
+            /* ss */
+
+            auto& jsi = js["cofseq_groups"][iCs];
+            jsi["type"] = "cofseq_gp";
+
+            const auto& nodes_ss = *cofseq.nodes_ss[iCs];
+            const auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+            std::map<AdamsDeg, int> deg2id_ss = get_deg2id(nodes_ss);
+            std::map<AdamsDeg, int> deg2id_cofseq = get_deg2id(nodes_cofseq);
+
+            plotBullets(cofseq, iCs, diagram, deg2id_ss, jsi);
+
+            /* struct lines */
+            jsi["prods"] = json::array();
+            AdamsDeg1d degs_factors;
+            Poly1d bjs;
+            int1d indices_factors;
+            std::map<AdamsDeg, int> deg2id_ring;
+            size_t iRing = cofseq.isRing[iCs] ? cofseq.indexCw[iCs] : mods[cofseq.indexCw[iCs]].iRing;
+            if (cofseq.isRing[iCs])
+                deg2id_ring = deg2id_ss;
+            else
+                deg2id_ring = get_deg2id(rings[iRing].nodes_ss);
+            for (auto& strt_factor : diag_json.at("rings")[iRing].at("plot_factors")[0]) {
+                int stem = strt_factor[0].get<int>();
+                if (stem != 0)
+                    continue;
+                int s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
+                degs_factors.push_back(AdamsDeg(s, stem + s));
+                bjs.push_back(rings[iRing].basis.at(degs_factors.back())[i_factor]);
+                indices_factors.push_back(deg2id_ring.at(degs_factors.back()) + i_factor);
+            }
+
+            if (cofseq.isRing[iCs])
+                plotRingStrLines(nodes_cofseq, rings[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, true);
+            else
+                plotModuleStrLines(nodes_cofseq, mods[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, true);
+
+            /* diff lines */
+            jsi["diffs"] = json::array();
+            int stem_map = cofseq.degMap[iCs].stem();
+            const auto& nodes_cofseq_next = cofseq.nodes_cofseq[(iCs + 1) % 3];
+            std::map<AdamsDeg, int> deg2id_cofseq_next = get_deg2id(nodes_cofseq_next);
+            for (auto& [deg, sc] : nodes_cofseq.front()) {
+                for (size_t i = 0; i < sc.levels.size(); ++i) {
+                    int src = deg2id_cofseq.at(deg) + (int)i;
+                    if (sc.levels[i] > 9000 && sc.diffs[i] != NULL_DIFF) {
+                        int r = LEVEL_MAX - sc.levels[i];
+                        AdamsDeg deg_tgt = deg + AdamsDeg(r, stem_map + r);
+                        int1d tgt = lina::GetInvImage(nodes_cofseq_next.front().at(deg_tgt).basis, sc.diffs[i]);
+
+                        jsi["diffs"].push_back(json::object());
+                        auto& diff_json = jsi["diffs"].back();
+                        diff_json["i"] = src;
+                        diff_json["j"] = json::array();
+                        for (size_t l = 0; l < tgt.size(); ++l)
+                            diff_json["j"].push_back(deg2id_cofseq_next.at(deg_tgt) + tgt[l]);
+                        diff_json["r"] = r;
+                    }
+                }
+            }
+
+            /* unknown diff lines */
+            jsi["nds"] = json::array();
+            for (auto& [deg, sc] : nodes_cofseq.front()) {
+                if (deg.stem() <= 126) {
+                    for (size_t i = 0; i < sc.levels.size(); ++i) {
+                        int src = deg2id_cofseq.at(deg) + (int)i;
+                        if (sc.levels[i] > 9000 && sc.diffs[i] == NULL_DIFF) {
+                            int r = LEVEL_MAX - sc.levels[i];
+                            jsi["nds"].push_back(json::object());
+                            auto& nd = jsi["nds"].back();
+                            nd["i"] = src;
+                            nd["r"] = r;
+                        }
+                    }
+                }
+            }
+        }
+
+        auto out = fmt::output_file(plot_dir + "/" + cofseq.name + ".js");
+        out.print("globalThis.DATA_JSON_{} = {};\n", cofseq.name, js.dump());
     }
 
     return 0;
