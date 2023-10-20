@@ -25,12 +25,13 @@ inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 enum class DeduceFlag : uint32_t
 {
     no_op = 0,
-    all_x = 1,          /* Deduce dx for all x including linear combinations */
-    xy = 2,             /* Deduce dx for all x including linear combinations */
-    cofseq = 4,         /* Consider cofiber sequence */
-    pi = 8,             /* Consider homotopy */
-    pi_def = 16,        /* Define generators in pi */
-    no_save = 32,       /* Do not save the database */
+    all_x = 1,    /* Deduce dx for all x including linear combinations */
+    xy = 2,       /* Deduce d(xy) for even if dx is uncertain */
+    cofseq = 4,   /* Consider cofiber sequence */
+    depth_ss_cofseq = 4 + 8, /* Deduce cof inside ss */
+    pi = 16,       /* Consider homotopy */
+    pi_def = 32,  /* Define generators in pi */
+    no_save = 64, /* Do not save the database */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -543,12 +544,12 @@ private: /* ss */
     /* Count the number of all possible d_r sources. Return (count, index). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& nodes_ss, const AdamsDeg& deg_src, int r) const;
     /* Warning: this assumes that there shall not be more Einf elements */
-    std::pair<int, int> Diagram::CountPossDrSrcCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_src, int r) const;
+    std::pair<int, int> CountPossDrSrcCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_src, int r) const;
 
     /*
      * Return the smallest r1>=r such that d_{r1} has a possible target
      *
-     * Range >= t_max is deem unknown and thus possiple.
+     * Range >= t_max is unknown and thus always possible.
      * Return R_PERM if not found
      */
     int NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const;
@@ -575,7 +576,7 @@ private:
     /* Add an image. dx must be nonempty and not null. x must be nonempty. */
     void SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag);
     /* Retriangulate when ss changes */
-    void ReSetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, DeduceFlag flag);
+    void ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag);
 
     /**
      * Add d_r(x)=dx;
@@ -585,10 +586,10 @@ private:
      * dx should not be null.
      */
     int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
-    /** This version deduces d(xy) even if dx is unknown */
+    /** This version deduces d(xy) even if dx is uncertain */
     int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
     int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
-    /** This version deduces d(xy) even if dx is unknown */
+    /** This version deduces d(xy) even if dx is uncertain */
     int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
 
 public:
@@ -640,6 +641,8 @@ public: /* Differentials */
 
     int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag flag);
+    int DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs, int stem, int depth, DeduceFlag flag);
+    void SyncCofseq(DeduceFlag flag);
 
 public:
     /* Return if Einf at deg is possibly nontrivial */

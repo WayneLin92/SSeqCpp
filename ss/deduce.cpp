@@ -66,6 +66,12 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop a
                         if (sc.diffs[i] == NULL_DIFF) {
                             if (sc.levels[i] > LEVEL_PERM) {
                                 const int r = LEVEL_MAX - sc.levels[i];
+                                const auto& map = maps_[cofseq.indexMap[iCs]];
+                                if (r <= cofseq.degMap[iCs].s && d.t <= map->t_max) {
+                                    int1d dx = Residue(map->map(sc.basis[i], d, *this), *cofseq.nodes_ss[iCs2], d + cofseq.degMap[iCs], LEVEL_PERM);
+                                    SetDiffLeibnizCofseq(cofseq, iCs, d, sc.basis[i], dx, cofseq.degMap[iCs].s, flag);
+                                    continue;
+                                }
                                 /* Find the first possible d_{r1} target for r1>=r */
                                 int r1 = NextRTgtCofseq(cofseq, iCs, d, r);
                                 if (r != r1) {
@@ -85,7 +91,7 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop a
                             else if (sc.levels[i] <= LEVEL_PERM) {
                                 const int r = sc.levels[i];
                                 int r1 = NextRSrcCofseq(cofseq, iCs, d, r);
-                                if (r != r1) {
+                                if (r1 != r) {
                                     int1d dx = sc.basis[i];
                                     Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, {}, dx, r1 + 1);
                                     SetDiffLeibnizCofseq(cofseq, iCs1, d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1), {}, dx, r1 + 1, flag);
@@ -232,6 +238,16 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
         Logger::LogDiff(depth + 1, enumReason::try_, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
         DeduceTrivialDiffs(flag);
+        if (flag & DeduceFlag::depth_ss_cofseq) {
+            const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
+            for (auto& ind_cof : ind_cofs) {
+                auto& cofseq = cofseqs_[ind_cof.iCof];
+                auto iCs = (size_t)ind_cof.iCs;
+                DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
+            }
+        }
+        else if (flag & DeduceFlag::cofseq)
+            DeduceTrivialDiffsCofseq(flag);
     }
     catch (SSException&) {
         bException = true;
@@ -344,8 +360,9 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
             else
                 Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
-            int count_trivial = DeduceTrivialDiffs(flag);
-            count += count_trivial;
+            if (flag & DeduceFlag::cofseq)
+                count += DeduceTrivialDiffsCofseq(flag);  ////
+            count += DeduceTrivialDiffs(flag);
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
             /*if (flag & DeduceFlag::pi) {
                 int count_homotopy1 = 0;
@@ -471,10 +488,12 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
             flag = flag | DeduceFlag::all_x;
         else if (f == "xy")
             flag = flag | DeduceFlag::xy;
+        else if (f == "cofseq")
+            flag = flag | DeduceFlag::cofseq;
+        else if (f == "ss_cofseq")
+            flag = flag | DeduceFlag::depth_ss_cofseq;
         else if (f == "pi")
             flag = flag | DeduceFlag::pi;
-        // else if (f == "exact")
-        //     flag = flag | DeduceFlag::pi_exact;
         else {
             std::cout << "Not a supported flag: " << f << '\n';
             return 100;
@@ -487,7 +506,7 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     if (flag & DeduceFlag::pi) {
         int count_homotopy1 = 0;
         diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
-        diagram.DeduceTrivialExtensions(0);
+        //diagram.DeduceTrivialExtensions(0);
         // if (flag & DeduceFlag::pi_exact)
         //     diagram.DeduceExtensionsByExactness(0, 100, 0);
     }

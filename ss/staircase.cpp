@@ -8,6 +8,11 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
 {
     level_image = -1;
 
+#ifndef NDEBUG
+    if (x.empty())
+        throw MyException(0xfe35902dU, "BUG: triangularize()");
+#endif
+
     size_t i = i_insert;
     while (!x.empty() && i < sc.basis.size()) {
         std::swap(x, sc.basis[i]);

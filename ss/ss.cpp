@@ -212,7 +212,7 @@ void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d
             SetImageSc(iCw, deg_dx, dx, NULL_DIFF, r - 1, flag);
         return;
     }
-    auto& nodes_ss = (iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
+    auto& nodes_ss = !(iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
     const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_x);
     size_t first_Nmr = GetFirstIndexOnLevel(sc, LEVEL_MAX - r);
     int1d x = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_Nmr, x_);
@@ -225,7 +225,7 @@ void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d
     int1d image_new;
     int level_image_new = -1;
     if (dx == NULL_DIFF) {
-        /* If the target is unknown, insert it to the end of level N-r. */
+        /* If the target is uncertain, insert it to the end of level N-r. */
         size_t first_Nmrp1 = GetFirstIndexOnLevel(sc, LEVEL_MAX - r + 1);
         x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, x);
         if (!x.empty())
@@ -247,8 +247,9 @@ void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d
         for (auto& ind_cof : ind_cofs) {
             auto& cofseq = cofseqs_[ind_cof.iCof];
             auto iCs = (size_t)ind_cof.iCs;
-            if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_x))
-                SetDiffScCofseq(cofseq, ind_cof.iCs, deg_x, x, NULL_DIFF, 0, flag);
+            if (!ut::has(cofseq.nodes_cofseq[iCs].front(), deg_x))
+                cofseq.nodes_cofseq[iCs].front()[deg_x] = {};
+            SetDiffScCofseq(cofseq, ind_cof.iCs, deg_x, x, NULL_DIFF, 0, flag);
         }
     }
 
@@ -290,7 +291,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
     int1d image_new;
     int level_image_new = -1;
     if (x == NULL_DIFF) {
-        /* If the source is unknown, check if it can be hit and then insert it to the end of level r. */
+        /* If the source is uncertain, check if it can be hit and then insert it to the end of level r. */
         size_t first_rp1 = GetFirstIndexOnLevel(sc, r + 1);
         dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp1, std::move(dx));
         if (!dx.empty()) {
@@ -313,7 +314,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
             auto& cofseq = cofseqs_[ind_cof.iCof];
             auto iCs = (size_t)ind_cof.iCs;
             if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_dx))
-                ReSetImageScCofseq(cofseq, ind_cof.iCs, deg_dx, flag);
+                ReSetScCofseq(cofseq, ind_cof.iCs, deg_dx, flag);
         }
     }
 
@@ -342,6 +343,10 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const 
     int stem_map1 = cofseq.degMap[iCs1].stem();
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, stem_map + r};
 
+    if (deg_x == AdamsDeg(17, 56) && r == 2 && nodes_ss.size() == 2) {
+        std::cout << "debug\n";
+    }
+
     /* NULL_DIFF checking */
     if (x_ == NULL_DIFF) {
         SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r, flag);
@@ -349,7 +354,7 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const 
     }
 
     /* Triangularize x */
-    if (x_.empty()) { //// TODO: Remove this
+    if (x_.empty()) {  //// TODO: Remove this
         if (dx != NULL_DIFF && !dx.empty())
             SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r - 1, flag);
         return;
@@ -367,7 +372,7 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const 
     int1d image_new;
     int level_image_new = -1;
     if (dx == NULL_DIFF) {
-        /* If the target is unknown, insert it to the end of level N-r. */
+        /* If the target is uncertain, insert it to the end of level N-r. */
         size_t first_Nmrp1 = GetFirstIndexOnLevel(sc, LEVEL_MAX - r + 1);
         x = lina::Residue(sc.basis.begin() + first_Nmr, sc.basis.begin() + first_Nmrp1, std::move(x));
         if (!x.empty())
@@ -424,7 +429,7 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
     int1d image_new;
     int level_image_new = -1;
     if (x == NULL_DIFF) {
-        /* If the source is unknown, insert it to the end of level r. */
+        /* If the source is uncertain, insert it to the end of level r. */
         size_t first_rp1 = GetFirstIndexOnLevel(sc, r + 1);
         dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp1, std::move(dx));
         if (!dx.empty()) {
@@ -441,7 +446,7 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
         }
     }
     else {
-        /* Otherwise insert it to the beginning of level r *///// TODO: Improve. Insert it to the end of known level r
+        /* Otherwise insert it to the beginning of level r */  //// TODO: Improve. Insert it to the end of known level r
         UpdateStaircase(nodes_cofseq, deg_dx, sc, first_r, dx, x, r, image_new, level_image_new);
     }
 
@@ -460,9 +465,60 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
     }
 }
 
-void Diagram::ReSetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, DeduceFlag flag)
+void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag)
 {
     const auto& nodes_ss = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].nodes_ss : modules_[cofseq.indexCw[iCs]].nodes_ss;
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+
+    auto& sc_ss = ut::GetRecentValue(nodes_ss, deg);
+    Staircase sc = ut::GetRecentValue(nodes_cofseq, deg);
+
+    const size_t iCs1 = (iCs + 2) % 3;
+    int stem_map = cofseq.degMap[iCs].stem();
+    int stem_map1 = cofseq.degMap[iCs1].stem();
+
+    Staircase sc1;
+    int2d images;
+    int1d levels;
+    for (size_t i = 0; i < sc.basis.size(); ++i) {
+        size_t first_PC = GetFirstIndexOnLevel(sc_ss, LEVEL_PERM);
+        sc.basis[i] = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_PC, std::move(sc.basis[i]));
+        for (size_t j = 0; j < sc1.basis.size(); ++j) {
+            if (std::binary_search(sc.basis[i].begin(), sc.basis[i].end(), sc1.basis[j][0])) {
+                sc.basis[i] = lina::add(sc.basis[i], sc1.basis[j]);
+                if (sc.levels[i] == sc1.levels[j] && sc.diffs[i] != NULL_DIFF)
+                    sc.diffs[i] = lina::add(sc.diffs[i], sc1.diffs[j]);
+            }
+        }
+        if (sc.basis[i].empty()) {
+            if (!sc.diffs[i].empty() && sc.diffs[i] != NULL_DIFF) {
+                images.push_back(std::move(sc.diffs[i]));
+                levels.push_back(LEVEL_MAX - sc.levels[i]);
+            }
+        }
+        else {
+            sc1.basis.push_back(std::move(sc.basis[i]));
+            sc1.diffs.push_back(std::move(sc.diffs[i]));
+            sc1.levels.push_back(sc.levels[i]);
+        }
+    }
+
+    nodes_cofseq.back()[deg] = std::move(sc1);
+
+    /* Add images and cycles */
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i] < LEVEL_MAX / 2) {
+            /* Set an image */
+            AdamsDeg deg_image_new = deg + AdamsDeg{levels[i], stem_map + levels[i]};
+            SetImageScCofseq(cofseq, (iCs + 1) % 3, deg_image_new, images[i], NULL_DIFF, levels[i] - 1, flag);
+        }
+        else {
+            /* Set a cycle */
+            int r_image = LEVEL_MAX - levels[i];
+            AdamsDeg deg_image_new = deg - AdamsDeg{r_image, stem_map1 + r_image};
+            SetDiffScCofseq(cofseq, iCs1, deg_image_new, images[i], NULL_DIFF, r_image + 1, flag);
+        }
+    }
 
     return;
 }
