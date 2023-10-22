@@ -79,178 +79,6 @@ void Coh_tmf_Chn(int1d& v_degs, Mod1d& rels, int n, int t_max)
 }
 
 /****************************************************
- *               C(2, h_n), n=4,5,6
- ***************************************************/
-void Coh_C2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0 && i != n)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int j = 0; j <= n; j += n)
-        for (int i = 0; (1 << i) + (1 << j) <= t_max; ++i)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(j, j + 1), 0));
-}
-
-/****************************************************
- *               DC(2, h_n), n=4,5,6
- ***************************************************/
-void Coh_DC2hn(int1d& v_degs, Mod1d& rels, int n, int t_max)
-{
-    v_degs = {0, (1 << n) - 1};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i) {
-        if (i != n)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-        if (i != 0)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 1));
-    }
-    rels.push_back(MMilnor::P(n, n + 1) * MMod(MMilnor(), 0) + MMilnor::P(0, 1) * MMod(MMilnor(), 1));
-
-    for (int i = 0; (1 << i) + (1 << n) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n, n + 1), 0));
-}
-
-/****************************************************
- *               three cells
- ***************************************************/
-void Coh_three_cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != n1)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << n1) <= t_max; ++i)
-        if (i != n2)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
-    for (int i = 0; (1 << i) + (1 << n1) + (1 << n2) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0)));
-}
-
-/****************************************************
- *               four cells
- ***************************************************/
-void Coh_smash_2cell(int1d& v_degs, Mod1d& rels, int n1, int n2, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != n1 && i != n2)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << n1) <= t_max; ++i)
-        if (i != n2)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
-    for (int i = 0; (1 << i) + (1 << n2) <= t_max; ++i)
-        if (i != n1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(n2, n2 + 1), 0));
-    for (int i = 0; (1 << i) + (1 << n1) + (1 << n2) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0)));
-    rels.push_back(MMilnor::P(n1, n1 + 1) * MMod(MMilnor::P(n2, n2 + 1), 0) + MMilnor::P(n2, n2 + 1) * MMod(MMilnor::P(n1, n1 + 1), 0));
-}
-
-void Coh_CW_2_eta_nu(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
-    for (int i = 0; (1 << i) + (1 << 1) + (1 << 0) <= t_max; ++i)
-        if (i != 2)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
-    for (int i = 0; (1 << i) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0))));
-}
-
-void Coh_CW_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 2)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << 2) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(2, 3), 0));
-    for (int i = 0; (1 << i) + (1 << 1) + (1 << 2) <= t_max; ++i)
-        if (i != 0)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(2, 3), 0)));
-    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) + (1 << 2) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(0, 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(2, 3), 0))));
-}
-
-/****************************************************
- *               five cells
- ***************************************************/
-void Coh_CW_2_eta_nu_sigma(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
-    for (int i = 0; (1 << i) + (1 << 1) + (1 << 0) <= t_max; ++i)
-        if (i != 2)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
-    for (int i = 0; (1 << i) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
-        if (i != 3)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0))));
-    for (int i = 0; (1 << i) + (1 << 4) + (1 << 2) + (1 << 1) + (1 << 0) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(3, 4) * (MMilnor::P(2, 3) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)))));
-}
-
-void Coh_CW_sigma_nu_eta_2(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 3)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << 3) <= t_max; ++i)
-        if (i != 2)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(3, 4), 0));
-    for (int i = 0; (1 << i) + (1 << 2) + (1 << 3) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0)));
-    for (int i = 0; (1 << i) + (1 << 1) + (1 << 2) + (1 << 3) <= t_max; ++i)
-        if (i != 0)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0))));
-    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) + (1 << 2) + (1 << 3) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(0, 1) * (MMilnor::P(1, 2) * (MMilnor::P(2, 3) * MMod(MMilnor::P(3, 4), 0)))));
-}
-
-/****************************************************
- *                 Joker
- ***************************************************/
-void Coh_Joker(int1d& v_degs, Mod1d& rels, int t_max)
-{
-    v_degs = {0};
-    rels.clear();
-    for (int i = 0; (1 << i) <= t_max; ++i)
-        if (i != 0 && i != 1)
-            rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
-    for (int i = 0; (1 << i) + (1 << 0) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(0, 1), 0));
-    for (int i = 0; (1 << i) + (1 << 0) + (1 << 1) <= t_max; ++i)
-        if (i != 0)
-            rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0)));
-    for (int i = 0; (1 << i) + (1 << 1) <= t_max; ++i)
-        if (i != 1)
-            rels.push_back(MMilnor::P(i, i + 1) * MMod(MMilnor::P(1, 2), 0));
-    for (int i = 0; (1 << i) + (1 << 1) + (1 << 1) <= t_max; ++i)
-        rels.push_back(MMilnor::P(i, i + 1) * (MMilnor::P(1, 2) * MMod(MMilnor::P(1, 2), 0)));
-}
-
-/****************************************************
  *                     M
  ***************************************************/
 void Coh_M(int1d& v_degs, Mod1d& rels, int t_max)
@@ -533,53 +361,102 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
     auto js = myio::load_json("Adams.json");
     try {
         auto& cws = js.at("CW_complexes");
-        if (!cws.contains(name))
+        if (!cws.contains(name)) {
             return -1;
-        auto& cw_json = cws.at(name);
-        if (!cw_json.contains("operations"))
-            return -2;
-        int1d cells;
-        for (auto& c : cw_json.at("cells"))
-            cells.push_back(c.get<int>());
-        int1d cells_gen;
-        for (auto& c : cw_json.at("cells_gen"))
-            cells_gen.push_back(c.get<int>());
-        std::map<int, int1d> ops;
-        for (auto& op : cw_json.at("operations")) {
-            int c0 = op[0].get<int>(), c1 = op[1].get<int>();
-            if (!ut::has(cells, c0) || !ut::has(cells, c1))
-                return -3;
-            int n = c1 - c0;
-            if (n & (n - 1))
-                return -4;
-            ops[c0].push_back(c1);
         }
-        for (auto& [_, cs] : ops)
-            std::sort(cs.begin(), cs.end());
+        auto& cw_json = cws.at(name);
+        if (!cw_json.contains("operations")) {
+            fmt::print("missing key: operations\n");
+            return -2;
+        }
+        int1d gen_degs;
+        std::map<int, int> cells;
+        std::map<int, int> indices;
+        int index = 0;
+        for (auto& c : cw_json.at("cells")) {
+            int d = c.get<int>();
+            gen_degs.push_back(d);
+            ++cells[d];
+            if (!ut::has(indices, d))
+                indices[d] = index;
+            ++index;
+        }
+        int1d cells_gen;
+        for (auto& c : cw_json.at("cells_gen")) {
+            if (c.is_number()) {
+                int d = c.get<int>();
+                cells_gen.push_back(indices.at(d));
+            }
+            else {
+                int1d arr = c.get<std::vector<int>>();
+                if (arr.size() < 2) {
+                    fmt::print("Invalid cells_gen\n");
+                    return -3;
+                }
+                int d = arr[0];
+                for (size_t i = 1; i < arr.size(); ++i)
+                    cells_gen.push_back(indices.at(d) + arr[i]);
+            }
+        }
+        std::map<int, std::map<int, int1d>> ops;
+        for (auto& op : cw_json.at("operations")) {
+            int c0, v0;
+            if (op[0].is_number()) {
+                c0 = op[0].get<int>();
+                v0 = indices.at(c0);
+            }
+            else {
+                int1d arr = op[0].get<std::vector<int>>();
+                c0 = arr[0];
+                MyException::Assert(arr[1] < cells.at(c0), "arr[1] < cells.at(c0)");
+                v0 = indices.at(c0) + arr[1];
+            }
+            int c1;
+            int1d v1s;
+            if (op[1].is_number()) {
+                c1 = op[1].get<int>();
+                v1s.push_back(indices.at(c1));
+            }
+            else {
+                int1d arr = op[1].get<std::vector<int>>();
+                c1 = arr[0];
+                for (size_t i = 1; i < arr.size(); ++i) {
+                    MyException::Assert(arr[i] < cells.at(c1), "arr[i] < cells.at(c1)");
+                    v1s.push_back(indices.at(c1) + arr[i]);
+                }
+            }
+
+            int n = c1 - c0;
+            MyException::Assert(!(n & (n - 1)), "n is a power of 2");
+            for (int v1 : v1s)
+                ops[v0][n].push_back(v1);
+        }
 
         Mod1d rels2;
         Mod tmp;
-        for (size_t i = 0; i < cells.size(); ++i) {
-            int c = cells[i];
-            for (int j = 0; (1 << j) + c <= t_max; ++j) {
+        for (size_t i = 0; i < gen_degs.size(); ++i) {
+            for (int j = 0; (1 << j) + gen_degs[i] <= t_max; ++j) {
                 Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
-                if (ut::has(ops[c], (1 << j) + c)) {
-                    int index = ut::IndexOf(cells, (1 << j) + c);
-                    rel.iaddP(MMod(MMilnor(), index), tmp);
-                }
+                if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
+                    for (int v1 : ops.at((int)i).at(int(1 << j)))
+                        rel.iaddP(MMod(MMilnor(), v1), tmp);
                 rels2.push_back(std::move(rel));
             }
         }
 
-        Groebner gb(t_max, {}, cells);
+        Groebner gb(t_max, {}, gen_degs);
         min_rels.clear();
         gb.AddRels(rels2, t_max, min_rels);
         gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
 
+        int1d cells_gen_v2;
+        for (size_t i = 0; i < cell_reduced.size(); ++i)
+            if (cell_reduced[i].data.size() == 1 && cell_reduced[i].GetLead().deg_m() == 0)
+                cells_gen_v2.push_back((int)i);
+        MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
+
         v_degs = gb.v_degs();
         ut::RemoveIf(v_degs, [t_max](int i) { return i > t_max; });
-        if (v_degs != cells_gen)
-            return -5;
         rels.clear();
         for (int i : min_rels)
             rels.push_back(gb.data()[i]);
@@ -802,54 +679,6 @@ int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         Coh_tmf(v_degs, rels, d_max);
     else if (cw == "ko")
         Coh_ko(v_degs, rels, d_max);
-    else if (cw == "C2")
-        Coh_Chn(v_degs, rels, 0, d_max);
-    else if (cw == "Ceta")
-        Coh_Chn(v_degs, rels, 1, d_max);
-    else if (cw == "Cnu")
-        Coh_Chn(v_degs, rels, 2, d_max);
-    else if (cw == "Csigma")
-        Coh_Chn(v_degs, rels, 3, d_max);
-    else if (cw == "C2h4")
-        Coh_C2hn(v_degs, rels, 4, d_max);
-    else if (cw == "C2h5")
-        Coh_C2hn(v_degs, rels, 5, d_max);
-    else if (cw == "C2h6")
-        Coh_C2hn(v_degs, rels, 6, d_max);
-    else if (cw == "DC2h4")
-        Coh_DC2hn(v_degs, rels, 4, d_max);
-    else if (cw == "DC2h5")
-        Coh_DC2hn(v_degs, rels, 5, d_max);
-    else if (cw == "DC2h6")
-        Coh_DC2hn(v_degs, rels, 6, d_max);
-    else if (cw == "CW_2_eta")
-        Coh_three_cell(v_degs, rels, 0, 1, d_max);
-    else if (cw == "CW_eta_nu")
-        Coh_three_cell(v_degs, rels, 1, 2, d_max);
-    else if (cw == "CW_nu_sigma")
-        Coh_three_cell(v_degs, rels, 2, 3, d_max);
-    else if (cw == "CW_eta_2")
-        Coh_three_cell(v_degs, rels, 1, 0, d_max);
-    else if (cw == "CW_nu_eta")
-        Coh_three_cell(v_degs, rels, 2, 1, d_max);
-    else if (cw == "CW_sigma_nu")
-        Coh_three_cell(v_degs, rels, 3, 2, d_max);
-    else if (cw == "C2_Ceta")
-        Coh_smash_2cell(v_degs, rels, 0, 1, d_max);
-    else if (cw == "Ceta_Cnu")
-        Coh_smash_2cell(v_degs, rels, 1, 2, d_max);
-    else if (cw == "Cnu_Csigma")
-        Coh_smash_2cell(v_degs, rels, 2, 3, d_max);
-    else if (cw == "Joker")
-        Coh_Joker(v_degs, rels, d_max);
-    else if (cw == "CW_2_eta_nu")
-        Coh_CW_2_eta_nu(v_degs, rels, d_max);
-    else if (cw == "CW_nu_eta_2")
-        Coh_CW_nu_eta_2(v_degs, rels, d_max);
-    else if (cw == "CW_2_eta_nu_sigma")
-        Coh_CW_2_eta_nu_sigma(v_degs, rels, d_max);
-    else if (cw == "CW_sigma_nu_eta_2")
-        Coh_CW_sigma_nu_eta_2(v_degs, rels, d_max);
     else if (cw == "j")
         Coh_j(v_degs, rels, d_max);
     else if (cw == "j_C2")
@@ -1317,80 +1146,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         to = "S0";
         return;
     }
-    if (cw1 == "C2" && cw2 == "Q_CW_nu_eta_2") {
-        images = {};
-        const int t_max = 256;
-        int1d v_degs_Q;
-        Mod1d rels_Q;
-        Coh_Chn(v_degs_Q, rels_Q, 2, t_max);
-        Mod1d _;
-        int1d min_rels_Q;
-        Groebner gb_Q(t_max, {}, v_degs_Q);
-        gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
-        gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
-
-        int1d v_degs;
-        Mod1d rels;
-        Coh_CW_nu_eta_2(v_degs, rels, t_max);
-        Groebner gb(t_max, {}, v_degs);
-        gb.AddRels(rels, t_max);
-
-        for (int i : min_rels_Q) {
-            auto& rel = gb_Q.data()[i];
-            if (gb.Reduce(rel)) {
-                int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
-                if (rel_deg == 6)
-                    images.push_back(MMod({}, 0));
-                else if (rel_deg == 7)
-                    images.push_back(MMod(MMilnor::P(0, 1), 0));
-                else
-                    throw MyException(0x5c4f5899, "Wrong cell");
-            }
-            else
-                images.push_back({});
-        }
-        sus = -5;
-        fil = 1;
-        to = "Cnu";
-        return;
-    }
-    if (cw1 == "Cnu" && cw2 == "Q_CW_2_eta_nu") {
-        images = {};
-        const int t_max = 256;
-        int1d v_degs_Q;
-        Mod1d rels_Q;
-        Coh_Chn(v_degs_Q, rels_Q, 0, t_max);
-        Mod1d _;
-        int1d min_rels_Q;
-        Groebner gb_Q(t_max, {}, v_degs_Q);
-        gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
-        gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
-
-        int1d v_degs;
-        Mod1d rels;
-        Coh_CW_2_eta_nu(v_degs, rels, t_max);
-        Groebner gb(t_max, {}, v_degs);
-        gb.AddRels(rels, t_max);
-
-        for (int i : min_rels_Q) {
-            auto& rel = gb_Q.data()[i];
-            if (gb.Reduce(rel)) {
-                int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
-                if (rel_deg == 3)
-                    images.push_back(MMod({}, 0));
-                else if (rel_deg == 7)
-                    images.push_back(MMod(MMilnor::P(2, 3), 0));
-                else
-                    throw MyException(0x5c4f5899, "Wrong cell");
-            }
-            else
-                images.push_back({});
-        }
-        sus = -2;
-        fil = 1;
-        to = "C2";
-        return;
-    }
 
     if (cw1 == "CW_eta_2" && cw2 == "Fphi4") {
         images = {MMod(MMilnor(), 0)};
@@ -1405,84 +1160,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         if (cw2 == "Ceta") {
             images = {MMod(MMilnor::P(1, 2), 0)};
             sus = 2;
-            return;
-        }
-    }
-    if (cw2 == "Q_Joker") {
-        if (cw1 == "CW_eta_2") {
-            images = {};
-            const int t_max = 256;
-            int1d v_degs_Q;
-            Mod1d rels_Q;
-            Coh_Chn(v_degs_Q, rels_Q, 1, t_max);
-            Mod1d _;
-            int1d min_rels_Q;
-            Groebner gb_Q(t_max, {}, v_degs_Q);
-            gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
-            gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
-
-            int1d v_degs;
-            Mod1d rels;
-            Coh_Joker(v_degs, rels, t_max);
-            Groebner gb(t_max, {}, v_degs);
-            gb.AddRels(rels, t_max);
-
-            for (int i : min_rels_Q) {
-                auto& rel = gb_Q.data()[i];
-                if (gb.Reduce(rel)) {
-                    int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
-                    if (rel_deg == 1)
-                        images.push_back(MMod(MMilnor{}, 0));
-                    else if (rel_deg == 3)
-                        images.push_back(MMod(MMilnor::P(1, 2), 0));
-                    else if (rel_deg == 4)
-                        images.push_back(MMilnor::P(0, 1) * MMod(MMilnor::P(1, 2), 0));
-                    else
-                        throw MyException(0x5c4f5899, "Wrong cell");
-                }
-                else
-                    images.push_back({});
-            }
-            sus = 0;
-            fil = 1;
-            to = "Ceta";
-            return;
-        }
-        if (cw1 == "Ceta") {
-            images = {};
-            const int t_max = 256;
-            int1d v_degs_Q;
-            Mod1d rels_Q;
-            Coh_three_cell(v_degs_Q, rels_Q, 0, 1, t_max);
-            Mod1d _;
-            int1d min_rels_Q;
-            Groebner gb_Q(t_max, {}, v_degs_Q);
-            gb_Q.AddRels(rels_Q, t_max, min_rels_Q);
-            gb_Q.MinimizeOrderedGensRels(_, min_rels_Q);
-
-            int1d v_degs;
-            Mod1d rels;
-            Coh_Joker(v_degs, rels, t_max);
-            Groebner gb(t_max, {}, v_degs);
-            gb.AddRels(rels, t_max);
-
-            for (int i : min_rels_Q) {
-                auto& rel = gb_Q.data()[i];
-                if (gb.Reduce(rel)) {
-                    int rel_deg = rel.GetLead().deg_m() + v_degs_Q[rel.GetLead().v()];
-                    if (rel_deg == 2)
-                        images.push_back(MMod(MMilnor{}, 0));
-                    else if (rel_deg == 4)
-                        images.push_back(MMod(MMilnor::P(1, 2), 0));
-                    else
-                        throw MyException(0x5c4f5899, "Wrong cell");
-                }
-                else
-                    images.push_back({});
-            }
-            sus = -1;
-            fil = 1;
-            to = "CW_2_eta";
             return;
         }
     }
