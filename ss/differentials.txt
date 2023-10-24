@@ -1,4 +1,7 @@
 //Added
+ss add_diff C2 63 1 100 0 ""
+
+// S0
 ss add_diff S0 15 2 3 0 0
 ss add_diff S0 31 8 4 0,1 0
 ss add_diff S0 34 2 3 0 0

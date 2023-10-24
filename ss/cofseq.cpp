@@ -364,11 +364,6 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
             else
                 Logger::LogDiffInv(depth, enumReason::deduce, fmt::format("{}:{}", cofseq.name, iCs), deg, x, dx, r);
 
-            if (iCs == 0 && deg == AdamsDeg(8, 42 + 8) && r == 2) {
-                Logger::Flush();
-                std::cout << "debug\n";
-            }
-
             SetDiffGlobalCofseq(cofseq, iCs_src, deg_src, x, dx, r, true, flag);
             int count_trivial = DeduceTrivialDiffsCofseq(flag);
             count += count_trivial;
@@ -391,7 +386,8 @@ int Diagram::DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag
 {
     int count = 0;
     DeduceTrivialDiffsCofseq(flag);
-    for (auto& cofseq : cofseqs_) {
+    for (size_t iCof : deduce_list_cofseq_) {
+        auto& cofseq = cofseqs_[iCof];
         for (size_t iCs = 0; iCs < 3; ++iCs) {
             auto degs = ut::get_keys(cofseq.nodes_cofseq[iCs].front());
             std::stable_sort(degs.begin(), degs.end(), [](AdamsDeg deg1, AdamsDeg deg2) { return deg1.stem() < deg2.stem(); });

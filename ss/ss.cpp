@@ -343,10 +343,6 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const 
     int stem_map1 = cofseq.degMap[iCs1].stem();
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, stem_map + r};
 
-    if (deg_x == AdamsDeg(17, 56) && r == 2 && nodes_ss.size() == 2) {
-        std::cout << "debug\n";
-    }
-
     /* NULL_DIFF checking */
     if (x_ == NULL_DIFF) {
         SetImageScCofseq(cofseq, iCs2, deg_dx, dx, NULL_DIFF, r, flag);

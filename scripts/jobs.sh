@@ -16,3 +16,4 @@
 ./Adams map_res RP1_74 RP1_76 180 >> map_RP1_74_to_RP1_76.out &
 ./Adams map_res RP1_76 RP1_78 180 >> map_RP1_76_to_RP1_78.out &
 ./Adams map_res RP1_78 RP1_80 180 >> map_RP1_78_to_RP1_80.out &
+

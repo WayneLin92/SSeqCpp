@@ -395,8 +395,6 @@ constexpr size_t FLAG_MOD = 1 << 16;
 
 class Diagram
 {
-
-public:
 protected:
     RingSp1d rings_;
     ModSp1d modules_;
@@ -405,6 +403,7 @@ protected:
 
 protected: /* Settings */
     std::vector<size_t> deduce_list_spectra_;
+    std::vector<size_t> deduce_list_cofseq_;
     int deduce_count_max_ = 10;
 
 public:

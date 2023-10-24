@@ -261,14 +261,17 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         if (flag & DeduceFlag::cofseq) {
             auto& json_cofseqs = diagram.at("cofseqs");
             std::vector<std::string> cofseq_maps;
-            int iCof = -1;
+            int iCof = 0;
             for (auto& json_cofseq : json_cofseqs) {
-                ++iCof;
+                if (json_cofseq.contains("enable") && json_cofseq.at("enable").get<std::string>() == "no")
+                    continue;
                 CofSeq cofseq;
                 cofseq.name = json_cofseq.at("name").get<std::string>();
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
                 auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
                 std::array<std::string, 3> maps_names = {json_cofseq.at("i").get<std::string>(), json_cofseq.at("q").get<std::string>(), json_cofseq.at("d").get<std::string>()};
+                if (!json_cofseq.contains("deduce") || json_cofseq.at("deduce").get<std::string>() == "on")
+                    deduce_list_cofseq_.push_back(iCof);
                 for (size_t iCs = 0; iCs < 3; ++iCs) {
                     size_t index = (size_t)GetMapIndexByName(maps_names[iCs]);
                     const auto& map = maps_[index];
@@ -294,6 +297,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                         cofseq.nodes_cofseq[i].front() = std::move(node_cofseq[i]);
                 }
                 cofseqs_.push_back(cofseq);
+                ++iCof;
             }
             SyncCofseq(flag);
         }
