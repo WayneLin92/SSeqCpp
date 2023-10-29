@@ -1,12 +1,28 @@
 //Added
 ss add_diff C2 63 1 100 0 ""
 
+ss add_diff S0 63 23 5 0 0
+ss add_diff S0 70 2 3 0 0
+ss add_diff S0 78 5 4 0 1
+ss add_diff S0 80 5 4 1 0
+
+ss add_diff S0 61 6 5 0,1 0
+ss add_diff S0 68 7 7 1 1
+ss add_diff S0 70 4 5 0,1 1
+ss add_diff S0 73 7 5 0 0
+ss add_diff S0 79 5 3 0 1
+ss add_diff S0 86 10 5 1 1
+ss add_diff S0 86 11 5 0 1
+ss add_diff S0 87 10 6 0 0
+ss add_diff S0 88 12 6 1 1
+ss add_diff S0 92 4 5 0 0
+ss add_diff S0 127 56 6 1 0
+
 // S0
 ss add_diff S0 15 2 3 0 0
 ss add_diff S0 31 8 4 0,1 0
 ss add_diff S0 34 2 3 0 0
 ss add_diff S0 56 9 5 0 0
-ss add_diff S0 68 7 7 1 1
 ss add_diff tmf 96 16 3 0 0
 
 //j
@@ -74,16 +90,13 @@ ss add_diff Csigma 127 50 6 1 0
 
 //Added
 ss add_diff S0 126 2 8 0 ""
-ss add_diff S0 127 56 6 1 0
 ss add_diff S0 159 74 4 1 0
 ss add_diff S0 38 2 4 0 0
 ss add_diff S0 38 4 3 0 0
 ss add_diff S0 57 7 3 0 1
 
-ss add_diff S0 61 6 5 0,1 0
 ss add_diff S0 63 11 5 0 0
 ss add_diff S0 63 19 4 0 0
-ss add_diff S0 63 23 5 0 0
 ss add_diff S0 63 6 100 0 ""
 ss add_diff S0 63 7 4 0 ""
 ss add_diff S0 63 7 4 1 1
@@ -100,8 +113,6 @@ ss add_diff S0 68 5 4 0 0
 ss add_diff S0 68 7 100 0,1 ""
 ss add_diff S0 69 3 100 0 ""
 ss add_diff S0 69 4 100 0 ""
-ss add_diff S0 70 2 3 0 0
-ss add_diff S0 70 4 5 0,1 1
 ss add_diff S0 70 5 100 1 ""
 ss add_diff S0 71 4 100 0 ""
 ss add_diff S0 71 5 100 0 ""
@@ -109,7 +120,6 @@ ss add_diff S0 71 7 100 0 ""
 ss add_diff S0 72 6 100 0 ""
 ss add_diff S0 72 8 100 0,1 ""
 ss add_diff S0 72 9 4 0 2
-ss add_diff S0 73 7 5 0 0
 ss add_diff S0 73 8 100 0 ""
 ss add_diff S0 74 6 3 0 0
 ss add_diff S0 74 7 100 0 ""
@@ -121,12 +131,9 @@ ss add_diff S0 76 5 3 0 0
 ss add_diff S0 77 3 100 0 ""
 ss add_diff S0 77 5 100 0 ""
 ss add_diff S0 78 3 3 0 1
-ss add_diff S0 78 5 4 0 1
 ss add_diff S0 79 3 100 0 ""
-ss add_diff S0 79 5 3 0 1
 ss add_diff S0 79 7 100 0 ""
 ss add_diff S0 79 8 100 0 ""
-ss add_diff S0 80 5 4 1 0
 ss add_diff S0 80 6 100 1 ""
 ss add_diff S0 81 3 100 0 ""
 ss add_diff S0 82 10 100 0 ""
@@ -136,19 +143,14 @@ ss add_diff S0 83 5 100 0,1 ""
 ss add_diff S0 84 4 3 0 0
 ss add_diff S0 85 5 4 1 ""
 ss add_diff S0 85 6 3 0 ""
-ss add_diff S0 86 10 5 1 1
 ss add_diff S0 86 11 100 1 ""
-ss add_diff S0 86 11 5 0 1
 ss add_diff S0 86 12 3 0 0
 ss add_diff S0 86 4 4 0 0
 ss add_diff S0 86 5 100 0 ""
 ss add_diff S0 86 6 100 0 ""
 ss add_diff S0 86 7 100 0 ""
-ss add_diff S0 87 10 6 0 0
 ss add_diff S0 87 5 100 0 ""
 ss add_diff S0 87 7 100 0 ""
-ss add_diff S0 88 12 6 1 1
-ss add_diff S0 92 4 5 0 0
 ss add_diff S0 93 10 6 2 0
 ss add_diff S0 93 13 6 1 0
 ss add_diff S0 93 3 4 0 1

@@ -65,6 +65,38 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
     }
 }
 
+void get_composition_info(const nlohmann::json& json_maps, const PMap1d& maps, const int1d& indices, const std::string& from, const std::string& to, int t_max_from, int& t_max, AdamsDeg& deg_composition)
+{
+    t_max = t_max_from;
+    int t = t_max;
+    for (size_t i = 0; i < indices.size(); ++i) {  // Check if the composition is well-defined
+        auto& json_f = json_maps[indices[i]];
+        auto& map = maps[indices[i]];
+        if (t > map->t_max) {
+            t_max -= map->t_max - t;
+            t = map->t_max;
+        }
+        t += map->deg.t;
+        deg_composition += map->deg;
+        if (i == 0)
+            MyException::Assert(json_f.at("from").get<std::string>() == from, "Valid composition");
+        if (i + 1 == indices.size())
+            MyException::Assert(json_f.at("to").get<std::string>() == to, "Valid composition");
+        else
+            MyException::Assert(json_f.at("to").get<std::string>() == json_maps[indices[i + 1]].at("from").get<std::string>(), "Valid composition");
+    }
+}
+
+int1d get_compostion(const int1d& x, AdamsDeg deg, const Diagram& diagram, const PMap1d& maps, const int1d& indices)
+{
+    int1d result = x;
+    for (size_t i = 0; i < indices.size(); ++i) {
+        result = maps[indices[i]]->map(result, deg, diagram);
+        deg += maps[indices[i]]->deg;
+    }
+    return result;
+}
+
 Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
 {
     using json = nlohmann::json;
@@ -84,6 +116,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         json& json_rings = diagram.at("rings");
         rings_.reserve(json_rings.size());
         size_t iCw = 0;
+        AdamsDeg2d ring_gen_degs;
 
         for (auto& json_ring : json_rings) {
             std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
@@ -111,6 +144,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     db.load_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
             }
 
+            ring_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
             rings_.push_back(std::move(ring));
             ++iCw;
         }
@@ -118,6 +152,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         /*# Load modules */
 
         json& json_mods = diagram.at("modules");
+        AdamsDeg2d module_gen_degs;
         modules_.reserve(json_mods.size());
         for (auto& json_mod : json_mods) {
             std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
@@ -151,6 +186,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             }
 
             modules_.push_back(std::move(mod));
+            module_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
             ring.ind_mods.push_back(modules_.size() - 1);
             ++iCw;
         }
@@ -168,7 +204,6 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         for (auto& json_map : json_maps) {
             auto name = json_map.at("name").get<std::string>();
             auto display = json_map.contains("display") ? json_map["display"].get<std::string>() : name;
-            auto t_max = json_map["t_max"].get<int>();
             std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
             std::unique_ptr<Map> map;
 
@@ -180,11 +215,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     if (int index_to = GetRingIndexByName(to); index_to != -1) {
                         MyException::Assert(index_from == index_to, "index_from == index_to");
                         Poly factor = rings_[index_from].basis.at(deg_factor)[i_factor];
+                        int t_max = rings_[index_to].t_max - deg_factor.t;
                         map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg_factor, (size_t)index_from, std::move(factor));
                     }
                     else {
                         index_to = GetModuleIndexByName(to);
                         Mod factor = modules_[index_to].basis.at(deg_factor)[i_factor];
+                        int t_max = modules_[index_to].t_max - deg_factor.t;
                         map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg_factor, (size_t)index_from, (size_t)index_to, std::move(factor));
                     }
                 }
@@ -193,12 +230,91 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     int index_to = GetModuleIndexByName(to);
                     MyException::Assert(index_from == index_to, "index_from == index_to");
                     Poly factor = rings_[modules_[index_from].iRing].basis.at(deg_factor)[i_factor];
+                    int t_max = modules_[index_to].t_max - deg_factor.t;
                     map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg_factor, (size_t)index_from, std::move(factor));
+                }
+            }
+            else if (json_map.contains("composition")) {
+                auto& json_composition = json_map.at("composition");
+                int1d indices;
+                for (auto& json_f : json_composition) {
+                    int index_map = GetMapIndexByName(json_f.get<std::string>());
+                    MyException::Assert(index_map != -1, "index_map != -1");
+                    indices.push_back(index_map);
+                }
+                int t_max_map;
+                AdamsDeg deg_map;
+                int index_from = GetRingIndexByName(from);
+                if (index_from != -1) {
+                    int index_to = (size_t)GetRingIndexByName(to);
+                    MyException::Assert(index_to != -1, fmt::format("{}: index_to != -1", to));
+
+                    auto& gen_degs = ring_gen_degs[index_from];
+                    int2d generators;
+                    for (size_t i = 0; i < gen_degs.size(); ++i) {
+                        int index = ut::IndexOf(rings_[index_from].basis.at(gen_degs[i]), Mon::Gen((uint32_t)i));
+                        generators.push_back({index});
+                    }
+                    get_composition_info(json_maps, maps_, indices, from, to, rings_[index_from].t_max, t_max_map, deg_map);
+
+                    Poly1d images_map;
+                    for (size_t i = 0; i < gen_degs.size(); ++i) {
+                        if (gen_degs[i].t > t_max_map)
+                            break;
+                        int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
+                        images_map.push_back(Indices2Poly(fx, rings_[index_to].basis.at(gen_degs[i] + deg_map)));
+                    }
+                    map = std::make_unique<MapRing2Ring>(name, display, t_max_map, deg_map, index_from, index_to, std::move(images_map));
+                }
+                else {
+                    index_from = GetModuleIndexByName(from);
+                    auto& gen_degs = module_gen_degs[index_from];
+                    int2d generators;
+                    for (size_t i = 0; i < gen_degs.size(); ++i) {
+                        int index = ut::IndexOf(modules_[index_from].basis.at(gen_degs[i]), MMod({}, (uint32_t)i));
+                        generators.push_back({index});
+                    }
+                    get_composition_info(json_maps, maps_, indices, from, to, modules_[index_from].t_max, t_max_map, deg_map);
+
+                    if (int index_to = GetRingIndexByName(to); index_to != -1) {
+                        Poly1d images_map;
+                        for (size_t i = 0; i < gen_degs.size(); ++i) {
+                            if (gen_degs[i].t > t_max_map)
+                                images_map.push_back(Poly::Gen(-1));
+                            else {
+                                int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
+                                if (fx.empty())
+                                    images_map.push_back({});
+                                else
+                                    images_map.push_back(Indices2Poly(fx, rings_[index_to].basis.at(gen_degs[i] + deg_map)));
+                            }
+                        }
+                        map = std::make_unique<MapMod2Ring>(name, display, t_max_map, deg_map, index_from, index_to, std::move(images_map));
+                    }
+                    else {
+                        index_to = GetModuleIndexByName(to);
+                        MyException::Assert(index_to != -1, fmt::format("{}: index_to != -1", to));
+
+                        Mod1d images_map;
+                        for (size_t i = 0; i < gen_degs.size(); ++i) {
+                            if (gen_degs[i].t > t_max_map)
+                                images_map.push_back(MMod({}, - 1));
+                            else {
+                                int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
+                                if (fx.empty())
+                                    images_map.push_back({});
+                                else
+                                    images_map.push_back(Indices2Mod(fx, modules_[index_to].basis.at(gen_degs[i] + deg_map)));
+                            }
+                        }
+                        map = std::make_unique<MapMod2Mod>(name, display, t_max_map, deg_map, index_from, index_to, std::move(images_map));
+                    }
                 }
             }
             else {
                 int fil = json_map.contains("fil") ? json_map["fil"].get<int>() : 0;
                 int sus = json_map.contains("sus") ? json_map["sus"].get<int>() : 0;
+                int t_max = json_map["t_max"].get<int>();
                 AdamsDeg deg(fil, fil - sus);
 
                 std::string path = json_map.at("path").get<std::string>();
@@ -214,19 +330,17 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     throw MyException(0x839393b2, "File name is not supported.");
                 }
 
-                if (GetRingIndexByName(from) != -1) {
-                    size_t index_from = (size_t)GetRingIndexByName(from);
-                    size_t index_to = (size_t)GetRingIndexByName(to);
-                    MyException::Assert(index_from != -1 && index_to != -1, "index_from != -1 && index_to != -1");
+                if (int index_from = GetRingIndexByName(from); index_from != -1) {
+                    int index_to = (size_t)GetRingIndexByName(to);
+                    MyException::Assert(index_to != -1, fmt::format("{}: index_to != -1", to));
                     auto images = db.get_column_from_str<Poly>(table, "map", "ORDER BY id", myio::Deserialize<Poly>);
                     map = std::make_unique<MapRing2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
                     rings_[index_from].ind_maps.push_back(maps_.size());
                 }
                 else {
-                    size_t index_from = (size_t)GetModuleIndexByName(from);
-                    MyException::Assert(index_from != -1, "index_from != -1");
-                    if (GetRingIndexByName(to) != -1) {
-                        size_t index_to = (size_t)GetRingIndexByName(to);
+                    index_from = GetModuleIndexByName(from);
+                    MyException::Assert(index_from != -1, fmt::format("{}: index_from != -1", from));
+                    if (int index_to = GetRingIndexByName(to); index_to != -1) {
                         MyException::Assert(index_to != -1, "index_to != -1");
                         auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
                         if (!json_map.contains("over")) {
@@ -239,7 +353,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                         }
                     }
                     else {
-                        size_t index_to = (size_t)GetModuleIndexByName(to);
+                        index_to = (size_t)GetModuleIndexByName(to);
                         MyException::Assert(index_to != -1, fmt::format("{}: index_to != -1", to));
                         auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
                         if (!json_map.contains("over")) {
@@ -263,8 +377,6 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             std::vector<std::string> cofseq_maps;
             int iCof = 0;
             for (auto& json_cofseq : json_cofseqs) {
-                if (json_cofseq.contains("enable") && json_cofseq.at("enable").get<std::string>() == "no")
-                    continue;
                 CofSeq cofseq;
                 cofseq.name = json_cofseq.at("name").get<std::string>();
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
@@ -274,6 +386,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                     deduce_list_cofseq_.push_back(iCof);
                 for (size_t iCs = 0; iCs < 3; ++iCs) {
                     size_t index = (size_t)GetMapIndexByName(maps_names[iCs]);
+                    MyException::Assert(index != -1, maps_names[iCs] + " not found");
                     const auto& map = maps_[index];
                     cofseq.indexMap[iCs] = index;
                     cofseq.degMap[iCs] = map->deg;
@@ -301,7 +414,6 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             }
             SyncCofseq(flag);
         }
-
     }
     /*catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());

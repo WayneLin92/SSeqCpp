@@ -17,11 +17,11 @@ void Coh_S0(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   tmf
  ***************************************************/
-void Coh_tmf(int1d& v_degs, Mod1d& rels, int t_max)
+void Coh_A_over_An(int1d& v_degs, Mod1d& rels, int n, int t_max)
 {
     v_degs = {0};
     rels.clear();
-    for (int i = 0; i < 3 && ((1 << i) <= t_max); ++i)
+    for (int i = 0; i <= n && ((1 << i) <= t_max); ++i)
         rels.push_back(MMod(MMilnor::P(i, i + 1), 0));
 }
 
@@ -676,7 +676,13 @@ int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
     else if (cw == "X2")
         Coh_X2(v_degs, rels, d_max);
     else if (cw == "tmf")
-        Coh_tmf(v_degs, rels, d_max);
+        Coh_A_over_An(v_degs, rels, 2, d_max);
+    else if (cw == "A_A3")
+        Coh_A_over_An(v_degs, rels, 3, d_max);
+    else if (cw == "A_A4")
+        Coh_A_over_An(v_degs, rels, 4, d_max);
+    else if (cw == "A_A5")
+        Coh_A_over_An(v_degs, rels, 5, d_max);
     else if (cw == "ko")
         Coh_ko(v_degs, rels, d_max);
     else if (cw == "j")
@@ -788,9 +794,9 @@ int MapCohFromJson(const std::string& name, std::string& from, std::string& to, 
 
             for (int i : min_rels_to) {
                 auto& rel = gb_to.data()[i];
-                if (gb.Reduce(rel)) {
+                if (gb.Reduce(rel)) {  ////
                     int rel_deg = rel.GetLead().deg_m() + v_degs_to[rel.GetLead().v()];
-                    int index = ut::IndexOf(cells_from, rel_deg + sus - 1);
+                    int index = ut::IndexOf(cells_from, rel_deg + sus - 1); ////
                     if (index == -1)
                         return -6;
                     if (index >= (int)cells_reduced_from.size())
@@ -1087,16 +1093,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     if (cw1 == "j_C2" && cw2 == "j") {
         Mod i7Sq1 = MMilnor::Sq(8) * MMod(MMilnor(), 0) + MMilnor::Sq(1) * MMod(MMilnor(), 1);
         images = {MMod(MMilnor::P(0, 1), 0), i7Sq1};
-        sus = 1;
-        return;
-    }
-    if (cw1 == "CW_eta_2" && cw2 == "RP1_6") {
-        images = {{}, MMod(MMilnor(), 0)};
-        sus = -3;
-        return;
-    }
-    if (cw1 == "RP1_6" && cw2 == "CW_2_eta") {
-        images = {MMod(MMilnor(), 0)};
         sus = 1;
         return;
     }
