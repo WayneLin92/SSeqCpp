@@ -824,7 +824,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     sus = 0;
     fil = 0;
     if (cw1 == "S0") {
-        if (cw2 == "tmf" || cw2 == "ko" || cw2 == "X2") {
+        if (cw2 == "tmf" || cw2 == "ko" || cw2 == "X2" || cw2 == "A_A3" || cw2 == "A_A4" || cw2 == "A_A5") {
             images = {MMod(MMilnor(), 0)};
             return;
         }
