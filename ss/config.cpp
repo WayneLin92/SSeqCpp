@@ -298,7 +298,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                         Mod1d images_map;
                         for (size_t i = 0; i < gen_degs.size(); ++i) {
                             if (gen_degs[i].t > t_max_map)
-                                images_map.push_back(MMod({}, - 1));
+                                images_map.push_back(MMod({}, -1));
                             else {
                                 int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
                                 if (fx.empty())

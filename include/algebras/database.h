@@ -172,6 +172,7 @@ public:
     Database() = default;
     explicit Database(std::string filename);
     ~Database();
+    void open(std::string filename);
     void disconnect();
 
 public:

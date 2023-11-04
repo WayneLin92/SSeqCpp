@@ -25,7 +25,9 @@ void Logger::SetOutMain(const char* filename)
 
 void Logger::SetOutDeduce(const char* filename)
 {
+
     if (!fout_deduce_.is_open()) {
+        // db_deduce_.open("deduce.log.db");
         fout_deduce_.open(filename, std::ofstream::app);
         if (!fout_deduce_.is_open()) {
             Logger::LogException(0, 0x464ac1ddU, "Cannot open {}\n", filename);

@@ -50,6 +50,16 @@ Database::~Database()
     }
 }
 
+void myio::Database::open(std::string filename) {
+    filename_ = std::move(filename);
+    if (myio::FileExists(filename_))
+        newFile_ = false;
+    if (sqlite3_open(filename_.c_str(), &conn_) != SQLITE_OK) {
+        fmt::print("Cannot open database {}\n", filename_);
+        throw MyException(0x8de81e80, "Cannot open database");
+    }
+}
+
 void Database::disconnect()
 {
     end_transaction();

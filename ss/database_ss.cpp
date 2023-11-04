@@ -271,7 +271,7 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 
         auto flag = DeduceFlag::no_op;
         Diagram diagram(diagram_name, flag);
-        int count = diagram.DeduceTrivialDiffs(flag);
+        //int count = diagram.DeduceTrivialDiffs(flag);
         diagram.save(diagram_name, flag);
     }
 

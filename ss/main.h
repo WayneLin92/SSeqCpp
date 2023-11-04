@@ -117,11 +117,11 @@ public:
     NoException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
 };
 
-class TerminationException : public MyException
+class InteruptAndSaveException : public MyException
 {
 public:
-    TerminationException(unsigned int error_id, const char* message) : MyException(error_id, message) {}
-    TerminationException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
+    InteruptAndSaveException(unsigned int error_id, const char* message) : MyException(error_id, message) {}
+    InteruptAndSaveException(unsigned int error_id, const std::string& message) : MyException(error_id, message) {}
 };
 
 struct NullDiff

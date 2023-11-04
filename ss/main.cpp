@@ -9,6 +9,7 @@ int main_reset_cofseq(int, char**, int&, const char*);
 int main_reset_pi(int, char**, int&, const char*);
 int main_resetfrom(int, char**, int&, const char*);
 int main_add_diff(int, char**, int&, const char*);
+int main_add_diff_from_file(int, char**, int&, const char*);
 int main_add_cofseq_diff(int, char**, int&, const char*);
 int main_add_pi(int, char**, int&, const char*);
 
@@ -38,6 +39,7 @@ int main(int argc, char** argv)
         {"reset_pi", "Initialize the homotopy tables", main_reset_pi},
         {"resetfrom", "Initialize from another diagram", main_resetfrom},
         {"add_diff", "Manually input a differential into the spectral sequences", main_add_diff},
+        {"add_diff_from_file", "Input differentials from a log file", main_add_diff_from_file},
         {"add_cofseq_diff", "Manually input a differential into the cofiber sequence spectral sequence", main_add_cofseq_diff},
         {"add_pi", "Manually input a homotopy into the pi table", main_add_pi},
         {"deduce", "Deduce differentials and extensions", main_deduce},

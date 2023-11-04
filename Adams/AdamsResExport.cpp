@@ -550,7 +550,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
 {
     using namespace alg2;
     /* A sorted list of ring spectra */
-    std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
+    std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2", "A_A3", "A_A4", "A_A5"};
     std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
 
     std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);

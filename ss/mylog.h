@@ -1,4 +1,5 @@
 #include "algebras/myexception.h"
+#include "algebras/database.h"
 #include "pigroebner.h"
 #include <fmt/color.h>
 #include <fmt/core.h>
@@ -24,6 +25,20 @@ enum class enumReason : uint32_t
 constexpr std::array REASONS = {"htpy2ss", "ss2htpy", "degree", "nat", "deduce", "deduce_v2", "exact_hq", "exact_ih", "exact_qi", "def", "cofseq_b", "try", "migrate", "manual"};
 inline const char* INDENT = "          ";
 
+class DbLog : public myio::Database
+{
+    using Statement = myio::Statement;
+
+public:
+    DbLog() = default;
+    explicit DbLog(const std::string& filename) : Database(filename) {}
+
+    void create_log(const std::string& table_prefix) const
+    {
+        execute_cmd("CREATE TABLE IF NOT EXISTS " + table_prefix + "_ss (id INTEGER PRIMARY KEY, s SMALLINT, t SMALLINT, base TEXT, diff TEXT, level SMALLINT)");
+    }
+};
+
 /* There should be at least one global instance to close the files */
 class Logger
 {
@@ -33,6 +48,7 @@ private:
     static std::string cmd_;
     static std::string line_;
     static std::string out_;
+    static myio::Database db_deduce_;
 
 private:
     static std::string GetCmd(int argc, char** argv);

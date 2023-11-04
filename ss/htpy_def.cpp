@@ -521,7 +521,7 @@ int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
             diagram.SimplifyPiRels();
             diagram.save(diagram_name, flag);
         }
-        catch (TerminationException&) {
+        catch (InteruptAndSaveException&) {
         }
     }
 #ifdef MYDEPLOY
@@ -562,7 +562,7 @@ int main_deduce_ext_def2(int argc, char** argv, int& index, const char* desc)
             diagram.SimplifyPiRels();
             diagram.save(diagram_name, flag);
         }
-        catch (TerminationException&) {
+        catch (InteruptAndSaveException&) {
         }
     }
 #ifdef MYDEPLOY

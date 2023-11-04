@@ -1,6 +1,7 @@
 #include "algebras/linalg.h"
 #include "main.h"
 #include "mylog.h"
+#include <regex>
 
 using namespace alg2;
 
@@ -78,12 +79,75 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     }
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Logger::LogSummary("Changed differentials", count);
-        diagram.DeduceDiffs(0, 500, 0, DeduceFlag::no_op);////
+        diagram.DeduceDiffs(0, 500, 0, DeduceFlag::no_op);  ////
     }
     if (mode == "add" || mode == "deduce") {
         Logger::LogSummary("Changed differentials", count);
         diagram.save(diagram_name, DeduceFlag::no_op);
     }
+    return 0;
+}
+
+int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
+{
+    int lineNum = 0;
+    std::string diagram_name = "mix-hopf";
+    std::string filenameLog = "differentials-certain.txt";
+
+    myio::CmdArg1d args = {{"lineNum", &lineNum}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}, {"filenameLog", &filenameLog}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    auto flag = DeduceFlag::no_op;
+
+    myio::AssertFileExists(filenameLog);
+    std::ifstream fileLog(filenameLog);
+    std::string line;
+    int count_lines = 0, count_diffs = 0;
+    std::regex is_duduce_regex("^(?:deduce - |)(\\w+) \\((\\d+), (\\d+)\\) d_(\\d+)\\[((?:\\d|\\s|,)*)\\]=\\[((?:\\d|\\s|,)*)\\]"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
+    std::smatch match;
+
+    std::string cw;
+    int stem = -1, s = -1, r = 0;
+    int1d x, dx;
+    Diagram diagram(diagram_name, flag);
+
+    try {
+        while (std::getline(fileLog, line) && count_lines++ < lineNum) {
+            if (std::regex_search(line, match, is_duduce_regex); match[0].matched) {
+                cw = match[1].str();
+                stem = std::stoi(match[2].str());
+                s = std::stoi(match[3].str());
+                r = std::stoi(match[4].str());
+
+                AdamsDeg deg_x(s, stem + s);
+                x = myio::Deserialize<int1d>(match[5].str());
+                dx = myio::Deserialize<int1d>(match[6].str());
+
+                bool isRing = diagram.GetRingIndexByName(cw) != -1;
+                if (isRing) {
+                    size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
+                    Logger::LogDiff(0, enumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
+                    count_diffs += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
+                }
+                else {
+                    size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
+                    MyException::Assert(iMod != -1, "iMod != -1");
+                    Logger::LogDiff(0, enumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
+                    count_diffs += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
+                }
+            }
+            if (count_lines % 10000 == 0) {
+                fmt::print("Deduce trivial diffs\n\n");
+                diagram.DeduceTrivialDiffs(flag);
+            }
+        }
+    }
+    catch (SSException&) {
+    }
+
+    diagram.save(diagram_name, flag);
     return 0;
 }
 
@@ -110,7 +174,7 @@ int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
 
     /* #Check if x, dx are valid */
     int index_cofseq = diagram.GetCofSeqIndexByName(cofseq_name);
-    auto& cofseq = diagram.GetCofSeqs()[index_cofseq]; //// const
+    auto& cofseq = diagram.GetCofSeqs()[index_cofseq];  //// const
 
     std::sort(x.begin(), x.end());
     std::sort(dx.begin(), dx.end());

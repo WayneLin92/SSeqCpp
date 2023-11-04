@@ -1912,7 +1912,7 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
         try {
             diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
         }
-        catch (TerminationException&) {
+        catch (InteruptAndSaveException&) {
         }
         diagram.SimplifyPiRels();
         /*std::cout << "S0 pi_gb.size()=" << diagram.GetRings().pi_gb.data().size() << '\n';

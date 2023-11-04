@@ -452,7 +452,9 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
         int1d cells_gen_v2;
         for (size_t i = 0; i < cell_reduced.size(); ++i)
             if (cell_reduced[i].data.size() == 1 && cell_reduced[i].GetLead().deg_m() == 0)
-                cells_gen_v2.push_back((int)i);
+                cells_gen_v2.push_back(gen_degs[i]);
+        ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
+        ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
         MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
 
         v_degs = gb.v_degs();

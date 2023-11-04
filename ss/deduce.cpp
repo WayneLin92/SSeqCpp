@@ -235,6 +235,10 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
     bool bException = false;
     try {
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
+        // if (name == "CW_2_eta" && deg_x == AdamsDeg(6, 70 + 6) && r == 3 && dx.empty()) {
+        //     std::cout << "debug\n";
+        // }
+
         Logger::LogDiff(depth + 1, enumReason::try_, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
         DeduceTrivialDiffs(flag);
@@ -359,25 +363,12 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 Logger::LogDiff(depth, enumReason::deduce, name, deg, x, dx, r);
             else
                 Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
+
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
             if (flag & DeduceFlag::cofseq)
                 count += DeduceTrivialDiffsCofseq(flag);  ////
             count += DeduceTrivialDiffs(flag);
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
-            /*if (flag & DeduceFlag::pi) {
-                int count_homotopy1 = 0;
-                AdamsDeg deg_min = deg_src - AdamsDeg(0, 1);
-                if (iCw >= rings_.size())
-                    deg_min = deg_min - modules_[iCw - rings_.size()].deg_qt;
-                if (count_trivial) {
-                    deg_min.t = deg_min.stem();
-                    deg_min.s = 0;
-                }
-                SyncHomotopy(deg_min, count, count_homotopy1, depth);
-                DeduceTrivialExtensions(depth);
-                if (flag & DeduceFlag::pi_exact)
-                    DeduceExtensionsByExactness(deg_min.stem(), 100, depth);
-            }*/
         }
         else {
             Logger::ClearDepth();
@@ -506,11 +497,15 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     if (flag & DeduceFlag::pi) {
         int count_homotopy1 = 0;
         diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
-        //diagram.DeduceTrivialExtensions(0);
-        // if (flag & DeduceFlag::pi_exact)
-        //     diagram.DeduceExtensionsByExactness(0, 100, 0);
+        // diagram.DeduceTrivialExtensions(0);
+        //  if (flag & DeduceFlag::pi_exact)
+        //      diagram.DeduceExtensionsByExactness(0, 100, 0);
     }
-    count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
+    try {
+        count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
+    }
+    catch (InteruptAndSaveException&) {
+    }
     if (flag & DeduceFlag::pi) {
         diagram.SimplifyPiRels();
     }

@@ -576,6 +576,8 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
             if (deg_xy.t > t_max)
                 break;
             for (size_t i = 0; i < sc_y.levels.size(); ++i) {
+                /*if (iMod == 40 && deg_xy == AdamsDeg(14, 164 + 14) && sc_y.basis[i] == int1d{0})
+                    std::cout << "debug\n";*/
                 if (sc_y.levels[i] > LEVEL_MAX - r_min)
                     break;
                 const int r_y = LEVEL_MAX - sc_y.levels[i];
@@ -602,6 +604,11 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
                 }
 
                 if (!xy.empty() || !dxy.empty()) {
+                    // if (iMod == 40 && deg_xy == AdamsDeg(14, 164 + 14) && R == 3 && dxy == int1d{2}) {
+                    //     fmt::print("deg_x={} deg_dx={} deg_y={} deg_xy={} deg_dxy={}\n", deg_x, deg_dx, deg_y, deg_xy, deg_dxy);
+                    //     fmt::print("x={} dx={} y={} dy={} xy={} dxy={}\n", poly_x.Str(), poly_dx.Str(), poly_y.Str(), poly_dy.Str(), poly_xy.Str(), poly_dxy.Str());
+                    //     fmt::print("x={} dx={} y={} dy={} xy={} dxy={}\n", x, dx, sc_y.basis[i], sc_y.diffs[i], xy, dxy);
+                    // }
                     SetDiffSc(iMod | FLAG_MOD, deg_xy, xy, dxy, R, flag);
                     ++count;
                 }
