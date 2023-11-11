@@ -8,6 +8,8 @@
 #include <map>
 #include <regex>
 
+int get_db_t_verified(const myio::Database& db);
+
 void create_db_version(const myio::Database& db)
 {
     db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
@@ -183,6 +185,70 @@ void UtStatus(const std::string& dir, bool sorted)
     }
     auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
     fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "export");
+    fmt::print(fs_map, white, "---", white, "---", white, "------");
+    for (auto& name : names_maps) {
+        auto& t_maxes = table_maps.at(name);
+        const auto& colors = table_color_maps[name];
+        fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
+    }
+    fmt::print("----------------------------------------------\n");
+}
+
+void UtVerifyStatus(const std::string& dir, bool sorted)
+{
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::smatch match;
+
+    std::map<std::string, int> timestamps_maps;
+    std::map<std::string, std::array<std::string, 2>> table_maps;
+    std::map<std::string, std::array<std::string, 2>> table_color_maps;
+
+    int current_timestamp;
+    {
+        DbAdamsUt db("");
+        current_timestamp = db.get_int("SELECT unixepoch();");
+    }
+
+    constexpr std::string_view green = "\033[38;2;0;255;0m";
+    constexpr std::string_view blue = "\033[38;2;50;128;255m";
+    constexpr std::string_view light_red = "\033[38;2;255;200;200m";
+    constexpr std::string_view white = "";
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        std::string filename = entry.path().filename().string();
+        std::string filepath = entry.path().string();
+
+        {
+            std::string name;
+            if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
+                name = match[1].str();
+            }
+            if (!name.empty()) {
+                DbAdamsUt db(filepath);
+                table_maps[name][0] = fmt::format("{}", get_db_t_max(db));
+                table_maps[name][1] = fmt::format("{}", get_db_t_verified(db));
+                int timestamp = db.get_timestamp();
+                timestamps_maps[name] = timestamp;
+                if (current_timestamp - timestamp < (3600 * 6))
+                    table_color_maps[name][1] = green;
+                else if (current_timestamp - timestamp < (3600 * 24))
+                    table_color_maps[name][1] = blue;
+            }
+        }
+    }
+    auto names_maps = ut::get_keys(table_maps);
+    if (sorted) {
+        std::sort(names_maps.begin(), names_maps.end(), [&timestamps_maps](const std::string& name1, const std::string& name2) { return timestamps_maps.at(name1) > timestamps_maps.at(name2); });
+    }
+
+    std::array<size_t, 3> maps_widths = {3, 3, 6};
+    for (auto& name : names_maps) {
+        auto& t_maxes = table_maps.at(name);
+        maps_widths[0] = std::max(maps_widths[0], name.size());
+        maps_widths[1] = std::max(maps_widths[1], t_maxes[0].size());
+        maps_widths[2] = std::max(maps_widths[2], t_maxes[1].size());
+    }
+    auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
+    fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "verify");
     fmt::print(fs_map, white, "---", white, "---", white, "------");
     for (auto& name : names_maps) {
         auto& t_maxes = table_maps.at(name);
@@ -432,6 +498,25 @@ int main_status(int argc, char** argv, int& index, const char* desc)
     }
 
     UtStatus(dir, sorted);
+    return 0;
+}
+
+int main_verify_status(int argc, char** argv, int& index, const char* desc)
+{
+    std::string dir = ".";
+    myio::string1d options;
+
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {{"dir", &dir}, {"options", &options}};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+    bool sorted = false;
+    for (auto& op : options) {
+        if (op == "sorted")
+            sorted = true;
+    }
+
+    UtVerifyStatus(dir, sorted);
     return 0;
 }
 

@@ -21,6 +21,7 @@ int main_2cell(int, char**, int&, const char*);
 int main_res_csv(int, char**, int&, const char*);
 
 int main_status(int, char**, int&, const char*);
+int main_verify_status(int, char**, int&, const char*);
 int main_ut(int, char**, int&, const char*);
 
 int main(int argc, char** argv)
@@ -40,6 +41,7 @@ int main(int argc, char** argv)
         {"2cell", "Functions for Cofibers of Hopf elements", main_2cell},
         {"res_csv", "Export the resolution data to a csv file", main_res_csv},
         {"status", "Display the computation status in the current directory", main_status},
+        {"verify_status", "Display the verification status in the current directory", main_verify_status},
         {"ut", "Utilities", main_ut},
     };
     int index = 1;
