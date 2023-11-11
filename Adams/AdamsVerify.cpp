@@ -120,6 +120,8 @@ void verify_map(const std::string& cw1, const std::string& cw2)
     }
 
     DbAdamsVerifyLoader dbResCw1(db_cw1);
+    dbResCw1.execute_cmd(fmt::format("CREATE INDEX IF NOT EXISTS index_s ON {}_generators (s)", table_cw1));
+    dbResCw1.execute_cmd(fmt::format("CREATE INDEX IF NOT EXISTS index_t ON {}_generators (t)", table_cw1));
 
     /* Remove computed range */
     int1d ids = dbMap.load_ids(table_map);

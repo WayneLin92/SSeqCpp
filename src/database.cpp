@@ -89,10 +89,12 @@ void Database::sqlite3_prepare(const std::string& sql, sqlite3_stmt** ppStmt) co
 
 void Database::execute_cmd(const std::string& sql) const
 {
-    sqlite3_stmt* stmt;
-    sqlite3_prepare(sql, &stmt);
-    sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
+    Statement stmt(*this, sql);
+    int rc = stmt.step();
+    if (rc != SQLITE_DONE) {
+        fmt::print("Sqlite step fail ({}): {}\n", rc, sql);
+        throw MyException(0xe4ea82c9, fmt::format("Sqlite step fail ({}): {}", rc, sql));
+    }
 }
 
 int Database::get_int(const std::string& sql) const
