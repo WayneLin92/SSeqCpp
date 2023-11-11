@@ -6,10 +6,22 @@
 #include "main.h"
 #include <cstring>
 
-void set_db_verify_t_max(const myio::Database& db, int t_max)
+int get_db_t_verified(const myio::Database& db)
 {
-    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (1121750147, \"verify\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-    stmt.bind_and_step(t_max);
+    try {
+        if (db.has_table("version")) {
+            try {
+                return db.get_int("select value from version where id=1121750147");
+            }
+            catch (MyException&) {
+                return -1;
+            }
+        }
+    }
+    catch (MyException&) {
+        return -3;
+    }
+    return -2;
 }
 
 class DbAdamsVerifyLoader : public myio::Database
@@ -95,6 +107,7 @@ void verify_map(const std::string& cw1, const std::string& cw2)
     catch (MyException&) {
     }
     const int sus = dbMap.get_int("select value from version where id=1585932889");
+    myio::Statement stmt_verify(dbMap, "INSERT INTO version (id, name, value) VALUES (1121750147, \"verified\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
 
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
@@ -111,11 +124,10 @@ void verify_map(const std::string& cw1, const std::string& cw2)
     /* Remove computed range */
     int1d ids = dbMap.load_ids(table_map);
 
-    int t_prev = -1;
-    AdamsDegV2 deg1_old(-1, -1);
-    AdamsDegV2 deg2_old(-1, -1);
+    int t_prev_cw2 = -1;
+    int t_verified = get_db_t_verified(dbMap);
     for (const auto& [id, deg] : id_deg) {
-        if (deg.s <= fil)
+        if (deg.s <= fil || deg.t - fil + sus <= t_verified)
             continue;
         const auto& diffs_cw2_d = diffs_cw2.at(deg);
         const size_t diffs_cw2_d_size = diffs_cw2_d.size();
@@ -147,13 +159,24 @@ void verify_map(const std::string& cw1, const std::string& cw2)
 
         if (fd != df) {
             fmt::print("Error! cw1={} cw2={} (s, t)=({}, {})\n", cw1, cw2, deg.s, deg.t);
+            dbMap.begin_transaction();
+            stmt_verify.bind_and_step(deg.t - fil + sus + 10000);
+            dbMap.end_transaction();
             return;
         }
-
+        fmt::print("t={} s={}\n{}", deg.t - fil + sus, deg.s - fil, myio::COUT_FLUSH());
+        if (t_prev_cw2 != deg.t) {
+            if (t_prev_cw2 != -1 && t_prev_cw2 - fil + sus >= 0) {
+                dbMap.begin_transaction();
+                stmt_verify.bind_and_step(t_prev_cw2 - fil + sus);
+                dbMap.end_transaction();
+            }
+            t_prev_cw2 = deg.t;
+        }
         diffs_cw2.erase(deg);
     }
 
-    set_db_verify_t_max(dbMap, t_max_map);
+    stmt_verify.bind_and_step(std::max(t_prev_cw2 - fil + sus, t_verified));
 }
 
 int main_verify_map(int argc, char** argv, int& index, const char* desc)
