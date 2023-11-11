@@ -188,7 +188,7 @@ int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
     //                rings_.pi_gen_defs[gen_id] = EnumDef::dec;
     //                algZ::Poly rel1 = DefRel(rel, pi_gb);
 
-    //                Logger::LogHtpyRel(depth, enumReason::def, "S0", deg, rel, rel1);
+    //                Logger::LogHtpyRel(depth, EnumReason::def, "S0", deg, rel, rel1);
     //                new_rels.push_back(std::move(rel1));
     //                ++count_homotopy;
     //            }
@@ -215,7 +215,7 @@ int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
     //            if (stem_min <= deg.stem() && deg.stem() <= stem_max && ssCof.pi_gen_defs[v_id] == EnumDef::no_def) {
     //                ssCof.pi_gen_defs[v_id] = EnumDef::dec;
     //                algZ::Mod rel1 = DefRel(rel, pi_gb);
-    //                Logger::LogHtpyRel(depth, enumReason::def, ssCof.name, deg, rel, rel1);
+    //                Logger::LogHtpyRel(depth, EnumReason::def, ssCof.name, deg, rel, rel1);
     //                new_rels.push_back(std::move(rel1));
     //                ++count_homotopy;
     //            }
@@ -368,7 +368,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //                    GetImageLeads(indeterminancy, m_by_ind, rings_.pi_gb, rings_.pi_gb, num_leads);
     //                    algZ::Poly prod_extended = prod_reduced;
     //                    if (ExtendRelRingV2(d_prod.stem(), prod_extended, num_leads)) {
-    //                        Logger::LogHtpyProd(depth, enumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
+    //                        Logger::LogHtpyProd(depth, EnumReason::def, "S0", d_prod, m, g, prod_reduced, prod_extended);
     //                        prod_extended.isubP(prod, tmp, pi_gb.gen_2tor_degs());
     //                        rings_.pi_gen_defs[gen_id] = EnumDef::constraints;
     //                        rings_.pi_gen_def_mons[gen_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
@@ -422,7 +422,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //                    GetImageLeads(indeterminancy, m_by_ind, ssCof.pi_gb, ssCof.pi_gb, num_leads);
     //                    algZ::Mod prod_extended = prod_reduced;
     //                    if (ExtendRelCofV2(iCof, d_prod.stem(), prod_extended, num_leads)) {
-    //                        Logger::LogHtpyProd(depth, enumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
+    //                        Logger::LogHtpyProd(depth, EnumReason::def, ssCof.name, d_prod, m, g, prod_reduced, prod_extended);
     //                        prod_extended.isubP(prod, tmpm, pi_gb.gen_2tor_degs());
     //                        ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
     //                        ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{0, m, prod_extended.UnknownFil()});
@@ -482,7 +482,7 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //                        GetImageLeads(indeterminancy, q_m_by_ind, ssCof.pi_gb, rings_.pi_gb, num_leads);
     //                        algZ::Poly q_prod_extended = q_prod_reduced;
     //                        if (ExtendRelRingV2(d_q.stem(), q_prod_extended, num_leads)) {
-    //                            Logger::LogHtpyMap(depth, enumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
+    //                            Logger::LogHtpyMap(depth, EnumReason::def, ssCof.name, d_q, "q", v_id, q_prod_reduced, q_prod_extended);
     //                            ssCof.pi_gen_defs[v_id] = EnumDef::constraints;
     //                            ssCof.pi_gen_def_mons[v_id].push_back(GenConstraint{1, m, q_prod_extended.UnknownFil()});
     //                            ssCof.nodes_pi_qt.back()[v_id] = std::move(q_prod_extended);

@@ -200,6 +200,10 @@ public:
     }
 
 public:
+    bool is_open() const
+    {
+        return conn_;
+    }
     bool has_table(const std::string& table_name) const
     {
         return get_int("SELECT count(*) FROM sqlite_master WHERE name='" + table_name + "'");

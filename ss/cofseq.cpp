@@ -235,12 +235,12 @@ int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, con
     return count;
 }
 
-int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag)
+int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY)
 {
     AddNode(flag);
     bool bException = false;
     try {
-        Logger::LogDiff(depth + 1, enumReason::try_, fmt::format("{}:{}", cofseq.name, iCs), deg_x, x, dx, r);
+        Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, fmt::format("{}:{}", cofseq.name, iCs), deg_x, x, dx, r);
         SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, true, flag);
         DeduceTrivialDiffsCofseq(flag);
         DeduceTrivialDiffs(flag);
@@ -295,7 +295,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 for (int j : two_expansion(i))
                     dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
 
-                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag)) {
+                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true)) {
                     ++count_pass;
                     if (count_pass > 1)
                         break;
@@ -310,7 +310,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 ++index_nd;
             else {
                 dx1.clear();
-                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag))
+                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true))
                     bNewDiff = true;
                 else
                     ++index_nd;
@@ -332,7 +332,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 for (int j : two_expansion(i))
                     x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
 
-                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag)) {
+                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false)) {
                     ++count_pass;
                     if (count_pass > 1)
                         break;
@@ -347,7 +347,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 ++index_nd;
             else {
                 x1.clear();
-                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag))
+                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false))
                     bNewDiff = true;
                 else
                     ++index_nd;
@@ -356,21 +356,16 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
 
         if (bNewDiff) {
             ++count;
-
-            Logger::PrintDepth();
-
             if (nd.direction > 0)
-                Logger::LogDiff(depth, enumReason::deduce, fmt::format("{}:{}", cofseq.name, iCs), deg, x, dx, r);
+                Logger::LogDiff(depth, EnumReason::deduce, fmt::format("{}:{}", cofseq.name, iCs), deg, x, dx, r);
             else
-                Logger::LogDiffInv(depth, enumReason::deduce, fmt::format("{}:{}", cofseq.name, iCs), deg, x, dx, r);
-
+                Logger::LogDiffInv(depth, EnumReason::deduce, fmt::format("{}:{}", cofseq.name, iCs), deg_src, deg, x, dx, r);
             SetDiffGlobalCofseq(cofseq, iCs_src, deg_src, x, dx, r, true, flag);
             int count_trivial = DeduceTrivialDiffsCofseq(flag);
             count += count_trivial;
             CacheNullDiffsCofseq(cofseq, iCs, deg, flag, nds);
         }
         else {
-            Logger::ClearDepth();
             /*if ((flag & DeduceFlag::xy) && nd.direction > 0) {
                 if (iCw < rings_.size())
                     count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r);

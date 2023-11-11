@@ -22,7 +22,7 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
                             /* Find the first possible d_{r1} target for r1>=r */
                             int r1 = NextRTgt(nodes_ss, t_max, d, r);
                             if (r != r1) {
-                                Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::degree, name, d, sc.basis[i], {}, r1 - 1);
+                                Logger::LogDiff(int(nodes_ss.size() - 2), EnumReason::degree, name, d, sc.basis[i], {}, r1 - 1);
                                 SetCwDiffGlobal(iCw, d, sc.basis[i], {}, r1 - 1, true, flag);
                                 ++count;
                             }
@@ -31,8 +31,9 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
                             const int r = sc.levels[i];
                             int r1 = NextRSrc(nodes_ss, d, r);
                             if (r != r1) {
-                                Logger::LogDiffInv(int(nodes_ss.size() - 2), enumReason::degree, name, d, {}, sc.basis[i], r1 + 1);
-                                SetCwDiffGlobal(iCw, d - AdamsDeg(r1 + 1, r1), {}, sc.basis[i], r1 + 1, true, flag);
+                                AdamsDeg d_src = d - AdamsDeg(r1 + 1, r1);
+                                Logger::LogDiffInv(int(nodes_ss.size() - 2), EnumReason::degree, name, d_src, d, {}, sc.basis[i], r1 + 1);
+                                SetCwDiffGlobal(iCw, d_src, {}, sc.basis[i], r1 + 1, true, flag);
                                 ++count;
                             }
                         }
@@ -76,14 +77,15 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop a
                                 int r1 = NextRTgtCofseq(cofseq, iCs, d, r);
                                 if (r != r1) {
                                     if (r1 != R_PERM) {
-                                        Logger::LogDiff(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, sc.basis[i], {}, r1 - 1);
+                                        Logger::LogDiff(int(nodes_cofseq.size() - 2), EnumReason::degree, fmt::format("{}:{}", name, iCs), d, sc.basis[i], {}, r1 - 1);
                                         SetDiffLeibnizCofseq(cofseq, iCs, d, sc.basis[i], {}, r1 - 1, flag);
                                         ++count;
                                     }
                                     else {
                                         r1 = NextRSrcCofseq(cofseq, iCs, d, R_PERM);
-                                        Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, {}, sc.basis[i], r1 + 1);
-                                        SetDiffLeibnizCofseq(cofseq, iCs1, d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1), {}, sc.basis[i], r1 + 1, flag);
+                                        AdamsDeg d_src = d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1);
+                                        Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::degree, fmt::format("{}:{}", name, iCs), d_src, d, {}, sc.basis[i], r1 + 1);
+                                        SetDiffLeibnizCofseq(cofseq, iCs1, d_src, {}, sc.basis[i], r1 + 1, flag);
                                         ++count;
                                     }
                                 }
@@ -93,8 +95,9 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop a
                                 int r1 = NextRSrcCofseq(cofseq, iCs, d, r);
                                 if (r1 != r) {
                                     int1d dx = sc.basis[i];
-                                    Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::degree, fmt::format("{}:{}", name, iCs), d, {}, dx, r1 + 1);
-                                    SetDiffLeibnizCofseq(cofseq, iCs1, d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1), {}, dx, r1 + 1, flag);
+                                    AdamsDeg d_src = d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1);
+                                    Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::degree, fmt::format("{}:{}", name, iCs), d_src, d, {}, dx, r1 + 1);
+                                    SetDiffLeibnizCofseq(cofseq, iCs1, d_src, {}, dx, r1 + 1, flag);
                                     ++count;
                                 }
                             }
@@ -212,7 +215,7 @@ int Diagram::DeduceManual()
                         if (sc.levels[i] > LEVEL_PERM) {
                             const int r = LEVEL_MAX - sc.levels[i];
                             if (IsPermanent(name, deg, r)) {
-                                Logger::LogDiff(depth, enumReason::manual, name, deg, sc.basis[i], {}, R_PERM - 1);
+                                Logger::LogDiff(depth, EnumReason::manual, name, deg, sc.basis[i], {}, R_PERM - 1);
                                 SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true, DeduceFlag::no_op);
                                 ++count;
                             }
@@ -229,17 +232,17 @@ int Diagram::DeduceManual()
     return count;
 }
 
-int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag)
+int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY)
 {
     AddNode(flag);
     bool bException = false;
     try {
-        std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
+        const std::string& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
         // if (name == "CW_2_eta" && deg_x == AdamsDeg(6, 70 + 6) && r == 3 && dx.empty()) {
         //     std::cout << "debug\n";
         // }
 
-        Logger::LogDiff(depth + 1, enumReason::try_, name, deg_x, x, dx, r);
+        Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
         DeduceTrivialDiffs(flag);
         if (flag & DeduceFlag::depth_ss_cofseq) {
@@ -268,7 +271,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 {
     auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
     int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
-    std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
+    const std::string& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
 
     int count = 0;
     NullDiff1d nds;
@@ -297,7 +300,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 for (int j : two_expansion(i))
                     dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
 
-                if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag)) {
+                if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true)) {
                     ++count_pass;
                     if (count_pass > 1)
                         break;
@@ -312,7 +315,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 ++index_nd;
             else {
                 dx1.clear();
-                if (TryDiff(iCw, deg_src, x, dx1, r, depth, flag))
+                if (TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true))
                     bNewDiff = true;
                 else
                     ++index_nd;
@@ -334,7 +337,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 for (int j : two_expansion(i))
                     x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
 
-                if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag)) {
+                if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false)) {
                     ++count_pass;
                     if (count_pass > 1)
                         break;
@@ -349,7 +352,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 ++index_nd;
             else {
                 x1.clear();
-                if (TryDiff(iCw, deg_src, x1, dx, r, depth, flag))
+                if (TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false))
                     bNewDiff = true;
                 else
                     ++index_nd;
@@ -358,11 +361,10 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 
         if (bNewDiff) {
             ++count;
-            Logger::PrintDepth();
             if (nd.r > 0)
-                Logger::LogDiff(depth, enumReason::deduce, name, deg, x, dx, r);
+                Logger::LogDiff(depth, EnumReason::deduce, name, deg, x, dx, r);
             else
-                Logger::LogDiffInv(depth, enumReason::deduce, name, deg, x, dx, r);
+                Logger::LogDiffInv(depth, EnumReason::deduce, name, deg_src, deg, x, dx, r);
 
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
             if (flag & DeduceFlag::cofseq)
@@ -371,7 +373,6 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
         }
         else {
-            Logger::ClearDepth();
             if ((flag & DeduceFlag::xy) && nd.r > 0) {
                 if (iCw < rings_.size())
                     count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r, flag);

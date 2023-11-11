@@ -20,7 +20,7 @@ void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohma
         diag_json = myio::load_json(fmt::format("{}/ss.json", dir));
     }
     catch (nlohmann::detail::exception& e) {
-        Logger::LogException(0, e.id, "{}\n", e.what());
+        fmt::print("JsonError({}): {}\n", e.id, e.what());
         throw e;
     }
 }
@@ -60,7 +60,7 @@ void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& na
         }
     }
     catch (nlohmann::detail::exception& e) {
-        Logger::LogException(0, e.id, "{}\n", e.what());
+        fmt::print("JsonError({}): {}\n", e.id, e.what());
         throw e;
     }
 }
@@ -516,7 +516,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
         }
     }
     catch (nlohmann::detail::exception& e) {
-        Logger::LogException(0, e.id, "{}\n", e.what());
+        fmt::print("JsonError({}): {}\n", e.id, e.what());
         throw e;
     }
 }

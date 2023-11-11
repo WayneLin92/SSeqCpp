@@ -7,6 +7,7 @@
 int main_res(int, char**, int&, const char*);
 int main_map_coh(int, char**, int&, const char*);
 int main_map_res(int, char**, int&, const char*);
+int main_verify_map(int, char**, int&, const char*);
 
 int main_prod(int, char**, int&, const char*);
 int main_prod_mod(int, char**, int&, const char*);
@@ -29,6 +30,7 @@ int main(int argc, char** argv)
         {"res", "Compute a minimal A-resolution", main_res},
         {"map_coh", "Set up the cohomology map in file", main_map_coh},
         {"map_res", "Compute a chain map between resolutions", main_map_res},
+        {"verify_map", "Verify the correctness of a chain map", main_verify_map},
         {"prod", "Compute the multiplications for a ring", main_prod},
         {"prod_mod", "Compute the multiplications for a module", main_prod_mod},
         {"prod_hi", "Compute the multiplications by hi", main_prod_hi},

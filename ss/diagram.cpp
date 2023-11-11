@@ -241,7 +241,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
                     continue;
                 auto fx = map->map(x, deg_x, *this);
                 if (IsNewDiff(rings_[map->to].nodes_ss, deg_x, fx, fdx, r)) {
-                    Logger::LogDiff(depth, enumReason::nat, fmt::format("({}) {}", map->display, rings_[map->to].name), deg_x, fx, fdx, r);
+                    Logger::LogDiff(depth, EnumReason::nat, fmt::format("({}) {}", map->display, rings_[map->to].name), deg_x, fx, fdx, r);
                     count += SetRingDiffGlobal(map->to, deg_x, fx, fdx, r, true, flag);
                 }
             }
@@ -257,7 +257,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
             if (poly_xx) {
                 int1d xx = Poly2Indices(poly_xx, ring.basis.at(deg_xx));
                 if (IsNewDiff(nodes_ss, deg_xx, xx, {}, r + 1)) {
-                    Logger::LogDiff(depth, enumReason::deduce_v2, ring.name, deg_xx, xx, {}, r + 1);
+                    Logger::LogDiff(depth, EnumReason::deduce_xy, ring.name, deg_xx, xx, {}, r + 1);
                     count += SetRingDiffGlobal(iRing, deg_xx, xx, {}, r + 1, true, flag);
                 }
             }
@@ -302,7 +302,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     auto fx = map->map(x, deg_x, *this);
                     AdamsDeg deg_fx = deg_x + map->deg;
                     if (IsNewDiff(rings_[to].nodes_ss, deg_fx, fx, fdx, r)) {
-                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map->display, rings_[to].name), deg_fx, fx, fdx, r);
+                        Logger::LogDiff(int(nodes_ss.size() - 2), EnumReason::nat, fmt::format("({}) {}", map->display, rings_[to].name), deg_fx, fx, fdx, r);
                         count += SetRingDiffGlobal(to, deg_fx, fx, fdx, r, true, flag);
                     }
                 }
@@ -315,7 +315,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
                     auto fx = map->map(x, deg_x, *this);
                     AdamsDeg deg_fx = deg_x + map->deg;
                     if (IsNewDiff(modules_[to].nodes_ss, deg_fx, fx, fdx, r)) {
-                        Logger::LogDiff(int(nodes_ss.size() - 2), enumReason::nat, fmt::format("({}) {}", map->display, modules_[to].name), deg_fx, fx, fdx, r);
+                        Logger::LogDiff(int(nodes_ss.size() - 2), EnumReason::nat, fmt::format("({}) {}", map->display, modules_[to].name), deg_fx, fx, fdx, r);
                         count += SetModuleDiffGlobal(to, deg_fx, fx, fdx, r, true, flag);
                     }
                 }

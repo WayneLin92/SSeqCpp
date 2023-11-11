@@ -499,7 +499,7 @@ void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x) //// TOD
                 r = std::min(r, LEVEL_MAX - sc.levels[i_end_perm - 1]);
             if (r != LEVEL_MAX - sc.levels[i_end_perm]) {
                 int1d x = {sc.basis[i_end_perm]};
-                Logger::LogDiff(depth, enumReason::exact_hq, modules_[iMod].name, deg_x, x, {}, r - 1);
+                Logger::LogDiff(depth, EnumReason::exact_hq, modules_[iMod].name, deg_x, x, {}, r - 1);
                 SetModuleDiffGlobal(iMod, deg_x, x, {}, r - 1, true);
             }
         }
@@ -613,7 +613,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //                 if (!boundaries.empty()) {
     //                     const int count1 = SetRingDiffGlobal(deg_src, {}, boundary, r);
     //                     if (count1 > 0) {
-    //                         Logger::LogDiffBoun(depth, enumReason::htpy2ss, "S0", deg, boundary);
+    //                         Logger::LogDiffBoun(depth, EnumReason::htpy2ss, "S0", deg, boundary);
     //                         count_ss += count1;
     //                     }
     //                 }
@@ -647,7 +647,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //            algZ::Poly1d pi_rels;
     //            for (auto& k : kernel) {
     //                pi_rels.push_back(algZ::Indices2Poly(k, pi_basis_d) + algZ::Mon::O(deg.s + 1));
-    //                Logger::LogHtpyRel(depth, enumReason::ss2htpy, "S0", deg, pi_rels.back());
+    //                Logger::LogHtpyRel(depth, EnumReason::ss2htpy, "S0", deg, pi_rels.back());
     //            }
     //            pi_gb.AddRels(pi_rels, t_max, rings_.basis_ss_possEinf);
     //            count_homotopy += (int)pi_rels.size();
@@ -668,7 +668,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //                pi_gen_Einf.push_back(Indices2Poly(new_generators[i], basis_d));
     //                pi_basis_d_v2.push_back(algZ::Mon::Gen(uint32_t(gen_size_old + i), 1, deg.s, deg.stem() % 2 == 0));
     //                pi_basis_d_Einf.push_back(new_generators[i]);
-    //                Logger::LogHtpyGen(depth, enumReason::ss2htpy, "S0", deg, pi_gb.gen_degs().size() - 1, pi_gen_Einf.back());
+    //                Logger::LogHtpyGen(depth, EnumReason::ss2htpy, "S0", deg, pi_gb.gen_degs().size() - 1, pi_gen_Einf.back());
     //            }
     //            count_homotopy += (int)new_generators.size();
 
@@ -731,7 +731,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //                 if (!boundaries.empty()) {
     //                     const int count1 = SetModuleDiffGlobal(iCof, deg_src, {}, boundary, r);
     //                     if (count1 > 0) {
-    //                         Logger::LogDiffBoun(depth, enumReason::htpy2ss, ssCof.name, deg, boundary);
+    //                         Logger::LogDiffBoun(depth, EnumReason::htpy2ss, ssCof.name, deg, boundary);
     //                         count_ss += count1;
     //                     }
     //                 }
@@ -765,7 +765,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //            algZ::Mod1d pi_rels;
     //            for (auto& k : kernel) {
     //                pi_rels.push_back(algZ::Indices2Mod(k, pi_basis_d) + algZ::MMod::O(deg.s + 1));
-    //                Logger::LogHtpyRel(depth, enumReason::ss2htpy, ssCof.name, deg, pi_rels.back());
+    //                Logger::LogHtpyRel(depth, EnumReason::ss2htpy, ssCof.name, deg, pi_rels.back());
     //            }
     //            pi_gb.AddRels(pi_rels, t_max, ssCof.basis_ss_possEinf);
     //            count_homotopy += (int)pi_rels.size();
@@ -786,7 +786,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //                pi_gen_Einf.push_back(Indices2Mod(new_generators[i], basis_d));
     //                pi_basis_d_v2.push_back(algZ::MMod({}, (uint32_t)(gen_size_old + i), deg.s));
     //                pi_basis_d_Einf.push_back(new_generators[i]);
-    //                Logger::LogHtpyGen(depth, enumReason::ss2htpy, ssCof.name, deg, pi_gb.v_degs().size() - 1, pi_gen_Einf.back());
+    //                Logger::LogHtpyGen(depth, EnumReason::ss2htpy, ssCof.name, deg, pi_gb.v_degs().size() - 1, pi_gen_Einf.back());
 
     //                Mod x = Indices2Mod(new_generators[i], basis.at(deg));
     //                Poly fx = rings_.gb.Reduce(subs(x, ssCof.qt));
@@ -845,14 +845,14 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //            AdamsDeg deg = ssCof.pi_gb.v_degs()[i] - ssCof.deg_qt;
     //            algZ::Poly qi_extended;
     //            if (qi && ExtendRelRing(deg.stem(), qi, qi_extended)) {
-    //                Logger::LogHtpyMap(depth, enumReason::degree, ssCof.name, ssCof.pi_gb.v_degs()[i], "q", i, qi, qi_extended);
+    //                Logger::LogHtpyMap(depth, EnumReason::degree, ssCof.name, ssCof.pi_gb.v_degs()[i], "q", i, qi, qi_extended);
     //                qi = std::move(qi_extended);
     //                ++count_homotopy;
     //                algZ::Poly h = rings_.pi_gb.Gen((uint32_t)iCof);
     //                algZ::Poly relS0 = rings_.pi_gb.ReduceForGbRel(qi * h);
     //                if (algZ::IsValidRel(relS0)) {
     //                    new_rels_S0.push_back(std::move(relS0));
-    //                    Logger::LogHtpyRel(depth, enumReason::nat, "S0", deg, new_rels_S0.back());
+    //                    Logger::LogHtpyRel(depth, EnumReason::nat, "S0", deg, new_rels_S0.back());
     //                    ++count_homotopy;
     //                }
     //            }
@@ -878,7 +878,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //            if (ExtendRelRing(deg.stem(), rel, rel_extended)) {
     //                rel_extended = pi_gb.ReduceForGbRel(std::move(rel_extended));
     //                if (algZ::IsValidRel(rel_extended)) {
-    //                    Logger::LogHtpyRel(depth, enumReason::degree, "S0", deg, rel, rel_extended);
+    //                    Logger::LogHtpyRel(depth, EnumReason::degree, "S0", deg, rel, rel_extended);
     //                    new_rels.push_back(std::move(rel_extended));
     //                    ++count_homotopy;
     //                }
@@ -902,7 +902,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //            if (ExtendRelMod(iCof, deg.stem(), rel, rel_extended)) {
     //                rel_extended = pi_gb.ReduceForGbRel(std::move(rel_extended));
     //                if (algZ::IsValidRel(rel_extended)) {
-    //                    Logger::LogHtpyRel(depth, enumReason::degree, ssCof.name, deg, rel, rel_extended);
+    //                    Logger::LogHtpyRel(depth, EnumReason::degree, ssCof.name, deg, rel, rel_extended);
     //                    new_rels.push_back(std::move(rel_extended));
     //                    ++count_homotopy;
     //                }
@@ -936,7 +936,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //                        auto prod_reduced = pi_gb.ReduceV2(prod);
     //                        algZ::Poly prod_extended;
     //                        if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelRing(deg_prod.stem(), prod_reduced, prod_extended)) {
-    //                            Logger::LogHtpyProd(depth, enumReason::degree, "S0", deg, h, m, prod_reduced, prod_extended);
+    //                            Logger::LogHtpyProd(depth, EnumReason::degree, "S0", deg, h, m, prod_reduced, prod_extended);
     //                            prod.isubP(prod_extended, tmp, pi_gb.gen_2tor_degs());
     //                            new_rels_S0.push_back(std::move(prod));
     //                            ++count_homotopy;
@@ -949,7 +949,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //                        auto x_reduced = modules_[iCof].pi_gb.ReduceV2(x);
     //                        algZ::Mod x_extended;
     //                        if (x_reduced && deg.t + x_reduced.GetLead().fil() - deg.s <= t_max && ExtendRelMod(iCof, deg.stem(), x_reduced, x_extended)) {
-    //                            Logger::LogHtpyProd(depth, enumReason::degree, modules_[iCof].name, deg, m, MOD_V0, x_reduced, x_extended);
+    //                            Logger::LogHtpyProd(depth, EnumReason::degree, modules_[iCof].name, deg, m, MOD_V0, x_reduced, x_extended);
     //                            x.isubP(x_extended, tmpm, pi_gb.gen_2tor_degs());
     //                            new_rels_Cofs[iCof].push_back(std::move(x));
     //                            ++count_homotopy;
@@ -979,7 +979,7 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //                        auto prod_reduced = pi_gb.ReduceV2(prod);
     //                        algZ::Mod prod_extended;
     //                        if (prod_reduced && deg_prod.t + prod_reduced.GetLead().fil() - deg_prod.s <= t_max && ExtendRelMod(iCof, deg_prod.stem(), prod_reduced, prod_extended)) {
-    //                            Logger::LogHtpyProd(depth, enumReason::degree, modules_[iCof].name, deg, h, m, prod_reduced, prod_extended);
+    //                            Logger::LogHtpyProd(depth, EnumReason::degree, modules_[iCof].name, deg, h, m, prod_reduced, prod_extended);
     //                            prod.isubP(prod_extended, tmp, rings_.pi_gb.gen_2tor_degs());
     //                            new_rels_cof.push_back(std::move(prod));
     //                            ++count_homotopy;
@@ -1037,7 +1037,7 @@ int Diagram::DeduceExtensions2tor()
     //                if (algZ::IsValidRel(rel)) {
     //                    AdamsDeg deg = GetDeg(rel.GetLead(), rings_.pi_gb.gen_degs());
     //                    new_rels.push_back(std::move(rel));
-    //                    Logger::LogHtpyRel(0, enumReason::degree, "S0", deg, new_rels.back());
+    //                    Logger::LogHtpyRel(0, EnumReason::degree, "S0", deg, new_rels.back());
     //                    ++count_homotopy;
     //                }
     //                break;
@@ -1082,7 +1082,7 @@ int Diagram::DeduceExtensions2tor()
     //                if (algZ::IsValidRel(rel)) {
     //                    AdamsDeg deg = GetDeg(rel.GetLead(), rings_.pi_gb.gen_degs(), ssCof.pi_gb.v_degs());
     //                    new_rels.push_back(std::move(rel));
-    //                    Logger::LogHtpyRel(0, enumReason::degree, ssCof.name, deg, new_rels.back());
+    //                    Logger::LogHtpyRel(0, EnumReason::degree, ssCof.name, deg, new_rels.back());
     //                    ++count_homotopy;
     //                }
     //                break;
@@ -1235,7 +1235,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                                f.iaddP(k.LF(), tmp);
     //                                f.data.push_back(algZ::Mon::O(s + 1));
     //                                ExtendRelRing(stem, f);
-    //                                Logger::LogHtpyMap(depth, enumReason::exact_hq, ssCof.name, deg, "q", v, f_original, f);
+    //                                Logger::LogHtpyMap(depth, EnumReason::exact_hq, ssCof.name, deg, "q", v, f_original, f);
     //                                ++count_htpy;
     //                                f_changed[iCof] = 1;
     //                            }
@@ -1243,7 +1243,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                                AdamsDeg deg_perm(O1, stem_src + O1);
     //                                if (depth == 0) {
     //                                    deg_perms_Cof[iCof].push_back(deg_perm);
-    //                                    Logger::LogDiffPerm(depth, enumReason::exact_hq, ssCof.name, deg_perm);  ////
+    //                                    Logger::LogDiffPerm(depth, EnumReason::exact_hq, ssCof.name, deg_perm);  ////
     //                                    auto hx0 = rings_.pi_gb.ReduceV2(h * basis_stem[0]);
     //                                    ExtendRelRingV2(stem + d_f - 1, hx0, num_leads);
     //                                }
@@ -1254,7 +1254,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                else if (s < O1) {
     //                    if (!IsPossTgt(rings_.nodes_ss, AdamsDeg(s - 1, stem + s - 1))) {
     //                        new_rels_S0.push_back(std::move(k));
-    //                        Logger::LogHtpyRel(depth, enumReason::exact_hq, "S0", deg, new_rels_S0.back());
+    //                        Logger::LogHtpyRel(depth, EnumReason::exact_hq, "S0", deg, new_rels_S0.back());
     //                        ++count_htpy;
     //                    }
     //                }
@@ -1346,7 +1346,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                            if (gO && !gO.GetLead().IsUnKnown()) {
     //                                auto& rel = algZ::Poly(h) * gO + k.LF() + algZ::Poly::O(s + 1);
     //                                new_rels_S0.push_back(std::move(rel));
-    //                                Logger::LogHtpyRel(depth, enumReason::exact_ih, ssCof.name, deg, new_rels_S0.back());
+    //                                Logger::LogHtpyRel(depth, EnumReason::exact_ih, ssCof.name, deg, new_rels_S0.back());
     //                                ++count_htpy;
     //                            }
     //                            else if (gO && gO.GetLead().IsUnKnown() && gO.GetLead().fil() == 1) {
@@ -1360,7 +1360,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                else if (s < O1) {
     //                    if (!IsPossTgt(rings_.nodes_ss, AdamsDeg(s - 1, stem + s - 1))) {
     //                        new_rels_S0.push_back(std::move(k));
-    //                        Logger::LogHtpyRel(depth, enumReason::exact_ih, "S0", deg, new_rels_S0.back());
+    //                        Logger::LogHtpyRel(depth, EnumReason::exact_ih, "S0", deg, new_rels_S0.back());
     //                        ++count_htpy;
     //                    }
     //                }
@@ -1474,7 +1474,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                            if (gO && !gO.GetLead().IsUnKnown()) {
     //                                auto& rel = algZ::Mod(gO, 0, 0) + k.LF() + algZ::Mod::O(s + 1);
     //                                new_rels_Cofs[iCof].push_back(std::move(rel));
-    //                                Logger::LogHtpyRel(depth, enumReason::exact_qi, ssCof.name, deg, new_rels_Cofs[iCof].back());
+    //                                Logger::LogHtpyRel(depth, EnumReason::exact_qi, ssCof.name, deg, new_rels_Cofs[iCof].back());
     //                                ++count_htpy;
     //                            }
     //                            else if (gO && gO.GetLead().IsUnKnown() && gO.GetLead().fil() == 1) {
@@ -1488,7 +1488,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //                else if (s < O1) {
     //                    if (!IsPossTgt(ssCof.nodes_ss, AdamsDeg(s - 1, stem + s - 1))) {
     //                        new_rels_Cofs[iCof].push_back(std::move(k));
-    //                        Logger::LogHtpyRel(depth, enumReason::exact_qi, ssCof.name, deg, new_rels_Cofs[iCof].back());
+    //                        Logger::LogHtpyRel(depth, EnumReason::exact_qi, ssCof.name, deg, new_rels_Cofs[iCof].back());
     //                        ++count_htpy;
     //                    }
     //                }
@@ -1524,7 +1524,7 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, Deduc
     AddNode(flag);
     unsigned error = 0;
     /*try {
-        Logger::LogHtpyRel(depth + 1, enumReason::try_, "S0", deg_change, rel);
+        Logger::LogHtpyRel(depth + 1, EnumReason::try_, "S0", deg_change, rel);
         AddPiRelsRing({std::move(rel)});
         int count_ss1 = 0, count_homotopy1 = 0;
         SyncHomotopy(deg_change, count_ss1, count_homotopy1, depth + 1);
@@ -1547,7 +1547,7 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
     AddNode(flag);
     unsigned error = 0;
     /*try {
-        Logger::LogHtpyRel(depth + 1, enumReason::try_, modules_[iCof].name, deg_change, rel);
+        Logger::LogHtpyRel(depth + 1, EnumReason::try_, modules_[iCof].name, deg_change, rel);
         AddPiRelsCof(iCof, {std::move(rel)});
         int count_ss1 = 0, count_homotopy1 = 0;
         auto deg_min = deg_change - modules_[iCof].deg_qt;
@@ -1571,7 +1571,7 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
     AddNode(flag);
     unsigned error = 0;
     /*try {
-        Logger::LogHtpyMap(depth + 1, enumReason::try_, modules_[iCof].name, deg_change, "q", gen_id, q);
+        Logger::LogHtpyMap(depth + 1, EnumReason::try_, modules_[iCof].name, deg_change, "q", gen_id, q);
         modules_[iCof].nodes_pi_qt.back()[gen_id] = std::move(q);
         AddPiRelsByNat(iCof);
         int count_ss1 = 0, count_homotopy1 = 0;
@@ -1666,7 +1666,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                Logger::PrintDepth();
 
     //                auto& q1 = modules_[iCof].nodes_pi_qt.back()[i];
-    //                Logger::LogHtpyMap(depth, enumReason::deduce, name, deg, "q", i, modules_[iCof].nodes_pi_qt.back()[i], q_pass);
+    //                Logger::LogHtpyMap(depth, EnumReason::deduce, name, deg, "q", i, modules_[iCof].nodes_pi_qt.back()[i], q_pass);
     //                q1 = std::move(q_pass);
 
     //                AddPiRelsByNat(iCof);
@@ -1680,7 +1680,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                algZ::Poly relS0 = rings_.pi_gb.ReduceForGbRel(h * q1);
     //                if (algZ::IsValidRel(relS0)) {
     //                    new_rels_S0.push_back(std::move(relS0));
-    //                    Logger::LogHtpyRel(depth, enumReason::nat, "S0", deg, new_rels_S0.back());
+    //                    Logger::LogHtpyRel(depth, EnumReason::nat, "S0", deg, new_rels_S0.back());
     //                    ++count_htpy;
     //                }
     //            }
@@ -1763,7 +1763,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                    ++count_htpy;
     //                    Logger::PrintDepth();
 
-    //                    Logger::LogHtpyRel(depth, enumReason::deduce, "S0", deg, rel, rel_pass);
+    //                    Logger::LogHtpyRel(depth, EnumReason::deduce, "S0", deg, rel, rel_pass);
     //                    AddPiRelsRing({std::move(rel_pass)});
     //                    SyncHomotopy(deg, count_ss, count_htpy, depth);
     //                    count_htpy += DeduceTrivialExtensions(depth);
@@ -1845,7 +1845,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                        ++count_htpy;
     //                        Logger::PrintDepth();
 
-    //                        Logger::LogHtpyRel(depth, enumReason::deduce, name, deg, rel, rel_pass);
+    //                        Logger::LogHtpyRel(depth, EnumReason::deduce, name, deg, rel, rel_pass);
     //                        AddPiRelsCof(iCof, {std::move(rel_pass)});
     //                        auto deg_min = deg - ssCof.deg_qt;
     //                        SyncHomotopy(deg_min, count_ss, count_htpy, depth);

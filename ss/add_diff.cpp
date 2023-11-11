@@ -128,13 +128,13 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
                 bool isRing = diagram.GetRingIndexByName(cw) != -1;
                 if (isRing) {
                     size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-                    Logger::LogDiff(0, enumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
+                    Logger::LogDiff(0, EnumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
                     count_diffs += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
                 }
                 else {
                     size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
                     MyException::Assert(iMod != -1, "iMod != -1");
-                    Logger::LogDiff(0, enumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
+                    Logger::LogDiff(0, EnumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
                     count_diffs += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
                 }
             }

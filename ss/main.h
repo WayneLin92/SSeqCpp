@@ -631,8 +631,8 @@ public: /* Differentials */
     int DeduceTrivialDiffsCofseq(DeduceFlag flag);
     int DeduceManual();
     /* Return 0 if there is no exception */
-    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
-    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag);
+    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY);
+    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY);
     int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
     /* Deduce d(xy) no matter what dx is */

@@ -1023,7 +1023,7 @@ int main_rename_gen_import(int argc, char** argv, int& index, const char* desc)
         if (ifs.is_open())
             ifs >> js;
         else {
-            Logger::LogException(0, 0x13889aa5, "File not found\n");
+            fmt::print("File {} not found\n", gen_names_json);
             throw MyException(0x13889aa5, "File not found");
         }
     }

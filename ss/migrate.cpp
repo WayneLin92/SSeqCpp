@@ -32,13 +32,13 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                                 diff = sc1.diffs[i];
                             if (diff != NULL_DIFF) {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], diff, r)) {
-                                    Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], diff, r);
+                                    Logger::LogDiff(0, EnumReason::migrate, name, deg, sc1.basis[i], diff, r);
                                     count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], diff, r, true, flag);
                                 }
                             }
                             else {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r - 1)) {
-                                    Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
+                                    Logger::LogDiff(0, EnumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
                                     count += diagram2.SetRingDiffGlobal(iCw2, deg, sc1.basis[i], int1d{}, r - 1, true, flag);
                                 }
                             }
@@ -47,7 +47,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             int r = sc1.levels[i] + 1;
                             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                             if (diagram2.IsNewDiff(nodes_ss2, deg_src, {}, sc1.basis[i], r)) {
-                                Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis[i], r);
+                                Logger::LogDiffInv(0, EnumReason::migrate, name, deg_src, deg, {}, sc1.basis[i], r);
                                 count += diagram2.SetRingDiffGlobal(iCw2, deg_src, {}, sc1.basis[i], r, true, flag);
                             }
                         }
@@ -76,13 +76,13 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                                 diff = sc1.diffs[i];
                             if (diff != NULL_DIFF) {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], diff, r)) {
-                                    Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], diff, r);
+                                    Logger::LogDiff(0, EnumReason::migrate, name, deg, sc1.basis[i], diff, r);
                                     count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], diff, r, true, flag);
                                 }
                             }
                             else {
                                 if (diagram2.IsNewDiff(nodes_ss2, deg, sc1.basis[i], int1d{}, r - 1)) {
-                                    Logger::LogDiff(0, enumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
+                                    Logger::LogDiff(0, EnumReason::migrate, name, deg, sc1.basis[i], int1d{}, r - 1);
                                     count += diagram2.SetModuleDiffGlobal(iMod2, deg, sc1.basis[i], int1d{}, r - 1, true, flag);
                                 }
                             }
@@ -91,7 +91,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
                             int r = sc1.levels[i] + 1;
                             const AdamsDeg deg_src = deg - AdamsDeg(r, r - 1);
                             if (diagram2.IsNewDiff(nodes_ss2, deg_src, {}, sc1.basis[i], r)) {
-                                Logger::LogDiffInv(0, enumReason::migrate, name, deg, {}, sc1.basis[i], r);
+                                Logger::LogDiffInv(0, EnumReason::migrate, name, deg_src, deg, {}, sc1.basis[i], r);
                                 count += diagram2.SetModuleDiffGlobal(iMod2, deg_src, {}, sc1.basis[i], r, true, flag);
                             }
                         }

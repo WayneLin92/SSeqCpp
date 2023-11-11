@@ -344,6 +344,7 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
         fmt::print("Version conversion failed.\n");
         throw MyException(0xeb8fef62, "Version conversion failed.");
     }
+    dbRes.disconnect();
     dbProd.create_tables(table_out);
     myio::Statement stmt_gen(dbProd, fmt::format("INSERT INTO {}_generators (id, indecomposable, s, t) values (?1, ?2, ?3, ?4);", table_out));   /* (id, is_indecomposable, s, t) */
     myio::Statement stmt_set_ind(dbProd, fmt::format("UPDATE {}_generators SET indecomposable=1 WHERE id=?1 and indecomposable=0;", table_out)); /* id */
@@ -351,7 +352,6 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     myio::Statement stmt_t_max(dbProd, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
     myio::Statement stmt_time(dbProd, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
 
-    dbRes.disconnect();
 
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
@@ -747,7 +747,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
             t_trunc = t_max_out;
             fmt::print("t_max is truncated to {}\n", t_max_out);
         }
-        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, t_trunc + fil - sus, stem_trunc - sus);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, std::max(t_trunc + fil - sus, 0), stem_trunc - sus);
     }
     auto gbCw1 = AdamsResConst::load_gb_by_basis_degrees(dbResCw1, table_cw1, t_trunc);
 
@@ -779,7 +779,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         /*# compute fd */
         Mod1d fd;
         fd.resize(diffs_d_size);
-        ut::for_each_par128(diffs_d_size, [&fd, &diffs_d, &f_sm1, diffs_d_size](size_t i) { fd[i] = subs(diffs_d[i], f_sm1); });
+        ut::for_each_par128(diffs_d_size, [&fd, &diffs_d, &f_sm1](size_t i) { fd[i] = subs(diffs_d[i], f_sm1); });
 
         /*# compute f */
         Mod1d f;

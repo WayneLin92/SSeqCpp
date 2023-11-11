@@ -296,7 +296,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
         dx = lina::Residue(sc.basis.begin() + first_r, sc.basis.begin() + first_rp1, std::move(dx));
         if (!dx.empty()) {
             if (!IsPossTgt(nodes_ss, deg_dx, r)) {
-                Logger::LogException(int(nodes_ss.size() - 2), 0x75989376U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", name, deg_dx, dx, r);
+                Logger::LogSSException(int(nodes_ss.size() - 2), name, deg_dx, dx, r, 0x75989376U);
                 throw SSException(0x75989376U, "No source for the image.");
             }
             UpdateStaircase(nodes_ss, deg_dx, sc, first_rp1, dx, x, r, image_new, level_image_new);
@@ -435,7 +435,7 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
             if (r == -1) {
                 Staircase& sc1 = ut::GetRecentValue(nodes_cofseq, deg_dx);
                 pop_front(sc1);
-                Logger::LogDiffInv(int(nodes_cofseq.size() - 2), enumReason::cofseq_b, cofseq.nameCw[iCs], deg_dx, {}, dx, R_PERM + 1);
+                Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::cofseq_b, cofseq.nameCw[iCs], deg_dx - AdamsDeg(R_PERM + 1, R_PERM), deg_dx, {}, dx, R_PERM + 1);
                 size_t iCw = cofseq.isRing[iCs] ? cofseq.indexCw[iCs] : cofseq.indexCw[iCs] | FLAG_MOD;
                 SetImageSc(iCw, deg_dx, dx, NULL_DIFF, R_PERM, flag);
             }
@@ -730,7 +730,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                                 printed_dx = true;
                                 Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                             }
-                            Logger::LogDiff(depth, enumReason::deduce_v2, ring.name, deg_xy, xy, dxy, r);
+                            Logger::LogDiff(depth, EnumReason::deduce_xy, ring.name, deg_xy, xy, dxy, r);
                             count += SetRingDiffGlobal(iRing, deg_xy, xy, dxy, r, true, flag);
                         }
                     }
@@ -783,7 +783,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                                 printed_dx = true;
                                 Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                             }
-                            Logger::LogDiff(depth, enumReason::deduce_v2, mod.name, deg_xy, xy, dxy, r);
+                            Logger::LogDiff(depth, EnumReason::deduce_xy, mod.name, deg_xy, xy, dxy, r);
                             count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true, flag);
                         }
                     }
@@ -813,7 +813,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                     printed_dx = true;
                     Logger::LogNullDiff(depth, ring.name, deg_x, x, r);
                 }
-                Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, rings_[map->to].name), deg_x, fx, {}, r);
+                Logger::LogDiff(depth, EnumReason::deduce_xy, fmt::format("({}) {}", map->display, rings_[map->to].name), deg_x, fx, {}, r);
                 count += SetRingDiffGlobal(map->to, deg_x, fx, {}, r, true, flag);
             }
         }
@@ -885,7 +885,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                             printed_dx = true;
                             Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                         }
-                        Logger::LogDiff(depth, enumReason::deduce_v2, mod.name, deg_xy, xy, dxy, r);
+                        Logger::LogDiff(depth, EnumReason::deduce_xy, mod.name, deg_xy, xy, dxy, r);
                         count += SetModuleDiffGlobal(iMod, deg_xy, xy, dxy, r, true, flag);
                     }
                 }
@@ -919,7 +919,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, rings_[to].name), deg_fx, fx, {}, r);
+                    Logger::LogDiff(depth, EnumReason::deduce_xy, fmt::format("({}) {}", map->display, rings_[to].name), deg_fx, fx, {}, r);
                     count += SetRingDiffGlobal(to, deg_fx, fx, {}, r, true, flag);
                 }
             }
@@ -945,7 +945,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                         printed_dx = true;
                         Logger::LogNullDiff(depth, mod.name, deg_x, x, r);
                     }
-                    Logger::LogDiff(depth, enumReason::deduce_v2, fmt::format("({}) {}", map->display, modules_[to].name), deg_fx, fx, {}, r);
+                    Logger::LogDiff(depth, EnumReason::deduce_xy, fmt::format("({}) {}", map->display, modules_[to].name), deg_fx, fx, {}, r);
                     count += SetModuleDiffGlobal(to, deg_fx, fx, {}, r, true, flag);
                 }
             }
@@ -963,7 +963,7 @@ int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x
     const int r_original = r;
     r = NextRSrc(ring.nodes_ss, deg_x, r);
     if (r == -1) {
-        Logger::LogException(int(ring.nodes_ss.size() - 2), 0x51274f1dU, "No source for the image. {} deg_dx={}, dx={}, r={}\n", ring.name, deg_x, x, r_original);
+        Logger::LogSSException(int(ring.nodes_ss.size() - 2), ring.name, deg_x, x, r_original, 0x51274f1dU);
         throw SSException(0x51274f1dU, "No source for the image.");
     }
 
@@ -1028,7 +1028,7 @@ int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& 
     const int r_original = r;
     r = NextRSrc(nodes_ss, deg_x, r);
     if (r == -1) {
-        Logger::LogException(int(nodes_ss.size() - 2), 0xda298807U, "No source for the image. {} deg_dx={}, dx={}, r={}\n", mod.name, deg_x, x, r_original);
+        Logger::LogSSException(int(nodes_ss.size() - 2), mod.name, deg_x, x, r_original, 0xda298807U);
         throw SSException(0xda298807U, "No source for the image.");
     }
 
