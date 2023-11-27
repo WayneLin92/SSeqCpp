@@ -1,5 +1,5 @@
-#include "algebras/myexception.h"
 #include "algebras/database.h"
+#include "algebras/myexception.h"
 #include "pigroebner.h"
 #include <fmt/color.h>
 #include <fmt/core.h>
@@ -33,11 +33,11 @@ public:
 
     void create_log() const
     {
-        execute_cmd("CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, depth TINYINT, reason TEXT, name TEXT, s SMALLINT, t SMALLINT, r SMALLINT, x TEXT, dx TEXT, tag TEXT);");
+        execute_cmd("CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, depth TINYINT, reason TEXT, name TEXT, stem SMALLINT as (t-s), s SMALLINT, t SMALLINT, r SMALLINT, x TEXT, dx TEXT, tag TEXT);");
     }
 
     void InsertTag(int depth, const std::string& tag);
-    void InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code);
+    void InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, const std::string& tag);
     void InsertDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
     void InsertNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
 };
@@ -56,6 +56,11 @@ private:
 
 public:
     Logger() {}
+
+    static void DeleteFromLog()
+    {
+        db_deduce_.execute_cmd("DELETE FROM log;");
+    }
 
     static void SetOutMain(const char* filename);
     static void SetOutDeduce(const char* filename);
@@ -84,23 +89,7 @@ public:
     static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Poly& m, const algZ::Poly& hm1, const algZ::Poly& hm2);
     static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2);
 
-    /*template <typename... T>
-    static void LogException(int depth, unsigned code, T&&... args)
-    {
-        std::string_view indent(INDENT, depth * 2);
-        line_.clear();
-        fmt::format_to(std::back_inserter(line_), "{}Error({:#x}) - ", indent, code);
-        fmt::format_to(std::back_inserter(line_), args...);
-        if (depth == 0) {
-            fmt::print(fmt::fg(fmt::color::red), "{}", line_);
-            db_deduce_.InsertTag();
-            Flush();
-        }
-        else
-            fmt::format_to(std::back_inserter(out_), "{}", line_);
-    }*/
-
-    static void LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code);
+    static void LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code, alg::AdamsDeg deg_leibniz, const alg::int1d* a_leibniz);
 };
 
 template <>

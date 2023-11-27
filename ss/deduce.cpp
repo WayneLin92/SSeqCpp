@@ -10,8 +10,10 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
     const size_t num_cw = rings_.size() + modules_.size();
     while (true) {
         for (size_t iCw = 0; iCw < num_cw; ++iCw) {
-            auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
             auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
+            if (nodes_ss.size() > 2 && nodes_ss.back().empty())
+                continue;
+            auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
             int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
             for (auto& [d, _] : nodes_ss.front()) {
                 const Staircase& sc = ut::GetRecentValue(nodes_ss, d);
@@ -56,11 +58,13 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop a
     while (true) {
         for (auto& cofseq : cofseqs_) {
             for (size_t iCs = 0; iCs < 3; ++iCs) {
+                auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+                if (nodes_cofseq.size() > 2 && nodes_cofseq.back().empty())
+                    continue;
                 size_t iCs1 = (iCs + 2) % 3;
                 size_t iCs2 = (iCs + 1) % 3;
                 const int stem_map1 = cofseq.degMap[iCs1].stem();
                 auto& name = cofseq.name;
-                auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
                 for (auto& [d, _] : nodes_cofseq.front()) {
                     const Staircase& sc = ut::GetRecentValue(nodes_cofseq, d);
                     for (size_t i = 0; i < sc.levels.size(); ++i) {
@@ -238,13 +242,10 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
     bool bException = false;
     try {
         const std::string& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
-        // if (name == "CW_2_eta" && deg_x == AdamsDeg(6, 70 + 6) && r == 3 && dx.empty()) {
-        //     std::cout << "debug\n";
-        // }
 
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
-        DeduceTrivialDiffs(flag);
+        // DeduceTrivialDiffs(flag); // TODO: DeduceTrivial for only the current module
         if (flag & DeduceFlag::depth_ss_cofseq) {
             const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
             for (auto& ind_cof : ind_cofs) {
@@ -253,8 +254,8 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
                 DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
             }
         }
-        else if (flag & DeduceFlag::cofseq)
-            DeduceTrivialDiffsCofseq(flag);
+        // else if (flag & DeduceFlag::cofseq)
+        // DeduceTrivialDiffsCofseq(flag);
     }
     catch (SSException&) {
         bException = true;
@@ -288,88 +289,100 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
         if (nd.r > 0) {
             r = nd.r;
             deg_src = deg;
-            const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r - 1};
             x = nd.x;
 
-            int1d dx1;
-            int count_pass = 0;
-            unsigned i_max = 1 << nd.count;
-            for (unsigned i = 1; i < i_max; ++i) {
-                const Staircase& sc_tgt = ut::GetRecentValue(nodes_ss, deg_tgt);
-                dx1.clear();
-                for (int j : two_expansion(i))
-                    dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
-
-                if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true)) {
-                    ++count_pass;
-                    if (count_pass > 1)
-                        break;
-                    dx = std::move(dx1);
-                }
-            }
-            if (count_pass == 0) {
+            if (nd.count == 0) {
                 dx.clear();
                 bNewDiff = true;
             }
-            else if (count_pass > 1)
-                ++index_nd;
             else {
-                dx1.clear();
-                if (TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true))
+                const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r - 1};
+                const Staircase& sc_tgt = ut::GetRecentValue(nodes_ss, deg_tgt);
+
+                int1d dx1;
+                int count_pass = 0;
+                unsigned i_max = 1 << nd.count;
+                for (unsigned i = 1; i < i_max; ++i) {
+                    dx1.clear();
+                    for (int j : two_expansion(i))
+                        dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
+
+                    if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true)) {
+                        ++count_pass;
+                        if (count_pass > 1)
+                            break;
+                        dx = std::move(dx1);
+                    }
+                }
+                if (count_pass == 0) {
+                    dx.clear();
                     bNewDiff = true;
-                else
+                }
+                else if (count_pass > 1)
                     ++index_nd;
+                else {
+                    dx1.clear();
+                    if (TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true))
+                        bNewDiff = true;
+                    else
+                        ++index_nd;
+                }
             }
         }
         /* Fixed target, find source. */
         else {
             r = -nd.r;
             deg_src = deg - AdamsDeg{r, r - 1};
-            const Staircase& sc_src = ut::GetRecentValue(nodes_ss, deg_src);
             dx = nd.x;
 
-            int1d x1;
-            int count_pass = 0;
-            unsigned i_max = 1 << nd.count;
-
-            for (unsigned i = 1; i < i_max; ++i) {
-                x1.clear();
-                for (int j : two_expansion(i))
-                    x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
-
-                if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false)) {
-                    ++count_pass;
-                    if (count_pass > 1)
-                        break;
-                    x = std::move(x1);
-                }
-            }
-            if (count_pass == 0) {
+            if (nd.count == 0) {
                 x.clear();
                 bNewDiff = true;
             }
-            else if (count_pass > 1)
-                ++index_nd;
             else {
-                x1.clear();
-                if (TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false))
+                const Staircase& sc_src = ut::GetRecentValue(nodes_ss, deg_src);
+
+                int1d x1;
+                int count_pass = 0;
+                unsigned i_max = 1 << nd.count;
+                for (unsigned i = 1; i < i_max; ++i) {
+                    x1.clear();
+                    for (int j : two_expansion(i))
+                        x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
+
+                    if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false)) {
+                        ++count_pass;
+                        if (count_pass > 1)
+                            break;
+                        x = std::move(x1);
+                    }
+                }
+                if (count_pass == 0) {
+                    x.clear();
                     bNewDiff = true;
-                else
+                }
+                else if (count_pass > 1)
                     ++index_nd;
+                else {
+                    x1.clear();
+                    if (TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false))
+                        bNewDiff = true;
+                    else
+                        ++index_nd;
+                }
             }
         }
 
         if (bNewDiff) {
             ++count;
             if (nd.r > 0)
-                Logger::LogDiff(depth, EnumReason::deduce, name, deg, x, dx, r);
+                Logger::LogDiff(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg, x, dx, r);
             else
-                Logger::LogDiffInv(depth, EnumReason::deduce, name, deg_src, deg, x, dx, r);
-
+                Logger::LogDiffInv(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg_src, deg, x, dx, r);
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
-            if (flag & DeduceFlag::cofseq)
-                count += DeduceTrivialDiffsCofseq(flag);  ////
-            count += DeduceTrivialDiffs(flag);
+            // if (flag & DeduceFlag::cofseq)
+            //     count += DeduceTrivialDiffsCofseq(flag);  ////
+            // DeduceTrivialDiffs(flag);
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
         }
         else {
@@ -387,21 +400,17 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 {
     int count = 0;
-
     DeduceTrivialDiffs(flag);
     if (flag & DeduceFlag::pi) {
-        int count_homotopy1 = 0;
+        /*int count_homotopy1 = 0;
         SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
-        DeduceTrivialExtensions(depth + 1);
-        // if (flag & DeduceFlag::pi_exact)
-        //     DeduceExtensionsByExactness(0, 100, depth + 1);
+        DeduceTrivialExtensions(depth + 1);*/
     }
 
     const size_t num_cw = rings_.size() + modules_.size();
     for (size_t iCw : deduce_list_spectra_) {
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
         auto& degs = iCw < rings_.size() ? rings_[iCw].degs_basis_order_by_stem : modules_[iCw - rings_.size()].degs_basis_order_by_stem;
-
         for (AdamsDeg deg : degs) {
             if (depth == 0)
                 fmt::print("{} deg={}                        \r", name, deg);
@@ -414,7 +423,9 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 
             count += DeduceDiffs(iCw, deg, depth, flag);
         }
+        DeduceTrivialDiffs(flag);
     }
+
     return count;
 }
 
@@ -506,6 +517,8 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
         count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
     }
     catch (InteruptAndSaveException&) {
+    }
+    catch (SSException&) {
     }
     if (flag & DeduceFlag::pi) {
         diagram.SimplifyPiRels();

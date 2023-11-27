@@ -345,11 +345,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                         auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
                         if (!json_map.contains("over")) {
                             map = std::make_unique<MapMod2Ring>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                            //((MapMod2Ring&)(*map)).Verify(*this, ring_gen_degs);  ////
                         }
                         else {
                             std::string over = json_map.at("over").get<std::string>();
                             int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
                             map = std::make_unique<MapMod2RingV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                            //((MapMod2RingV2&)(*map)).Verify(*this, ring_gen_degs);  ////
                         }
                     }
                     else {
@@ -358,11 +360,13 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
                         auto images = db.get_column_from_str<Mod>(table, "map", "", myio::Deserialize<Mod>);
                         if (!json_map.contains("over")) {
                             map = std::make_unique<MapMod2Mod>(name, display, t_max, deg, index_from, index_to, std::move(images));
+                            //((MapMod2Mod&)(*map)).Verify(*this, ring_gen_degs);  ////
                         }
                         else {
                             std::string over = json_map.at("over").get<std::string>();
                             int index_map = ut::IndexOf(maps_, [&over](const std::unique_ptr<Map>& map) { return map->name == over; });
                             map = std::make_unique<MapMod2ModV2>(name, display, t_max, deg, index_from, index_to, index_map, std::move(images));
+                            //((MapMod2ModV2&)(*map)).Verify(*this, ring_gen_degs);  ////
                         }
                     }
                     modules_[index_from].ind_maps.push_back(maps_.size());

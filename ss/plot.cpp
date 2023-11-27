@@ -472,7 +472,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
     }
     */
     for (auto& map : maps) {
-        if (map->isMul())
+        if (map->IsMul())
             continue;
         size_t from, to;
         json js;

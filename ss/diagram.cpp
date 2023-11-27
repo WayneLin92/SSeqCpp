@@ -85,7 +85,35 @@ int1d MapMod2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) co
     return result;
 }
 
-auto subs(const Mod& x, const Poly1d& map1, const std::vector<Mod>& map2)
+void MapMod2Mod::Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs)
+{
+    fmt::print("Verifying {}\n", name);
+    auto& mods = diagram.GetModules();
+    auto& gen_degs = ring_gen_degs[mods[from].iRing];
+    for (auto& [deg_x, basis_d] : mods[from].basis) {
+        for (size_t g = 0; g < gen_degs.size(); ++g) {
+            AdamsDeg deg_gx = deg_x + gen_degs[g];
+            if (deg_gx.t > t_max)
+                break;
+            Poly poly_g = Poly::Gen((uint32_t)g);
+            for (size_t i = 0; i < basis_d.size(); ++i) {
+                Mod alg_gx = mods[from].gb.Reduce(poly_g * basis_d[i]);
+                int1d gx = alg_gx ? Mod2Indices(alg_gx, mods[from].basis.at(deg_gx)) : int1d{};
+                int1d fgx = map(gx, deg_gx, diagram);
+                int1d fx = map(int1d{(int)i}, deg_x, diagram);
+                Mod alg_fx = fx.empty() ? Mod() : Indices2Mod(fx, mods[to].basis.at(deg_x + deg));
+                Mod alg_gfx = mods[to].gb.Reduce(poly_g * alg_fx);
+                int1d gfx = alg_gfx ? Mod2Indices(alg_gfx, mods[to].basis.at(deg_gx + deg)) : int1d{};
+                if (fgx != gfx) {
+                    fmt::print("Incorrect map: {} deg_x={}, x={}, deg_g={}, g={}\n", name, deg_x, i, gen_degs[g], poly_g.Str());
+                    throw MyException(0x18a1700f, "Incorrect map");
+                }
+            }
+        }
+    }
+}
+
+auto subs(const Mod& x, const Poly1d& map1, const Mod1d& map2)
 {
     Mod result{}, tmp{};
     Poly tmp_prod_p, tmf_p;
@@ -117,6 +145,36 @@ int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) 
     return result;
 }
 
+void MapMod2ModV2::Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs)
+{
+    fmt::print("Verifying {}\n", name);
+    auto& mods = diagram.GetModules();
+    auto& maps = diagram.GetMaps();
+    auto& gen_degs = ring_gen_degs[mods[from].iRing];
+    for (auto& [deg_x, basis_d] : mods[from].basis) {
+        for (size_t g = 0; g < gen_degs.size(); ++g) {
+            AdamsDeg deg_gx = deg_x + gen_degs[g];
+            if (deg_gx.t > t_max)
+                break;
+            Poly poly_g = Poly::Gen((uint32_t)g);
+            Poly poly_fg = ((MapRing2Ring*)maps[over].get())->images[g];
+            for (size_t i = 0; i < basis_d.size(); ++i) {
+                Mod alg_gx = mods[from].gb.Reduce(poly_g * basis_d[i]);
+                int1d gx = alg_gx ? Mod2Indices(alg_gx, mods[from].basis.at(deg_gx)) : int1d{};
+                int1d fgx = map(gx, deg_gx, diagram);
+                int1d fx = map(int1d{(int)i}, deg_x, diagram);
+                Mod alg_fx = fx.empty() ? Mod() : Indices2Mod(fx, mods[to].basis.at(deg_x + deg));
+                Mod alg_fgfx = mods[to].gb.Reduce(poly_fg * alg_fx);
+                int1d fgfx = alg_fgfx ? Mod2Indices(alg_fgfx, mods[to].basis.at(deg_gx + deg)) : int1d{};
+                if (fgx != fgfx) {
+                    fmt::print("Incorrect map: {} deg_x={}, x={}, deg_g={}, g={}\n", name, deg_x, i, gen_degs[g], poly_g.Str());
+                    throw MyException(0x18a1700f, "Incorrect map");
+                }
+            }
+        }
+    }
+}
+
 int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
 {
     int1d result;
@@ -131,6 +189,35 @@ int1d MapMod2Ring::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) c
         }
     }
     return result;
+}
+
+void MapMod2Ring::Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs)
+{
+    fmt::print("Verifying {}\n", name);
+    auto& mods = diagram.GetModules();
+    auto& rings = diagram.GetRings();
+    auto& gen_degs = ring_gen_degs[mods[from].iRing];
+    for (auto& [deg_x, basis_d] : mods[from].basis) {
+        for (size_t g = 0; g < gen_degs.size(); ++g) {
+            AdamsDeg deg_gx = deg_x + gen_degs[g];
+            if (deg_gx.t > t_max)
+                break;
+            Poly poly_g = Poly::Gen((uint32_t)g);
+            for (size_t i = 0; i < basis_d.size(); ++i) {
+                Mod alg_gx = mods[from].gb.Reduce(poly_g * basis_d[i]);
+                int1d gx = alg_gx ? Mod2Indices(alg_gx, mods[from].basis.at(deg_gx)) : int1d{};
+                int1d fgx = map(gx, deg_gx, diagram);
+                int1d fx = map(int1d{(int)i}, deg_x, diagram);
+                auto alg_fx = fx.empty() ? Poly() : Indices2Poly(fx, rings[to].basis.at(deg_x + deg));
+                auto alg_gfx = rings[to].gb.Reduce(poly_g * alg_fx);
+                int1d gfx = alg_gfx ? Poly2Indices(alg_gfx, rings[to].basis.at(deg_gx + deg)) : int1d{};
+                if (fgx != gfx) {
+                    fmt::print("Incorrect map: {} deg_x={}, x={}, deg_g={}, g={}\n", name, deg_x, i, gen_degs[g], poly_g.Str());
+                    throw MyException(0x18a1700f, "Incorrect map");
+                }
+            }
+        }
+    }
 }
 
 auto subs(const Mod& x, const Poly1d& map1, const Poly1d& map2)
@@ -163,6 +250,37 @@ int1d MapMod2RingV2::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram)
         }
     }
     return result;
+}
+
+void MapMod2RingV2::Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs)
+{
+    fmt::print("Verifying {}\n", name);
+    auto& mods = diagram.GetModules();
+    auto& rings = diagram.GetRings();
+    auto& maps = diagram.GetMaps();
+    auto& gen_degs = ring_gen_degs[mods[from].iRing];
+    for (auto& [deg_x, basis_d] : mods[from].basis) {
+        for (size_t g = 0; g < gen_degs.size(); ++g) {
+            AdamsDeg deg_gx = deg_x + gen_degs[g];
+            if (deg_gx.t > t_max)
+                break;
+            Poly poly_g = Poly::Gen((uint32_t)g);
+            Poly poly_fg = ((MapRing2Ring*)maps[over].get())->images[g];
+            for (size_t i = 0; i < basis_d.size(); ++i) {
+                Mod alg_gx = mods[from].gb.Reduce(poly_g * basis_d[i]);
+                int1d gx = alg_gx ? Mod2Indices(alg_gx, mods[from].basis.at(deg_gx)) : int1d{};
+                int1d fgx = map(gx, deg_gx, diagram);
+                int1d fx = map(int1d{(int)i}, deg_x, diagram);
+                auto alg_fx = fx.empty() ? Poly() : Indices2Poly(fx, rings[to].basis.at(deg_x + deg));
+                auto alg_fgfx = rings[to].gb.Reduce(poly_fg * alg_fx);
+                int1d fgfx = alg_fgfx ? Poly2Indices(alg_fgfx, rings[to].basis.at(deg_gx + deg)) : int1d{};
+                if (fgx != fgfx) {
+                    fmt::print("Incorrect map: {} deg_x={}, x={}, deg_g={}, g={}\n", name, deg_x, i, gen_degs[g], poly_g.Str());
+                    throw MyException(0x18a1700f, "Incorrect map");
+                }
+            }
+        }
+    }
 }
 
 int1d MapMulRing2Ring::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const
@@ -257,7 +375,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
             if (poly_xx) {
                 int1d xx = Poly2Indices(poly_xx, ring.basis.at(deg_xx));
                 if (IsNewDiff(nodes_ss, deg_xx, xx, {}, r + 1)) {
-                    Logger::LogDiff(depth, EnumReason::deduce_xy, ring.name, deg_xx, xx, {}, r + 1);
+                    Logger::LogDiff(depth, EnumReason::deduce_xx, ring.name, deg_xx, xx, {}, r + 1);
                     count += SetRingDiffGlobal(iRing, deg_xx, xx, {}, r + 1, true, flag);
                 }
             }

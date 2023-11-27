@@ -22,10 +22,10 @@ void DbLog::InsertTag(int depth, const std::string& tag)
     stmt.bind_and_step(depth, std::string(tag));
 }
 
-void DbLog::InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code)
+void DbLog::InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, const std::string& tag)
 {
     Statement stmt(*this, "INSERT INTO log (depth, reason, name, s, t, r, dx, tag) VALUES (?1, \"Error\", ?2, ?3, ?4, ?5, ?6, ?7);");
-    stmt.bind_and_step(depth, name, deg_dx.s, deg_dx.t, r, myio::Serialize(dx), fmt::format("{:#x}", code));
+    stmt.bind_and_step(depth, name, deg_dx.s, deg_dx.t, r, myio::Serialize(dx), tag);
 }
 
 void DbLog::InsertDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)
@@ -98,11 +98,18 @@ void Logger::LogTime(const std::string& time)
     db_deduce_.InsertTag(-2, time);
 }
 
-void Logger::LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code)
+void Logger::LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code, alg::AdamsDeg deg_leibniz, const alg::int1d* a_leibniz)
 {
     if (depth == 0)
-        fmt::print("Error({:#x} No source for the image. {} deg_dx={}, dx={}, r={}\n", code, name, deg_dx, dx, r);
-    db_deduce_.InsertError(depth, name, deg_dx, dx, r, code);
+        fmt::print("Error({:#x}) No source for the image. {} deg_dx={}, dx={}, r={}\n", code, name, deg_dx, dx, r);
+    std::string tag;
+    if (a_leibniz) {
+        tag = fmt::format("{:#x} {} {}", code, deg_leibniz, *a_leibniz);
+        a_leibniz = nullptr;
+    }
+    else
+        tag = fmt::format("{:#x}", code);
+    db_deduce_.InsertError(depth, name, deg_dx, dx, r, tag);
 }
 
 void Logger::LogDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)

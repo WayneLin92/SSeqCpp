@@ -25,13 +25,13 @@ inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 enum class DeduceFlag : uint32_t
 {
     no_op = 0,
-    all_x = 1,    /* Deduce dx for all x including linear combinations */
-    xy = 2,       /* Deduce d(xy) for even if dx is uncertain */
-    cofseq = 4,   /* Consider cofiber sequence */
+    all_x = 1,               /* Deduce dx for all x including linear combinations */
+    xy = 2,                  /* Deduce d(xy) for even if dx is uncertain */
+    cofseq = 4,              /* Consider cofiber sequence */
     depth_ss_cofseq = 4 + 8, /* Deduce cof inside ss */
-    pi = 16,       /* Consider homotopy */
-    pi_def = 32,  /* Define generators in pi */
-    no_save = 64, /* Do not save the database */
+    pi = 16,                 /* Consider homotopy */
+    pi_def = 32,             /* Define generators in pi */
+    no_save = 64,            /* Do not save the database */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -213,7 +213,7 @@ public:
     virtual ~Map() {}
     virtual bool IsFromRing(size_t& from) const = 0;
     virtual bool IsToRing(size_t& to) const = 0;
-    virtual bool isMul() /* in maps_v2 */
+    virtual bool IsMul() /* in maps_v2 */
     {
         return false;
     }
@@ -257,6 +257,7 @@ public:
         return false;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
 
 class MapMod2ModV2 : public Map
@@ -279,6 +280,7 @@ public:
         return false;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
 
 class MapMod2Ring : public Map
@@ -298,6 +300,7 @@ public:
         return true;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
 
 class MapMod2RingV2 : public Map
@@ -320,6 +323,7 @@ public:
         return true;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
+    void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
 
 class MapMulRing2Ring : public Map
@@ -338,7 +342,7 @@ public:
         to = this->index;
         return true;
     }
-    bool isMul()
+    bool IsMul()
     {
         return true;
     }
@@ -361,7 +365,7 @@ public:
         to = this->to;
         return false;
     }
-    bool isMul()
+    bool IsMul()
     {
         return true;
     }
@@ -384,7 +388,7 @@ public:
         to = this->index;
         return false;
     }
-    bool isMul()
+    bool IsMul()
     {
         return true;
     }
@@ -401,10 +405,12 @@ protected:
     PMap1d maps_;
     CofSeq1d cofseqs_;
 
-protected: /* Settings */
+protected:
     std::vector<size_t> deduce_list_spectra_;
     std::vector<size_t> deduce_list_cofseq_;
     int deduce_count_max_ = 10;
+    AdamsDeg deg_leibniz_;             /* For logging */
+    const int1d* a_leibniz_ = nullptr; /* For logging */
 
 public:
     Diagram(std::string diagram_name, DeduceFlag flag, bool log = true);

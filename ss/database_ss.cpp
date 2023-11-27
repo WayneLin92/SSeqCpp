@@ -1,4 +1,5 @@
 #include "main.h"
+#include "mylog.h"
 #include <fmt/ranges.h>  ////
 
 using namespace alg2;
@@ -273,6 +274,8 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
         Diagram diagram(diagram_name, flag);
         //int count = diagram.DeduceTrivialDiffs(flag);
         diagram.save(diagram_name, flag);
+
+        Logger::DeleteFromLog();
     }
 
     return 0;

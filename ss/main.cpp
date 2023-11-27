@@ -25,6 +25,8 @@ int main_plot_pi(int, char**, int&, const char*);
 int main_rename_gen(int, char**, int&, const char*);
 
 int main_add_basis(int argc, char** argv, int& index, const char* desc);
+int main_mul(int argc, char** argv, int& index, const char* desc);
+
 
 
 int main(int argc, char** argv)
@@ -51,6 +53,7 @@ int main(int argc, char** argv)
         {"plot_pi", "Compute the multiplications by hi", main_plot_pi},
         {"rename_gen", "Manage generator names", main_rename_gen},
         {"add_basis", "Add basis from generators and relations", main_add_basis},
+        {"mul", "Display the product", main_mul},
     };
     int index = 1;
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Manage spectral sequences and homotopy groups", VERSION, subcmds))

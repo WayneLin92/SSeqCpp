@@ -9,7 +9,7 @@ ss add_diff CW_2_eta 70 6 3 0 "" debug && ss add_diff S0 94 8 3 0 0 debug
 
 ss add_diff S0 38 4 3 0 0 debug
 ss add_diff S0 94 8 3 0 0 debug
-ss add_diff S0 164 14 3 0 0 debug
+ 
 ss add_diff C2h6 155 9 3 0 "" debug
 ss add_diff C2h6 126 10 3 4 5 debug
 

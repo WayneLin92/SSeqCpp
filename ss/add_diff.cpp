@@ -41,8 +41,6 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     Diagram diagram(diagram_name, flag);
 
     /* #Check if x, dx are valid */
-    std::sort(x.begin(), x.end());
-    std::sort(dx.begin(), dx.end());
     bool isRing = diagram.GetRingIndexByName(cw) != -1;
     auto& ss = isRing ? diagram.GetRingByName(cw).nodes_ss.front() : diagram.GetModuleByName(cw).nodes_ss.front();
     if (!x.empty()) {
