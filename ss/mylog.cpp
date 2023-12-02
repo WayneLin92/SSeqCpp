@@ -49,10 +49,6 @@ void Logger::SetOutMain(const char* filename)
             throw MyException(0xc396a312U, "Cannot open file.");
         }
     }
-    else {
-        fmt::print("File already set for fout_main_\n");
-        throw MyException(0x31ea3cefU, "File already set for fout_main_");
-    }
 }
 
 void Logger::SetOutDeduce(const char* filename)
@@ -65,10 +61,6 @@ void Logger::SetOutDeduce(const char* filename)
         db_deduce_.InsertTag(-1, cmd_);
 
         cmd_.clear();
-    }
-    else {
-        fmt::print("log database is already opened\n");
-        throw MyException(0xa9c25373U, "log database is already opened");
     }
 }
 

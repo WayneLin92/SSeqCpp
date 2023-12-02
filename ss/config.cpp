@@ -18,6 +18,9 @@ void LoadJson(const std::string& diagram_name, nlohmann::json& root_json, nlohma
         json& diagrams = root_json.at("diagrams");
         std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
         diag_json = myio::load_json(fmt::format("{}/ss.json", dir));
+
+        auto path_log = fmt::format("{}/{}", dir, diag_json.at("log").get<std::string>());
+        Logger::SetOutDeduce(path_log.c_str());
     }
     catch (nlohmann::detail::exception& e) {
         fmt::print("JsonError({}): {}\n", e.id, e.what());

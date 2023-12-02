@@ -541,12 +541,12 @@ private: /* ss */
     static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
     static size_t GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int level_min);
 
-    /* Count the number of all possible d_r targets. Return (count, index). */
+    /* Count the number of all possible d_r targets. Return (index, count). */
     auto CountPossDrTgt(const Staircases1d& nodes_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
     /* Warning: this assumes that there shall not be more Einf elements */
     auto CountPossDrTgtCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
 
-    /* Count the number of all possible d_r sources. Return (count, index). */
+    /* Count the number of all possible d_r sources. Return (index, count). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& nodes_ss, const AdamsDeg& deg_src, int r) const;
     /* Warning: this assumes that there shall not be more Einf elements */
     std::pair<int, int> CountPossDrSrcCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_src, int r) const;

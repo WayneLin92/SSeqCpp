@@ -122,7 +122,7 @@ void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg d
             continue;
 
         NullDiff nd;
-        if (sc.levels[i] > LEVEL_PERM) {
+        if (sc.levels[i] > /*LEVEL_PERM*/ LEVEL_MAX - 4) { ////
             int r = LEVEL_MAX - sc.levels[i];
             AdamsDeg deg_tgt = deg + AdamsDeg{r, r - 1};
             nd.r = r;
@@ -285,6 +285,9 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
     const auto& name = !(iCw & FLAG_MOD) ? rings_[iCw].name : modules_[iCw ^ FLAG_MOD].name;
     auto& nodes_ss = !(iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, r - 1};
+
+    if (nodes_ss.size() == 2 && deg_dx == AdamsDeg(16, 162 + 16) && r == 2 && dx_ == int1d{6} && name == "Joker") ////
+        throw InteruptAndSaveException(0, "bug");
 
     /* If dx is in Im(d_{r-1}) then x is in Ker(d_r) */
     const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_dx);

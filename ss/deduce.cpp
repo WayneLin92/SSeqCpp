@@ -375,10 +375,15 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 
         if (bNewDiff) {
             ++count;
+            //if (name == "Joker" && deg == AdamsDeg(12, 162 + 12) && x == int1d{0} && r == 3) {
+            //    fmt::print("Interupted\n");
+            //    //throw InteruptAndSaveException(0, "debug");
+            //}
             if (nd.r > 0)
                 Logger::LogDiff(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg, x, dx, r);
             else
                 Logger::LogDiffInv(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg_src, deg, x, dx, r);
+
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
             // if (flag & DeduceFlag::cofseq)
             //     count += DeduceTrivialDiffsCofseq(flag);  ////

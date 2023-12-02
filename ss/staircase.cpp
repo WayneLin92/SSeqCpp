@@ -116,7 +116,7 @@ int1d Residue(int1d x, const Staircases1d& nodes_ss, AdamsDeg deg, int level)
     if (x.empty())
         return result;
     auto& sc_ss = ut::GetRecentValue(nodes_ss, deg);
-    size_t first_PC = GetFirstIndexOnLevel(sc_ss, level);
-    result = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_PC, std::move(x));
+    size_t first_l = GetFirstIndexOnLevel(sc_ss, level);
+    result = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_l, std::move(x));
     return result;
 }

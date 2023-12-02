@@ -149,6 +149,65 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+int main_add_diff_from_log(int argc, char** argv, int& index, const char* desc)
+{
+    int lineNum = 0;
+    std::string diagram_name = "mix-hopf";
+    std::string filenameLog = "differentials-certain.txt";
+
+    myio::CmdArg1d args = {{"lineNum", &lineNum}, {"diagram", &diagram_name}, {"filenameLog", &filenameLog}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    auto flag = DeduceFlag::no_op;
+
+    myio::AssertFileExists(filenameLog);
+    DbLog dbLog(filenameLog);
+    int count_lines = 0, count_diffs = 0;
+
+    std::string cw;
+    int stem = -1, s = -1, r = 0;
+    int1d x, dx;
+    Diagram diagram(diagram_name, flag);
+
+    try {
+        myio::Statement stmt(dbLog, fmt::format("SELECT name, stem, s, r, x, dx FROM log WHERE id<={} AND depth=0 AND reason!=\"Error\" AND reason!=\"nat\"", lineNum));
+        while (stmt.step() == MYSQLITE_ROW && count_lines++ < lineNum) {
+            cw = stmt.column_str(0);
+            stem = stmt.column_int(1);
+            s = stmt.column_int(2);
+            r = stmt.column_int(3);
+
+            AdamsDeg deg_x(s, stem + s);
+            x = myio::Deserialize<int1d>(stmt.column_str(4));
+            dx = myio::Deserialize<int1d>(stmt.column_str(5));
+
+            bool isRing = diagram.GetRingIndexByName(cw) != -1;
+            if (isRing) {
+                size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
+                Logger::LogDiff(0, EnumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
+                count_diffs += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
+            }
+            else {
+                size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
+                MyException::Assert(iMod != -1, "iMod != -1");
+                Logger::LogDiff(0, EnumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
+                count_diffs += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
+            }
+        }
+        if (count_lines % 10000 == 0) {
+            fmt::print("Deduce trivial diffs\n\n");
+            diagram.DeduceTrivialDiffs(flag);
+        }
+    }
+    catch (SSException&) {
+    }
+
+    diagram.save(diagram_name, flag);
+    return 0;
+}
+
 int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
 {
     int stem = 0, s = 0, r = 0;
