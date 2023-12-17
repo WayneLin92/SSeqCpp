@@ -218,13 +218,14 @@ void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const
     }
 }
 
-void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, bool forCofseq = false)
+void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, int forStrl, bool forCofseq = false)
 {
     using json = nlohmann::json;
     size_t first_PC = 0;
     for (auto& [deg, sc] : nodes_ss.front()) {
         for (size_t i = 0; i < sc.levels.size(); ++i) {
             Poly bi = Indices2Poly(sc.basis[i], ring.basis.at(deg));
+            auto key = std::to_string(deg2id.at(deg) + (int)i);
             for (size_t j = 0; j < degs_factors.size(); ++j) {
                 const AdamsDeg deg_prod = degs_factors[j] + deg;
                 if (deg_prod.t > ring.t_max)
@@ -241,26 +242,25 @@ void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const st
 
                 prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
 
-                js["prods"].push_back(json::object());
-                auto& prod_json = js["prods"].back();
-                prod_json["i"] = deg2id.at(deg) + i;
-                prod_json["j"] = indices_factors[j];
+                auto& prod_json = json::object();
                 prod_json["p"] = json::array();
                 for (size_t k = 0; k < prod.size(); ++k)
                     prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
-                prod_json["l"] = 1;
+                prod_json["l"] = forStrl;
+                js["prods"][key].push_back(prod_json);
             }
         }
     }
 }
 
-void plotModuleStrLines(const Staircases1d& nodes_ss, const ModSp& mod, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, bool forCofseq = false)
+void plotModuleStrLines(const Staircases1d& nodes_ss, const ModSp& mod, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, int forStrl, bool forCofseq = false)
 {
     using json = nlohmann::json;
     size_t first_PC = 0;
     for (auto& [deg, sc] : nodes_ss.front()) {
         for (size_t i = 0; i < sc.levels.size(); ++i) {
             Mod bi = Indices2Mod(sc.basis[i], mod.basis.at(deg));
+            auto key = std::to_string(deg2id.at(deg) + (int)i);
             for (size_t j = 0; j < degs_factors.size(); ++j) {
                 const AdamsDeg deg_prod = degs_factors[j] + deg;
                 if (deg_prod.t > mod.t_max)
@@ -277,14 +277,12 @@ void plotModuleStrLines(const Staircases1d& nodes_ss, const ModSp& mod, const st
                 }
                 prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
 
-                js["prods"].push_back(json::object());
-                auto& prod_json = js["prods"].back();
-                prod_json["i"] = deg2id.at(deg) + i;
-                prod_json["j"] = indices_factors[j];
+                auto& prod_json = json::object();
                 prod_json["p"] = json::array();
                 for (size_t k = 0; k < prod.size(); ++k)
                     prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
-                prod_json["l"] = 1;
+                prod_json["l"] = forStrl;
+                js["prods"][key].push_back(prod_json);
             }
         }
     }
@@ -328,7 +326,8 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
       "gen_names": [],
       "basis": [[1, 2], [1, 2, 3, 4]],
       "bullets": [{"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0}],
-      "prods": [{"i": 0, "j"(factor): 1, "p": [0, 1], "l"(is structure line): 0}],
+      "degs_factors": [[0, 1], [1, 1]],
+      "prods": {"0": [{"p": [0, 1], "l"(is structure line): 0}]},
       "diffs": [{"i": 0, "j": [0, 1], "r": 2}],
       "nds": [{"i": 0, "r": 2}],
     }
@@ -404,22 +403,41 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             plotBullets(nodes_ss, &mods[iMod], deg2id, js);
 
         /* struct lines */
-        js["prods"] = json::array();
+        js["degs_factors"] = json::array();
+        js["prods"] = json::object();
+        const std::map<AdamsDeg, int>& deg2id_ring = isRing ? deg2id : all_deg2id[mods[iMod].iRing];
         AdamsDeg1d degs_factors;
         Poly1d bjs;
         int1d indices_factors;
-        const std::map<AdamsDeg, int>& deg2id_ring = isRing ? deg2id : all_deg2id[mods[iMod].iRing];
         for (auto& strt_factor : diag_json.at("rings")[isRing ? iCw : mods[iMod].iRing].at("plot_factors")[0]) {
             int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
             degs_factors.push_back(AdamsDeg(s, stem + s));
+            js["degs_factors"].push_back(json::array({stem, s}));
             bjs.push_back(ring.basis.at(degs_factors.back())[i_factor]);
             indices_factors.push_back(deg2id_ring.at(degs_factors.back()) + i_factor);
         }
 
         if (isRing)
-            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js);
+            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 1);
         else
-            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js);
+            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 1);
+
+        // Products
+        degs_factors.clear();
+        bjs.clear();
+        indices_factors.clear();
+        for (auto& strt_factor : diag_json.at("rings")[isRing ? iCw : mods[iMod].iRing].at("plot_factors")[1]) {
+            int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
+            degs_factors.push_back(AdamsDeg(s, stem + s));
+            js["degs_factors"].push_back(json::array({stem, s}));
+            bjs.push_back(ring.basis.at(degs_factors.back())[i_factor]);
+            indices_factors.push_back(deg2id_ring.at(degs_factors.back()) + i_factor);
+        }
+
+        if (isRing)
+            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 0);
+        else
+            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 0);
 
         /* diff lines */
         js["diffs"] = json::array();

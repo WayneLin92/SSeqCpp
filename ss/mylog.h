@@ -30,6 +30,7 @@ class DbLog : public myio::Database
 public:
     DbLog() = default;
     explicit DbLog(const std::string& filename) : Database(filename) {}
+    virtual ~DbLog() {}
 
     void create_log() const
     {
@@ -38,6 +39,7 @@ public:
 
     void InsertTag(int depth, const std::string& tag);
     void InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, const std::string& tag);
+    void InsertError(int depth, const std::string& tag);
     void InsertDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
     void InsertNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
 };
@@ -50,6 +52,7 @@ private:
     static std::string cmd_;
     static std::string line_;
     static DbLog db_deduce_;
+    static int id_checkpoint_;
 
 private:
     static std::string GetCmd(int argc, char** argv);
@@ -57,11 +60,7 @@ private:
 public:
     Logger() {}
 
-    static void DeleteFromLog()
-    {
-        db_deduce_.execute_cmd("DELETE FROM log;");
-    }
-
+    static void DeleteFromLog();
     static void SetOutMain(const char* filename);
     static void SetOutDeduce(const char* filename);
 
@@ -69,10 +68,8 @@ public:
     static void LogSummary(const std::string& category, int count);
     static void LogTime(const std::string& time);
 
-    static void Flush()
-    {
-        fout_main_.flush();
-    }
+    static void Checkpoint();
+    static void RollBackToCheckpoint();
 
     static void LogDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
     static void LogNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
@@ -90,6 +87,7 @@ public:
     static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2);
 
     static void LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code, alg::AdamsDeg deg_leibniz, const alg::int1d* a_leibniz);
+    static void LogSSSSException(int depth, unsigned code);
 };
 
 template <>

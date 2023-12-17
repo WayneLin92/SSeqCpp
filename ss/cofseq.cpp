@@ -242,8 +242,8 @@ int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int
     try {
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, fmt::format("{}:{}", cofseq.name, iCs), deg_x, x, dx, r);
         SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, true, flag);
-        DeduceTrivialDiffsCofseq(flag);
-        DeduceTrivialDiffs(flag);
+        //DeduceTrivialDiffsCofseq(flag);
+        //DeduceTrivialDiffs(flag);
     }
     catch (SSException&) {
         bException = true;

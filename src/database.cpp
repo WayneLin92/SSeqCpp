@@ -50,7 +50,8 @@ Database::~Database()
     }
 }
 
-void myio::Database::open(std::string filename) {
+void myio::Database::open(std::string filename)
+{
     filename_ = std::move(filename);
     if (myio::FileExists(filename_))
         newFile_ = false;

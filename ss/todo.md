@@ -1,14 +1,16 @@
 # Adams
-* Add map of A(1)
-* Add CW(theta4, theta4)
+* Support map when multiple cells in one dimension or the starting cell is not [0]
+* Put direct sum in Adams.json
 * Brown-Gitler
 * Fast multiplication using extensions
 
-# SS
-* Debug why migrate_ss print for (0, n) for every n
-* Cache multiplications
+# ss
+* Add more cofseq
+* Improve rename_gen
+* smaller log.db
 * Cache contradictions
-* Smart deduce
+
+* Cache multiplications
 * Simplify pi generators and relations
 * Fast sync
 * Test differential monomial orderings for mod
@@ -20,3 +22,4 @@
 * Mark differentials that cannot be zero
 
 # Others
+* Chua d2

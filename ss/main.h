@@ -25,13 +25,14 @@ inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 enum class DeduceFlag : uint32_t
 {
     no_op = 0,
-    all_x = 1,               /* Deduce dx for all x including linear combinations */
-    xy = 2,                  /* Deduce d(xy) for even if dx is uncertain */
-    cofseq = 4,              /* Consider cofiber sequence */
-    depth_ss_cofseq = 4 + 8, /* Deduce cof inside ss */
-    pi = 16,                 /* Consider homotopy */
-    pi_def = 32,             /* Define generators in pi */
-    no_save = 64,            /* Do not save the database */
+    all_x = 1,                /* Deduce dx for all x including linear combinations */
+    xy = 2,                   /* Deduce d(xy) for even if dx is uncertain */
+    cofseq = 4,               /* Consider cofiber sequence */
+    pi = 8,                   /* Consider homotopy */
+    pi_def = 16,              /* Define generators in pi */
+    no_save = 32,             /* Do not save the database */
+    depth_ss_cofseq = 4 + 64, /* Deduce cof inside ss */
+    depth_ss_ss = 128,        /* Deduce cof inside ss */
 };
 
 inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
@@ -51,6 +52,15 @@ enum class EnumDef : int
     constraints = 2, /* The indeterminancies have some constraints */
 };
 
+/*
+ * [0]=d2[0]
+ * [1]=d2[?]
+ * [2]=d3[1]
+ * [3]=d3[?]
+ * ...
+ * d2[7]=[7]
+ * d2[8]=[?]
+ */
 struct Staircase
 {
     int2d basis;
@@ -521,15 +531,17 @@ public: /* Getters */
     static int GetFirstFixedLevelForPlot(const Staircases1d& nodes_ss, AdamsDeg deg);
     static int GetFirstFixedLevelForPlotCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg);
 
+public:
+    void SetDeduceList(const std::vector<std::string>& cws);
+
 private: /* Staircase */
     static size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level);
     static int GetMaxLevelWithND(const Staircase& sc);
     static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
 
 private: /* ss */
-    /* Return if deg has possibly a new dr target for r<=r_max
-     * Warning: This does check if ss[deg] is trivial
-     */
+    /* Warning: The following IsPoss functions do not check if ss[deg] exists */
+    /* Check if deg can be hit by dr for r<=r_max */
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
     static bool IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r_max);
     static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
@@ -560,7 +572,7 @@ private: /* ss */
     int NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const;
     int NextRTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
-    /*
+    /**
      * Return the largest r1<=r such that d_{r1} has a possible source
      *
      * Return -1 if not found

@@ -89,11 +89,11 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
 int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
 {
     int lineNum = 0;
+    std::string filenameLog;
     std::string diagram_name = "mix-hopf";
-    std::string filenameLog = "differentials-certain.txt";
 
-    myio::CmdArg1d args = {{"lineNum", &lineNum}};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}, {"filenameLog", &filenameLog}};
+    myio::CmdArg1d args = {{"filenameLog", &filenameLog}, {"lineNum", &lineNum}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -152,11 +152,11 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
 int main_add_diff_from_log(int argc, char** argv, int& index, const char* desc)
 {
     int lineNum = 0;
+    std::string filenameLog;
     std::string diagram_name = "mix-hopf";
-    std::string filenameLog = "differentials-certain.txt";
 
-    myio::CmdArg1d args = {{"lineNum", &lineNum}, {"diagram", &diagram_name}, {"filenameLog", &filenameLog}};
-    myio::CmdArg1d op_args = {};
+    myio::CmdArg1d args = {{"filenameLog", &filenameLog}, {"lineNum", &lineNum}};
+    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 

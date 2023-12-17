@@ -72,7 +72,7 @@ size_t Diagram::GetFirstIndexOfNullOnLevel(const Staircase& sc, int level)
         it = first;
         step = count / 2;
         std::advance(it, step);
-        if (*(sc.diffs.begin() + (it - sc.levels.begin())) != int1d{-1}) {
+        if (*(sc.diffs.begin() + (it - sc.levels.begin())) != NULL_DIFF) {
             first = ++it;
             count -= step + 1;
         }

@@ -52,7 +52,7 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
 }
 
 /* Deduce zero differentials for degree reason */
-int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)  //// TODO: should stop after two rounds. remove while(true).
+int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)
 {
     int old_count = 0, count = 0;
     while (true) {
@@ -243,10 +243,10 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
     try {
         const std::string& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
 
+        Logger::Checkpoint();
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
-        // DeduceTrivialDiffs(flag); // TODO: DeduceTrivial for only the current module
-        if (flag & DeduceFlag::depth_ss_cofseq) {
+        if (depth == 0 && flag & DeduceFlag::depth_ss_cofseq) {
             const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
             for (auto& ind_cof : ind_cofs) {
                 auto& cofseq = cofseqs_[ind_cof.iCof];
@@ -254,8 +254,16 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
                 DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
             }
         }
-        // else if (flag & DeduceFlag::cofseq)
-        // DeduceTrivialDiffsCofseq(flag);
+        if (depth == 0 && flag & DeduceFlag::depth_ss_ss) {
+            DeduceDiffs(deg_x.stem(), deg_x.stem(), depth + 1, flag);
+            if (tryY && !dx.empty()) {
+                auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
+                if (!IsNewDiff(nodes_ss, deg_x, x, {}, r)) {
+                    Logger::LogSSSSException(depth + 1, 0x311a);
+                    throw SSException(0x311a, "Equivalent to trivial differential");
+                }
+            }
+        }
     }
     catch (SSException&) {
         bException = true;
@@ -264,8 +272,10 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
 
     if (bException)
         return 1;
-    else
+    else {
+        Logger::RollBackToCheckpoint();
         return 0;
+    }
 }
 
 int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
@@ -375,10 +385,10 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 
         if (bNewDiff) {
             ++count;
-            //if (name == "Joker" && deg == AdamsDeg(12, 162 + 12) && x == int1d{0} && r == 3) {
-            //    fmt::print("Interupted\n");
-            //    //throw InteruptAndSaveException(0, "debug");
-            //}
+            /*if (deg == AdamsDeg(45, 197 + 45) && name == "S0" && x == int1d{3} && r == 3) {
+                 fmt::print("Interupted\n");
+                 throw InteruptAndSaveException(0, "debug");
+            }*/
             if (nd.r > 0)
                 Logger::LogDiff(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg, x, dx, r);
             else
@@ -405,12 +415,8 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 {
     int count = 0;
-    DeduceTrivialDiffs(flag);
-    if (flag & DeduceFlag::pi) {
-        /*int count_homotopy1 = 0;
-        SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, depth + 1);
-        DeduceTrivialExtensions(depth + 1);*/
-    }
+    if (depth == 0)
+        DeduceTrivialDiffs(flag);
 
     const size_t num_cw = rings_.size() + modules_.size();
     for (size_t iCw : deduce_list_spectra_) {
@@ -428,7 +434,8 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
 
             count += DeduceDiffs(iCw, deg, depth, flag);
         }
-        DeduceTrivialDiffs(flag);
+        if (depth == 0)
+            DeduceTrivialDiffs(flag);
     }
 
     return count;
@@ -483,41 +490,40 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 261;
     std::string diagram_name = "default";
-    std::vector<std::string> strFlags;
+    std::map<std::string, std::vector<std::string>> options;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &options}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     DeduceFlag flag = DeduceFlag::no_op;
-    for (auto& f : strFlags) {
-        if (f == "all_x")
-            flag = flag | DeduceFlag::all_x;
-        else if (f == "xy")
-            flag = flag | DeduceFlag::xy;
-        else if (f == "cofseq")
-            flag = flag | DeduceFlag::cofseq;
-        else if (f == "ss_cofseq")
-            flag = flag | DeduceFlag::depth_ss_cofseq;
-        else if (f == "pi")
-            flag = flag | DeduceFlag::pi;
-        else {
-            std::cout << "Not a supported flag: " << f << '\n';
-            return 100;
+    if (ut::has(options, "flags")) {
+        for (auto& f : options.at("flags")) {
+            if (f == "all_x")
+                flag = flag | DeduceFlag::all_x;
+            else if (f == "xy")
+                flag = flag | DeduceFlag::xy;
+            else if (f == "cofseq")
+                flag = flag | DeduceFlag::cofseq;
+            else if (f == "ss_cofseq")
+                flag = flag | DeduceFlag::depth_ss_cofseq;
+            else if (f == "ss_ss")
+                flag = flag | DeduceFlag::depth_ss_ss;
+            else if (f == "pi")
+                flag = flag | DeduceFlag::pi;
+            else {
+                std::cout << "Not a supported flag: " << f << '\n';
+                return 100;
+            }
         }
     }
 
     Diagram diagram(diagram_name, flag);
+    if (ut::has(options, "deduce"))
+        diagram.SetDeduceList(options.at("deduce"));
 
     int count = 0;
-    if (flag & DeduceFlag::pi) {
-        int count_homotopy1 = 0;
-        diagram.SyncHomotopy(AdamsDeg(0, 0), count, count_homotopy1, 0);
-        // diagram.DeduceTrivialExtensions(0);
-        //  if (flag & DeduceFlag::pi_exact)
-        //      diagram.DeduceExtensionsByExactness(0, 100, 0);
-    }
     try {
         count = diagram.DeduceDiffs(stem_min, stem_max, 0, flag);
     }

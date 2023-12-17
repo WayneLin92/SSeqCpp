@@ -283,15 +283,16 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 
 int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_cofseq {}\n", diagram_name);
     if (myio::UserConfirm()) {
+        //// Remove files
         Diagram diagram(diagram_name, DeduceFlag::cofseq);
         // int count = diagram.DeduceTrivialCofSeqDiffs();
         diagram.save(diagram_name, DeduceFlag::cofseq);

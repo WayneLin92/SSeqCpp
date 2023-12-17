@@ -435,6 +435,23 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
     // VersionConvertReorderRels();
 }
 
+void Diagram::SetDeduceList(const std::vector<std::string>& cws) {
+    deduce_list_spectra_.clear(); 
+    for (auto& name : cws) {
+        int index = GetRingIndexByName(name);
+        if (index != -1)
+            deduce_list_spectra_.push_back(index);
+        else {
+            index = GetModuleIndexByName(name);
+            if (index == -1) {
+                fmt::print("No such module: {}\n", name);
+                throw MyException(0x9d8572c0, "No such module");
+            }
+            deduce_list_spectra_.push_back(rings_.size() + (size_t)index);
+        }
+    }
+}
+
 void Diagram::save(std::string diagram_name, DeduceFlag flag)
 {
     using json = nlohmann::json;

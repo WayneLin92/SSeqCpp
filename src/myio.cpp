@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <sys/stat.h>
+#include <regex>
 
 /*********** FUNCTIONS **********/
 
@@ -13,6 +14,21 @@ namespace myio {
 std::string join(const std::string& sep, const string1d& strs)
 {
     return fmt::format("{}", fmt::join(strs.begin(), strs.end(), sep));
+}
+
+/* split comma-delimited string */
+std::vector<std::string> split(const std::string& str)
+{
+    std::vector<std::string> result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        std::string substr;
+        std::getline(ss, substr, ',');
+        result.push_back(substr);
+    }
+    return result;
 }
 
 /*
@@ -144,6 +160,26 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
             else
                 throw MyException(0x58f9c91a, "Multiple-string command-line argument should be the last");
         }
+        else if (std::holds_alternative<std::map<std::string, std::vector<std::string>>*>(args[i].value)) {
+            if (i == args.size() - 1) {
+                auto& strs = *std::get<std::map<std::string, std::vector<std::string>>*>(args[i].value);
+                std::regex key_value("(\\w+)=((?:\\w|,)+)"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
+                std::smatch match;
+                while (index < argc) {
+                    std::string arg(argv[index++]);
+                    if (std::regex_search(arg, match, key_value); match[0].matched)
+                        strs[match[1].str()] = split(match[2].str());
+                    else {
+                        fmt::print("Need key=value pairs as arguments\n");
+                        throw MyException(0x238f3e02, "Need key=value pairs as arguments");
+                    }
+                }
+            }
+            else {
+                fmt::print("Multiple-string command-line argument should be the last\n");
+                throw MyException(0x58f9c91a, "Multiple-string command-line argument should be the last");
+            }
+        }
         else
             return -1023674697;
     }
@@ -161,13 +197,6 @@ int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const ch
         return error;
     if (int error = LoadCmdArgs_(argc, argv, index, op_args, true))
         return error;
-
-    /*for (auto& x : args)
-        fmt::print("{}={} ", x.name, x.StrValue());
-    for (auto& x : op_args)
-        fmt::print("{}={} ", x.name, x.StrValue());
-    fmt::print("\n");
-    return 1;*/
 
     return 0;
 }

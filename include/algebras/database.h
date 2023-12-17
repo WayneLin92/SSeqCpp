@@ -171,7 +171,7 @@ protected:
 public:
     Database() = default;
     explicit Database(std::string filename);
-    ~Database();
+    virtual ~Database();
     void open(std::string filename);
     void disconnect();
 

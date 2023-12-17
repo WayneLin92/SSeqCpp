@@ -6,6 +6,7 @@ std::ofstream Logger::fout_main_;
 std::string Logger::cmd_;
 std::string Logger::line_;
 DbLog Logger::db_deduce_;
+int Logger::id_checkpoint_;
 
 std::string_view GetReason(EnumReason reason)
 {
@@ -14,7 +15,7 @@ std::string_view GetReason(EnumReason reason)
 
 /* -1: start time
  * -2: end time
- * -3: 
+ * -3:
  */
 void DbLog::InsertTag(int depth, const std::string& tag)
 {
@@ -24,20 +25,33 @@ void DbLog::InsertTag(int depth, const std::string& tag)
 
 void DbLog::InsertError(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, const std::string& tag)
 {
-    Statement stmt(*this, "INSERT INTO log (depth, reason, name, s, t, r, dx, tag) VALUES (?1, \"Error\", ?2, ?3, ?4, ?5, ?6, ?7);");
+    Statement stmt(*this, "INSERT INTO log (depth, reason, name, s, t, r, dx, tag) VALUES (?1, \"Error\", ?2, ?3, ?4, ?5, ?6, ?7)");
     stmt.bind_and_step(depth, name, deg_dx.s, deg_dx.t, r, myio::Serialize(dx), tag);
+}
+
+void DbLog::InsertError(int depth, const std::string& tag)
+{
+    Statement stmt(*this, "INSERT INTO log (depth, reason, tag) VALUES (?1, \"Error\", ?2)");
+    stmt.bind_and_step(depth, tag);
 }
 
 void DbLog::InsertDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)
 {
-    Statement stmt(*this, "INSERT INTO log (depth, reason, name, s, t, r, x, dx) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);");
+    Statement stmt(*this, "INSERT INTO log (depth, reason, name, s, t, r, x, dx) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)");
     stmt.bind_and_step(depth, std::string(GetReason(reason)), name, deg_x.s, deg_x.t, r, myio::Serialize(x), myio::Serialize(dx));
 }
 
 void DbLog::InsertNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r)
 {
-    Statement stmt(*this, "INSERT INTO log (depth, name, s, t, r, x) VALUES (?1, ?2, ?3, ?4, ?5, ?6);");
+    Statement stmt(*this, "INSERT INTO log (depth, name, s, t, r, x) VALUES (?1, ?2, ?3, ?4, ?5, ?6)");
     stmt.bind_and_step(depth, name, deg_x.s, deg_x.t, r, myio::Serialize(x));
+}
+
+void Logger::DeleteFromLog()
+{
+    db_deduce_.execute_cmd("DELETE FROM log");
+    db_deduce_.end_transaction();
+    db_deduce_.execute_cmd("VACUUM");
 }
 
 void Logger::SetOutMain(const char* filename)
@@ -57,8 +71,8 @@ void Logger::SetOutDeduce(const char* filename)
     if (!db_deduce_.is_open()) {
         db_deduce_.open(filename);
         db_deduce_.create_log();
-        db_deduce_.begin_transaction();
         db_deduce_.InsertTag(-1, cmd_);
+        db_deduce_.begin_transaction();
 
         cmd_.clear();
     }
@@ -66,7 +80,7 @@ void Logger::SetOutDeduce(const char* filename)
 
 std::string Logger::GetCmd(int argc, char** argv)
 {
-    return fmt::format("\nLogging start at {}\ncmd: {}\n", ut::get_time(), fmt::join(argv, argv + argc, " "));
+    return fmt::format("cmd: {}\nLogging start at {}", fmt::join(argv, argv + argc, " "), ut::get_time());
 }
 
 void Logger::LogCmd(int argc, char** argv)
@@ -90,6 +104,15 @@ void Logger::LogTime(const std::string& time)
     db_deduce_.InsertTag(-2, time);
 }
 
+void Logger::Checkpoint()
+{
+    id_checkpoint_ = db_deduce_.get_int("SELECT max(id) FROM log");
+}
+
+void Logger::RollBackToCheckpoint() {
+    db_deduce_.execute_cmd(fmt::format("DELETE FROM log WHERE id>{}", id_checkpoint_));
+}
+
 void Logger::LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code, alg::AdamsDeg deg_leibniz, const alg::int1d* a_leibniz)
 {
     if (depth == 0)
@@ -102,6 +125,12 @@ void Logger::LogSSException(int depth, const std::string& name, alg::AdamsDeg de
     else
         tag = fmt::format("{:#x}", code);
     db_deduce_.InsertError(depth, name, deg_dx, dx, r, tag);
+}
+
+void Logger::LogSSSSException(int depth, unsigned code)
+{
+    std::string tag = fmt::format("{:#x}", code);
+    db_deduce_.InsertError(depth, tag);
 }
 
 void Logger::LogDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)
