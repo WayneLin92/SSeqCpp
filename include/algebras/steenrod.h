@@ -32,8 +32,8 @@ inline constexpr size_t MMILNOR_E_BITS = 37; //和下面的一样是计算范围
 inline constexpr size_t MMILNOR_W_BITS = 9;
 inline constexpr uint64_t MMILNOR_ONE = uint64_t(1) << (MMILNOR_E_BITS - 1);
 namespace detail {
-    inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMilnorGenI()
-    {
+    inline constexpr std::array<uint8_t, MMILNOR_E_BITS> MMilnorGenI()  //大概是赋初始值？总之是某种setting up
+      {
         std::array<uint8_t, MMILNOR_E_BITS> result = {};
         size_t n = 0;
         for (size_t j = 1; j <= XI_MAX + 1; ++j)
