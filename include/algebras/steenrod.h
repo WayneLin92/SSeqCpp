@@ -28,7 +28,7 @@ inline constexpr int DEG_MAX = 383;      /* Maximum degree supported in A if `MM
 inline constexpr size_t XI_MAX = 8;      /* Support up to \xi_8 */
 inline constexpr size_t XI_MAX_MULT = 8; /* Multiplication support up to \xi_8 */
 
-inline constexpr size_t MMILNOR_E_BITS = 37;
+inline constexpr size_t MMILNOR_E_BITS = 37; //和下面的一样是计算范围？
 inline constexpr size_t MMILNOR_W_BITS = 9;
 inline constexpr uint64_t MMILNOR_ONE = uint64_t(1) << (MMILNOR_E_BITS - 1);
 namespace detail {
