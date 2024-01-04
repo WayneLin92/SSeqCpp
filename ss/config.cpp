@@ -195,7 +195,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         }
 
         /*# Load maps */
-        std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
+        std::regex is_map_regex("^map_AdamsSS_(\\w+?_(?:to|)_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
         std::smatch match;
 
         json json_maps = diagram.at("maps");

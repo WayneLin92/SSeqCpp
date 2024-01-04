@@ -38,5 +38,19 @@ $P_k^{k+m}$ is the Thom space of $k\lambda_m$ over $RP^m$.
 ## Massey products
 $g=\langle h_0h_3^2,h_0,h_1,h_2\rangle$
 
-## Programming
-Search for S0 nontrivial differentials. `^[^\s].*S0 \(.*=\[\d.*\]`
+
+## First connecting homomorphism
+Consider the cofiber sequence $X\to Y\to Z$ where $X$ is a subcomplex of $Y$.
+Assume that
+$$A^{n_1}\longleftarrow A^{m_1}\longleftarrow A^{l_1}$$
+$$A^{n_0}\longleftarrow A^{m_0}\longleftarrow A^{l_0}$$
+$$H^*(X)\longleftarrow H^*(Y)\longleftarrow H^*(Z)$$
+and $f\in I$.
+
+## Secondary Steenrod algebra
+$$Sq(R)Sq(S)=\sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}C(\xi_{m}^{2^k}\xi_n^{2^k}, Sq(R))C(\xi_{k+1}, Sq(S))+\sum_{\substack{R(X)=R\\S(X)=S}}b(X)Sq(T(X))$$
+
+We define $A: A\oplus \mathrm{ker}~ d^B\to A\{\tau\}$ by
+* $A(a, 2)=C(\xi_1, a)$
+* $A(a, Y_{k,l})=\sum_{i,j\ge 0} Z_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$
+* $A(a, rSq(R))=A(a, r)Sq(R)$

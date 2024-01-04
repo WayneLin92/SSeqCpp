@@ -20,8 +20,7 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
 }
 
 int res_P(const std::string& cw, int t_max, int stem_max);
-int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
-int Coh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
+int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
@@ -46,7 +45,7 @@ int main_res(int argc, char** argv, int& index, const char* desc)
     int1d v_degs;
     Mod1d rels;
     int d_max = std::min(t_max, stem_max);
-    if (int error = Coh(v_degs, rels, d_max, cw))
+    if (int error = GetCoh(v_degs, rels, d_max, cw))
         return -1;
 
     std::string db_filename = cw + "_Adams_res.db";
@@ -126,8 +125,8 @@ int main_map_coh(int argc, char** argv, int& index, const char* desc)
     int sus = 0, fil = 0;
     std::string from, to;
     SetCohMap(cw1, cw2, from, to, images, sus, fil);
-    std::string db_filename = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string tablename = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    std::string db_filename = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string tablename = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
     SetDbCohMap(db_filename, tablename, from, to, images, sus, fil);
 
     return 0;

@@ -3,6 +3,8 @@
 #include <fmt/core.h>
 #include <regex>
 
+using json = nlohmann::json;
+
 /****************************************************
  *                   S0
  ***************************************************/
@@ -354,11 +356,20 @@ void Coh_Fphi_n(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels
         rels.push_back(gb.data()[i]);
 }
 
-int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int t_max, const std::string& name)
+struct Cohomology
+{
+    int1d v_degs;
+    Mod1d rels;
+    Mod1d cells;
+    int1d min_rels;
+    std::map<int, int> num_cells;     /* num_cells[d] is the number of d-cells */
+    std::map<int, int> indices_cells; /* indices_cells[d] is the first index of d-cell */
+};
+
+int GetCohFromJson(const json& js, const std::string& name, int t_max, Cohomology& coh)
 {
     if (!myio::FileExists("Adams.json"))
         return -1;
-    auto js = myio::load_json("Adams.json");
     try {
         auto& cws = js.at("CW_complexes");
         if (!cws.contains(name)) {
@@ -366,70 +377,58 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
         }
         auto& cw_json = cws.at(name);
         if (!cw_json.contains("operations")) {
-            fmt::print("missing key: operations\n");
+            fmt::print("json missing key: operations\n");
             return -2;
         }
         int1d gen_degs;
-        std::map<int, int> cells;
-        std::map<int, int> indices;
         int index = 0;
+
+        /* Set coh.num_cells and coh.indices_cells */
         for (auto& c : cw_json.at("cells")) {
             int d = c.get<int>();
             gen_degs.push_back(d);
-            ++cells[d];
-            if (!ut::has(indices, d))
-                indices[d] = index;
+            ++coh.num_cells[d];
+            if (!ut::has(coh.indices_cells, d))
+                coh.indices_cells[d] = index;
             ++index;
         }
         int1d cells_gen;
         for (auto& c : cw_json.at("cells_gen")) {
-            if (c.is_number()) {
-                int d = c.get<int>();
-                cells_gen.push_back(indices.at(d));
-            }
-            else {
-                int1d arr = c.get<std::vector<int>>();
-                if (arr.size() < 2) {
-                    fmt::print("Invalid cells_gen\n");
-                    return -3;
-                }
-                int d = arr[0];
-                for (size_t i = 1; i < arr.size(); ++i)
-                    cells_gen.push_back(indices.at(d) + arr[i]);
-            }
+            int d = c.get<int>();
+            cells_gen.push_back(d);
         }
         std::map<int, std::map<int, int1d>> ops;
         for (auto& op : cw_json.at("operations")) {
-            int c0, v0;
+            int c0, i0;
             if (op[0].is_number()) {
                 c0 = op[0].get<int>();
-                v0 = indices.at(c0);
+                i0 = coh.indices_cells.at(c0);
             }
             else {
                 int1d arr = op[0].get<std::vector<int>>();
                 c0 = arr[0];
-                MyException::Assert(arr[1] < cells.at(c0), "arr[1] < cells.at(c0)");
-                v0 = indices.at(c0) + arr[1];
+                MyException::Assert(arr[1] < coh.num_cells.at(c0), "arr[1] < cells.at(c0)");
+                i0 = coh.indices_cells.at(c0) + arr[1];
             }
             int c1;
-            int1d v1s;
+            int1d i1s;
             if (op[1].is_number()) {
                 c1 = op[1].get<int>();
-                v1s.push_back(indices.at(c1));
+                i1s.push_back(coh.indices_cells.at(c1));
             }
             else {
                 int1d arr = op[1].get<std::vector<int>>();
                 c1 = arr[0];
                 for (size_t i = 1; i < arr.size(); ++i) {
-                    MyException::Assert(arr[i] < cells.at(c1), "arr[i] < cells.at(c1)");
-                    v1s.push_back(indices.at(c1) + arr[i]);
+                    MyException::Assert(arr[i] < coh.num_cells.at(c1), "arr[i] < cells.at(c1)");
+                    i1s.push_back(coh.indices_cells.at(c1) + arr[i]);
                 }
             }
 
             int n = c1 - c0;
             MyException::Assert(!(n & (n - 1)), "n is a power of 2");
-            for (int v1 : v1s)
-                ops[v0][n].push_back(v1);
+            for (int i1 : i1s)
+                ops[i0][n].push_back(i1);
         }
 
         Mod1d rels2;
@@ -445,23 +444,21 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
         }
 
         Groebner gb(t_max, {}, gen_degs);
-        min_rels.clear();
-        gb.AddRels(rels2, t_max, min_rels);
-        gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+        gb.AddRels(rels2, t_max, coh.min_rels);
+        gb.MinimizeOrderedGensRels(coh.cells, coh.min_rels);
 
         int1d cells_gen_v2;
-        for (size_t i = 0; i < cell_reduced.size(); ++i)
-            if (cell_reduced[i].data.size() == 1 && cell_reduced[i].GetLead().deg_m() == 0)
+        for (size_t i = 0; i < coh.cells.size(); ++i)
+            if (coh.cells[i].data.size() == 1 && coh.cells[i].GetLead().deg_m() == 0)
                 cells_gen_v2.push_back(gen_degs[i]);
         ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
         ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
         MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
 
-        v_degs = gb.v_degs();
-        ut::RemoveIf(v_degs, [t_max](int i) { return i > t_max; });
-        rels.clear();
-        for (int i : min_rels)
-            rels.push_back(gb.data()[i]);
+        coh.v_degs = gb.v_degs();
+        ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
+        for (int i : coh.min_rels)
+            coh.rels.push_back(gb.data()[i]);
     }
     catch (nlohmann::detail::exception& e) {
         fmt::print("Error({:#x}) - {}\n", e.id, e.what());
@@ -470,11 +467,15 @@ int CohFromJsonV2(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_re
     return 0;
 }
 
-int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name)
+int GetCohFromJson(const std::string& name, int t_max, int1d& v_degs, Mod1d& rels)
 {
-    Mod1d cell_reduced;
-    int1d min_rels;
-    return CohFromJsonV2(v_degs, rels, cell_reduced, min_rels, t_max, name);
+    Cohomology coh;
+    auto js = myio::load_json("Adams.json");
+    if (int error = GetCohFromJson(js, name, t_max, coh))
+        return error;
+    v_degs = std::move(coh.v_degs);
+    rels = std::move(coh.rels);
+    return 0;
 }
 
 /****************************************************
@@ -670,7 +671,7 @@ void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
     return;
 }
 
-int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
+int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
 {
     std::smatch match;
     if (cw == "S0")
@@ -711,16 +712,35 @@ int Coh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
     else if (cw == "M") {
         Coh_M(v_degs, rels, d_max);
     }
-    else if (int error = CohFromJson(v_degs, rels, d_max, cw)) {
+    else if (int error = GetCohFromJson(cw, d_max, v_degs, rels)) {
         fmt::print("Error({}) - Unsupported arugment cw={}\n", error, cw);
         return -1;
     }
     return 0;
 }
 
+Mod cell2Mod(const Cohomology& coh, const json& c)
+{
+    Mod result;
+    if (c.is_number()) {
+        int i = coh.indices_cells.at(c.get<int>());
+        result = coh.cells[i];
+    }
+    else {
+        int1d arr = c.get<std::vector<int>>();
+        if (!arr.empty()) {
+            int d = arr[0];
+            for (size_t i = 1; i < arr.size(); ++i)
+                result += coh.cells[size_t(coh.indices_cells.at(d) + arr[i])];
+        }
+    }
+    return result;
+}
+
 int MapCohFromJson(const std::string& name, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
 {
     auto js = myio::load_json("Adams.json");
+    const int t_max = 265;
     try {
         auto& cws = js.at("CW_complexes");
         auto& maps = js.at("maps");
@@ -736,74 +756,63 @@ int MapCohFromJson(const std::string& name, std::string& from, std::string& to, 
             int1d cells_gen_to;
             for (auto& c : cws.at(to).at("cells_gen"))
                 cells_gen_to.push_back(c.get<int>());
-            int1d cells_gen_from;
-            for (auto& c : cws.at(from).at("cells_gen"))
-                cells_gen_from.push_back(c.get<int>());
+            Cohomology coh_from;
+            GetCohFromJson(js, from, t_max, coh_from);
+
             auto& images_json = map_json.at("images");
             if (images_json.size() != cells_gen_to.size())
                 return -2;
-            for (size_t i = 0; i < images_json.size(); ++i) {
-                int1d im_array;
-                for (auto& im_i : images_json[i])
-                    im_array.push_back(im_i.get<int>());
-                if (im_array.empty())
-                    images.push_back({});
-                else {
-                    int cell = im_array.back();
-                    if (sus != cell - cells_gen_to[i])
-                        return -3;
-                    int v = ut::IndexOf(cells_gen_from, im_array[0]);
-                    if (v == -1)
-                        return -4;
-                    Mod image = MMod({}, v);
-                    for (size_t j = 1; j < im_array.size(); ++j) {
-                        int n = im_array[j] - im_array[j - 1];
-                        if ((n & (n - 1)) != 0)
-                            return -5;
-                        image = MMilnor::Sq(n) * image;
-                    }
-                    images.push_back(std::move(image));
-                }
-            }
+            for (size_t i = 0; i < images_json.size(); ++i)
+                images.push_back(cell2Mod(coh_from, images_json[i]));
         }
         else if (map_json.contains("total")) {
             fil = 1;
             std::string total = map_json.at("total");
-            const int t_max = 256;
-            int1d v_degs_to;
-            Mod1d rels_to;
-            Mod1d cell_reduced_to;
-            int1d min_rels_to;
-            CohFromJsonV2(v_degs_to, rels_to, cell_reduced_to, min_rels_to, t_max, to);
-            Groebner gb_to(t_max, {}, v_degs_to);
-            gb_to.AddRels(rels_to, t_max, min_rels_to);
 
-            int1d v_degs_from;
-            Mod1d rels_from;
-            Mod1d cells_reduced_from;
-            int1d min_rels_from;
-            CohFromJsonV2(v_degs_from, rels_from, cells_reduced_from, min_rels_from, t_max, from);
+            Cohomology coh_to;
+            GetCohFromJson(js, to, t_max, coh_to);
+            Groebner gb_to(t_max, {}, coh_to.v_degs);
+            gb_to.AddRels(coh_to.rels, t_max, coh_to.min_rels);
 
-            int1d v_degs;
-            Mod1d rels;
-            Coh(v_degs, rels, t_max, total);
-            Groebner gb(t_max, {}, v_degs);
-            gb.AddRels(rels, t_max);
+            Cohomology coh_from;
+            GetCohFromJson(js, from, t_max, coh_from);
+
+            Cohomology coh_total;
+            GetCohFromJson(js, total, t_max, coh_total);
+            Groebner gb(t_max, {}, coh_total.v_degs);
+            gb.AddRels(coh_total.rels, t_max);
 
             int1d cells_from;
             for (auto& c : cws.at(from).at("cells"))
                 cells_from.push_back(c.get<int>());
 
-            for (int i : min_rels_to) {
-                auto& rel = gb_to.data()[i];
-                if (gb.Reduce(rel)) {  ////
-                    int rel_deg = rel.GetLead().deg_m() + v_degs_to[rel.GetLead().v()];
-                    int index = ut::IndexOf(cells_from, rel_deg + sus - 1); ////
-                    if (index == -1)
-                        return -6;
-                    if (index >= (int)cells_reduced_from.size())
-                        return -7;
-                    images.push_back(cells_reduced_from[index]);
+            Mod1d sub_lift;
+            if (map_json.contains("sub_lift"))
+                for (auto& i : map_json.at("sub_lift"))
+                    sub_lift.push_back(steenrod::MMod({}, i.get<int>()));
+            Mod1d quo_lift;
+            if (map_json.contains("quo_lift"))
+                for (auto& i : map_json.at("quo_lift"))
+                    quo_lift.push_back(steenrod::MMod({}, i.get<int>()));
+
+            for (int i : coh_to.min_rels) {
+                steenrod::Mod rel = gb_to.data()[i];
+                rel = sub_lift.empty() ? rel : subs(rel, sub_lift);
+                rel = gb.Reduce(std::move(rel));
+                if (rel) {
+                    if (quo_lift.empty()) {
+                        int rel_deg = rel.GetLead().deg_m() + coh_to.v_degs[rel.GetLead().v()];
+                        int index = ut::IndexOf(cells_from, rel_deg + sus - 1);  ////
+                        if (index == -1)
+                            return -6;
+                        if (index >= (int)coh_from.cells.size())
+                            return -7;
+                        images.push_back(coh_to.cells[index]);
+                    }
+                    else {
+                        rel = quo_lift.empty() ? rel : subs(rel, quo_lift);
+                        images.push_back(std::move(rel));
+                    }
                 }
                 else
                     images.push_back({});
@@ -813,9 +822,11 @@ int MapCohFromJson(const std::string& name, std::string& from, std::string& to, 
             return -8;
     }
     catch (nlohmann::detail::exception& e) {
-        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
+        fmt::print("json error: {:#x} - {}\n", e.id, e.what());
         throw e;
     }
+    /*catch (MyException&) {
+    }*/
     return 0;
 }
 
@@ -937,7 +948,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             return;
         }
     }
-    std::string name = fmt::format("{}_to_{}", cw1, cw2);
+    std::string name = fmt::format("{}__{}", cw1, cw2);
     if (int error = MapCohFromJson(name, from, to, images, sus, fil)) {
         fmt::print("Error({}) - map not supported.\n", error);
         throw MyException(0x8636b4b2, "map not supported.");

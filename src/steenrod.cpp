@@ -23,6 +23,9 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
     if (R[N - 1] & S[N - 1])
         return;
 
+    /* XR[i,j], XS[i,j] controls the upper bound of X[i,j] when we consider R(X)=R and S(X)=S.
+     * XT[i,j] controls the upper bound of X[i,j] binary digits.
+     */
     std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT;
     for (size_t i = 1; i <= N; ++i)
         XR[(N - i) * (N + 1) + i] = R[i - 1];
@@ -44,6 +47,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
             const size_t index_left = i * (N + 1) + j - 1;
             if (i == 1) {
                 if (decrease) {
+                    /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
                     X[index] = (X[index] - 1) & ~(XT[index] | X[index_up_right]);
                     decrease = false;
                 }
@@ -91,6 +95,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
             }
         }
         if (move_right) {
+            /* Find the next nonzero element. */
             size_t index = i * (N + 1) + j;
             do {
                 if (i + j < N) {

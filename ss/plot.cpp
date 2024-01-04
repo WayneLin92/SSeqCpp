@@ -218,7 +218,7 @@ void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const
     }
 }
 
-void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, int forStrl, bool forCofseq = false)
+void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const std::map<AdamsDeg, int>& deg2id, const AdamsDeg1d& degs_factors, const Poly1d& bjs, const int1d& indices_factors, nlohmann::json& js, int forStrl, bool forCofseq)
 {
     using json = nlohmann::json;
     size_t first_PC = 0;
@@ -242,7 +242,7 @@ void plotRingStrLines(const Staircases1d& nodes_ss, const RingSp& ring, const st
 
                 prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
 
-                auto& prod_json = json::object();
+                auto prod_json = json::object();
                 prod_json["p"] = json::array();
                 for (size_t k = 0; k < prod.size(); ++k)
                     prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
@@ -277,7 +277,7 @@ void plotModuleStrLines(const Staircases1d& nodes_ss, const ModSp& mod, const st
                 }
                 prod = lina::GetInvImage(nodes_ss.front().at(deg_prod).basis, prod);
 
-                auto& prod_json = json::object();
+                auto prod_json = json::object();
                 prod_json["p"] = json::array();
                 for (size_t k = 0; k < prod.size(); ++k)
                     prod_json["p"].push_back(deg2id.at(deg_prod) + prod[k]);
@@ -418,9 +418,9 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         }
 
         if (isRing)
-            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 1);
+            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 1, false);
         else
-            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 1);
+            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 1, false);
 
         // Products
         degs_factors.clear();
@@ -435,9 +435,9 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         }
 
         if (isRing)
-            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 0);
+            plotRingStrLines(nodes_ss, ring, deg2id, degs_factors, bjs, indices_factors, js, 0, false);
         else
-            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 0);
+            plotModuleStrLines(nodes_ss, mods[iMod], deg2id, degs_factors, bjs, indices_factors, js, 0, false);
 
         /* diff lines */
         js["diffs"] = json::array();
@@ -608,7 +608,8 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
       "ss_groups": [
         {
           "bullets": {"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0},
-          "prods": {"i": 0, "j"(factor): 1, "p": [0, 1], "l"(is structure line): 0},
+          "degs_factors": [[0, 1], [1, 1]],
+          "prods": {"0": [{"p": [0, 1], "l"(is structure line): 0}]},
           "diffs": {"i": 0, "j": [0, 1], "r": 2},
           "nds": {"i": 0, "r": 2}
         },
@@ -640,7 +641,8 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
             plotBullets(cofseq, iCs, diagram, deg2id_ss, jsi);
 
             /* struct lines */
-            jsi["prods"] = json::array();
+            jsi["degs_factors"] = json::array();
+            jsi["prods"] = json::object();
             AdamsDeg1d degs_factors;
             Poly1d bjs;
             int1d indices_factors;
@@ -661,9 +663,9 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
             }
 
             if (cofseq.isRing[iCs])
-                plotRingStrLines(nodes_cofseq, rings[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, true);
+                plotRingStrLines(nodes_cofseq, rings[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, 1, true);
             else
-                plotModuleStrLines(nodes_cofseq, mods[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, true);
+                plotModuleStrLines(nodes_cofseq, mods[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, indices_factors, jsi, 1, true);
 
             /* diff lines */
             jsi["diffs"] = json::array();

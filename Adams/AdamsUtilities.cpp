@@ -76,8 +76,8 @@ void UtStatus(const std::string& dir, bool sorted)
     std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                     /* match example: C2h4_Adams_res.db */
     std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
     std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+__\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, int> timestamps_spectra;
@@ -196,7 +196,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
 void UtVerifyStatus(const std::string& dir, bool sorted)
 {
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, int> timestamps_maps;
@@ -262,8 +262,8 @@ void UtExport(const std::string& dir)
 {
     std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
     std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+__\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, std::array<int, 2>> table_spectra, table_maps;
@@ -314,7 +314,7 @@ void UtExport(const std::string& dir)
     for (auto& cw : names_spectra)
         fmt::print("./Adams export_mod {} S0 200\n", cw);
     for (auto& map : names_maps)
-        fmt::print("./Adams export_map {} 200\n", std::regex_replace(map, std::regex("_to_"), " "));
+        fmt::print("./Adams export_map {} 200\n", std::regex_replace(map, std::regex("__"), " "));
     fmt::print("\nrm -r download\nmkdir download\n");
     fmt::print("cp ");
     for (auto& cw : names_spectra)
@@ -346,6 +346,12 @@ void UtRename(const std::string& old, const std::string& new_)
             auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
             for (const auto& table : tables)
                 fmt::print("  {}\n", table);
+            if (db.has_table("version")) {
+                auto names = db.get_column_str("version", "name", fmt::format("WHERE INSTR(value,\"{}\")", old));
+                auto values = db.get_column_str("version", "value", fmt::format("WHERE INSTR(value,\"{}\")", old));
+                for (size_t i = 0; i < names.size(); ++i)
+                    fmt::print("  version: {}={}\n", names[i], values[i]);
+            }
         }
     }
     if (myio::UserConfirm()) {
@@ -395,7 +401,7 @@ void UtAppendTmaxToFilename(const std::string& dir)
 void UtPrintSSJson(const std::string& dir)
 {
     std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");              /* match example: C2h4_AdamsSS_t100.db */
-    std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)_to_(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)__(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match, match1;
 
     std::map<std::string, std::array<int, 2>> table_maps; /* name -> [t_max, index] */
@@ -449,7 +455,7 @@ void UtPrintSSJson(const std::string& dir)
 
 void UtAddFromTo(const std::string& dir)
 {
-    std::regex is_map_regex("^map_Adams(?:_res|SS)_(\\w+)_to_(\\w+?)(?:_t\\d+|).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_regex("^map_Adams(?:_res|SS)_(\\w+)__(\\w+?)(?:_t\\d+|).db$"); /* match example: map_Adams_res_C2__S0.db */
 
     std::vector<std::string> matched_filenames;
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {

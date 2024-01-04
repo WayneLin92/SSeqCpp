@@ -24,6 +24,8 @@ int main_status(int, char**, int&, const char*);
 int main_verify_status(int, char**, int&, const char*);
 int main_ut(int, char**, int&, const char*);
 
+int main_scheduler(int, char**, int&, const char*);
+
 int main(int argc, char** argv)
 {
     bench::Timer timer;
@@ -43,6 +45,7 @@ int main(int argc, char** argv)
         {"status", "Display the computation status in the current directory", main_status},
         {"verify_status", "Display the verification status in the current directory", main_verify_status},
         {"ut", "Utilities", main_ut},
+        {"scheduler", "scheduler", main_scheduler},
     };
     int index = 1;
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))

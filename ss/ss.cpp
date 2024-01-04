@@ -303,7 +303,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
         if (!dx.empty()) {
             if (!IsPossTgt(nodes_ss, deg_dx, r)) {
                 if (nodes_ss.size() == 2)
-                    std::cout << "debug\n";
+                    fmt::print("Contradiction\n");
                 Logger::LogSSException(int(nodes_ss.size() - 2), name, deg_dx, dx, r, 0x7U, deg_leibniz_, a_leibniz_);
                 throw SSException(0x7U, "No source for the image.");
             }

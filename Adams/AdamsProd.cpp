@@ -690,8 +690,8 @@ void SetDbCohMap(const std::string& db_map, const std::string& table_map, const 
  */
 void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc, int stem_trunc)
 {
-    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    std::string db_map = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     DbAdamsResMap dbMap(db_map);
     int old_t_max_map = get_db_t_max(dbMap);
