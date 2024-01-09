@@ -54,3 +54,9 @@ We define $A: A\oplus \mathrm{ker}~ d^B\to A\{\tau\}$ by
 * $A(a, 2)=C(\xi_1, a)$
 * $A(a, Y_{k,l})=\sum_{i,j\ge 0} Z_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$
 * $A(a, rSq(R))=A(a, r)Sq(R)$
+
+# others
+## Replace
+`(./Adams res (\w+) )180(": \{\n)(.*)`
+`$1180$3$4, "pre": ["cp $2_AdamsSS.db AdamsSS/"],`
+
