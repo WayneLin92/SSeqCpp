@@ -38,6 +38,7 @@
         "*.excalidraw": "json",
         "*.excalidrawlib": "json",
         ".gitignore": "plaintext",
+        "*.json": "jsonc",
         "__bit_reference": "cpp",
         "__config": "cpp",
         "__debug": "cpp",
@@ -145,6 +146,12 @@
         "span": "cpp",
         "typeindex": "cpp",
         "valarray": "cpp",
-        "__std_stream": "cpp"
+        "__std_stream": "cpp",
+        "*.tcc": "cpp",
+        "codecvt": "cpp",
+        "memory_resource": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "cinttypes": "cpp"
     }
 }

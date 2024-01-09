@@ -84,8 +84,8 @@ public:
  */
 void verify_map(const std::string& cw1, const std::string& cw2)
 {
-    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    std::string db_map = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     DbAdamsVerifyLoader dbMap(db_map);
     int t_max_map = get_db_t_max(dbMap);
@@ -111,7 +111,7 @@ void verify_map(const std::string& cw1, const std::string& cw2)
 
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-    std::map<AdamsDegV2, Mod1d> diffs_cw2;              /* diffs[deg] is the list of differentials of v in deg */
+    std::map<AdamsDegV2, Mod1d> diffs_cw2;          /* diffs[deg] is the list of differentials of v in deg */
     int t_max_cw2;
     {
         DbAdamsResLoader dbResCw2(db_cw2);

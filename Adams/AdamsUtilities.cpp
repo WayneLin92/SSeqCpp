@@ -15,22 +15,30 @@ void create_db_version(const myio::Database& db)
     db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
 }
 
-int get_db_t_max(const myio::Database& db)
+int get_db_metadata(const myio::Database& db, std::string_view key)
 {
     try {
         if (db.has_table("version")) {
-            try {
-                return db.get_int("select value from version where id=817812698");
-            }
-            catch (MyException&) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
+                return db.get_int(fmt::format("select value from version where name=\"{}\"", key));
+            else
                 return -1;
-            }
         }
     }
-    catch (MyException&) {
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
         return -3;
     }
     return -2;
+}
+
+int get_db_t_max(const myio::Database& db)
+{
+    return get_db_metadata(db, "t_max");
+}
+
+int get_db_timestamp(const myio::Database& db)
+{
+    return get_db_metadata(db, "timestamp");
 }
 
 void set_db_t_max(const myio::Database& db, int t_max)
@@ -45,39 +53,13 @@ void set_db_time(const myio::Database& db)
     stmt.step_and_reset();
 }
 
-class DbAdamsUt : public myio::Database
-{
-    using Statement = myio::Statement;
-
-public:
-    explicit DbAdamsUt(const std::string& filename) : Database(filename) {}
-
-    int get_timestamp()
-    {
-        try {
-            if (has_table("version")) {
-                try {
-                    return get_int("select value from version where id=1954841564");
-                }
-                catch (MyException&) {
-                    return -1;
-                }
-            }
-        }
-        catch (MyException&) {
-            return -3;
-        }
-        return -2;
-    }
-};
-
 void UtStatus(const std::string& dir, bool sorted)
 {
-    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                     /* match example: C2h4_Adams_res.db */
-    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+__\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
+    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                          /* match example: C2h4_Adams_res.db */
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");                /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                              /* match example: C2h4_AdamsSS.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_(?:to|)_\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_(?:to|)_\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, int> timestamps_spectra;
@@ -89,7 +71,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
     int current_timestamp;
     {
-        DbAdamsUt db("");
+        myio::Database db("");
         current_timestamp = db.get_int("SELECT unixepoch();");
     }
 
@@ -117,9 +99,9 @@ void UtStatus(const std::string& dir, bool sorted)
                 index = 2;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_spectra[name][index] = fmt::format("{}", get_db_t_max(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_spectra[name] = std::max(timestamps_spectra[name], timestamp);
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_spectra[name][index] = green;
@@ -140,9 +122,9 @@ void UtStatus(const std::string& dir, bool sorted)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][index] = fmt::format("{}", get_db_t_max(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_maps[name] = std::max(timestamps_maps[name], timestamp);
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_maps[name][index] = green;
@@ -205,7 +187,7 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
 
     int current_timestamp;
     {
-        DbAdamsUt db("");
+        myio::Database db("");
         current_timestamp = db.get_int("SELECT unixepoch();");
     }
 
@@ -223,10 +205,10 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
                 name = match[1].str();
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][0] = fmt::format("{}", get_db_t_max(db));
                 table_maps[name][1] = fmt::format("{}", get_db_t_verified(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_maps[name] = timestamp;
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_maps[name][1] = green;
@@ -260,8 +242,8 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
 
 void UtExport(const std::string& dir)
 {
-    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");         /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                       /* match example: C2h4_AdamsSS.db */
     std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
     std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+__\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
@@ -284,7 +266,7 @@ void UtExport(const std::string& dir)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_spectra[name][index] = get_db_t_max(db);
             }
         }
@@ -301,7 +283,7 @@ void UtExport(const std::string& dir)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][index] = get_db_t_max(db);
             }
         }
@@ -342,7 +324,7 @@ void UtRename(const std::string& old, const std::string& new_)
     for (const auto& fn : matched_filenames) {
         fmt::print("{}\n", fn);
         if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
-            DbAdamsUt db(fn);
+            myio::Database db(fn);
             auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
             for (const auto& table : tables)
                 fmt::print("  {}\n", table);
@@ -364,7 +346,7 @@ void UtRename(const std::string& old, const std::string& new_)
             fmt::print("{} --> {}\n", fn, fn_new);
 
             if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
-                DbAdamsUt db(fn_new);
+                myio::Database db(fn_new);
                 auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
                 for (const auto& table : tables) {
                     std::string table_new = std::regex_replace(table, std::regex(old), new_);
@@ -386,7 +368,7 @@ void UtAppendTmaxToFilename(const std::string& dir)
         std::string filename = entry.path().filename().string();
         if (std::regex_search(filename, match, is_AdamsSS_db_regex); match[0].matched) {
             old.push_back(dir + "/" + filename);
-            DbAdamsUt db(dir + "/" + filename);
+            myio::Database db(dir + "/" + filename);
             int t_max = get_db_t_max(db);
             new_.push_back(dir + "/" + fmt::format("{}_t{}.db", match[1].str(), t_max));
         }
@@ -400,7 +382,7 @@ void UtAppendTmaxToFilename(const std::string& dir)
 
 void UtPrintSSJson(const std::string& dir)
 {
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");              /* match example: C2h4_AdamsSS_t100.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");            /* match example: C2h4_AdamsSS_t100.db */
     std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)__(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match, match1;
 
@@ -418,7 +400,7 @@ void UtPrintSSJson(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
             try {
-                DbAdamsUt db(dir + "/" + filename);
+                myio::Database db(dir + "/" + filename);
                 int t_max = db.get_int("select value from version where id=817812698");
                 auto from = db.get_str("select value from version where id=446174262");
                 auto to = db.get_str("select value from version where id=1713085477");
@@ -463,7 +445,7 @@ void UtAddFromTo(const std::string& dir)
         std::smatch match;
 
         if (std::regex_search(filename, match, is_map_regex); match[0].matched) {
-            DbAdamsUt db(dir + "/" + filename);
+            myio::Database db(dir + "/" + filename);
             if (db.has_table("version")) {
                 try {
                     db.get_str("select value from version where id=446174262"); /* from */
@@ -482,7 +464,7 @@ void UtAddFromTo(const std::string& dir)
 void UtAddTMax(const std::string& db_filename, int t_max)
 {
     myio::AssertFileExists(db_filename);
-    DbAdamsUt db(db_filename);
+    myio::Database db(db_filename);
     if (!db.has_table("version"))
         create_db_version(db);
     set_db_t_max(db, t_max);

@@ -368,8 +368,6 @@ struct Cohomology
 
 int GetCohFromJson(const json& js, const std::string& name, int t_max, Cohomology& coh)
 {
-    if (!myio::FileExists("Adams.json"))
-        return -1;
     try {
         auto& cws = js.at("CW_complexes");
         if (!cws.contains(name)) {

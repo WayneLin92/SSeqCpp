@@ -4,8 +4,8 @@
 #include <fmt/ranges.h>
 #include <fstream>
 #include <iostream>
-#include <sys/stat.h>
 #include <regex>
+#include <sys/stat.h>
 
 /*********** FUNCTIONS **********/
 
@@ -17,7 +17,7 @@ std::string join(const std::string& sep, const string1d& strs)
 }
 
 /* split comma-delimited string */
-std::vector<std::string> split(const std::string& str)
+std::vector<std::string> split(const std::string& str, char delim)
 {
     std::vector<std::string> result;
     if (str.empty())
@@ -25,7 +25,7 @@ std::vector<std::string> split(const std::string& str)
     std::stringstream ss(str);
     while (ss.good()) {
         std::string substr;
-        std::getline(ss, substr, ',');
+        std::getline(ss, substr, delim);
         result.push_back(substr);
     }
     return result;

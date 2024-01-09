@@ -7,7 +7,7 @@
         [0, [1, 0, 1]], // [a, b] means that Sq^{b-a}a = b. a=[d, i, j] mean that a = c_i + c_j in degree d
         [0, 2],
         [[1, 0], 2],
-        [[1, 1], 2] 
+        [[1, 1], 2]
       ]
     },
     "CW_sigmasq_sigmasq": {
@@ -24,6 +24,8 @@
       "cells": [0],
       "operations": []
     },
+    
+    // ------------- hopf ----------------
     "C2": {
       "cells_gen": [0],
       "cells": [0, 1],
@@ -52,6 +54,8 @@
         [0, 8]
       ]
     },
+
+    // ---------- theta --------------
     "C2h4": {
       "cells_gen": [0],
       "cells": [0, 1, 16],
@@ -100,8 +104,35 @@
         [63, 64]
       ]
     },
+    "CW_sigmasq_2_sigmasq": {
+      "cells_gen": [0, 15],
+      "cells": [0, 15, 16, 31],
+      "operations": [
+        [0, 16],
+        [15, 16],
+        [15, 31]
+      ]
+    },
+    "CW_theta4_2_theta4": {
+      "cells_gen": [0, 31],
+      "cells": [0, 31, 32, 63],
+      "operations": [
+        [0, 32],
+        [31, 32],
+        [31, 63]
+      ]
+    },
+    "CW_theta5_2_theta5": {
+      "cells_gen": [0, 63],
+      "cells": [0, 63, 64, 127],
+      "operations": [
+        [0, 64],
+        [63, 64],
+        [63, 127]
+      ]
+    },
 
-    "#-------------- Smash Products -----------------": {},
+    //-------------- Smash Products -----------------
     "C2_Ceta": {
       "cells_gen": [0],
       "cells": [0, 1, 2, 3],
@@ -163,7 +194,7 @@
       ]
     },
 
-    "#-------------- Line shape -----------------": {},
+    //-------------- linear -----------------
     "CW_2_eta": {
       "cells_gen": [0],
       "cells": [0, 1, 3],
@@ -268,35 +299,29 @@
         [14, 15]
       ]
     },
-    "CW_sigmasq_2_sigmasq": {
-      "cells_gen": [0, 15],
-      "cells": [0, 15, 16, 31],
+    "CW_sigma_nu_eta_2_etasigma": {
+      "cells_gen": [0],
+      "cells": [0, 8, 12, 14, 15, 24],
       "operations": [
-        [0, 16],
-        [15, 16],
-        [15, 31]
+        [0, 8],
+        [8, 12],
+        [12, 14],
+        [14, 15],
+        [8, 24]
       ]
     },
-    "CW_theta4_2_theta4": {
-      "cells_gen": [0, 31],
-      "cells": [0, 31, 32, 63],
+    "CW_nu_eta_2_etasigma": {
+      "cells_gen": [0],
+      "cells": [0, 4, 6, 7, 16],
       "operations": [
-        [0, 32],
-        [31, 32],
-        [31, 63]
-      ]
-    },
-    "CW_theta5_2_theta5": {
-      "cells_gen": [0, 63],
-      "cells": [0, 63, 64, 127],
-      "operations": [
-        [0, 64],
-        [63, 64],
-        [63, 127]
+        [0, 4],
+        [4, 6],
+        [6, 7],
+        [0, 16]
       ]
     },
 
-    "#-------------- Joker shape -----------------": {},
+    //-------------- Joker shape -----------------
     "Joker": {
       "cells_gen": [0],
       "cells": [0, 1, 2, 3, 4],
@@ -364,7 +389,7 @@
       ]
     },
 
-    "#-------------- V -----------------": {},
+    //-------------- V -----------------
     "CW_2_V_eta": {
       "cells_gen": [0],
       "cells": [0, 1, 2],
@@ -441,7 +466,7 @@
       ]
     },
 
-    "#-------------- A Shape -----------------": {},
+    //-------------- A Shape -----------------
     "CW_2_A_eta" : {
       "cells_gen": [0, 1],
       "cells": [0, 1, 2],
@@ -518,7 +543,7 @@
       ]
     },
     
-    "#-------------- A1 -----------------": {},
+    //-------------- A1 -----------------
     "A1_00": {
       "cells": [0, 1, 2, 3, 3, 4, 5, 6],
       "cells_gen": [0],
@@ -588,7 +613,7 @@
       ]
     }, 
     
-    "#-------------- Others -----------------": {},
+    //-------------- Others -----------------
     "C2_C2": {
       "cells": [0, 1, 1, 2],
       "cells_gen": [0, [1, 0]],
@@ -727,7 +752,7 @@
       "images": [8]
     },
     
-    //----------------- C2hn, DC2hn -----------------
+    //----------------- theta -----------------
     "C2h4__S0": {
       "from": "C2h4",
       "to": "S0",
@@ -752,10 +777,149 @@
       "sus": 0,
       "images": [0]
     },
+    "C2__C2h5": {
+      "from": "C2",
+      "to": "C2h5",
+      "sus": 0,
+      "images": [0]
+    },
+    "C2__C2h6": {
+      "from": "C2",
+      "to": "C2h6",
+      "sus": 0,
+      "images": [0]
+    },
+    "C2h4__Csigmasq_0": {
+      "from": "C2h4",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
+    "C2h5__Ctheta4_0": {
+      "from": "C2h5",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
+    "C2h6__Ctheta5_0": {
+      "from": "C2h6",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
 
+    "DC2h4__CW_sigmasq_2_sigmasq": {
+      "from": "DC2h4",
+      "to": "CW_sigmasq_2_sigmasq",
+      "sus": 0,
+      "images": [0, 15]
+    },
+    "DC2h5__CW_theta4_2_theta4": {
+      "from": "DC2h5",
+      "to": "CW_theta4_2_theta4",
+      "sus": 0,
+      "images": [0, 31]
+    },
+    "DC2h6__CW_theta5_2_theta5": {
+      "from": "DC2h6",
+      "to": "CW_theta5_2_theta5",
+      "sus": 0,
+      "images": [0, 63]
+    },
+    "CW_sigmasq_2_sigmasq__C2h4": {
+      "from": "CW_sigmasq_2_sigmasq",
+      "to": "C2h4",
+      "sus": 15,
+      "images": [15]
+    },
+    "CW_theta4_2_theta4__C2h5": {
+      "from": "CW_theta4_2_theta4",
+      "to": "C2h5",
+      "sus": 31,
+      "images": [31]
+    },
+    "CW_theta5_2_theta5__C2h6": {
+      "from": "CW_theta5_2_theta5",
+      "to": "C2h6",
+      "sus": 63,
+      "images": [63]
+    },
+    "C2h4__S0_by_sigmasq": {
+      "from": "C2h4",
+      "to": "S0",
+      "total": "CW_sigmasq_2_sigmasq",
+      "sus": -14
+    },
+    "C2h5__S0_by_theta4": {
+      "from": "C2h5",
+      "to": "S0",
+      "total": "CW_theta4_2_theta4",
+      "sus": -30
+    },
+    "C2h6__S0_by_theta5": {
+      "from": "C2h6",
+      "to": "S0",
+      "total": "CW_theta5_2_theta5",
+      "sus": -62
+    },
+
+    //#----------------- linear -----------------
+    // 2-cell -> 3-cell
+    "C2__CW_2_eta": {
+      "from": "C2",
+      "to": "CW_2_eta",
+      "sus": 0,
+      "images": [0]
+    },
+    "Ceta__CW_eta_nu": {
+      "from": "Ceta",
+      "to": "CW_eta_nu",
+      "sus": 0,
+      "images": [0]
+    },
+    "Cnu__CW_nu_sigma": {
+      "from": "Cnu",
+      "to": "CW_nu_sigma",
+      "sus": 0,
+      "images": [0]
+    },
+    
+    "Ceta__CW_eta_2": {
+      "from": "Ceta",
+      "to": "CW_eta_2",
+      "sus": 0,
+      "images": [0]
+    },
+    "Cnu__CW_nu_eta": {
+      "from": "Cnu",
+      "to": "CW_nu_eta",
+      "sus": 0,
+      "images": [0]
+    },
+    "Csigma__CW_sigma_nu": {
+      "from": "Csigma",
+      "to": "CW_sigma_nu",
+      "sus": 0,
+      "images": [0]
+    },
+
+    // 3-cell -> 4-cell
+    "CW_2_eta__CW_2_eta_nu": {
+      "from": "CW_2_eta",
+      "to": "CW_2_eta_nu",
+      "sus": 0,
+      "images": [0]
+    },
     "CW_eta_nu__CW_eta_nu_sigma": {
       "from": "CW_eta_nu",
       "to": "CW_eta_nu_sigma",
+      "sus": 0,
+      "images": [0]
+    },
+
+    "CW_nu_eta__CW_nu_eta_2": {
+      "from": "CW_nu_eta",
+      "to": "CW_nu_eta_2",
       "sus": 0,
       "images": [0]
     },
@@ -765,42 +929,8 @@
       "sus": 0,
       "images": [0]
     },
-    "CW_eta_nu_sigma__CW_nu_sigma": {
-      "from": "CW_eta_nu_sigma",
-      "to": "CW_nu_sigma",
-      "sus": 2,
-      "images": [2]
-    },
-    "CW_nu_sigma__S0_by_eta": {
-      "from": "CW_nu_sigma",
-      "to": "S0",
-      "total": "CW_eta_nu_sigma",
-      "sus": -1
-    },
-    "Csigma__Ceta_by_nu": {
-      "from": "Csigma",
-      "to": "Ceta",
-      "total": "CW_eta_nu_sigma",
-      "sus": -5
-    },
-    "CW_sigma_nu_eta__CW_nu_eta": {
-      "from": "CW_sigma_nu_eta",
-      "to": "CW_nu_eta",
-      "sus": 8,
-      "images": [8]
-    },
-    "CW_nu_eta__S0_by_sigma": {
-      "from": "CW_nu_eta",
-      "to": "S0",
-      "total": "CW_sigma_nu_eta",
-      "sus": -7
-    },
-    "Ceta__Csigma_by_nu": {
-      "from": "Ceta",
-      "to": "Csigma",
-      "total": "CW_sigma_nu_eta",
-      "sus": -11
-    },
+
+    // 4-cell -> 5-cell
     "CW_2_eta_nu__CW_2_eta_nu_sigma": {
       "from": "CW_2_eta_nu",
       "to": "CW_2_eta_nu_sigma",
@@ -813,29 +943,93 @@
       "sus": 0,
       "images": [0]
     },
+
+    "CW_nu_eta_2__CW_nu_eta_2_etasigma": {
+      "from": "CW_nu_eta_2",
+      "to": "CW_nu_eta_2_etasigma",
+      "sus": 0,
+      "images": [0]
+    },
+
+    // 5-cell -> 6-cell
+    "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {
+      "from": "CW_sigma_nu_eta_2",
+      "to": "CW_sigma_nu_eta_2_etasigma",
+      "sus": 0,
+      "images": [0]
+    },
+
+    // 3-cell -> 2-cell
+    "CW_2_eta__Ceta": {
+      "from": "CW_2_eta",
+      "to": "Ceta",
+      "sus": 1,
+      "image": [1]
+    },
+    "CW_eta_nu__Cnu": {
+      "from": "CW_eta_nu",
+      "to": "Cnu",
+      "sus": 2,
+      "image": [2]
+    },
+    "CW_nu_sigma__Csigma": {
+      "from": "CW_nu_sigma",
+      "to": "Csigma",
+      "sus": 4,
+      "image": [4]
+    },
+
+    "CW_eta_2__Ceta": {
+      "from": "CW_eta_2",
+      "to": "Ceta",
+      "sus": 2,
+      "image": [2]
+    },
+    "CW_nu_eta__Cnu": {
+      "from": "CW_nu_eta",
+      "to": "Cnu",
+      "sus": 4,
+      "image": [4]
+    },
+    "CW_sigma_nu__Csigma": {
+      "from": "CW_sigma_nu",
+      "to": "Csigma",
+      "sus": 8,
+      "image": [8]
+    },
+
+    // 4-cell -> 3-cell
+    "CW_2_eta_nu__CW_eta_nu": {
+      "from": "CW_2_eta_nu",
+      "to": "CW_eta_nu",
+      "sus": 1,
+      "images": [1]
+    },
+    "CW_eta_nu_sigma__CW_nu_sigma": {
+      "from": "CW_eta_nu_sigma",
+      "to": "CW_nu_sigma",
+      "sus": 2,
+      "images": [2]
+    },
+    "CW_nu_eta_2__CW_eta_2": {
+      "from": "CW_nu_eta_2",
+      "to": "CW_eta_2",
+      "sus": 4,
+      "images": [4]
+    },
+    "CW_sigma_nu_eta__CW_nu_eta": {
+      "from": "CW_sigma_nu_eta",
+      "to": "CW_nu_eta",
+      "sus": 8,
+      "images": [8]
+    },
+
+    // 5-cell -> 4-cell
     "CW_2_eta_nu_sigma__CW_eta_nu_sigma": {
       "from": "CW_2_eta_nu_sigma",
       "to": "CW_eta_nu_sigma",
       "sus": 1,
       "images": [1]
-    },
-    "CW_eta_nu_sigma__S0_by_2": {
-      "from": "CW_eta_nu_sigma",
-      "to": "S0",
-      "total": "CW_2_eta_nu_sigma",
-      "sus": 0
-    },
-    "CW_nu_sigma__C2_by_eta": {
-      "from": "CW_nu_sigma",
-      "to": "C2",
-      "total": "CW_2_eta_nu_sigma",
-      "sus": -2
-    },
-    "Csigma__CW_2_eta_by_nu": {
-      "from": "Csigma",
-      "to": "CW_2_eta",
-      "total": "CW_2_eta_nu_sigma",
-      "sus": -6
     },
     "CW_sigma_nu_eta_2__CW_nu_eta_2": {
       "from": "CW_sigma_nu_eta_2",
@@ -843,77 +1037,60 @@
       "sus": 8,
       "images": [8]
     },
+    "CW_etasigma_2_eta_nu__CW_2_eta_nu": {
+      "from": "CW_etasigma_2_eta_nu",
+      "to": "CW_2_eta_nu",
+      "sus": 9,
+      "images": [9]
+    },
+
+    // 6-cell -> 5-cell
+    "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {
+      "from": "CW_etasigma_2_eta_nu_sigma",
+      "to": "CW_2_eta_nu_sigma",
+      "sus": 9,
+      "images": [9]
+    },
+
+    //## connecting map
+    // CW_2_eta_nu_sigma
+    "CW_eta_nu_sigma__S0_by_2": {
+      "from": "CW_eta_nu_sigma",
+      "to": "S0",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": 0 // = -1 + 1
+    },
+    "CW_nu_sigma__C2_by_eta": {
+      "from": "CW_nu_sigma",
+      "to": "C2",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": -2 // = -1-2 + 1
+    },
+    "Csigma__CW_2_eta_by_nu": {
+      "from": "Csigma",
+      "to": "CW_2_eta",
+      "total": "CW_2_eta_nu_sigma",
+      "sus": -6 // = -1-2-4 + 1
+    },
+
+    // CW_sigma_nu_eta_2
     "CW_nu_eta_2__S0_by_sigma": {
       "from": "CW_nu_eta_2",
       "to": "S0",
       "total": "CW_sigma_nu_eta_2",
-      "sus": -7
+      "sus": -7 // = -8 + 1
     },
     "CW_eta_2__Csigma_by_nu": {
       "from": "CW_eta_2",
       "to": "Csigma",
       "total": "CW_sigma_nu_eta_2",
-      "sus": -11
+      "sus": -11 // = -8-4 + 1
     },
     "C2__CW_sigma_nu_by_eta": {
       "from": "C2",
       "to": "CW_sigma_nu",
       "total": "CW_sigma_nu_eta_2",
-      "sus": -13
-    },
-    "DC2h4__CW_sigmasq_2_sigmasq": {
-      "from": "DC2h4",
-      "to": "CW_sigmasq_2_sigmasq",
-      "sus": 0,
-      "images": [0, 15]
-    },
-    "CW_sigmasq_2_sigmasq__C2h4": {
-      "from": "CW_sigmasq_2_sigmasq",
-      "to": "C2h4",
-      "sus": 15,
-      "images": [15]
-    },
-    "C2h4__S0_by_sigmasq": {
-      "from": "C2h4",
-      "to": "S0",
-      "total": "CW_sigmasq_2_sigmasq",
-      "sus": -14
-    },
-    "DC2h5__CW_theta4_2_theta4": {
-      "from": "DC2h5",
-      "to": "CW_theta4_2_theta4",
-      "sus": 0,
-      "images": [0, 31]
-    },
-    "CW_theta4_2_theta4__C2h5": {
-      "from": "CW_theta4_2_theta4",
-      "to": "C2h5",
-      "sus": 31,
-      "images": [31]
-    },
-    "C2h5__S0_by_theta4": {
-      "from": "C2h5",
-      "to": "S0",
-      "total": "CW_theta4_2_theta4",
-      "sus": -30
-    },
-    "DC2h6__CW_theta5_2_theta5": {
-      "from": "DC2h6",
-      "to": "CW_theta5_2_theta5",
-      "sus": 0,
-      "images": [0, 63]
-    },
-    "CW_theta5_2_theta5__C2h6": {
-      "from": "CW_theta5_2_theta5",
-      "to": "C2h6",
-      "sus": 63,
-      "images": [63]
-    },
-    "C2h6__S0_by_theta5": {
-      "from": "C2h6",
-      "to": "S0",
-      "total": "CW_theta5_2_theta5",
-      "sus": -62
+      "sus": -13 // = -8-4-2 + 1
     },
 
     //----------------- Joker -----------------
@@ -961,7 +1138,7 @@
       "sus": 0
     },
 
-    "#----------------- CW_eta_nu_eta_Eq_nu_nu -----------------": {},
+    //----------------- CW_eta_nu_eta_Eq_nu_nu -----------------
     "CW_eta_nu_V_nu__CW_eta_nu_eta_Eq_nu_nu": {
       "from": "CW_eta_nu_V_nu",
       "to": "CW_eta_nu_eta_Eq_nu_nu",
@@ -1006,7 +1183,7 @@
       "sus": -1
     },
 
-    "#----------------- CW_nu_sigma_nu_Eq_sigma_sigma -----------------": {},
+    //----------------- CW_nu_sigma_nu_Eq_sigma_sigma -----------------
     "CW_nu_sigma_V_sigma__CW_nu_sigma_nu_Eq_sigma_sigma": {
       "from": "CW_nu_sigma_V_sigma",
       "to": "CW_nu_sigma_nu_Eq_sigma_sigma",
@@ -1051,7 +1228,7 @@
       "sus": -3
     },
 
-    "#----------------- CW_eta_2_eta_Eq_2_nu -----------------": {},
+    //----------------- CW_eta_2_eta_Eq_2_nu -----------------
     "CW_eta_2__CW_eta_2_eta_Eq_2_nu": {
       "from": "CW_eta_2",
       "to": "CW_eta_2_eta_Eq_2_nu",
@@ -1113,7 +1290,7 @@
       "sus": 0
     },
 
-    "#-------------- CW_eta_2_eta_Eq_nu_2 -----------------": {},
+    //----------------- CW_eta_2_eta_Eq_nu_2 -----------------
     "CW_eta_2__CW_eta_2_eta_Eq_nu_2": {
       "from": "CW_eta_2",
       "to": "CW_eta_2_eta_Eq_nu_2",
@@ -1175,7 +1352,7 @@
       "sus": -1
     },
 
-    "#-------------- CW_2_theta5_2_Eq_eta_theta5 -----------------": {},
+    //----------------- CW_2_theta5_2_Eq_eta_theta5 -----------------
     "C2h5__CW_2_theta5_2_Eq_eta_theta5": {
       "from": "C2h5",
       "to": "CW_2_theta5_2_Eq_eta_theta5",
@@ -1225,8 +1402,8 @@
       "sus": -63
     },
 
-    "#-------------- Diamonds -----------------": {},
-    "##---------- C2_Ceta ---------- ": {},
+    //#----------------- Diamonds -----------------
+    //##---------- C2_Ceta ---------- 
     "CW_2_V_eta__C2_Ceta": {
       "from": "CW_2_V_eta",
       "to": "C2_Ceta",
@@ -1246,7 +1423,7 @@
       "sus": 0
     },
 
-    "##---------- C2_Cnu ---------- ": {},
+    //##---------- C2_Cnu ---------- 
     "CW_2_V_nu__C2_Cnu": {
       "from": "CW_2_V_nu",
       "to": "C2_Cnu",
@@ -1266,7 +1443,7 @@
       "sus": 0
     },
 
-    "##---------- C2_Csigma ---------- ": {},
+    //##---------- C2_Csigma ---------- 
     "CW_2_V_sigma__C2_Csigma": {
       "from": "CW_2_V_sigma",
       "to": "C2_Csigma",
@@ -1286,7 +1463,7 @@
       "sus": 0
     },
 
-    "##---------- Ceta_Cnu ---------- ": {},
+    //##---------- Ceta_Cnu ---------- 
     "CW_eta_V_nu__Ceta_Cnu": {
       "from": "CW_eta_V_nu",
       "to": "Ceta_Cnu",
@@ -1306,7 +1483,7 @@
       "sus": -1
     },
 
-    "##---------- Ceta_Csigma ---------- ": {},
+    //##---------- Ceta_Csigma ---------- 
     "CW_eta_V_sigma__Ceta_Csigma": {
       "from": "CW_eta_V_sigma",
       "to": "Ceta_Csigma",
@@ -1326,7 +1503,7 @@
       "sus": -1
     },
 
-    "##---------- Cnu_Csigma ---------- ": {},
+    //##---------- Cnu_Csigma ---------- 
     "CW_nu_V_sigma__Cnu_Csigma": {
       "from": "CW_nu_V_sigma",
       "to": "Cnu_Csigma",
@@ -1346,7 +1523,7 @@
       "sus": -3
     },
 
-    "#--------------- V ---------------": {},
+    //#--------------- V ---------------
     "C2__CW_2_V_eta": {
       "from": "C2",
       "to": "CW_2_V_eta",
@@ -1425,7 +1602,7 @@
       "images": [0]
     },
 
-    "##---------- 2 V 1 ---------- ": {},
+    //##---------- 2 V 1 ----------
     "CW_2_eta__CW_2_eta_V_eta": {
       "from": "CW_2_eta",
       "to": "CW_2_eta_V_eta",
@@ -1465,7 +1642,7 @@
       "images": [0]
     },
 
-    "#-------------- A -----------------": {},
+    //#-------------- A -----------------
     "CW_2_A_eta__C2": {
       "from": "CW_2_A_eta",
       "to": "C2",
@@ -1544,7 +1721,7 @@
       "images": [0]
     },
 
-    "##---------- 2 A 1 ---------- ": {},
+    //##---------- 2 A 1 ----------
     "CW_eta_2_A_eta__CW_2_A_eta": {
       "from": "CW_eta_2_A_eta",
       "to": "CW_2_A_eta",
@@ -1585,7 +1762,7 @@
     },
 
     
-    "#-------------- A1 -----------------": {},
+    //-------------- A1 -----------------
     "A1_00__C2_Ceta": {
       "from": "A1_00",
       "to": "C2_Ceta",
@@ -1605,7 +1782,7 @@
       "sus": -2
     },
     
-    "#-------------- Others -----------------": {},
+    //-------------- Others -----------------
     "CW_sigma_nu_eta_2__tmf": {
       "from": "CW_sigma_nu_eta_2",
       "to": "tmf",
