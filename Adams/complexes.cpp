@@ -805,7 +805,7 @@ int MapCohFromJson(const std::string& name, std::string& from, std::string& to, 
                             return -6;
                         if (index >= (int)coh_from.cells.size())
                             return -7;
-                        images.push_back(coh_to.cells[index]);
+                        images.push_back(coh_from.cells[index]);
                     }
                     else {
                         rel = quo_lift.empty() ? rel : subs(rel, quo_lift);
@@ -914,12 +914,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
 
     if (cw1 == "CW_eta_2" && cw2 == "Fphi4") {
         images = {MMod(MMilnor(), 0)};
-        return;
-    }
-    if ((cw1 == "C2h4" && cw2 == "Csigmasq_0") || (cw1 == "C2h5" && cw2 == "Ctheta4_0") || (cw1 == "C2h6" && cw2 == "Ctheta5_0")) {
-        to = "S0";
-        images = {MMod(MMilnor::P(0, 1), 0)};
-        sus = 1;
         return;
     }
     if (IsFP(cw1) && IsFP(cw2)) {

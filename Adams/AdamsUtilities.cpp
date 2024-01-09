@@ -15,7 +15,7 @@ void create_db_version(const myio::Database& db)
     db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
 }
 
-int get_db_metadata(const myio::Database& db, std::string_view key)
+int get_db_metadata_int(const myio::Database& db, std::string_view key)
 {
     try {
         if (db.has_table("version")) {
@@ -31,14 +31,30 @@ int get_db_metadata(const myio::Database& db, std::string_view key)
     return -2;
 }
 
+std::string get_db_metadata_str(const myio::Database& db, std::string_view key)
+{
+    try {
+        if (db.has_table("version")) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
+                return db.get_str(fmt::format("select value from version where name=\"{}\"", key));
+            else
+                return "Error: key not found";
+        }
+    }
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
+        return "Error: database is locked or corrupted";
+    }
+    return "Error: database has no version table";
+}
+
 int get_db_t_max(const myio::Database& db)
 {
-    return get_db_metadata(db, "t_max");
+    return get_db_metadata_int(db, "t_max");
 }
 
 int get_db_timestamp(const myio::Database& db)
 {
-    return get_db_metadata(db, "timestamp");
+    return get_db_metadata_int(db, "timestamp");
 }
 
 void set_db_t_max(const myio::Database& db, int t_max)

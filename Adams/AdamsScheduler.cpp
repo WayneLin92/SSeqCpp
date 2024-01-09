@@ -147,7 +147,8 @@ std::vector<std::string> GetPreparedTasks(const json& js, const std::map<std::st
 }
 
 int get_db_t_max(const myio::Database& db);
-int get_db_metadata(const myio::Database& db, std::string_view key);
+int get_db_metadata_int(const myio::Database& db, std::string_view key);
+std::string get_db_metadata_str(const myio::Database& db, std::string_view key);
 
 bool IsFinished(const std::string& task)
 {
@@ -157,12 +158,10 @@ bool IsFinished(const std::string& task)
         auto cw = match[1].str();
         auto t_max = std::stoi(match[2].str());
         auto filename = fmt::format("{}_Adams_res.db", cw);
-        if (myio::FileExists(filename)) {
-            myio::Database db(filename);
-            return get_db_t_max(db) >= t_max;
-        }
-        else
+        if (!myio::FileExists(filename))
             return false;
+        myio::Database db(filename);
+        return get_db_t_max(db) >= t_max;
     }
 
     std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
@@ -170,36 +169,45 @@ bool IsFinished(const std::string& task)
         auto cw = match[1].str();
         auto t_max = std::stoi(match[2].str());
         auto filename = fmt::format("{}_Adams_res_prod.db", cw);
-        if (myio::FileExists(filename)) {
-            myio::Database db(filename);
-            return get_db_t_max(db) >= t_max;
-        }
-        else
+        if (!myio::FileExists(filename))
             return false;
+        myio::Database db(filename);
+        return get_db_t_max(db) >= t_max;
     }
 
     std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
     if (std::regex_search(task, match, is_Adams_map_res_regex); match[0].matched) {
         auto cw1 = match[1].str();
         auto cw2 = match[2].str();
+        std::string from, to;
         auto t_max = std::stoi(match[3].str());
         int t_max_cw1, t_max_cw2, t_max_map, sus, fil;
         {
-            auto filename = fmt::format("{}_Adams_res.db", cw1);
+            auto filename = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+            if (!myio::FileExists(filename))
+                return false;
+            myio::Database db(filename);
+            t_max_map = get_db_t_max(db);
+            sus = get_db_metadata_int(db, "suspension");
+            fil = get_db_metadata_int(db, "filtration");
+            from = get_db_metadata_str(db, "from");
+            to = get_db_metadata_str(db, "to");
+            if (myio::starts_with(from, "Error:") || myio::starts_with(to, "Error:"))
+                return false;
+        }
+        {
+            auto filename = fmt::format("{}_Adams_res.db", from);
+            if (!myio::FileExists(filename))
+                return false;
             myio::Database db(filename);
             t_max_cw1 = get_db_t_max(db);
         }
         {
-            auto filename = fmt::format("{}_Adams_res.db", cw2);
+            auto filename = fmt::format("{}_Adams_res.db", to);
+            if (!myio::FileExists(filename))
+                return false;
             myio::Database db(filename);
             t_max_cw2 = get_db_t_max(db);
-        }
-        {
-            auto filename = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
-            myio::Database db(filename);
-            t_max_map = get_db_t_max(db);
-            sus = get_db_metadata(db, "suspension");
-            fil = get_db_metadata(db, "filtration");
         }
 
         return t_max_map >= std::min({t_max, t_max_cw1, t_max_cw2 + sus - fil});
@@ -253,14 +261,30 @@ void SchedulerStatus()
         fmt::print("  {}\n", t);
 }
 
-int GetPriority(const json& js, json::json_pointer ptr)
+int GetProperty(const json& js, json::json_pointer ptr, std::string_view key)
 {
     do {
-        if (js.at("tasks").at(ptr).contains("priority"))
-            return js.at("tasks").at(ptr).at("priority").get<int>();
+        if (js.at("tasks").at(ptr).contains(key))
+            return js.at("tasks").at(ptr).at(key).get<int>();
         ptr = ptr.parent_pointer();
     } while (!ptr.empty());
     return 0;
+}
+
+int GetPriority(const json& js, json::json_pointer ptr)
+{
+    return GetProperty(js, ptr, "priority");
+}
+
+void update_finished_tasks(const std::unordered_set<std::string>& finished_tasks)
+{
+    /* Save finished task list */
+    json js_status;
+    if (myio::FileExists("tasks_status.json"))
+        js_status = myio::load_json("tasks_status.json");
+    std::ofstream outfile("tasks_status.json");
+    js_status["finished_tasks"] = finished_tasks;
+    outfile << js_status.dump(4) << std::endl;
 }
 
 int SchedulerRunOnce(const json& js)
@@ -275,7 +299,8 @@ int SchedulerRunOnce(const json& js)
     if (mem_usage > js.at("MEM_limit")) {
         if (running_adams.size() > 0) {
             fmt::print("Memory usage exceeds limit. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
-            system(fmt::format("kill {}", running_adams.begin()->second).c_str());
+            if (int error = system(fmt::format("kill {}", running_adams.begin()->second).c_str()))
+                return error;
             return 0;
         }
         else {
@@ -293,7 +318,9 @@ int SchedulerRunOnce(const json& js)
     auto finished_tasks = GetFinishedTasksFromJson(tasks);
     auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks);
     AddNewFinishedTasks(prepared_tasks, finished_tasks);
+    update_finished_tasks(finished_tasks);
     ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(running_adams, t); });
+    ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return GetProperty(js, tasks.at(t), "disabled") == 1; });
     std::sort(prepared_tasks.begin(), prepared_tasks.end(), [&](const std::string& t1, const std::string& t2) { return GetPriority(js, tasks.at(t1)) > GetPriority(js, tasks.at(t2)); });
 
     /* Run all blocking tasks and one nohup task */
@@ -302,25 +329,21 @@ int SchedulerRunOnce(const json& js)
         auto cmd = js.at("tasks").at(tasks.at(task)).at("cmd").get<std::string>();
         if (!myio::starts_with(cmd, "nohup")) {
             fmt::print("Run: {}\n", cmd);
-            system(cmd.c_str());
+            if (int error = system(cmd.c_str()))
+                return error;
             finished_tasks.insert(task);
+            update_finished_tasks(finished_tasks);
         }
         else if (!nohup_task) {
             fmt::print("Run: {}\n", cmd);
-            system(cmd.c_str());
+            if (int error = system(cmd.c_str()))
+                return error;
             nohup_task = true;
         }
     }
     if (!nohup_task)
         fmt::print("No available nohup task to run.\n");
 
-    /* Save finished task list */
-    json js_status;
-    if (myio::FileExists("tasks_status.json"))
-        js_status = myio::load_json("tasks_status.json");
-    std::ofstream outfile("tasks_status.json");
-    js_status["finished_tasks"] = finished_tasks;
-    outfile << js_status.dump(4) << std::endl;
     return 0;
 }
 
@@ -349,7 +372,10 @@ int main_scheduler_run_once(int argc, char** argv, int& index, const char* desc)
         return -1;
     }
     auto js = myio::load_json("tasks.json");
-    SchedulerRunOnce(js);
+    if (int error = SchedulerRunOnce(js)) {
+        fmt::print("SchedulerRunOnce failed\n");
+        return error;
+    }
     return 0;
 }
 
@@ -364,12 +390,14 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
         fmt::print("tasks.json not found\n");
         return -1;
     }
-    auto js = myio::load_json("tasks.json");
     while (true) {
-        {
-            bench::Timer timer;
-            SchedulerRunOnce(js);
+        bench::Timer timer;
+        auto js = myio::load_json("tasks.json");
+        if (int error = SchedulerRunOnce(js)) {
+            fmt::print("SchedulerRunOnce failed\n");
+            return error;
         }
+        timer.print("Scheduler");
         std::this_thread::sleep_for(std::chrono::seconds(js.at("interval").get<int>()));
         fmt::print("\n----------------------------\n\n");
     }
