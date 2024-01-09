@@ -30780,6 +30780,7 @@
         }
       },
       "V": {
+        "disabled": 1,
         "CW_2_V_eta": {
           "./Adams res CW_2_V_eta 200": {
             "cmd": "nohup ./Adams res CW_2_V_eta 200 >> CW_2_V_eta.out 2>&1 &",
@@ -31502,6 +31503,7 @@
         }
       },
       "A": {
+        "disabled": 1,
         "CW_2_A_eta": {
           "CW_2_A_eta": {
             "./Adams res CW_2_A_eta 200": {
@@ -34349,6 +34351,7 @@
         }
       },
       "A1": {
+        "disabled": 1,
         "priority": 0,
         "A1_00": {
           "A1_00": {
@@ -34581,8 +34584,10 @@
         }
       },
       "RP": {
+        "disabled": 1,
         "priority": 90,
         "RPinf": {
+          "disabled": 0,
           "RP1_256": {
             "priority": 96,
             "./Adams res RP1_256 200": {
@@ -34666,7 +34671,9 @@
           }
         },
         "RP1n": {
+          "disabled": 1,
           "RP1_4": {
+            "disabled": 0,
             "./Adams res RP1_4 200": {
               "cmd": "nohup ./Adams res RP1_4 200 >> RP1_4.out 2>&1 &",
               "pre": [
@@ -34695,6 +34702,7 @@
             }
           },
           "RP1_5": {
+            "disabled": 0,
             "./Adams res RP1_5 200": {
               "cmd": "nohup ./Adams res RP1_5 200 >> RP1_5.out 2>&1 &",
               "pre": [
@@ -34723,6 +34731,7 @@
             }
           },
           "RP1_6": {
+            "disabled": 0,
             "./Adams res RP1_6 200": {
               "cmd": "nohup ./Adams res RP1_6 200 >> RP1_6.out 2>&1 &",
               "pre": [
@@ -34751,6 +34760,7 @@
             }
           },
           "RP1_8": {
+            "disabled": 0,
             "./Adams res RP1_8 200": {
               "cmd": "nohup ./Adams res RP1_8 200 >> RP1_8.out 2>&1 &",
               "pre": [
