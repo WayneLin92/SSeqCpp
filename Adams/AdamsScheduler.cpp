@@ -69,6 +69,18 @@ double GetMemUsage()
     return (meminfo["MemTotal"] - meminfo["MemFree"] - meminfo["Buffers"] - meminfo["Cached"]) * 1.0 / meminfo["MemTotal"];
 }
 
+std::string GetThisPid()
+{
+    /* Get the pid of this program */
+    std::string pid;
+    std::ifstream file("/proc/self/stat");
+    std::string line;
+    std::getline(file, line);
+    std::vector<std::string> line_split = myio::split(line, ' ');
+    pid = line_split[0];
+    return pid;
+}
+
 /* return {pid: cmd} */
 std::map<std::string, std::string> GetRunningAdams()
 {
@@ -76,6 +88,7 @@ std::map<std::string, std::string> GetRunningAdams()
     std::regex is_Adams("^./Adams");
     std::regex is_num("^[0-9]+$");
     std::smatch match;
+    auto this_pid = GetThisPid();
     for (const auto& entry : std::filesystem::directory_iterator("/proc")) {
         if (entry.is_directory()) {
             std::string filename = entry.path().filename().string();
@@ -89,7 +102,7 @@ std::map<std::string, std::string> GetRunningAdams()
                     if (std::regex_search(line, match, is_Adams); match[0].matched) {
                         auto cmd = myio::join(" ", myio::split(line, '\0'));
                         cmd = cmd.substr(0, cmd.size() - 1);
-                        if (!myio::starts_with(cmd, "./Adams scheduler"))
+                        if (filename != this_pid)
                             running_adams[cmd] = filename;
                     }
                     break;
@@ -261,6 +274,17 @@ void SchedulerStatus()
         fmt::print("  {}\n", t);
 }
 
+void SchedulerKill()
+{
+    /* Get running Adams */
+    auto running_adams = GetRunningAdams();
+    fmt::print("Killing the following tasks:\n");
+    for (auto& [cmd, pid] : running_adams) {
+        system(fmt::format("kill {}", pid).c_str());
+        fmt::print("  {} ({})\n", pid, cmd);
+    }
+}
+
 int GetProperty(const json& js, json::json_pointer ptr, std::string_view key)
 {
     do {
@@ -360,6 +384,17 @@ int main_scheduler_status(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
+int main_scheduler_kill(int argc, char** argv, int& index, const char* desc)
+{
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    SchedulerKill();
+    return 0;
+}
+
 int main_scheduler_run_once(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
@@ -410,6 +445,7 @@ int main_scheduler(int argc, char** argv, int& index, const char* desc)
         {"status", "Print tasks status", main_scheduler_status},
         {"run_once", "Run scheduler once", main_scheduler_run_once},
         {"loop", "Run scheduler infinitely", main_scheduler_loop},
+        {"kill", "Kill running Adams tasks", main_scheduler_kill},
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
