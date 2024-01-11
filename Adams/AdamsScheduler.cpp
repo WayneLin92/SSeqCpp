@@ -353,6 +353,7 @@ int SchedulerRunOnce(const json& js)
         auto cmd = js.at("tasks").at(tasks.at(task)).at("cmd").get<std::string>();
         if (!myio::starts_with(cmd, "nohup")) {
             fmt::print("Run: {}\n", cmd);
+            fmt::print("{}", myio::COUT_FLUSH());
             if (int error = system(cmd.c_str()))
                 return error;
             finished_tasks.insert(task);
@@ -360,6 +361,7 @@ int SchedulerRunOnce(const json& js)
         }
         else if (!nohup_task) {
             fmt::print("Run: {}\n", cmd);
+            fmt::print("{}", myio::COUT_FLUSH());
             if (int error = system(cmd.c_str()))
                 return error;
             nohup_task = true;
