@@ -48,6 +48,10 @@ $$H^*(X)\longleftarrow H^*(Y)\longleftarrow H^*(Z)$$
 and $f\in I$.
 
 ## Secondary Steenrod algebra
+The "basis" of $B_0$ is given by $Y_{k,l}Sq(R)$ ($0\le k < l$), $Sq(R)$ and $2Sq(R)$.
+
+$|Y_{k,l}|=2^k+2^l-1$.
+
 $$Sq(R)Sq(S)=\sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}C(\xi_{m}^{2^k}\xi_n^{2^k}, Sq(R))C(\xi_{k+1}, Sq(S))+\sum_{\substack{R(X)=R\\S(X)=S}}b(X)Sq(T(X))$$
 
 We define $A: A\oplus \mathrm{ker}~ d^B\to A\{\tau\}$ by

@@ -2,7 +2,7 @@
 .ipynb_checkpoints
 * alias
 *.lnk
-build*
 build*/
+build-macbook
 *__pycache__/
 .VSCodeCounter/

@@ -3,7 +3,7 @@
   "CPU_threshold_info": "run more tasks if CPU usage is below this threshold",
   "MEM_limit": 0.8,
   "MEM_limit_info": "kill tasks if memory usage is above this limit",
-  "interval": 4,
+  "interval": 300,
   "interval_info": "check every `interval` seconds",
   "tasks": {
     "priority": 0,
