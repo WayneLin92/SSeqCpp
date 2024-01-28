@@ -117,7 +117,8 @@ public:
 
                 SetVersion();
                 end_transaction();
-                fmt::print("DbResProd Converted to version=1\n{}", myio::COUT_FLUSH());
+                fmt::print("DbResProd Converted to version=1\n");
+                std::fflush(stdout);
             }
             catch (MyException&) {
                 return false;
@@ -248,7 +249,7 @@ AdamsResConst AdamsResConst::load(const DbAdamsResLoader& db, const std::string&
     return AdamsResConst(std::move(data), std::move(basis_degrees));
 }
 
-AdamsResConst AdamsResConst::load_gb_by_basis_degrees(const DbAdamsResLoader& db, const std::string& table, int t_trunc)
+AdamsResConst AdamsResConst::load_basis_degrees_for_gb(const DbAdamsResLoader& db, const std::string& table, int t_trunc)
 {
     DataMResConst2d data;
     int2d basis_degrees = db.load_basis_degrees(table, t_trunc);
@@ -263,9 +264,9 @@ void AdamsResConst::rotate(const DbAdamsResLoader& db, const std::string& table,
         indices_[deg2.s].clear();
     }
 
+    ut::get(gb_, (size_t)s);
     ut::get(leads_, (size_t)s);
     ut::get(indices_, (size_t)s);
-    ut::get(gb_, (size_t)s);
     if (s >= 1 && !(deg1.s == s - 1 && deg1.t == t_trunc)) {
         if (deg1.s >= 0) {
             gb_[deg1.s].clear();
@@ -464,18 +465,16 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
         int1d indices = lina::add(ut::int_range((int)diffs_d_size), lead_image);
 
         /*# mark indecomposables in database */
-        for (int i : indices) {
+        for (int i : indices)
             stmt_set_ind.bind_and_step(id + i);
-        }
-
         /*# indecomposable comultiply with itself */
-        for (int i : indices) {
+        for (int i : indices)
             stmt_prod.bind_and_step(id + (int)i, id + (int)i, one.data, myio::Serialize(one_h));
-        }
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
+        fmt::print("t={} s={} time={}\n", deg.t, deg.s, time);
+        std::fflush(stdout);
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction();
@@ -647,7 +646,8 @@ void compute_mod_products(int t_trunc, int stem_trunc, const std::string& mod, c
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
+        fmt::print("t={} s={} time={}\n", deg.t, deg.s, time);
+        std::fflush(stdout);
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction();
@@ -749,10 +749,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         }
         dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs, std::max(t_trunc + fil - sus, 0), stem_trunc - sus);
     }
-    auto gbCw1 = AdamsResConst::load_gb_by_basis_degrees(dbResCw1, table_cw1, t_trunc);
-
-    const Mod one = MMod(MMilnor(), 0);
-    const int1d one_h = {0};
+    auto gbCw1 = AdamsResConst::load_basis_degrees_for_gb(dbResCw1, table_cw1, t_trunc);
 
     /* Remove computed range */
     int1d ids_old = dbMap.load_old_ids(table_map);
@@ -771,7 +768,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         const size_t diffs_d_size = diffs_d.size();
         gbCw1.rotate(dbResCw1, table_cw1, deg.s - fil, deg.t + sus, deg1_old, deg2_old);
 
-        /* f_{s-1} is the map F_{s-1} -> F_{s-1-fil} dual */
+        /* f_{s-1} is the map F_{s-1} -> F_{s-1-fil} */
         Mod1d f_sm1 = dbMap.load_map(table_map, deg.s - 1);
         size_t vid_num_sm1 = deg.s > 0 ? (size_t)vid_num[size_t(deg.s - 1)][deg.stem()] : 0;
         f_sm1.resize(vid_num_sm1);
@@ -806,7 +803,8 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n{}", deg.t - fil + sus, deg.s - fil, time, myio::COUT_FLUSH());
+        fmt::print("t={} s={} time={}\n", deg.t - fil + sus, deg.s - fil, time);
+        std::fflush(stdout);
         dbMap.save_time(table_map, deg.s, deg.t, time);
 
         dbMap.end_transaction();

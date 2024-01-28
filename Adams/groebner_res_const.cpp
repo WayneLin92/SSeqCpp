@@ -144,7 +144,7 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
 
     for (size_t i = 0; i < xs.size(); ++i)
         if (xs[i]) {
-            fmt::print("Something is wrong: d_inv(x) not well defined. s={}\n", s);
+            fmt::print("Something is wrong: d_inv(x) is not well defined. s={}\n", s);
             std::exit(-2);
         }
 
@@ -214,6 +214,38 @@ void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vec
         Mod diff;
         diff.data = stmt.column_blob_tpl<MMod>(3);
         diffs[d].push_back(std::move(diff));
+        ++gen_num(d.s, d.stem());
+        if (d.s != d_prev.s || d.t != d_prev.t) {
+            id_st.push_back(std::make_pair(id, d));
+            d_prev = d;
+        }
+    }
+    std::sort(id_st.begin(), id_st.end(), [](std::pair<int, AdamsDegV2> p1, std::pair<int, AdamsDegV2> p2) { return p1.second < p2.second; });
+
+    vid_num.resize(size_t(t_trunc + 1));
+    for (size_t s = 0; s <= t_trunc; ++s) {
+        vid_num[s].resize(t_trunc - s + 1);
+        for (size_t n = 0; n <= t_trunc - s; ++n) {
+            if (n > 0)
+                vid_num[s][n] += vid_num[s][n - 1];
+            vid_num[s][n] += gen_num(s, n);
+        }
+    }
+}
+
+/* vid_num[s][stem] is the number of generators in (<=stem, s) */
+void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc, int stem_trunc) const
+{
+    Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} AND t-s<={} ORDER BY id;", table_prefix, t_trunc, stem_trunc));
+    AdamsDegV2 d_prev = AdamsDegV2(-1, -1);
+    ut::map_seq2d<int, 0> gen_num; /* gen_num[(s,stem)] is the number of generators in (stem, s) */
+    while (stmt.step() == MYSQLITE_ROW) {
+        int id = stmt.column_int(0);
+        AdamsDegV2 d = AdamsDegV2(stmt.column_int(1), stmt.column_int(2));
+        Mod diff;
+        diff.data = stmt.column_blob_tpl<MMod>(3);
+        ut::get(diffs, d.s).push_back(std::move(diff));
+        ++num_diffs[d];
         ++gen_num(d.s, d.stem());
         if (d.s != d_prev.s || d.t != d_prev.t) {
             id_st.push_back(std::make_pair(id, d));

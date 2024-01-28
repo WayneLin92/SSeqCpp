@@ -151,11 +151,6 @@ bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
 void AssertFolderExists(const std::string& foldername);
 
-struct COUT_FLUSH
-{
-    constexpr COUT_FLUSH() {}
-};
-
 /*********************************************************
                  Command line utilities
  *********************************************************/
@@ -196,8 +191,8 @@ nlohmann::json load_json(const std::string& file_name);
                     Formatters
  *********************************************************/
 
-template <>
-struct fmt::formatter<myio::COUT_FLUSH>
+template <typename T>
+struct fmt::formatter<T, char, std::enable_if_t<T::has_str_method>>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx)
@@ -206,10 +201,9 @@ struct fmt::formatter<myio::COUT_FLUSH>
     }
 
     template <typename FormatContext>
-    auto format(const myio::COUT_FLUSH reason, FormatContext& ctx)
+    auto format(const T& x, FormatContext& ctx)
     {
-        fflush(stdout);
-        return fmt::format_to(ctx.out(), "");
+        return fmt::format_to(ctx.out(), "{}", x.Str());
     }
 };
 

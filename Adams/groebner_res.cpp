@@ -471,7 +471,8 @@ public:
 
                 SetVersion();
                 end_transaction();
-                fmt::print("DbRes Converted to version=1\n{}", myio::COUT_FLUSH());
+                fmt::print("DbRes Converted to version=1\n");
+                std::fflush(stdout);
             }
             catch (MyException&) {
                 return false;
@@ -748,7 +749,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                fmt::print("t={} s={} threadsLeft={}\n{}", t, s, threadsLeft, myio::COUT_FLUSH());
+                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft);
+                std::fflush(stdout);
             }
         });
 
@@ -807,7 +809,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
         db.save(tablename, data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
         db.save_fil_0(tablename, t, t_start_fil_0, v_degs);
-        fmt::print("    time={}\n{}", time, myio::COUT_FLUSH());
+        fmt::print("    time={}\n", time);
+        std::fflush(stdout);
         timer.Reset();
 
         for (size_t s = tt; s-- > s_min;)

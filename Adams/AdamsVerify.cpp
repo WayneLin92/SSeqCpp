@@ -166,7 +166,8 @@ void verify_map(const std::string& cw1, const std::string& cw2)
             dbMap.end_transaction();
             return;
         }
-        fmt::print("t={} s={}\n{}", deg.t - fil + sus, deg.s - fil, myio::COUT_FLUSH());
+        fmt::print("t={} s={}\n", deg.t - fil + sus, deg.s - fil);
+        std::fflush(stdout);
         if (t_prev_cw2 != deg.t) {
             if (t_prev_cw2 != -1 && t_prev_cw2 - fil + sus >= 0) {
                 dbMap.begin_transaction();

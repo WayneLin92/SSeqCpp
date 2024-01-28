@@ -73,6 +73,7 @@ public:
 public:
     int2d load_basis_degrees(const std::string& table_prefix, int t_trunc) const;
     void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const;
+    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc, int stem_trunc) const;
     DataMResConst2d load_data(const std::string& table_prefix, int t_trunc) const;
     DataMResConst1d load_data_s(const std::string& table_prefix, int s, int t_trunc) const;
 };
@@ -92,7 +93,7 @@ public:
     /* Initialize from `polys` which already forms a Groebner basis. Must not add more relations. */
     AdamsResConst(DataMResConst2d data, int2d basis_degrees);
     static AdamsResConst load(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
-    static AdamsResConst load_gb_by_basis_degrees(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
+    static AdamsResConst load_basis_degrees_for_gb(const DbAdamsResLoader& db, const std::string& table, int t_trunc);
     /* Add gb[s] and release gb[s-2] */
     void rotate(const DbAdamsResLoader& db, const std::string& table, int s, int t_trunc, AdamsDegV2& deg1, AdamsDegV2& deg2);
 

@@ -16,7 +16,7 @@ uint32_t max_mask(uint32_t upper_bound, uint32_t mask)
     return (upper_bound | n) & ~mask;
 }
 
-void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result)
+void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result_app)
 {
     constexpr size_t N = XI_MAX_MULT;
 
@@ -26,7 +26,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
     /* XR[i,j], XS[i,j] controls the upper bound of X[i,j] when we consider R(X)=R and S(X)=S.
      * XT[i,j] controls the upper bound of X[i,j] binary digits.
      */
-    std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT;
+    std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT; // TODO: use less memory
     for (size_t i = 1; i <= N; ++i)
         XR[(N - i) * (N + 1) + i] = R[i - 1];
     for (size_t i = 1; i <= N - 1; ++i)
@@ -46,15 +46,15 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
             const size_t index_up_right = (i - 1) * (N + 1) + j + 1;
             const size_t index_left = i * (N + 1) + j - 1;
             if (i == 1) {
+                /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
                 if (decrease) {
-                    /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
                     X[index] = (X[index] - 1) & ~(XT[index] | X[index_up_right]);
                     decrease = false;
                 }
                 else
                     X[index] = max_mask(std::min(XR[index] >> i, XS[index]), XT[index] | X[index_up_right]);
-                X[index_up] = XR[index] - (X[index] << i);
-                if (X[index_up] & XT[i * (N + 1) + j - 1]) {
+                X[index_up] = XR[index] - (X[index] << 1);
+                if (X[index_up] & XT[index_left]) {
                     if (X[index])
                         decrease = true;
                     else
@@ -83,7 +83,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
             if (i == 1) {
                 if (!(XS[N + 1] & X[1])) { /* Add to result. */
                     XT[1] = XS[N + 1] | X[1];
-                    result.push_back(MMilnor::Xi(XT.data() + 1));
+                    result_app.push_back(MMilnor::Xi(XT.data() + 1));
                 }
                 move_right = true;
             }
@@ -244,7 +244,7 @@ void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_
 /* Milnor's multiplication formula.
  * `result.data` is unordered and may contain duplicates.
  */
-void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
+void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result_app)
 {
     auto R = lhs.ToXi();
     auto S = rhs.ToXi();
@@ -252,11 +252,10 @@ void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result)
     for (uint32_t i : R)
         if (i)
             ++nonzeroes;
-    Milnor result1 = result;
     if (nonzeroes <= 3)
-        MulMilnorV2(R, S, result.data);
+        MulMilnorV2(R, S, result_app.data);
     else
-        MulMilnor(R, S, result.data);
+        MulMilnor(R, S, result_app.data);
 }
 
 void MulMay(MMilnor lhs, MMilnor rhs, Milnor& result)  ////
@@ -302,6 +301,14 @@ Milnor Milnor::operator*(const Milnor& rhs) const
             MulMilnor(R, S, result);
     SortMod2(result.data);
     return result;
+}
+
+void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result)
+{
+    for (MMilnor R : lhs.data)
+        for (MMilnor S : rhs.data)
+            MulMilnor(R, S, result);
+    SortMod2(result.data);
 }
 
 std::string MMilnor::StrXi() const

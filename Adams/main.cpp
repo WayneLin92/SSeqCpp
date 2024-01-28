@@ -5,6 +5,7 @@
 #include <iostream>
 
 int main_res(int, char**, int&, const char*);
+int main_d2(int, char**, int&, const char*);
 int main_map_coh(int, char**, int&, const char*);
 int main_map_res(int, char**, int&, const char*);
 int main_verify_map(int, char**, int&, const char*);
@@ -31,6 +32,7 @@ int main(int argc, char** argv)
     bench::Timer timer;
     myio::SubCmdArg1d subcmds = {
         {"res", "Compute a minimal A-resolution", main_res},
+        {"d2", "Compute Adams d2 differentials", main_d2},
         {"map_coh", "Set up the cohomology map in file", main_map_coh},
         {"map_res", "Compute a chain map between resolutions", main_map_res},
         {"verify_map", "Verify the correctness of a chain map", main_verify_map},

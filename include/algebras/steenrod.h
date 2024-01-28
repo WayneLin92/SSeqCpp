@@ -130,7 +130,7 @@ private:
     uint64_t data_;
 
 public:
-    MMilnor() : data_(0) {}
+    constexpr MMilnor() : data_(0) {}
     constexpr explicit MMilnor(uint64_t data) : data_(data) {}
 
     static MMilnor FromIndex(size_t i)
@@ -144,6 +144,7 @@ public:
         return (MMILNOR_ONE >> index) | MMILNOR_GEN_WEIGHT[index];
     }
 
+    /* P(i, j) is dual to xi_{j-i}^{2^i} */
     static MMilnor P(int i, int j)
     {
         return MMilnor(MMilnor::dataP(i, j));
@@ -192,7 +193,7 @@ public:
     {
         return data_ < rhs.data_;
     };
-    
+
     bool operator==(MMilnor rhs) const
     {
         return data_ == rhs.data_;
@@ -268,6 +269,7 @@ public:
 
     std::string StrXi() const;
     std::string Str() const;
+    static constexpr bool has_str_method = true;
 
 public:
     class iterator
@@ -385,17 +387,23 @@ struct Milnor
         std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    Milnor& operator+=(const Milnor& rhs)
+    Milnor& iaddP(const Milnor& rhs, Milnor& tmp)
     {
-        Milnor tmp;
+        tmp.data.clear();
         std::swap(data, tmp.data);
         std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
+    }
+    Milnor& operator+=(const Milnor& rhs)
+    {
+        Milnor tmp;
+        return iaddP(rhs, tmp);
     }
     Milnor operator*(const Milnor& rhs) const;
 
     std::string StrXi() const;
     std::string Str() const;
+    static constexpr bool has_str_method = true;
 };
 using Milnor1d = std::vector<Milnor>;
 
@@ -403,6 +411,8 @@ inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
     return std::cout << x.Str();
 }
+
+void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result);
 inline Milnor operator*(MMilnor m1, MMilnor m2)  ////
 {
     return Milnor(m1) * Milnor(m2);
@@ -500,6 +510,7 @@ public:
     }
 
     std::string Str() const;
+    static constexpr bool has_str_method = true;
     std::string StrXi() const;
 };
 using MMod1d = std::vector<MMod>;
@@ -591,6 +602,7 @@ struct Mod
 
     std::string StrXi() const;
     std::string Str() const;
+    static constexpr bool has_str_method = true;
 };
 using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;

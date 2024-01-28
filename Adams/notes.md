@@ -54,10 +54,24 @@ $|Y_{k,l}|=2^k+2^l-1$.
 
 $$Sq(R)Sq(S)=\sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}C(\xi_{m}^{2^k}\xi_n^{2^k}, Sq(R))C(\xi_{k+1}, Sq(S))+\sum_{\substack{R(X)=R\\S(X)=S}}b(X)Sq(T(X))$$
 
-We define $A: A\oplus \mathrm{ker}~ d^B\to A\{\tau\}$ by
+$$aY_{k,l}=\sum_{i,j\ge 0} Y_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$$
+where
+$$Y_{k,l}=\begin{cases}
+Y_{k,l} & k>l\\
+2Sq(\Delta_{k+1}) &k=l\\
+\end{cases}$$
+
+We define $A: A\otimes \mathrm{ker}~ d^B\to A\{\tau\}$ by
 * $A(a, 2)=C(\xi_1, a)$
 * $A(a, Y_{k,l})=\sum_{i,j\ge 0} Z_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$
 * $A(a, rSq(R))=A(a, r)Sq(R)$
+where 
+$$Z_{k,l}=\begin{cases}
+0 & k < l\\
+Sq(\Delta_k+\Delta_l) & k\ge l\\
+\end{cases}$$
+
+$k+i\ge l+j\implies j \le k+i-l$
 
 # others
 ## Replace
