@@ -510,6 +510,7 @@ void MulSec(MMilnor a, MMilnorSec b, Milnor& result, Milnor& tmp1, Milnor& tmp2)
                     tmp2.data.clear();
                     for (auto& m_ : tmp1.data)
                         MulMilnor(m_, b.m, tmp2); /* tmp2 = m * m1 * b.m; */
+                    SortMod2(tmp2.data);
                     result.iaddP(tmp2, tmp1);
                 }
             }

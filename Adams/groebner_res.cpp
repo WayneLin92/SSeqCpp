@@ -712,6 +712,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
 
     int t_start_fil_0 = db.get_int("SELECT COALESCE(MAX(t), -1)+1 FROM " + tablename + "_generators WHERE s=0;");
     db.save_fil_0(tablename, 0, t_start_fil_0, v_degs);
+    std::mutex print_mutex = {};
     for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
         size_t s_min = (size_t)std::max(0, t - stem_max - 2);
@@ -741,7 +742,6 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         }
 
         std::atomic<int> threadsLeft = (int)arr_s.size();
-        std::mutex print_mutex = {};
         ut::for_each_par128(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft, t](size_t i) {
             size_t s = arr_s[i];
             gb.ReduceBatch(cris[s], data_tmps[s], s);
