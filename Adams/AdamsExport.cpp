@@ -499,7 +499,7 @@ void ExportAdamsD2(std::string_view cw)
 
     std::map<AdamsDeg, int2d> basis_to_res_id;
     {
-        myio::Statement stmt(dbE2, "select s, t, repr from S0_AdamsE2_basis order by id;");
+        myio::Statement stmt(dbE2, fmt::format("select s, t, repr from {}_basis order by id;", table_E2));
         while (stmt.step() == MYSQLITE_ROW) {
             int s = stmt.column_int(0), t = stmt.column_int(1);
             AdamsDeg deg = {s, t};
