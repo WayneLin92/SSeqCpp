@@ -69,6 +69,12 @@ double GetMemUsage()
     return (meminfo["MemTotal"] - meminfo["MemFree"] - meminfo["Buffers"] - meminfo["Cached"]) * 1.0 / meminfo["MemTotal"];
 }
 
+uint64_t GetDiskAvailable()
+{
+    const std::filesystem::space_info si = std::filesystem::space(".");
+    return si.available;
+}
+
 std::string GetThisPid()
 {
     /* Get the pid of this program */
@@ -126,13 +132,24 @@ std::map<std::string, json::json_pointer> GetTasks(const json& js)
     return tasks;
 }
 
-std::unordered_set<std::string> GetFinishedTasksFromJson(const std::map<std::string, json::json_pointer>& tasks)
+struct FinishedTasks
 {
-    std::unordered_set<std::string> finished_tasks;
+    std::unordered_set<std::string> set;
+    std::vector<std::string> list;
+    void push(const std::string& t)
+    {
+        set.insert(t);
+        list.push_back(t);
+    }
+};
+
+FinishedTasks GetFinishedTasksFromJson(const std::map<std::string, json::json_pointer>& tasks)
+{
+    FinishedTasks finished_tasks;
     if (myio::FileExists("tasks_status.json")) {
         auto js = myio::load_json("tasks_status.json");
         for (auto& t : js.at("finished_tasks"))
-            finished_tasks.insert(t.get<std::string>());
+            finished_tasks.push(t.get<std::string>());
     }
     return finished_tasks;
 }
@@ -163,30 +180,30 @@ int get_db_t_max(const myio::Database& db);
 int get_db_metadata_int(const myio::Database& db, std::string_view key);
 std::string get_db_metadata_str(const myio::Database& db, std::string_view key);
 
+bool IsFinished(const std::smatch& match, const char* postfix) {
+    auto cw = match[1].str();
+    auto t_max = std::stoi(match[2].str());
+    auto filename = fmt::format("{}_{}.db", cw);
+    if (!myio::FileExists(filename))
+        return false;
+    myio::Database db(filename);
+    return get_db_t_max(db) >= t_max;
+}
+
 bool IsFinished(const std::string& task)
 {
     std::regex is_Adams_res_regex("^./Adams res (\\w+) ([0-9]+)$"); /* match example: ./Adams res S0 200 */
     std::smatch match;
-    if (std::regex_search(task, match, is_Adams_res_regex); match[0].matched) {
-        auto cw = match[1].str();
-        auto t_max = std::stoi(match[2].str());
-        auto filename = fmt::format("{}_Adams_res.db", cw);
-        if (!myio::FileExists(filename))
-            return false;
-        myio::Database db(filename);
-        return get_db_t_max(db) >= t_max;
-    }
+    if (std::regex_search(task, match, is_Adams_res_regex); match[0].matched)
+        return IsFinished(match, "Adams_res");
 
     std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
-    if (std::regex_search(task, match, is_Adams_prod_regex); match[0].matched) {
-        auto cw = match[1].str();
-        auto t_max = std::stoi(match[2].str());
-        auto filename = fmt::format("{}_Adams_res_prod.db", cw);
-        if (!myio::FileExists(filename))
-            return false;
-        myio::Database db(filename);
-        return get_db_t_max(db) >= t_max;
-    }
+    if (std::regex_search(task, match, is_Adams_prod_regex); match[0].matched)
+        return IsFinished(match, "Adams_res_prod");
+
+    std::regex is_Adams_export_regex("^./Adams export(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams export S0 200 */
+    if (std::regex_search(task, match, is_Adams_prod_regex); match[0].matched)
+        return IsFinished(match, "AdamsSS");
 
     std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
     if (std::regex_search(task, match, is_Adams_map_res_regex); match[0].matched) {
@@ -222,21 +239,58 @@ bool IsFinished(const std::string& task)
             myio::Database db(filename);
             t_max_cw2 = get_db_t_max(db);
         }
-
         return t_max_map >= std::min({t_max, t_max_cw1, t_max_cw2 + sus - fil});
     }
+
+    std::regex is_Adams_export_map_regex("^./Adams export_map (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    if (std::regex_search(task, match, is_Adams_export_map_regex); match[0].matched) {
+        auto cw1 = match[1].str();
+        auto cw2 = match[2].str();
+        std::string from, to;
+        auto t_max = std::stoi(match[3].str());
+        int t_max_cw1, t_max_cw2, t_max_map, sus, fil;
+        {
+            auto filename = fmt::format("map_AdamsSS_{}__{}.db", cw1, cw2);
+            if (!myio::FileExists(filename))
+                return false;
+            myio::Database db(filename);
+            t_max_map = get_db_t_max(db);
+            sus = get_db_metadata_int(db, "suspension");
+            fil = get_db_metadata_int(db, "filtration");
+            from = get_db_metadata_str(db, "from");
+            to = get_db_metadata_str(db, "to");
+            if (myio::starts_with(from, "Error:") || myio::starts_with(to, "Error:"))
+                return false;
+        }
+        {
+            auto filename = fmt::format("{}_AdamsSS.db", from);
+            if (!myio::FileExists(filename))
+                return false;
+            myio::Database db(filename);
+            t_max_cw1 = get_db_t_max(db);
+        }
+        {
+            auto filename = fmt::format("{}_AdamsSS.db", to);
+            if (!myio::FileExists(filename))
+                return false;
+            myio::Database db(filename);
+            t_max_cw2 = get_db_t_max(db);
+        }
+        return t_max_map >= std::min({t_max, t_max_cw1, t_max_cw2 + sus - fil});
+    }
+
     return false;
 }
 
-void AddNewFinishedTasks(std::vector<std::string>& prepared_tasks, std::unordered_set<std::string>& finished_tasks)
+void AddNewFinishedTasks(std::vector<std::string>& prepared_tasks, FinishedTasks& finished_tasks)
 {
     for (auto& t : prepared_tasks) {
         if (IsFinished(t)) {
             fmt::print("Finished: {}\n", t);
-            finished_tasks.insert(t);
+            finished_tasks.push(t);
         }
     }
-    ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(finished_tasks, t); });
+    ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(finished_tasks.set, t); });
 }
 
 void SchedulerStatus()
@@ -246,32 +300,14 @@ void SchedulerStatus()
     fmt::print("CPU usage: {:.2f}%\n", cpu_usage * 100);
     double mem_usage = GetMemUsage();
     fmt::print("Memory usage: {:.2f}%\n", mem_usage * 100);
+    uint64_t disk_available = GetDiskAvailable();
+    fmt::print("Disk available: {:.0f} GB\n", disk_available / 1.074e9);
 
     /* Get running Adams */
     auto running_adams = GetRunningAdams();
     fmt::print("\nRunning tasks:\n");
     for (auto& [cmd, pid] : running_adams)
         fmt::print("  {}\n", cmd);
-
-    /* Get finished tasks */
-    auto js = myio::load_json("tasks.json");
-    auto tasks = GetTasks(js);
-    auto finished_tasks = GetFinishedTasksFromJson(tasks);
-    auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks);
-    AddNewFinishedTasks(prepared_tasks, finished_tasks);
-    fmt::print("\nFinished tasks:\n");
-    for (auto& t : finished_tasks)
-        fmt::print("  {}\n", t);
-
-    /* Get waiting tasks */
-    std::vector<std::string> waiting_tasks;
-    for (auto it : tasks) {
-        if (!ut::has(finished_tasks, it.first) && !ut::has(running_adams, it.first))
-            waiting_tasks.push_back(it.first);
-    }
-    fmt::print("\nWaiting tasks:\n");
-    for (auto& t : waiting_tasks)
-        fmt::print("  {}\n", t);
 }
 
 void SchedulerKill()
@@ -300,7 +336,7 @@ int GetPriority(const json& js, json::json_pointer ptr)
     return GetProperty(js, ptr, "priority");
 }
 
-void update_finished_tasks(const std::unordered_set<std::string>& finished_tasks)
+void update_finished_tasks(const std::vector<std::string>& finished_tasks)
 {
     /* Save finished task list */
     json js_status;
@@ -318,6 +354,8 @@ int SchedulerRunOnce(const json& js)
     fmt::print("CPU usage: {:.2f}%\n", cpu_usage * 100);
     double mem_usage = GetMemUsage();
     fmt::print("Memory usage: {:.2f}%\n\n", mem_usage * 100);
+    uint64_t disk_available = GetDiskAvailable();
+    fmt::print("Disk available: {:.0f} GB\n", disk_available / 1.074e9);
 
     auto running_adams = GetRunningAdams();
     if (mem_usage > js.at("MEM_limit")) {
@@ -338,11 +376,16 @@ int SchedulerRunOnce(const json& js)
         return 0;
     }
 
+    if (disk_available < js.at("DISK_threshold")) {
+		fmt::print("Disk available is too low to add another task.\n");
+		return 0;
+	}
+
     auto tasks = GetTasks(js);
     auto finished_tasks = GetFinishedTasksFromJson(tasks);
-    auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks);
+    auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks.set);
     AddNewFinishedTasks(prepared_tasks, finished_tasks);
-    update_finished_tasks(finished_tasks);
+    update_finished_tasks(finished_tasks.list);
     ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(running_adams, t); });
     ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return GetProperty(js, tasks.at(t), "disabled") == 1; });
     std::sort(prepared_tasks.begin(), prepared_tasks.end(), [&](const std::string& t1, const std::string& t2) { return GetPriority(js, tasks.at(t1)) > GetPriority(js, tasks.at(t2)); });
@@ -356,8 +399,8 @@ int SchedulerRunOnce(const json& js)
             std::fflush(stdout);
             if (int error = system(cmd.c_str()))
                 return error;
-            finished_tasks.insert(task);
-            update_finished_tasks(finished_tasks);
+            finished_tasks.push(task);
+            update_finished_tasks(finished_tasks.list);
         }
         else if (!nohup_task) {
             fmt::print("Run: {}\n", cmd);

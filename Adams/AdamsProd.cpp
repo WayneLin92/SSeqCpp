@@ -353,7 +353,6 @@ void compute_products(int t_trunc, int stem_trunc, const std::string& ring)  ///
     myio::Statement stmt_t_max(dbProd, "INSERT INTO version (id, name, value) VALUES (817812698, \"t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
     myio::Statement stmt_time(dbProd, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
 
-
     const Mod one = MMod(MMilnor(), 0);
     const int1d one_h = {0};
 
@@ -664,12 +663,12 @@ void SetDbCohMap(const std::string& db_map, const std::string& table_map, const 
     dbMap.create_tables(table_map);
     dbMap.begin_transaction();
     {
-        myio::Statement stmt_map(dbMap, fmt::format("INSERT INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
+        myio::Statement stmt_map(dbMap, fmt::format("INSERT OR IGNORE INTO {} (id, map, map_h) VALUES (?1, ?2, ?3);", table_map)); /* (id, map, map_h) */
         for (size_t i = 0; i < images.size(); ++i)
             stmt_map.bind_and_step((int)i + (fil << LOC_V_BITS), images[i].data, myio::Serialize(HomToK(images[i])));
     }
     {
-        myio::Statement stmt(dbMap, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        myio::Statement stmt(dbMap, "INSERT OR IGNORE INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
         stmt.bind_and_step(651971502, std::string("filtration"), fil);  /* db_key: filtration */
         stmt.bind_and_step(1585932889, std::string("suspension"), sus); /* db_key: suspension */
         stmt.bind_and_step(446174262, std::string("from"), from);       /* db_key: from */

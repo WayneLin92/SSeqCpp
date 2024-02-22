@@ -118,15 +118,15 @@ std::string MMilnorSec::Str() const
     std::string result;
     if (k < 0) {
         if (l == 1)
-            result = m.StrXi();
+            result = m.Str();
         else if (m)
-            result = fmt::format("{}{}", l, m.StrXi());
+            result = fmt::format("{}{}", l, m.Str());
         else
             result = fmt::format("{}", l);
     }
     else {
         if (m)
-            result = fmt::format("Y_{{{},{}}}{}", k, l, m.StrXi());
+            result = fmt::format("Y_{{{},{}}}{}", k, l, m.Str());
         else
             result = fmt::format("Y_{{{},{}}}", k, l);
     }
@@ -218,22 +218,7 @@ MilnorSec MilnorSec::operator+(const MilnorSec& other) const
 }
 
 /* Binomial coefficient modulo 4 */
-uint32_t BinomMod4(uint32_t n, uint32_t m)
-{
-    if ((n & m) == m) {
-        int count3 = 0;
-        while (n) {
-            if (n % 4 == 3 && (m % 4 == 1 || m % 4 == 2))
-                ++count3;
-            n >>= 1;
-            m >>= 1;
-        }
-        return count3 % 2 ? 3 : 1;
-    }
-    if (n > m && ut::popcount(m) + ut::popcount(n - m) - ut::popcount(n) == 1)
-        return 2;
-    return 0;
-}
+uint32_t BinomMod4(uint32_t n, uint32_t m);
 
 void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result);
 
@@ -355,22 +340,22 @@ void MulMilnorMod4(uint32_t l, const std::array<uint32_t, XI_MAX>& R, const std:
     }
 
     /* Y part */
-    for (uint32_t k = 0; k <= XI_MAX_MULT - 1; ++k) {
-        std::array<uint32_t, XI_MAX> S1;
-        if (Contr(k + 1, 0, S, S1)) {
-            for (uint32_t m = 0; m < XI_MAX_MULT; ++m) {
-                for (uint32_t n = m + 1; n <= XI_MAX_MULT; ++n) {
-                    std::array<uint32_t, XI_MAX> R1;
-                    if (Contr(m, k, n, k, R, R1)) {
-                        tmp.clear();
-                        MulMilnor(R1, S1, tmp);
-                        for (auto& mm : tmp)
-                            result.push_back(MMilnorSec(m + k, n + k, mm));
-                    }
-                }
-            }
-        }
-    }
+    // for (uint32_t k = 0; k <= XI_MAX_MULT - 1; ++k) {
+    //     std::array<uint32_t, XI_MAX> S1;
+    //     if (Contr(k + 1, 0, S, S1)) {
+    //         for (uint32_t m = 0; m < XI_MAX_MULT; ++m) {
+    //             for (uint32_t n = m + 1; n <= XI_MAX_MULT; ++n) {
+    //                 std::array<uint32_t, XI_MAX> R1;
+    //                 if (Contr(m, k, n, k, R, R1)) {
+    //                     tmp.clear();
+    //                     MulMilnor(R1, S1, tmp);
+    //                     for (auto& mm : tmp)
+    //                         result.push_back(MMilnorSec(m + k, n + k, mm));
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 void MulMilnor(MMilnor lhs, MMilnor rhs, Milnor& result_app);
@@ -481,7 +466,8 @@ MilnorSec MilnorSec::operator*(const MilnorSec& other) const
 
 void SortMod2(MMilnor1d& data);
 
-void MulSec(MMilnor a, MMilnorSec b, Milnor& result, Milnor& tmp1, Milnor& tmp2)
+/* Return A(a,b) */
+void A_sec(MMilnor a, MMilnorSec b, Milnor& result, Milnor& tmp1, Milnor& tmp2)
 {
     // fmt::print("a={}, b={}, A(a, b)=", a.StrXi(), b);
     result.data.clear();

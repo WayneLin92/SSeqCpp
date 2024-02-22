@@ -352,7 +352,10 @@
         [3, 4],
         [0, 2],
         [2, 4]
-      ]
+      ],
+      "secondary": {
+        "0": 3
+      }
     },
     "CW_eta_nu_eta_Eq_nu_nu": {
       "cells_gen": [0],

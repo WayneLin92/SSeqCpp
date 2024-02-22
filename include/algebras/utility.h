@@ -394,6 +394,27 @@ void for_each_par128(size_t n, Fn f)
 }
 
 /**
+ * For i=0,...,n-1, execute f(i) in parallel.
+ */
+template <typename Fn>
+void for_each_par32(size_t n, Fn f)
+{
+    if (n == 0)
+        return;
+
+    static constexpr size_t THREADS_MAX = 32;
+    std::vector<std::future<void>> futures;
+    size_t nThreads = std::min(THREADS_MAX, n);
+    for (size_t t = 0; t < nThreads; ++t)
+        futures.push_back(std::async(std::launch::async, [&f, t, n]() {
+            for (size_t i = t; i < n; i += THREADS_MAX)
+                f(i);
+        }));
+    for (auto& f : futures)
+        f.wait();
+}
+
+/**
  * For 0<=i<j<n, execute f(i,j) in parallel.
  */
 template <typename Fn>

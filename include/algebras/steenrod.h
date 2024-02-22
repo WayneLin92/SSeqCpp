@@ -267,9 +267,8 @@ public:
         return result;
     }
 
-    std::string StrXi() const;
     std::string Str() const;
-    static constexpr bool has_str_method = true;
+    std::string StrP() const;
 
 public:
     class iterator
@@ -365,7 +364,7 @@ inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
 
 inline std::ostream& operator<<(std::ostream& sout, MMilnor m)
 {
-    return std::cout << m.Str();
+    return std::cout << m.StrP();
 }
 
 /* Elements of A as linear combinations of Milnor basis
@@ -401,15 +400,14 @@ struct Milnor
     }
     Milnor operator*(const Milnor& rhs) const;
 
-    std::string StrXi() const;
     std::string Str() const;
-    static constexpr bool has_str_method = true;
+    std::string StrP() const;
 };
 using Milnor1d = std::vector<Milnor>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
-    return std::cout << x.Str();
+    return std::cout << x.StrP();
 }
 
 void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result);
@@ -510,8 +508,7 @@ public:
     }
 
     std::string Str() const;
-    static constexpr bool has_str_method = true;
-    std::string StrXi() const;
+    std::string StrP() const;
 };
 using MMod1d = std::vector<MMod>;
 using MMod2d = std::vector<MMod1d>;
@@ -600,9 +597,8 @@ struct Mod
         return data == rhs.data;
     };
 
-    std::string StrXi() const;
     std::string Str() const;
-    static constexpr bool has_str_method = true;
+    std::string StrP() const;
 };
 using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
@@ -621,7 +617,7 @@ Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
-    return sout << x.Str();
+    return sout << x.StrP();
 }
 
 inline void Reduce(Mod& x, const Mod1d& y, Mod& tmp)

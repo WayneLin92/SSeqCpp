@@ -235,7 +235,13 @@ nlohmann::json load_json(const std::string& file_name)
 {
     AssertFileExists(file_name);
     std::ifstream ifs(file_name);
-    return nlohmann::json::parse(ifs, nullptr, true, true);
+    try {
+        return nlohmann::json::parse(ifs, nullptr, true, true);
+    }
+    catch (nlohmann::detail::parse_error& e) {
+        fmt::print("json error: {}: {:#x} - {}\n", file_name, e.id, e.what());
+        throw e;
+    }
 }
 
 }  // namespace myio

@@ -329,16 +329,16 @@ Mod subV(const Mod& x, const int1d& v_map)
     return result;
 }
 
-void Groebner::MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels)
+void Groebner::MinimizeOrderedGensRels(Mod1d& cells, int1d& min_rels)
 {
     std::vector<size_t> redundant_vs;
     Mod1d data;
     std::map<int, int> map_rel_ind;
-    cell_reduced.clear();
+    cells.clear();
     for (size_t i = 0; i < gb_.size(); ++i) {
         if (!gb_[i].GetLead().m()) {
             redundant_vs.push_back(gb_[i].GetLead().v());
-            ut::get(cell_reduced, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
+            ut::get(cells, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
         }
         else {
             map_rel_ind[(int)i] = (int)data.size();
@@ -360,12 +360,12 @@ void Groebner::MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels)
     int1d v_map(v_degs_.size(), -1);
     for (size_t i = 0; i < remaining_v.size(); ++i) {
         v_map[remaining_v[i]] = (int)i;
-        ut::get(cell_reduced, remaining_v[i]) = MMod(MMilnor(), remaining_v[i]);
+        ut::get(cells, remaining_v[i]) = MMod(MMilnor(), remaining_v[i]);
     }
 
     for (auto& rel : data)
         rel = subV(rel, v_map);
-    for (auto& rel : cell_reduced)
+    for (auto& rel : cells)
         rel = subV(rel, v_map);
 
     int1d new_v_degs;

@@ -19,6 +19,7 @@ uint32_t max_mask(uint32_t upper_bound, uint32_t mask)
 void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result_app)
 {
     constexpr size_t N = XI_MAX_MULT;
+    constexpr size_t N1 = N + 1;
 
     if (R[N - 1] & S[N - 1])
         return;
@@ -26,25 +27,27 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
     /* XR[i,j], XS[i,j] controls the upper bound of X[i,j] when we consider R(X)=R and S(X)=S.
      * XT[i,j] controls the upper bound of X[i,j] binary digits.
      */
-    std::array<uint32_t, (N + 1) * (N + 1)> X, XR, XS, XT; // TODO: use less memory
-    for (size_t i = 1; i <= N; ++i)
-        XR[(N - i) * (N + 1) + i] = R[i - 1];
+    std::array<uint32_t, N1 * N1 - N> X, XT;  // TODO: use less memory
+    std::array<uint32_t, N1 * N1 - N - N1> XR, XS;
     for (size_t i = 1; i <= N - 1; ++i)
-        XS[i * (N + 1) + (N - i)] = S[i - 1];
+        XR[(N - i) * N1 + i - N1] = R[i - 1];
     for (size_t i = 1; i <= N - 1; ++i)
-        XT[i * (N + 1)] = 0;
+        XS[i * N1 + (N - i) - N1] = S[i - 1];
+    for (size_t i = 1; i <= N - 1; ++i)
+        XT[i * N1] = 0;
     X[N] = R[N - 1];
-    XT[(N - 1) * (N + 1) + 1] = R[N - 1] | S[N - 1];
+    XT[(N - 1) * N1 + 1] = R[N - 1] | S[N - 1];
 
     size_t i = N - 1, j = 1;
     bool decrease = false;
     while (true) {
         bool move_right = false;
         if (j) {
-            const size_t index = i * (N + 1) + j;
-            const size_t index_up = (i - 1) * (N + 1) + j;
-            const size_t index_up_right = (i - 1) * (N + 1) + j + 1;
-            const size_t index_left = i * (N + 1) + j - 1;
+            const size_t index = i * N1 + j;
+            const size_t index1 = index - N1;
+            const size_t index_up = (i - 1) * N1 + j;
+            const size_t index_up_right = (i - 1) * N1 + j + 1;
+            const size_t index_left = i * N1 + j - 1;
             if (i == 1) {
                 /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
                 if (decrease) {
@@ -52,8 +55,8 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                     decrease = false;
                 }
                 else
-                    X[index] = max_mask(std::min(XR[index] >> i, XS[index]), XT[index] | X[index_up_right]);
-                X[index_up] = XR[index] - (X[index] << 1);
+                    X[index] = max_mask(std::min(XR[index1] >> i, XS[index1]), XT[index] | X[index_up_right]);
+                X[index_up] = XR[index1] - (X[index] << 1);
                 if (X[index_up] & XT[index_left]) {
                     if (X[index])
                         decrease = true;
@@ -61,7 +64,7 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                         move_right = true;
                 }
                 else {
-                    XS[index_left] = XS[index] - X[index];
+                    XS[index_left - N1] = XS[index1] - X[index];
                     XT[index_up_right] = XT[index] | X[index] | X[index_up_right];
                     --j;
                 }
@@ -72,31 +75,32 @@ void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t,
                     decrease = false;
                 }
                 else
-                    X[index] = max_mask(std::min(XR[index] >> i, XS[index]), XT[index]);
-                XS[index_left] = XS[index] - X[index];
-                XR[index_up] = XR[index] - (X[index] << i);
+                    X[index] = max_mask(std::min(XR[index1] >> i, XS[index1]), XT[index]);
+                XS[index_left - N1] = XS[index1] - X[index];
+                XR[index_up - N1] = XR[index1] - (X[index] << i);
                 XT[index_up_right] = XT[index] | X[index];
                 --j;
             }
         }
         else {
             if (i == 1) {
-                if (!(XS[N + 1] & X[1])) { /* Add to result. */
-                    XT[1] = XS[N + 1] | X[1];
+                if (!(XS[N1 - N1] & X[1])) { /* Add to result. */
+                    XT[1] = XS[N1 - N1] | X[1];
                     result_app.push_back(MMilnor::Xi(XT.data() + 1));
                 }
                 move_right = true;
             }
             else {
-                const size_t index = i * (N + 1);
-                const size_t index_up_right = (i - 1) * (N + 1) + 1;
-                XT[index_up_right] = XS[index];
+                const size_t index = i * N1;
+                const size_t index1 = index - N1;
+                const size_t index_up_right = (i - 1) * N1 + 1;
+                XT[index_up_right] = XS[index1];
                 j = N - (--i);
             }
         }
         if (move_right) {
             /* Find the next nonzero element. */
-            size_t index = i * (N + 1) + j;
+            size_t index = i * N1 + j;
             do {
                 if (i + j < N) {
                     ++j;
@@ -311,7 +315,7 @@ void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result)
     SortMod2(result.data);
 }
 
-std::string MMilnor::StrXi() const
+std::string MMilnor::Str() const
 {
     auto xi = ToXi();
     auto xi_end = xi.end();
@@ -320,7 +324,7 @@ std::string MMilnor::StrXi() const
     return myio::TplStrCont("Sq(", ",", ")", "1", xi.begin(), xi_end, [](int r) { return std::to_string(r); });
 }
 
-std::string MMilnor::Str() const
+std::string MMilnor::StrP() const
 {
     std::string result;
     for (int i : *this)
@@ -328,14 +332,14 @@ std::string MMilnor::Str() const
     return result;
 }
 
-std::string Milnor::StrXi() const
-{
-    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.StrXi(); });
-}
-
 std::string Milnor::Str() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.Str(); });
+}
+
+std::string Milnor::StrP() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMilnor m) { return m.StrP(); });
 }
 
 Mod mulLF(MMilnor m, const Mod& x)
@@ -347,7 +351,7 @@ Mod mulLF(MMilnor m, const Mod& x)
     return result;
 }
 
-std::string MMod::Str() const
+std::string MMod::StrP() const
 {
     std::string result;
     for (int i : m_no_weight())
@@ -356,9 +360,9 @@ std::string MMod::Str() const
     return result;
 }
 
-std::string MMod::StrXi() const
+std::string MMod::Str() const
 {
-    auto s = m_no_weight().StrXi();
+    auto s = m_no_weight().Str();
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}';
 }
 
@@ -414,14 +418,14 @@ Mod& Mod::iaddmulMay(MMilnor m, const Mod& x, Mod& tmp)
     return *this;
 }
 
-std::string Mod::StrXi() const
-{
-    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMod m) { return m.StrXi(); });
-}
-
 std::string Mod::Str() const
 {
     return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMod m) { return m.Str(); });
+}
+
+std::string Mod::StrP() const
+{
+    return myio::TplStrCont("", "+", "", "0", data.begin(), data.end(), [](MMod m) { return m.StrP(); });
 }
 
 }  // namespace steenrod

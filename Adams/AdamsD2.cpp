@@ -1,16 +1,211 @@
 #include "algebras/benchmark.h"
 #include "algebras/database.h"
+#include "algebras/groebner_steenrod.h"
 #include "algebras/myio.h"
+#include "algebras/steenrod.h"
 #include "groebner_res_const.h"
 #include "main.h"
-#include "steenrod_sec.h"
 
 using namespace steenrod;
 
 namespace steenrod {
 void SortMod2(MMod1d& data);
-void SortMod4(MMilnorSec1d& data);
-void MulMilnorMod4(MMilnorSec lhs, MMilnorSec rhs, MilnorSec& result_app, Milnor& tmp1, Milnor& tmp2);
+void MulMilnor(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result);
+
+/* Compute the contraction C(\xi_i^{2^k}, Sq(R)) inplace */
+int Contr(uint32_t i, uint32_t k, std::array<uint32_t, XI_MAX>& R)
+{
+    if (i == 0)
+        return 1;
+    --i;
+    if (R[i] >> k) {
+        R[i] -= 1 << k;
+        return 1;
+    }
+    return 0;
+}
+
+/* Compute the contraction C(\xi_i^{2^k}, Sq(R)) */
+int Contr(uint32_t i, uint32_t k, const std::array<uint32_t, XI_MAX>& R, std::array<uint32_t, XI_MAX>& result)
+{
+    result = R;
+    return Contr(i, k, result);
+}
+
+/* Compute the contraction C(\xi_i^{2^k}\xi_j^{2^l}, m)
+ */
+int Contr(uint32_t i, uint32_t k, uint32_t j, uint32_t l, const std::array<uint32_t, XI_MAX>& R, std::array<uint32_t, XI_MAX>& result)
+{
+    if (Contr(i, k, R, result))
+        return Contr(j, l, result);
+    return 0;
+}
+
+/**
+ * Sort the sequence and each time remove a pair of identical elements
+ */
+void SortMod4(std::vector<uint64_t>& data)
+{
+    std::sort(data.begin(), data.end());
+    for (size_t i = 0; i + 1 < data.size(); ++i) {
+        uint64_t c = data[i];
+        if ((data[i] | 3) == (data[i + 1] | 3)) {
+            size_t j = i + 1;
+            c += data[j];
+            data[j] = MMILNOR_NULL;
+            for (++j; j < data.size() && (data[i] | 3) == (data[j] | 3); ++j) {
+                c += data[j];
+                data[j] = MMILNOR_NULL;
+            }
+            if ((c & 3) == 0)
+                data[i] = MMILNOR_NULL;
+            else
+                data[i] = (data[i] & (~(uint64_t)3)) | (c & 3);
+            i = j - 1;
+        }
+    }
+    ut::RemoveIf(data, [](uint64_t m) { return m == MMILNOR_NULL; });
+}
+
+/* Binomial coefficient modulo 4 */
+uint32_t BinomMod4(uint32_t n, uint32_t m)
+{
+    if ((n & m) == m) {
+        int count3 = 0;
+        while (n) {
+            if (n % 4 == 3 && (m % 4 == 1 || m % 4 == 2))
+                ++count3;
+            n >>= 1;
+            m >>= 1;
+        }
+        return count3 % 2 ? 3 : 1;
+    }
+    if (n > m && ut::popcount(m) + ut::popcount(n - m) - ut::popcount(n) == 1)
+        return 2;
+    return 0;
+}
+
+void MulMilnorMod4(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, std::vector<uint64_t>& result_app, uint64_t v_raw_shifted)
+{
+    constexpr size_t N = XI_MAX_MULT;
+    constexpr size_t N1 = N + 1;
+
+    /* XR[i,j], XS[i,j] controls the upper bound of X[i,j] when we consider R(X)=R and S(X)=S.
+     * XT[i,j] is the partial sum of diagonals of X[i,j].
+     */
+    std::array<uint32_t, N1 * N1 - N> X, XT;  // TODO: use less memory
+    std::array<uint32_t, N1 * N1 - N - N1> Xb, XR, XS;
+    XT[N * N1] = S[N - 1] + R[N - 1];
+    Xb[N * N1 - N1] = BinomMod4(XT[N * N1], R[N - 1]);
+    if (Xb[N * N1 - N1] == 0)
+        return;
+    X[N] = R[N - 1];
+
+    for (size_t i = 1; i <= N - 1; ++i)
+        XR[(N - i) * N1 + i - N1] = R[i - 1];
+    for (size_t i = 1; i <= N - 1; ++i)
+        XS[i * N1 + (N - i) - N1] = S[i - 1];
+
+    size_t i = N - 1, j = 1;
+    bool decrease = false;
+    while (true) {
+        bool move_right = false;
+        if (j) {
+            const size_t index = i * N1 + j;
+            const size_t index1 = index - N1;
+            const size_t index_up = (i - 1) * N1 + j;
+            const size_t index_up_right = (i - 1) * N1 + j + 1;
+            const size_t index_left = i * N1 + j - 1;
+            const size_t index_prev_b = i + j == N ? (i + 1) * N1 - N1 : i * N1 + j + 1 - N1;
+            const size_t index_bottom_left = (i + 1) * N1 + j - 1;
+
+            if (decrease)
+                --X[index];
+            else
+                X[index] = std::min(XR[index - N1] >> i, XS[index - N1]);
+            /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
+            XT[index] = XT[(i > 1 || j == N - 1) ? index_bottom_left : index_up_right] + X[index];
+
+            while (X[index]) {
+                uint32_t b = (Xb[index_prev_b] * BinomMod4(XT[index], X[index])) % 4;
+                if (b) {
+                    Xb[index1] = b;
+                    break;
+                }
+                --X[index];
+                --XT[index];
+            }
+            if (X[index] == 0)
+                Xb[index1] = Xb[index_prev_b];
+            decrease = false;
+
+            if (i == 1) {
+                X[index_up] = XR[index - N1] - (X[index] << 1);
+                if (j > 1) {
+                    XT[index_up] = XT[(i + 1) * N1 + j - 2] + X[index_up];
+                    Xb[index1] = (Xb[index1] * BinomMod4(XT[index_up], X[index_up])) % 4;
+                    if (Xb[index1] == 0) {
+                        if (X[index])
+                            decrease = true;
+                        else {
+                            // fmt::print("X=\n{}\nXb=\n{}\n", X, Xb);
+                            move_right = true;
+                        }
+                    }
+                    else {
+                        XS[index_left - N1] = XS[index - N1] - X[index];
+                        --j;
+                    }
+                }
+                else {
+                    XS[index_left - N1] = XS[index - N1] - X[index];
+                    --j;
+                }
+            }
+            else {
+                XS[index_left - N1] = XS[index - N1] - X[index];
+                XR[index_up - N1] = XR[index - N1] - (X[index] << i);
+                --j;
+            }
+        }
+        else {
+            if (i == 1) {
+                XT[N + 1] = XS[N1 - N1] + X[1];
+                uint32_t b = (Xb[N1 + 1 - N1] * BinomMod4(XT[N + 1], X[1])) % 4;
+                // fmt::print("push: X=\n{}\nXS=\n{}\nXT=\n{}\nXb=\n{}\n", X, XS, XT, Xb);
+                if (b) {
+                    result_app.push_back((MMilnor::Xi(XT.data() + N + 1).data() << 2) | b | v_raw_shifted);
+                }
+                move_right = true;
+            }
+            else {
+                const size_t index = i * N1;
+                const size_t index_b = index - N1;
+                XT[index] = XS[index - N1];
+                Xb[index_b] = Xb[index_b + 1];
+                j = N - (--i);
+            }
+        }
+        if (move_right) {
+            /* Find the next nonzero element. */
+            size_t index = i * N1 + j;
+            do {
+                if (i + j < N) {
+                    ++j;
+                    ++index;
+                }
+                else {
+                    ++i;
+                    index += (N + 2) - j;
+                    j = 1;
+                }
+            } while (i < N && X[index] == 0);
+            if (i >= N)
+                break;
+            decrease = true;
+        }
+    }
+}
 }  // namespace steenrod
 
 class DbAdamsd2Map : public myio::Database
@@ -74,27 +269,88 @@ public:
     }
 };
 
-Mod A_dd(const Mod& dg, const Mod2d& diffs, int s)
+Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
 {
     Mod result;
-    Milnor tmp, tmp1, tmp2;
-    std::vector<MilnorSec> dd;
-    // std::vector<Milnor> dd_check;  //////
-    for (auto& m : dg.data) {
-        auto& dv = diffs[size_t(s - 1)][m.v()];
-        dd.clear();
-        for (auto& mdv : dv.data) {
-            auto& dv_mdv = diffs[size_t(s - 2)][mdv.v()];
-            /* ut::get(dd, mdv_mdv.v()) += MilnorSec(mdv.m()) * MilnorSec(mdv_mdv.m()) */
-            for (auto& mdv_mdv : dv_mdv.data)
-                MulMilnorMod4(mdv.m(), mdv_mdv.m(), ut::get(dd, mdv_mdv.v()), tmp1, tmp2);
+    Milnor tmp1, tmp2;
+    Mod tmp_m1, tmp_m2;
+    std::vector<uint64_t> prod_sec;
+
+    for (auto mdg : dg.data) {
+        const auto& dv = diffs[size_t(s - 1)][mdg.v()];
+        std::array<uint32_t, XI_MAX> Q = mdg.m().ToXi(), Q1;
+        if (Contr(1, 0, Q, Q1)) {
+            prod_sec.clear();
+            for (auto mdv : dv.data) {
+                const auto& dv_mdv = diffs[size_t(s - 2)][mdv.v()];
+                std::array<uint32_t, XI_MAX> R = mdv.m().ToXi();
+                for (auto mdv_mdv : dv_mdv.data) {
+                    std::array<uint32_t, XI_MAX> S = mdv_mdv.m().ToXi();
+                    MulMilnorMod4(R, S, prod_sec, mdv_mdv.v_raw() << 2);
+                }
+            }
+            SortMod4(prod_sec);
+            for (uint64_t x : prod_sec) {
+                if ((x & 3) != 2) {
+                    fmt::print("x should be a two torsion\n");
+                    std::exit(-2);
+                }
+                x = (x >> 2) | (0x3ULL << 62);
+                tmp1.data.clear();
+                MulMilnor(Q1, MMilnor(x).ToXi(), tmp1.data);
+                for (auto m : tmp1.data)
+                    result.data.push_back(MMod(m.data() | MMod(x).v_raw()));
+            }
         }
-        for (size_t v = 0; v < dd.size(); ++v) {
-            SortMod4(dd[v].data);
-            for (auto& mdd : dd[v].data) {
-                MulSec(m.m(), mdd, tmp, tmp1, tmp2);
-                for (auto& m_tmp : tmp.data)
-                    result.data.push_back(MMod(m_tmp, v));
+    }
+
+    for (uint32_t m = 1; m <= XI_MAX_MULT; ++m) {
+        for (uint32_t n = 1; n <= m; ++n) {
+            tmp_m2.data.clear();
+            for (auto mdg : dg.data) {
+                const auto& dv = diffs[size_t(s - 1)][mdg.v()];
+                std::array<uint32_t, XI_MAX> Q = mdg.m().ToXi(), Q1;
+                for (uint32_t n1 = 1; n1 <= n; ++n1) {
+                    for (uint32_t m1 = 0; m1 < n1; ++m1) {
+                        if (Contr(m - m1, m1, n - n1, n1, Q, Q1)) {
+                            tmp_m1.data.clear();
+                            for (auto mdv : dv.data) {
+                                const auto& dv_mdv = diffs[size_t(s - 2)][mdv.v()];
+                                std::array<uint32_t, XI_MAX> R = mdv.m().ToXi(), R1;
+                                for (auto& mdv_mdv : dv_mdv.data) {
+                                    std::array<uint32_t, XI_MAX> S = mdv_mdv.m().ToXi(), S1;
+                                    for (uint32_t k = 0; k <= m1; ++k) {
+                                        if (Contr(m1 - k, k, n1 - k, k, R, R1) && Contr(k + 1, 0, S, S1)) {
+                                            tmp1.data.clear();
+                                            MulMilnor(R1, S1, tmp1.data);
+                                            for (auto m : tmp1.data)
+                                                tmp_m1.data.push_back(MMod(m.data() | mdv_mdv.v_raw()));
+                                        }
+                                    }
+                                }
+                            }
+                            SortMod2(tmp_m1.data);
+                            for (auto& m_R1S1 : tmp_m1.data) {
+                                std::array<uint32_t, XI_MAX> R1S1 = m_R1S1.m().ToXi();
+                                tmp1.data.clear();
+                                MulMilnor(Q1, R1S1, tmp1.data);
+                                for (auto m : tmp1.data)
+                                    tmp_m2.data.push_back(MMod(m.data() | m_R1S1.v_raw()));
+                            }
+                        }
+                    }
+                }
+            }
+            SortMod2(tmp_m2.data);
+            std::array<uint32_t, XI_MAX> M = {};
+            ++M[size_t(m - 1)];
+            ++M[size_t(n - 1)];
+            for (auto& m_Q1R1S1 : tmp_m2.data) {
+                std::array<uint32_t, XI_MAX> Q1R1S1 = m_Q1R1S1.m().ToXi();
+                tmp1.data.clear();
+                MulMilnor(M, Q1R1S1, tmp1.data);
+                for (auto m : tmp1.data)
+                    result.data.push_back(MMod(m.data() | m_Q1R1S1.v_raw()));
             }
         }
     }
@@ -102,17 +358,19 @@ Mod A_dd(const Mod& dg, const Mod2d& diffs, int s)
     return result;
 }
 
+int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
+
 /*
  * Ext^2(cw) --> H^*(cw)
  *
  *  F_s -----f-----> F_{s-2}
  *   |   \            |
- *   d       A        d
+ *   d       ddd      d
  *   |            \   |
  *   V                V
  *  F_{s-1} --f--> F_{s-3}
  */
-void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
+int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
 {
     std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
     std::string table_d2 = fmt::format("{}_Adams_d2", cw);
@@ -159,6 +417,11 @@ void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
     int1d arr_s, arr_v, arr_i;
     int t = 2;
     std::mutex print_mutex = {};
+    /*for (size_t s = 1; s <= 2; ++s) {
+        for (size_t i = 0; i < 10; ++i)
+            fmt::print("s={} i={} d={}\n", s, i, diffs[s][i]);
+    }*/
+
     for (; t <= t_trunc; ++t) {
         int1d ids;
         degs.clear();
@@ -177,7 +440,7 @@ void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
             ut::get(fh, deg.s) = int2d(diffs_d_size);
             ut::get(fd, deg.s) = Mod1d(diffs_d_size);
 
-            if (deg.s > 2) {
+            if (deg.s >= 2) {
                 auto v = LocId(id).v;
                 for (size_t i = 0; i < diffs_d_size; ++i) {
                     arr_s.push_back(deg.s);
@@ -189,11 +452,16 @@ void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
 
         /*# compute fd+A */
         std::atomic<int> threadsLeft = (int)arr_s.size();
-        ut::for_each_par128(arr_s.size(), [&arr_s, &arr_v, &arr_i, &fd, &all_f, &diffs, &print_mutex, &threadsLeft, t](size_t i) {
+        ut::for_each_par32(arr_s.size(), [&arr_s, &arr_v, &arr_i, &fd, &f, &all_f, &diffs, &print_mutex, &threadsLeft, t](size_t i) {  ////
             int s = arr_s[i];
             int v = arr_v[i];
             int j = arr_i[i];
-            fd[s][j] = subs(diffs[s][v], all_f[size_t(s - 1)]) + A_dd(diffs[s][v], diffs, s);
+            if (s > 2)
+                fd[s][j] = subs(diffs[s][v], all_f[size_t(s - 1)]) + ddd(diffs[s][v], diffs, s);
+            else if (s == 2) {
+                // if (v == 0)
+                //     f[s][j] = MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0);
+            }
 
             {
                 std::scoped_lock lock(print_mutex);
@@ -204,14 +472,10 @@ void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
         });
 
         /*# compute f */
-        ut::for_each_seq(degs.size(), [&degs, &fd, &f, &gb](size_t i) {
+        ut::for_each_par32(degs.size(), [&degs, &fd, &f, &gb](size_t i) {
             int s = degs[i].s;
             if (s >= 3)
                 gb.DiffInvBatch(fd[s], f[s], size_t(s - 3));
-            else if (s == 2) {
-                int t = degs[i].t;
-
-            }
         });
 
         /*# compute fh */
@@ -247,6 +511,7 @@ void compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
 
     stmt_t_max.bind_and_step(std::max({t - 1, old_t_max_d2, t_trunc}));
     stmt_time.step_and_reset();
+    return 0;
 }
 
 // TEST case

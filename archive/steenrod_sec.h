@@ -47,7 +47,6 @@ public:
     };
 
     std::string Str() const;
-    static constexpr bool has_str_method = true;
 };
 using MMilnorSec1d = std::vector<MMilnorSec>;
 
@@ -65,12 +64,11 @@ struct MilnorSec
     }
     MilnorSec operator*(const MilnorSec& other) const;
     std::string Str() const;
-    static constexpr bool has_str_method = true;
 };
 
 void mulP(const MilnorSec& lhs, const MilnorSec& rhs, MilnorSec& result, Milnor& tmp1, Milnor& tmp2);
 
-void MulSec(MMilnor a, MMilnorSec b, Milnor& result, Milnor& tmp1, Milnor& tmp2);
+void A_sec(MMilnor a, MMilnorSec b, Milnor& result, Milnor& tmp1, Milnor& tmp2);
 
 }  // namespace steenrod
 

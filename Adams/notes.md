@@ -73,6 +73,21 @@ Sq(\Delta_k+\Delta_l) & k\ge l\\
 
 $k+i\ge l+j\implies j \le k+i-l$
 
+$$\begin{align*}
+&A\left(Sq(Q), \sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\right)\\
+=& \sum_{k\ge 0}\sum_{0\le m<n} A(Sq(Q), Y_{m+k,n+k})Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{\substack{k,i,j,m,n\\m<n}} Z_{m+k+i,n+k+j}Sq(Q-2^{m+k}\Delta_i-2^{n+k}\Delta_j)Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{\substack{k,i,j,m,n\\m<n\\m+i\ge n+j}} Sq(\Delta_{m+k+i}+\Delta_{n+k+j})Sq(Q-2^{m+k}\Delta_i-2^{n+k}\Delta_j)Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{m\ge n} Sq(\Delta_{m}+\Delta_{n}) \sum_{m_1<n_1\le n} Sq(Q-2^{m_1}\Delta_{m-m_1}-2^{n_1}\Delta_{n-n_1}) \sum_{k\le m_1} Sq(R-2^k(\Delta_{m_1-k}+\Delta_{n_1-k})) Sq(S-\Delta_{k+1})
+\end{align*}$$
+
+$$\sum_{m\ge n} Sq(\Delta_{m}+\Delta_{n}) \sum_{k\le n} Sq(Q-2^{k}(\Delta_{m-k}+\Delta_{n-k})) Sq(R-\Delta_{k+1}) Sq(S)$$
+$$Sq(Q-\Delta_1)\sum_{m,n} Sq(\Delta_{m+n}) Sq(R-2^n\Delta_{m}) Sq(S-\Delta_n)$$
+
+$Sq(n)Sq(m)=\sum_i (n-2i, m-i)Sq(n+m-3i, i)$
+
+
+
 # others
 ## Replace
 `(./Adams res (\w+) )180(": \{\n)(.*)`

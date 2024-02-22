@@ -360,7 +360,7 @@ struct Cohomology
 {
     int1d v_degs;
     Mod1d rels;
-    Mod1d cells;
+    Mod1d cells; /* minimal presentation of the i'th cell */
     int1d min_rels;
     std::map<int, int> num_cells;     /* num_cells[d] is the number of d-cells */
     std::map<int, int> indices_cells; /* indices_cells[d] is the first index of d-cell */
@@ -473,6 +473,110 @@ int GetCohFromJson(const std::string& name, int t_max, int1d& v_degs, Mod1d& rel
         return error;
     v_degs = std::move(coh.v_degs);
     rels = std::move(coh.rels);
+    return 0;
+}
+
+/****************************************************
+                     # d2
+ ***************************************************/
+
+int GetD2FromJson(const json& js, const std::string& name, int t_max, Mod1d& h_d2_images)
+{
+    try {
+        Cohomology coh;
+        auto& cws = js.at("CW_complexes");
+        if (!cws.contains(name)) {
+            return -1;
+        }
+        auto& cw_json = cws.at(name);
+        if (!cw_json.contains("operations")) {
+            fmt::print("json missing key: operations\n");
+            return -2;
+        }
+        int1d gen_degs;
+        int index = 0;
+
+        /* Set coh.num_cells and coh.indices_cells */
+        for (auto& c : cw_json.at("cells")) {
+            int d = c.get<int>();
+            gen_degs.push_back(d);
+            ++coh.num_cells[d];
+            if (!ut::has(coh.indices_cells, d))
+                coh.indices_cells[d] = index;
+            ++index;
+        }
+        int1d cells_gen;
+        for (auto& c : cw_json.at("cells_gen")) {
+            int d = c.get<int>();
+            cells_gen.push_back(d);
+        }
+        std::map<int, std::map<int, int1d>> ops;
+        for (auto& op : cw_json.at("operations")) {
+            int c0, i0;
+            if (op[0].is_number()) {
+                c0 = op[0].get<int>();
+                i0 = coh.indices_cells.at(c0);
+            }
+            else {
+                int1d arr = op[0].get<std::vector<int>>();
+                c0 = arr[0];
+                MyException::Assert(arr[1] < coh.num_cells.at(c0), "arr[1] < cells.at(c0)");
+                i0 = coh.indices_cells.at(c0) + arr[1];
+            }
+            int c1;
+            int1d i1s;
+            if (op[1].is_number()) {
+                c1 = op[1].get<int>();
+                i1s.push_back(coh.indices_cells.at(c1));
+            }
+            else {
+                int1d arr = op[1].get<std::vector<int>>();
+                c1 = arr[0];
+                for (size_t i = 1; i < arr.size(); ++i) {
+                    MyException::Assert(arr[i] < coh.num_cells.at(c1), "arr[i] < cells.at(c1)");
+                    i1s.push_back(coh.indices_cells.at(c1) + arr[i]);
+                }
+            }
+
+            int n = c1 - c0;
+            MyException::Assert(!(n & (n - 1)), "n is a power of 2");
+            for (int i1 : i1s)
+                ops[i0][n].push_back(i1);
+        }
+
+        Mod1d rels2;
+        Mod tmp;
+        for (size_t i = 0; i < gen_degs.size(); ++i) {
+            for (int j = 0; (1 << j) + gen_degs[i] <= t_max; ++j) {
+                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+                if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
+                    for (int v1 : ops.at((int)i).at(int(1 << j)))
+                        rel.iaddP(MMod(MMilnor(), v1), tmp);
+                rels2.push_back(std::move(rel));
+            }
+        }
+
+        Groebner gb(t_max, {}, gen_degs);
+        gb.AddRels(rels2, t_max, coh.min_rels);
+        gb.MinimizeOrderedGensRels(coh.cells, coh.min_rels);
+
+        int1d cells_gen_v2;
+        for (size_t i = 0; i < coh.cells.size(); ++i)
+            if (coh.cells[i].data.size() == 1 && coh.cells[i].GetLead().deg_m() == 0)
+                cells_gen_v2.push_back(gen_degs[i]);
+        ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
+        ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
+        MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
+
+        coh.v_degs = gb.v_degs();
+        ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
+        for (int i : coh.min_rels)
+            coh.rels.push_back(gb.data()[i]);
+    }
+    catch (nlohmann::detail::exception& e) {
+        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
+        throw e;
+    }
     return 0;
 }
 

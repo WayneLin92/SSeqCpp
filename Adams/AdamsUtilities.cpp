@@ -63,6 +63,12 @@ void set_db_t_max(const myio::Database& db, int t_max)
     stmt.bind_and_step(t_max);
 }
 
+void set_db_d2_t_max(const myio::Database& db, int t_max)
+{
+    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (964058258, \"d2_t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;"); /* db_key: d2_t_max */
+    stmt.bind_and_step(t_max);
+}
+
 void set_db_time(const myio::Database& db)
 {
     myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");

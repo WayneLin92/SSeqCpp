@@ -192,7 +192,7 @@ nlohmann::json load_json(const std::string& file_name);
  *********************************************************/
 
 template <typename T>
-struct fmt::formatter<T, char, std::enable_if_t<T::has_str_method>>
+struct fmt::formatter<T, char, std::enable_if_t<std::is_same_v<decltype(T().Str()), std::string>>>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx)

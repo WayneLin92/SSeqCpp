@@ -167,10 +167,10 @@ public:
 
     /* Assume that the v_degs is in increasing order.
      * Simplify generators and relations.
-     * output: cell_reduced[i] is the new presentation of the old v_i.
+     * output: cells[i] is the new presentation of the old v_i.
      * min_rels: set of indices of indecomposable relations
      */
-    void MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels);
+    void MinimizeOrderedGensRels(Mod1d& cells, int1d& min_rels);
 };
 
 }  // namespace steenrod

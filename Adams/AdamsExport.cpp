@@ -110,6 +110,20 @@ public:
         return result;
     }
 
+    std::map<int, alg2::int1d> load_d2(const std::string& table) const
+    {
+        std::map<int, alg2::int1d> result;
+        Statement stmt(*this, fmt::format("SELECT id, d2_h FROM {}", table));
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            auto d2_dual = myio::Deserialize<alg2::int1d>(stmt.column_str(1));
+            int s = LocId(id).s - 2;
+            for (auto& id1 : d2_dual)
+                result[LocId(s, id1).id()].push_back(id);
+        }
+        return result;
+    }
+
     /** id_ind * id = prod */
     std::map<std::pair<int, int>, alg2::int1d> load_cell_products_h(const std::string& table_prefix, int t_trunc) const
     {
@@ -459,6 +473,82 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.save_gb_mod(table_out, gbm);
     dbE2.save_basis_mod(table_out, basis, repr);
     set_db_t_max(dbE2, t_trunc);
+    set_db_time(dbE2);
+
+    dbE2.end_transaction();
+}
+
+void ExportAdamsD2(std::string_view cw)
+{
+    using namespace alg2;
+
+    std::string db_E2 = fmt::format("{}_AdamsSS.db", cw);
+    std::string table_E2 = fmt::format("{}_AdamsE2", cw);
+    std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
+    std::string table_d2 = fmt::format("{}_Adams_d2", cw);
+    myio::AssertFileExists(db_E2);
+    myio::AssertFileExists(db_d2);
+
+    MyDB dbE2(db_E2);
+    int t_max_cw = get_db_t_max(dbE2);
+    MyDB dbD2(db_d2);
+    int t_max_d2 = get_db_t_max(dbD2);
+    int t_max_out = std::min(t_max_cw, t_max_d2);
+
+    auto d2E2 = dbD2.load_d2(table_d2);
+
+    std::map<AdamsDeg, int2d> basis_to_res_id;
+    {
+        myio::Statement stmt(dbE2, "select s, t, repr from S0_AdamsE2_basis order by id;");
+        while (stmt.step() == MYSQLITE_ROW) {
+            int s = stmt.column_int(0), t = stmt.column_int(1);
+            AdamsDeg deg = {s, t};
+            int1d repr = myio::Deserialize<int1d>(stmt.column_str(2));
+            basis_to_res_id[deg].push_back(std::move(repr));
+        }
+    }
+    std::map<AdamsDeg, int> min_res_id;
+    for (auto& [deg, map] : basis_to_res_id) {
+        int1d min_res_id1d;
+        for (auto& map_i : map)
+            if (!map_i.empty())
+                min_res_id1d.push_back(*std::min_element(map_i.begin(), map_i.end()));
+        min_res_id[deg] = *std::min_element(min_res_id1d.begin(), min_res_id1d.end());
+    }
+    std::map<int, int1d> res_id_to_basis;
+    for (auto& [deg, map] : basis_to_res_id) {
+        for (int i = 0; i < map.size(); ++i) {
+            int2d image, kernel, g;
+            lina::SetLinearMap(map, image, kernel, g);
+            int res_id = min_res_id[deg] + i;
+            res_id_to_basis[res_id] = lina::GetImage(image, g, {res_id});
+        }
+    }
+
+    dbE2.begin_transaction();
+    if (!dbE2.has_column(table_E2 + "_basis", "d2"))
+        dbE2.add_column(table_E2 + "_basis", "d2");
+
+    std::vector<std::pair<int, int1d>> monid_repr;
+    {
+        myio::Statement stmt(dbE2, fmt::format("select id, repr from {}_AdamsE2_basis order by id;", cw));
+        while (stmt.step() == MYSQLITE_ROW) {
+            monid_repr.push_back(std::make_pair(stmt.column_int(0), myio::Deserialize<int1d>(stmt.column_str(1))));
+        }
+    }
+    {
+        myio::Statement stmt(dbE2, fmt::format("UPDATE {}_AdamsE2_basis SET d2=?1 WHERE id=?2;", cw));
+        for (auto& [id, repr] : monid_repr) {
+            int1d d2;
+            for (int id : repr)
+                if (ut::has(d2E2, id))
+                    for (int id_d2 : d2E2.at(id))
+                        d2 = lina::add(d2, res_id_to_basis.at(id_d2));
+            stmt.bind_and_step(myio::Serialize(d2), id);
+        }
+    }
+
+    set_db_d2_t_max(dbE2, t_max_out);
     set_db_time(dbE2);
 
     dbE2.end_transaction();
@@ -1003,6 +1093,18 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
         ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
     else
         ExportModAdamsE2(mod, ring, t_max, stem_max);
+    return 0;
+}
+
+int main_export_d2(int argc, char** argv, int& index, const char* desc)
+{
+    std::string cw;
+
+    myio::CmdArg1d args = {{"cw", &cw}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+    ExportAdamsD2(cw);
     return 0;
 }
 

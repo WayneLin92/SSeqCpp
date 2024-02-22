@@ -16,6 +16,7 @@ int main_prod_hi(int, char**, int&, const char*);
 
 int main_export(int, char**, int&, const char*);
 int main_export_mod(int, char**, int&, const char*);
+int main_export_d2(int, char**, int&, const char*);
 int main_export_map(int, char**, int&, const char*);
 
 int main_2cell(int, char**, int&, const char*);
@@ -41,6 +42,7 @@ int main(int argc, char** argv)
         {"prod_hi", "Compute the multiplications by hi", main_prod_hi},
         {"export", "Export the Adams E2 page of a ring", main_export},
         {"export_mod", "Export the Adams E2 page of a module", main_export_mod},
+        {"export_d2", "Export the Adams d2 differentials", main_export_d2},
         {"export_map", "Export the map between Adams E2 pages", main_export_map},
         {"2cell", "Functions for Cofibers of Hopf elements", main_2cell},
         {"res_csv", "Export the resolution data to a csv file", main_res_csv},

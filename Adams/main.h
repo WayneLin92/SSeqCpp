@@ -15,6 +15,7 @@ class Database;
 void create_db_version(const myio::Database& db);
 int get_db_t_max(const myio::Database& db);
 void set_db_t_max(const myio::Database& db, int t_max);
+void set_db_d2_t_max(const myio::Database& db, int t_max);
 void set_db_time(const myio::Database& db);
 
 /* local id for a resolution row */
@@ -24,7 +25,7 @@ struct LocId
     int s, v;
 
     explicit LocId(int id) : s(id >> LOC_V_BITS), v(id % (1 << LOC_V_BITS)) {}
-    LocId(int s_, int v_) : s(s_), v(v_) {}
+    LocId(int s, int v) : s(s), v(v) {}
     int id() const
     {
         return (s << LOC_V_BITS) | v;
