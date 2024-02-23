@@ -343,6 +343,21 @@ std::map<AdamsDeg, Mon1d> DbAdamsSS::load_basis(const std::string& table_prefix)
     return result;
 }
 
+std::map<AdamsDeg, int2d> DbAdamsSS::load_basis_d2(const std::string& table_prefix) const
+{
+    std::map<AdamsDeg, int2d> result;
+    if (has_column(table_prefix + "_basis", "d2")) {
+        Statement stmt(*this, "SELECT s, t, d2 FROM " + table_prefix + "_basis ORDER BY id WHERE d2 IS NOT NULL");
+        int count = 0;
+        while (stmt.step() == MYSQLITE_ROW) {
+            ++count;
+            AdamsDeg deg = {stmt.column_int(0), stmt.column_int(1)};
+            result[deg].push_back(Deserialize<int1d>(stmt.column_str(2)));
+        }
+    }
+    return result;
+}
+
 std::map<AdamsDeg, MMod1d> DbAdamsSS::load_basis_mod(const std::string& table_prefix) const
 {
     std::map<AdamsDeg, MMod1d> result;

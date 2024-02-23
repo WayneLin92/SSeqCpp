@@ -527,11 +527,11 @@ void ExportAdamsD2(std::string_view cw)
 
     dbE2.begin_transaction();
     if (!dbE2.has_column(table_E2 + "_basis", "d2"))
-        dbE2.add_column(table_E2 + "_basis", "d2");
+        dbE2.add_column(table_E2 + "_basis", "d2 TEXT");
 
     std::vector<std::pair<int, int1d>> monid_repr;
     {
-        myio::Statement stmt(dbE2, fmt::format("select id, repr from {}_AdamsE2_basis order by id;", cw));
+        myio::Statement stmt(dbE2, fmt::format("select id, repr from {}_AdamsE2_basis WHERE t<={} order by id", cw, t_max_out));
         while (stmt.step() == MYSQLITE_ROW) {
             monid_repr.push_back(std::make_pair(stmt.column_int(0), myio::Deserialize<int1d>(stmt.column_str(1))));
         }

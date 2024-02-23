@@ -466,7 +466,7 @@ int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft);
+                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft.load());
                 std::fflush(stdout);
             }
         });

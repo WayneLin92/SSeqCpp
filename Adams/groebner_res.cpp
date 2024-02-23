@@ -749,7 +749,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft);
+                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft.load());
                 std::fflush(stdout);
             }
         });

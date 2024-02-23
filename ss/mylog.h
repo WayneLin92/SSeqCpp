@@ -19,8 +19,9 @@ enum class EnumReason : uint32_t
     try1,      /* Try dx=? */
     try2,      /* Try d?=y */
     migrate,   /* Migration */
+    d2,        /* By Adams d2 computation */
 };
-constexpr std::array REASONS = {"manual", "degree", "deduce", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "def", "cofseq_b", "try1", "try2", "migrate"};
+constexpr std::array REASONS = {"manual", "degree", "deduce", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
 inline const char* INDENT = "          ";
 
 class DbLog : public myio::Database

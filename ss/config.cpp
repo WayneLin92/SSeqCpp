@@ -100,7 +100,7 @@ int1d get_compostion(const int1d& x, AdamsDeg deg, const Diagram& diagram, const
     return result;
 }
 
-Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
+Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD2)
 {
     using json = nlohmann::json;
     json js = myio::load_json("ss.json");
@@ -121,6 +121,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
         size_t iCw = 0;
         AdamsDeg2d ring_gen_degs;
 
+        std::vector<std::map<AdamsDeg, int2d>> basis_d2;
         for (auto& json_ring : json_rings) {
             std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
             if (!json_ring.contains("deduce") || json_ring.at("deduce").get<std::string>() == "on")
@@ -133,6 +134,8 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             RingSp ring;
             ring.name = name;
             ring.basis = db.load_basis(table_prefix);
+            if (loadD2)
+                basis_d2.push_back(db.load_basis_d2(table_prefix));
             ring.degs_basis_order_by_stem = OrderDegsByStem(ring.basis);
             ring.t_max = ring.basis.rbegin()->first.t;
             ring.nodes_ss = {db.load_ss(table_prefix), {}};
@@ -173,6 +176,8 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             MyException::Assert(mod.iRing != -1, "mod.iRing != -1");
             auto& ring = rings_[mod.iRing];
             mod.basis = db.load_basis_mod(table_prefix);
+            if (loadD2)
+                basis_d2.push_back(db.load_basis_d2(table_prefix));
             mod.degs_basis_order_by_stem = OrderDegsByStem(mod.basis);
             mod.t_max = mod.basis.rbegin()->first.t;
             mod.nodes_ss = {db.load_ss(table_prefix), {}};
@@ -421,6 +426,41 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
             }
             SyncCofseq(flag);
         }
+
+        if (loadD2) {
+            for (size_t iCw = 0; iCw < rings_.size(); ++iCw) {
+                if (basis_d2[iCw].empty())
+                    continue;
+                auto& name = rings_[iCw].name;
+                auto& nodes_ss = rings_[iCw].nodes_ss;
+                auto& basis = rings_[iCw].basis;
+                for (auto& [deg, d2] : basis_d2[iCw]) {
+                    for (size_t i = 0; i < d2.size(); ++i) {
+                        if (IsNewDiff(nodes_ss, deg, int1d{(int)i}, d2[i], 2)) {
+                            Logger::LogDiff(0, EnumReason::d2, name, deg, int1d{(int)i}, d2[i], 2);
+                            SetRingDiffGlobal(iCw, deg, int1d{(int)i}, d2[i], 2, true, flag);
+                        }
+					}
+				}
+			}
+            for (size_t iMod = 0; iMod < modules_.size(); ++iMod) {
+                auto iCw = rings_.size() + iMod;
+                if (basis_d2[iCw].empty())
+                    continue;
+                auto& name = modules_[iMod].name;
+                auto& nodes_ss = modules_[iMod].nodes_ss;
+                auto& basis = modules_[iMod].basis;
+                for (auto& [deg, d2] : basis_d2[iCw]) {
+                    for (size_t i = 0; i < d2.size(); ++i) {
+                        if (IsNewDiff(nodes_ss, deg, int1d{(int)i}, d2[i], 2)) {
+                            Logger::LogDiff(0, EnumReason::d2, name, deg, int1d{(int)i}, d2[i], 2);
+                            SetModuleDiffGlobal(iMod, deg, int1d{(int)i}, d2[i], 2, true, flag);
+                        }
+                    }
+                }
+            }
+        }
+
     }
     /*catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());
@@ -435,8 +475,9 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log)
     // VersionConvertReorderRels();
 }
 
-void Diagram::SetDeduceList(const std::vector<std::string>& cws) {
-    deduce_list_spectra_.clear(); 
+void Diagram::SetDeduceList(const std::vector<std::string>& cws)
+{
+    deduce_list_spectra_.clear();
     for (auto& name : cws) {
         int index = GetRingIndexByName(name);
         if (index != -1)

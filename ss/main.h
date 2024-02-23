@@ -423,7 +423,7 @@ protected:
     const int1d* a_leibniz_ = nullptr; /* For logging */
 
 public:
-    Diagram(std::string diagram_name, DeduceFlag flag, bool log = true);
+    Diagram(std::string diagram_name, DeduceFlag flag, bool log = true, bool loadD2 = false);
     void VersionConvertReorderRels()
     {
         for (auto& ring : rings_)
