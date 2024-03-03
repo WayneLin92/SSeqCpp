@@ -1,7 +1,18 @@
+// S0
+ss add_diff S0 15 2 3 0 0
+ss add_diff S0 31 10 4 1 0
+ss add_diff S0 63 25 5 1 0
+ss add_diff S0 127 56 6 1 0
+
+ss add_cofseq_diff S0__C2__S0 2 23 6 3 0 0 mix
+ss add_cofseq_diff S0__C2__S0 0 47 20 2 0 0 mix
+ss add_cofseq_diff S0__C2__S0 0 63 26 4 1 0 mix
+ss add_cofseq_diff S0__C2__S0 0 71 33 1 1 0 mix
+ss add_cofseq_diff S0__C2__S0 0 79 36 2 0 0 mix
+
 //Added
 ss add_diff C2 63 1 100 0 ""
 
-ss add_diff S0 63 23 5 0 0
 ss add_diff S0 70 2 3 0 0
 ss add_diff S0 78 5 4 0 1
 ss add_diff S0 80 5 4 1 0
@@ -16,12 +27,7 @@ ss add_diff S0 86 11 5 0 1
 ss add_diff S0 87 10 6 0 0
 ss add_diff S0 88 12 6 1 1
 ss add_diff S0 92 4 5 0 0
-ss add_diff S0 127 56 6 1 0
 
-// S0
-ss add_diff S0 15 2 3 0 0
-ss add_diff S0 31 8 4 0,1 0
-ss add_diff S0 34 2 3 0 0
 ss add_diff S0 56 9 5 0 0
 
 // tmf

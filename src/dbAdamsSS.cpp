@@ -347,7 +347,7 @@ std::map<AdamsDeg, int2d> DbAdamsSS::load_basis_d2(const std::string& table_pref
 {
     std::map<AdamsDeg, int2d> result;
     if (has_column(table_prefix + "_basis", "d2")) {
-        Statement stmt(*this, "SELECT s, t, d2 FROM " + table_prefix + "_basis ORDER BY id WHERE d2 IS NOT NULL");
+        Statement stmt(*this, "SELECT s, t, d2 FROM " + table_prefix + "_basis WHERE d2 IS NOT NULL ORDER BY id");
         int count = 0;
         while (stmt.step() == MYSQLITE_ROW) {
             ++count;

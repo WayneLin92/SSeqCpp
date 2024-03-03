@@ -70,6 +70,36 @@ struct Staircase
 using Staircases = std::map<AdamsDeg, Staircase>;
 using Staircases1d = std::vector<Staircases>;
 
+template <>
+struct fmt::formatter<Staircase>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template <typename FormatContext>
+    auto format(const Staircase& sc, FormatContext& ctx)
+    {
+        for (size_t i = 0; i < sc.levels.size(); ++i) {
+            if (sc.levels[i] < LEVEL_MAX / 2) {
+                if (sc.diffs[i] == NULL_DIFF)
+                    fmt::format_to(ctx.out(), "{}=d_{}[?]\n", sc.basis[i], sc.levels[i]);
+                else
+                    fmt::format_to(ctx.out(), "{}=d_{}{}\n", sc.basis[i], sc.levels[i], sc.diffs[i]);
+            }
+            else {
+                if (sc.diffs[i] == NULL_DIFF)
+                    fmt::format_to(ctx.out(), "d_{}{}=[?]\n", LEVEL_MAX - sc.levels[i], sc.basis[i]);
+                else
+                    fmt::format_to(ctx.out(), "d_{}{}={}\n", LEVEL_MAX - sc.levels[i], sc.basis[i], sc.diffs[i]);
+            }
+        }
+        return ctx.out();
+    }
+};
+
 /* cw1 --map1--> cw2 --map2--> cw3 --map3--> cw1 */
 struct CofSeq
 {

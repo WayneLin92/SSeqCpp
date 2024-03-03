@@ -2,6 +2,7 @@
 #include "myexception.h"
 #include "utility.h"
 #include <fmt/ranges.h>
+#include <fmt/format.h>
 #include <fstream>
 #include <iostream>
 #include <regex>

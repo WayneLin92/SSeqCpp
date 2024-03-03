@@ -1,6 +1,7 @@
 #include "utility.h"
+#include <fmt/format.h>
 #include "myexception.h"
-#include "fmt/core.h"
+#include <fmt/core.h>
 
 void MyException::Assert(bool statement, const char* message)
 {

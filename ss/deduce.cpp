@@ -16,7 +16,7 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
             auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
             int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
             for (auto& [d, _] : nodes_ss.front()) {
-                const Staircase& sc = ut::GetRecentValue(nodes_ss, d);
+                const auto& sc = ut::GetRecentValue(nodes_ss, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.diffs[i] == NULL_DIFF) {
                         if (sc.levels[i] > LEVEL_PERM) {
@@ -66,7 +66,7 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)
                 const int stem_map1 = cofseq.degMap[iCs1].stem();
                 auto& name = cofseq.name;
                 for (auto& [d, _] : nodes_cofseq.front()) {
-                    const Staircase& sc = ut::GetRecentValue(nodes_cofseq, d);
+                    const auto& sc = ut::GetRecentValue(nodes_cofseq, d);
                     for (size_t i = 0; i < sc.levels.size(); ++i) {
                         if (sc.diffs[i] == NULL_DIFF) {
                             if (sc.levels[i] > LEVEL_PERM) {
@@ -89,6 +89,8 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)
                                         r1 = NextRSrcCofseq(cofseq, iCs, d, R_PERM);
                                         AdamsDeg d_src = d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1);
                                         Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::degree, fmt::format("{}:{}", name, iCs), d_src, d, {}, sc.basis[i], r1 + 1);
+                                        if (nodes_cofseq.size() - 2 == 0 && cofseq.name == "S0__Cnu__S0" && iCs == 1 && d == AdamsDeg(9, 77 + 9))
+                                            std::cout << "debug\n";  ////
                                         SetDiffLeibnizCofseq(cofseq, iCs1, d_src, {}, sc.basis[i], r1 + 1, flag);
                                         ++count;
                                     }
@@ -213,7 +215,7 @@ int Diagram::DeduceManual()
             auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
             int depth = int(nodes_ss.size() - 2);
             for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
-                const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.diffs[i] == NULL_DIFF) {
                         if (sc.levels[i] > LEVEL_PERM) {
@@ -306,12 +308,12 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 bNewDiff = true;
             }
             else {
-                const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r - 1};
-                const Staircase& sc_tgt = ut::GetRecentValue(nodes_ss, deg_tgt);
-
                 int1d dx1;
                 int count_pass = 0;
                 unsigned i_max = 1 << nd.count;
+                const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r - 1};
+                const auto& sc_tgt = ut::GetRecentValue(nodes_ss, deg_tgt);
+
                 for (unsigned i = 1; i < i_max; ++i) {
                     dx1.clear();
                     for (int j : two_expansion(i))
@@ -350,11 +352,11 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 bNewDiff = true;
             }
             else {
-                const Staircase& sc_src = ut::GetRecentValue(nodes_ss, deg_src);
-
                 int1d x1;
                 int count_pass = 0;
                 unsigned i_max = 1 << nd.count;
+                const auto& sc_src = ut::GetRecentValue(nodes_ss, deg_src);
+
                 for (unsigned i = 1; i < i_max; ++i) {
                     x1.clear();
                     for (int j : two_expansion(i))
@@ -451,7 +453,7 @@ int Diagram::DeduceDiffsV2()
         auto& nodes_ss = ring.nodes_ss;
         int t_max = ring.t_max;
         for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
-            const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+            const auto& sc = ut::GetRecentValue(nodes_ss, deg);
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.diffs[i] == NULL_DIFF) {
                     if (sc.levels[i] > LEVEL_PERM) {
@@ -471,7 +473,7 @@ int Diagram::DeduceDiffsV2()
         int t_max = mod.t_max;
         for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             fmt::print("{} deg={}                        \r", name, deg);
-            const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+            const auto& sc = ut::GetRecentValue(nodes_ss, deg);
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.diffs[i] == NULL_DIFF) {
                     if (sc.levels[i] > LEVEL_PERM) {

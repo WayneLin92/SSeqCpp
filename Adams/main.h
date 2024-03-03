@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 #include <string>
+#include <fmt/format.h>
 
 inline const char* PROGRAM = "Adams";
 inline const char* VERSION = "Version:\n  3.4.0 (2024-01-09)";

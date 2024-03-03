@@ -268,7 +268,7 @@ bool has(const T& map, const K& key)
 }
 
 template <typename Maps, typename K>
-auto& GetRecentValue(Maps& maps, const K& key)
+const auto& GetRecentValue(Maps& maps, const K& key)
 {
     for (auto p = maps.rbegin(); p != maps.rend(); ++p)
         if (auto result = p->find(key); result != p->end())

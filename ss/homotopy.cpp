@@ -286,7 +286,7 @@ const PiBaseMod* Diagram::GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, A
 int Diagram::PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
 {
     if (ut::has(nodes_ss.front(), deg)) {
-        const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+        const auto& sc = ut::GetRecentValue(nodes_ss, deg);
         size_t i_start_perm = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);
         return int(i_stable - i_start_perm);
@@ -303,7 +303,7 @@ void Diagram::UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>
 int Diagram::PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg)  //// TODO: improve
 {
     if (ut::has(nodes_ss.front(), deg)) {
-        const Staircase& sc = ut::GetRecentValue(nodes_ss, deg);
+        const auto& sc = ut::GetRecentValue(nodes_ss, deg);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);
         return int(i_stable - i_end_perm);
@@ -486,11 +486,11 @@ std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
     return result;
 }
 
-void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x) //// TODO: correct this
+void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)  //// TODO: correct this
 {
     /*auto& nodes_ss = modules_[iMod].nodes_ss;
     if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
-        const Staircase& sc = ut::GetRecentValue(nodes_ss, deg_x);
+        const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, LEVEL_PERM + 1);
         if (i_stable - i_end_perm == 1) {
@@ -623,7 +623,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //            auto& basis_d = basis.at(deg);
     //            int2d projs;
     //            {
-    //                auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    //                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
     //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
     //                for (auto& m : pi_basis_d) {
     //                    int1d proj = Poly2Indices(gb.Reduce(Proj(m, pi_gen_Einf)), basis_d);
@@ -655,7 +655,7 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //            /* Add new generators in homotopy */
     //            int2d Einf;
     //            {
-    //                auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    //                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
     //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
     //                size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
     //                for (size_t i = first_PC; i < last_PC; ++i)
@@ -741,7 +741,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //            auto& basis_d = basis.at(deg);
     //            int2d projs;
     //            {
-    //                auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    //                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
     //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
     //                for (auto& m : pi_basis_d) {
     //                    int1d proj = Mod2Indices(gb.Reduce(Proj(m, rings_.pi_gen_Einf, pi_gen_Einf)), basis_d);
@@ -773,7 +773,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //            /* Add new generators in homotopy */
     //            int2d Einf;
     //            {
-    //                auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    //                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
     //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
     //                size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
     //                for (size_t i = first_PC; i < last_PC; ++i)
@@ -793,7 +793,7 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //                AdamsDeg deg_S0 = deg - ssCof.deg_qt;
     //                if (fx) {
     //                    int1d ifx = Poly2Indices(fx, rings_.basis.at(deg_S0));
-    //                    auto& sc = ut::GetRecentValue(rings_.nodes_ss, deg_S0);
+    //                    const auto& sc = ut::GetRecentValue(rings_.nodes_ss, deg_S0);
     //                    size_t first = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
     //                    ifx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first, std::move(ifx));
 

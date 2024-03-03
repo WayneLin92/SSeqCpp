@@ -1,6 +1,7 @@
 #include "benchmark.h"
 #include "myio.h"
 #include "utility.h"
+#include <fmt/format.h>
 #include <fmt/color.h>
 
 namespace bench {

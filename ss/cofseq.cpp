@@ -13,6 +13,8 @@ bool Diagram::IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, in
         return false;
     const auto& nodes_cofseq_from = cofseq.nodes_cofseq[iCs1];
     const auto& nodes_ss_from = *cofseq.nodes_ss[iCs1];
+    if (IsPossTgt(*cofseq.nodes_ss[iCs], deg))  // Fixed a bug
+        return true;
     for (int r1 = deg_map.s; r1 <= r_max; ++r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, deg_map.stem() + r1};
         if (PossEinf(nodes_ss_from, d_src))
@@ -27,7 +29,7 @@ size_t Diagram::GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iC
     const size_t iCs2 = (iCs + 1) % 3;
     auto& nodes_ss2 = *cofseq.nodes_ss[iCs2];
     const int stem_map = cofseq.degMap[iCs].stem();
-    auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
+    const auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
     size_t result = sc.levels.size();
     for (size_t i = sc.levels.size(); i-- > 0;) {
         if (sc.diffs[i] == NULL_DIFF || sc.levels[i] < level_min)
@@ -49,7 +51,7 @@ int Diagram::GetFirstFixedLevelForPlotCofseq(const CofSeq& cofseq, size_t iCs, A
     const size_t iCs2 = (iCs + 1) % 3;
     auto& nodes_ss2 = *cofseq.nodes_ss[iCs2];
     const int stem_map = cofseq.degMap[iCs].stem();
-    auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
+    const auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
     int result = LEVEL_MAX + 1;
     for (size_t i = sc.levels.size(); i-- > 0 && sc.levels[i] >= LEVEL_PERM;) {
         if (i == 0 || sc.levels[i - 1] != sc.levels[i]) {
@@ -68,7 +70,7 @@ std::pair<int, int> Diagram::CountPossDrTgtCofseq(const CofSeq& cofseq, size_t i
 {
     std::pair<int, int> result;
     if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_tgt)) {
-        auto& sc_tgt = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg_tgt);
+        const auto& sc_tgt = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg_tgt);
         result.first = (int)GetFirstIndexOnLevel(sc_tgt, r);
         result.second = (int)GetFirstIndexOfFixedLevelsCofseq(cofseq, iCs, deg_tgt, LEVEL_MAX - r + 1) - result.first;
     }
@@ -83,7 +85,7 @@ std::pair<int, int> Diagram::CountPossDrSrcCofseq(const CofSeq& cofseq, size_t i
 {
     std::pair<int, int> result;
     if (ut::has(cofseq.nodes_cofseq[iCs].front(), deg_src)) {
-        auto& sc_src = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg_src);
+        const auto& sc_src = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg_src);
         result.first = (int)GetFirstIndexOnLevel(sc_src, LEVEL_MAX - r);
         result.second = (int)GetFirstIndexOfFixedLevelsCofseq(cofseq, iCs, deg_src, LEVEL_MAX - r + 1) - result.first;
     }
@@ -144,7 +146,7 @@ void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg de
     auto& nodes_ss_tgt = *cofseq.nodes_ss[iCs2];
     int stem_map1 = cofseq.degMap[iCs1].stem();
     int stem_map = cofseq.degMap[iCs].stem();
-    const Staircase& sc = ut::GetRecentValue(nodes_cofseq, deg);
+    const auto& sc = ut::GetRecentValue(nodes_cofseq, deg);
     for (size_t i = 0; i < sc.diffs.size(); ++i) {
         if (sc.diffs[i] != NULL_DIFF)
             continue;
@@ -242,8 +244,8 @@ int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int
     try {
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, fmt::format("{}:{}", cofseq.name, iCs), deg_x, x, dx, r);
         SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, true, flag);
-        //DeduceTrivialDiffsCofseq(flag);
-        //DeduceTrivialDiffs(flag);
+        // DeduceTrivialDiffsCofseq(flag);
+        // DeduceTrivialDiffs(flag);
     }
     catch (SSException&) {
         bException = true;
@@ -283,74 +285,85 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
         if (nd.direction > 0) {
             iCs_src = iCs;
             deg_src = deg;
-            const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r + stem_map};
             x = nd.x;
-
-            int1d dx1;
-            int count_pass = 0;
-            unsigned i_max = 1 << nd.count;
-            for (unsigned i = 1; i < i_max; ++i) {
-                const Staircase& sc_tgt = ut::GetRecentValue(nodes_cofseq2, deg_tgt);
-                dx1.clear();
-                for (int j : two_expansion(i))
-                    dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
-
-                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true)) {
-                    ++count_pass;
-                    if (count_pass > 1)
-                        break;
-                    dx = std::move(dx1);
-                }
-            }
-            if (count_pass == 0) {
+            if (nd.count == 0) {
                 dx.clear();
                 bNewDiff = true;
             }
-            else if (count_pass > 1)
-                ++index_nd;
             else {
-                dx1.clear();
-                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true))
+                int1d dx1;
+                int count_pass = 0;
+                unsigned i_max = 1 << nd.count;
+                const AdamsDeg deg_tgt = deg_src + AdamsDeg{r, r + stem_map};
+                const auto& sc_tgt = ut::GetRecentValue(nodes_cofseq2, deg_tgt);
+
+                for (unsigned i = 1; i < i_max; ++i) {
+                    dx1.clear();
+                    for (int j : two_expansion(i))
+                        dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
+
+                    if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true)) {
+                        ++count_pass;
+                        if (count_pass > 1)
+                            break;
+                        dx = std::move(dx1);
+                    }
+                }
+                if (count_pass == 0) {
+                    dx.clear();
                     bNewDiff = true;
-                else
+                }
+                else if (count_pass > 1)
                     ++index_nd;
+                else {
+                    dx1.clear();
+                    if (TryDiffCofseq(cofseq, iCs_src, deg_src, x, dx1, r, depth, flag, true))
+                        bNewDiff = true;
+                    else
+                        ++index_nd;
+                }
             }
         }
         /* Fixed target, find source. */
         else {
             iCs_src = iCs1;
             deg_src = deg - AdamsDeg{r, r + stem_map1};
-            const Staircase& sc_src = ut::GetRecentValue(nodes_cofseq1, deg_src);
             dx = nd.x;
-
-            int1d x1;
-            int count_pass = 0;
-            unsigned i_max = 1 << nd.count;
-
-            for (unsigned i = 1; i < i_max; ++i) {
-                x1.clear();
-                for (int j : two_expansion(i))
-                    x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
-
-                if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false)) {
-                    ++count_pass;
-                    if (count_pass > 1)
-                        break;
-                    x = std::move(x1);
-                }
-            }
-            if (count_pass == 0) {
+            if (nd.count == 0) {
                 x.clear();
                 bNewDiff = true;
             }
-            else if (count_pass > 1)
-                ++index_nd;
             else {
-                x1.clear();
-                if (TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false))
+                int1d x1;
+                int count_pass = 0;
+                unsigned i_max = 1 << nd.count;
+                const auto& sc_src = ut::GetRecentValue(nodes_cofseq1, deg_src);
+
+                for (unsigned i = 1; i < i_max; ++i) {
+                    x1.clear();
+                    for (int j : two_expansion(i))
+                        x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
+
+                    if (!TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false)) {
+                        ++count_pass;
+                        if (count_pass > 1)
+                            break;
+                        x = std::move(x1);
+                    }
+                }
+                if (count_pass == 0) {
+                    x.clear();
                     bNewDiff = true;
-                else
+                }
+                else if (count_pass > 1)
                     ++index_nd;
+                else {
+                    x1.clear();
+                    if (TryDiffCofseq(cofseq, iCs_src, deg_src, x1, dx, r, depth, flag, false))
+                        bNewDiff = true;
+                    else
+                        ++index_nd;
+                }
             }
         }
 
@@ -432,7 +445,7 @@ void Diagram::SyncCofseq(DeduceFlag flag)
         const auto& ind_cofs = iCw < size_rings ? rings_[iCw].ind_cofs : modules_[iCw - size_rings].ind_cofs;
         int t_max = iCw < size_rings ? rings_[iCw].t_max : modules_[iCw - size_rings].t_max;
         for (auto& [d, _] : nodes_ss.front()) {
-            const Staircase& sc = ut::GetRecentValue(nodes_ss, d);
+            const auto& sc = ut::GetRecentValue(nodes_ss, d);
             for (size_t i = 0; i < sc.levels.size(); ++i) {
                 if (sc.levels[i] == LEVEL_PERM) {
                     for (auto& ind_cof : ind_cofs) {
@@ -440,7 +453,7 @@ void Diagram::SyncCofseq(DeduceFlag flag)
                         auto iCs = (size_t)ind_cof.iCs;
                         if (!ut::has(cofseq.nodes_cofseq[iCs].front(), d))
                             cofseq.nodes_cofseq[iCs].front()[d] = {};
-                        SetDiffScCofseq(cofseq, ind_cof.iCs, d, sc.basis[i], NULL_DIFF, 0, flag);
+                        SetDiffScCofseq(cofseq, ind_cof.iCs, d, sc.basis[i], NULL_DIFF, 0, flag);  ////
                     }
                 }
             }

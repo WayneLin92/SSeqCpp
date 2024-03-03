@@ -3,6 +3,7 @@
 
 #include "json.h"
 #include <cstring>
+#include <fmt/format.h>
 #include <fmt/core.h>
 #include <sstream>
 #include <variant>

@@ -52,7 +52,7 @@ void DBSS::save_cofseq(const std::string& table, const CofSeq& cofseq) const
             auto& node = cofseq.nodes_cofseq[iC].front();
             auto degs = OrderDegsV2(node);
             for (const auto& deg : degs) {
-                auto& basis_ss_d = ut::GetRecentValue(cofseq.nodes_cofseq[iC], deg);
+                const auto& basis_ss_d = ut::GetRecentValue(cofseq.nodes_cofseq[iC], deg);
                 for (size_t i = 0; i < basis_ss_d.basis.size(); ++i)
                     stmt.bind_and_step((int)iC, myio::Serialize(basis_ss_d.basis[i]), SerializeDiff(basis_ss_d.diffs[i]), basis_ss_d.levels[i], deg.s, deg.t);
             }
@@ -171,7 +171,6 @@ std::array<Staircases, 3> DBSS::load_cofseq(const std::string& table) const
         node_cofseq[index][deg].diffs.push_back(std::move(diff));
         node_cofseq[index][deg].basis.push_back(std::move(base));
         node_cofseq[index][deg].levels.push_back(level);
-
     }
     return node_cofseq;
 }
@@ -272,7 +271,7 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 
         auto flag = DeduceFlag::no_op;
         Diagram diagram(diagram_name, flag, true, true);
-        //int count = diagram.DeduceTrivialDiffs(flag);
+        // int count = diagram.DeduceTrivialDiffs(flag);
         diagram.save(diagram_name, flag);
 
         Logger::DeleteFromLog();

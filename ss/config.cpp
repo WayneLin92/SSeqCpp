@@ -76,7 +76,7 @@ void get_composition_info(const nlohmann::json& json_maps, const PMap1d& maps, c
         auto& json_f = json_maps[indices[i]];
         auto& map = maps[indices[i]];
         if (t > map->t_max) {
-            t_max -= map->t_max - t;
+            t_max += map->t_max - t;
             t = map->t_max;
         }
         t += map->deg.t;

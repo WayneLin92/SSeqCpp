@@ -176,7 +176,7 @@ void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const
 
         if (!ut::has(nodes_cofseq.front(), deg))
             continue;
-        auto& sc = nodes_cofseq.front().at(deg);
+        auto& sc = ut::GetRecentValue(nodes_cofseq, deg);
         double bottom_right_x = (double)deg.stem() + radii.at(deg) * 1.5 * COS_BULLET_ANGLE * (n - 1 + extra_b);
         double bottom_right_y = (double)deg.s - radii.at(deg) * 1.5 * SIN_BULLET_ANGLE * (n - 1 + extra_b);
         int stable_level = Diagram::GetFirstFixedLevelForPlotCofseq(cofseq, iCs, deg);
@@ -605,7 +605,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
       "type": "cofseq",
       "names": ["S0", "C2", "S0"],
       "degs_maps": [0, 1, 0],
-      "ss_groups": [
+      "cofseq_groups": [
         {
           "bullets": {"x": 0, "y": 0, "r"(radius): 1, "c"(color): "blue", "b"(basis): [0, 1], "d"(diff): [2], "l"(level): 2, "p"(page): 2, "i0"(index): 0},
           "degs_factors": [[0, 1], [1, 1]],
@@ -678,7 +678,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
                     if (sc.levels[i] > 9000 && sc.diffs[i] != NULL_DIFF) {
                         int r = LEVEL_MAX - sc.levels[i];
                         AdamsDeg deg_tgt = deg + AdamsDeg(r, stem_map + r);
-                        int1d tgt = lina::GetInvImage(nodes_cofseq_next.front().at(deg_tgt).basis, sc.diffs[i]);
+                        int1d tgt = lina::GetInvImage(nodes_cofseq_next.front().at(deg_tgt).basis, Residue(sc.diffs[i], *cofseq.nodes_ss[(iCs + 1) % 3], deg_tgt, LEVEL_PERM));
 
                         jsi["diffs"].push_back(json::object());
                         auto& diff_json = jsi["diffs"].back();
