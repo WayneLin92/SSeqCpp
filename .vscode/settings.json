@@ -35,10 +35,10 @@
         "xyrp"
     ],
     "files.associations": {
-        "*.excalidraw": "json",
-        "*.excalidrawlib": "json",
         ".gitignore": "plaintext",
         "*.json": "jsonc",
+        "*.excalidraw": "json",
+        "*.excalidrawlib": "json",
         "__bit_reference": "cpp",
         "__config": "cpp",
         "__debug": "cpp",
@@ -152,6 +152,7 @@
         "memory_resource": "cpp",
         "numbers": "cpp",
         "semaphore": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "source_location": "cpp"
     }
 }

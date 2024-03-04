@@ -31,6 +31,14 @@ int main_res(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+        
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams res {} ", cw))) {
+        fmt::print("Error: ./Adams res {} is already running.\n", cw);
+        return -1;
+    }
+#endif
 
     if (stem_max > DEG_MAX) {
         stem_max = DEG_MAX;
@@ -46,7 +54,7 @@ int main_res(int argc, char** argv, int& index, const char* desc)
     Mod1d rels;
     int d_max = std::min(t_max, stem_max);
     if (int error = GetCoh(v_degs, rels, d_max, cw))
-        return -1;
+        return -2;
 
     std::string db_filename = cw + "_Adams_res.db";
     std::string tablename = cw + "_Adams_res";
@@ -106,28 +114,5 @@ int res_P(const std::string& cw, int t_max, int stem_max)
     tablename = fmt::format("{}{}P{}_{}_Adams_res", ring, field, str_n1, str_n2);
 
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
-    return 0;
-}
-
-void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil);
-void SetDbCohMap(const std::string& db_map, const std::string& table_map, const std::string& from, const std::string& to, const Mod1d& images, int sus, int fil);
-
-int main_map_coh(int argc, char** argv, int& index, const char* desc)
-{
-    std::string cw1, cw2;
-
-    myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}};
-    myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
-        return error;
-
-    Mod1d images;
-    int sus = 0, fil = 0;
-    std::string from, to;
-    SetCohMap(cw1, cw2, from, to, images, sus, fil);
-    std::string db_filename = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
-    std::string tablename = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
-    SetDbCohMap(db_filename, tablename, from, to, images, sus, fil);
-
     return 0;
 }

@@ -97,26 +97,57 @@ std::map<std::string, std::string> GetRunningAdams()
     auto this_pid = GetThisPid();
     for (const auto& entry : std::filesystem::directory_iterator("/proc")) {
         if (entry.is_directory()) {
-            std::string filename = entry.path().filename().string();
-            std::string filepath = entry.path().string();
-
-            std::string filenameCmd = fmt::format("{}/cmdline", filepath);
-            if (std::regex_search(filename, match, is_num); match[0].matched && myio::FileExists(filenameCmd)) {
+            std::string filename_pid = entry.path().filename().string();
+            if (std::regex_search(filename_pid, match, is_num); match[0].matched) {
+                std::string filepath = entry.path().string();
+                std::string filenameCmd = fmt::format("{}/cmdline", filepath);
                 std::ifstream fileCmd(filenameCmd);
                 std::string line;
-                while (std::getline(fileCmd, line)) {
+                if (std::getline(fileCmd, line)) {
                     if (std::regex_search(line, match, is_Adams); match[0].matched) {
                         auto cmd = myio::join(" ", myio::split(line, '\0'));
                         cmd = cmd.substr(0, cmd.size() - 1);
-                        if (filename != this_pid)
-                            running_adams[cmd] = filename;
+                        if (filename_pid != this_pid)
+                            running_adams[cmd] = filename_pid;
                     }
-                    break;
                 }
             }
         }
     }
     return running_adams;
+}
+
+/* return if some Adams instance is already running  */
+bool IsAdamsRunning(const std::string& cmd_prefix)
+{
+    std::regex is_Adams("^./Adams");
+    std::regex is_num("^[0-9]+$");
+    std::smatch match;
+    auto this_pid = GetThisPid();
+    for (const auto& entry : std::filesystem::directory_iterator("/proc")) {
+        if (entry.is_directory()) {
+            std::string filename_pid = entry.path().filename().string();
+            if (std::regex_search(filename_pid, match, is_num); match[0].matched) {
+                std::string filepath = entry.path().string();
+                std::string filenameCmd = fmt::format("{}/cmdline", filepath);
+                std::ifstream fileCmd(filenameCmd);
+                std::string line;
+                if (std::getline(fileCmd, line)) {
+                    if (std::regex_search(line, match, is_Adams); match[0].matched) {
+                        auto cmd = myio::join(" ", myio::split(line, '\0'));
+                        cmd = cmd.substr(0, cmd.size() - 1);
+                        if (filename_pid != this_pid && myio::starts_with(cmd, cmd_prefix)) {
+                            /* Get the working dir of pid in linux */
+                            std::string filenameCwd = fmt::format("{}/cwd", filepath);
+                            if (std::filesystem::read_symlink(filenameCwd) == std::filesystem::current_path())
+                                return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
 std::map<std::string, json::json_pointer> GetTasks(const json& js)
@@ -265,7 +296,7 @@ bool IsFinished(const std::smatch& match, const char* postfix)
 {
     auto cw = match[1].str();
     auto t_max = std::stoi(match[2].str());
-    auto filename = fmt::format("{}_{}.db", cw);
+    auto filename = fmt::format("{}_{}.db", cw, postfix);
     if (!myio::FileExists(filename))
         return false;
     myio::Database db(filename);
@@ -274,20 +305,20 @@ bool IsFinished(const std::smatch& match, const char* postfix)
 
 bool IsFinished(const std::string& task)
 {
-    std::regex is_Adams_res_regex("^./Adams res (\\w+) ([0-9]+)$"); /* match example: ./Adams res S0 200 */
+    std::regex is_Adams_res_regex("^res (\\w+) ([0-9]+)$"); /* match example: ./Adams res S0 200 */
     std::smatch match;
     if (std::regex_search(task, match, is_Adams_res_regex); match[0].matched)
         return IsFinished(match, "Adams_res");
 
-    std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
+    std::regex is_Adams_prod_regex("^prod (\\w+) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
     if (std::regex_search(task, match, is_Adams_prod_regex); match[0].matched)
         return IsFinished(match, "Adams_res_prod");
 
-    std::regex is_Adams_export_regex("^./Adams export(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams export S0 200 */
-    if (std::regex_search(task, match, is_Adams_prod_regex); match[0].matched)
+    std::regex is_Adams_export_regex("^export (\\w+) ([0-9]+)$"); /* match example: ./Adams export S0 200 */
+    if (std::regex_search(task, match, is_Adams_export_regex); match[0].matched)
         return IsFinished(match, "AdamsSS");
 
-    std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    std::regex is_Adams_map_res_regex("^map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
     if (std::regex_search(task, match, is_Adams_map_res_regex); match[0].matched) {
         auto cw1 = match[1].str();
         auto cw2 = match[2].str();
@@ -300,6 +331,8 @@ bool IsFinished(const std::string& task)
                 return false;
             myio::Database db(filename);
             t_max_map = get_db_t_max(db);
+            if (t_max_map == -3)
+                return false;
             sus = get_db_metadata_int(db, "suspension");
             fil = get_db_metadata_int(db, "filtration");
             from = get_db_metadata_str(db, "from");
@@ -324,7 +357,7 @@ bool IsFinished(const std::string& task)
         return t_max_map >= std::min({t_max, t_max_cw1, t_max_cw2 + sus - fil});
     }
 
-    std::regex is_Adams_export_map_regex("^./Adams export_map (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    std::regex is_Adams_export_map_regex("^export_map (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
     if (std::regex_search(task, match, is_Adams_export_map_regex); match[0].matched) {
         auto cw1 = match[1].str();
         auto cw2 = match[2].str();
@@ -337,6 +370,8 @@ bool IsFinished(const std::string& task)
                 return false;
             myio::Database db(filename);
             t_max_map = get_db_t_max(db);
+            if (t_max_map == -3)
+                return false;
             sus = get_db_metadata_int(db, "suspension");
             fil = get_db_metadata_int(db, "filtration");
             from = get_db_metadata_str(db, "from");
@@ -392,7 +427,7 @@ void SchedulerStatus()
         fmt::print("  {}\n", cmd);
 }
 
-void SchedulerKill()
+void SchedulerKillAll()
 {
     /* Get running Adams */
     auto running_adams = GetRunningAdams();
@@ -400,6 +435,19 @@ void SchedulerKill()
     for (auto& [cmd, pid] : running_adams) {
         system(fmt::format("kill {}", pid).c_str());
         fmt::print("  {} ({})\n", pid, cmd);
+    }
+}
+
+void SchedulerKillScheduler()
+{
+    /* Get running Adams */
+    auto running_adams = GetRunningAdams();
+    fmt::print("Killing the following tasks:\n");
+    for (auto& [cmd, pid] : running_adams) {
+        if (myio::starts_with(cmd, "./Adams scheduler loop")) {
+            system(fmt::format("kill {}", pid).c_str());
+            fmt::print("  {} ({})\n", pid, cmd);
+        }
     }
 }
 
@@ -429,15 +477,39 @@ void update_finished_tasks(const std::vector<std::string>& finished_tasks)
     outfile << js_status.dump(4) << std::endl;
 }
 
+std::unordered_set<std::string> ConvertToTaskName(const std::map<std::string, std::string>& running_adams)
+{
+    std::unordered_set<std::string> result;
+    std::regex is_Adams_res_regex("^./Adams res (\\w+) ([0-9]+)$"); /* match example: ./Adams res S0 200 */
+    std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
+    std::regex is_Adams_export_regex("^./Adams export(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams export S0 200 */
+    std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    std::regex is_Adams_export_map_regex("^./Adams export_map (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    std::smatch match;
+    for (auto& [cmd, pid] : running_adams) {
+        if (std::regex_search(cmd, match, is_Adams_res_regex); match[0].matched)
+            result.insert(fmt::format("res {} {}", match[1].str(), match[2].str()));
+        else if (std::regex_search(cmd, match, is_Adams_prod_regex); match[0].matched)
+            result.insert(fmt::format("prod {} {}", match[1].str(), match[2].str()));
+        else if (std::regex_search(cmd, match, is_Adams_export_regex); match[0].matched)
+            result.insert(fmt::format("export {} {}", match[1].str(), match[2].str()));
+        else if (std::regex_search(cmd, match, is_Adams_map_res_regex); match[0].matched)
+            result.insert(fmt::format("map_res {} {} {}", match[1].str(), match[2].str(), match[3].str()));
+        else if (std::regex_search(cmd, match, is_Adams_export_map_regex); match[0].matched)
+            result.insert(fmt::format("export_map {} {} {}", match[1].str(), match[2].str(), match[3].str()));
+    }
+    return result;
+}
+
 int SchedulerRunOnce(const json& js)
 {
     /* Get CPU and memory usage */
     double cpu_usage = GetCpuUsage();
     fmt::print("CPU usage: {:.2f}%\n", cpu_usage * 100);
     double mem_usage = GetMemUsage();
-    fmt::print("Memory usage: {:.2f}%\n\n", mem_usage * 100);
+    fmt::print("Memory usage: {:.2f}%\n", mem_usage * 100);
     uint64_t disk_available = GetDiskAvailable();
-    fmt::print("Disk available: {:.0f} GB\n", disk_available / 1.074e9);
+    fmt::print("Disk available: {:.0f} GB\n\n", disk_available / 1.074e9);
 
     auto running_adams = GetRunningAdams();
     if (mem_usage > js.at("MEM_limit")) {
@@ -473,7 +545,8 @@ int SchedulerRunOnce(const json& js)
     auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks.set);
     AddNewFinishedTasks(prepared_tasks, finished_tasks);
     update_finished_tasks(finished_tasks.list);
-    ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(running_adams, t); });
+    auto running_tasks = ConvertToTaskName(running_adams);
+    ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return ut::has(running_tasks, t); });
     ut::RemoveIf(prepared_tasks, [&](const std::string& t) { return GetProperty(js, tasks.at(t), "disabled") == 1; });
     std::sort(prepared_tasks.begin(), prepared_tasks.end(), [&](const std::string& t1, const std::string& t2) { return GetPriority(js, tasks.at(t1)) > GetPriority(js, tasks.at(t2)); });
 
@@ -523,7 +596,7 @@ int main_scheduler_kill(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    SchedulerKill();
+    SchedulerKillAll();
     return 0;
 }
 
@@ -553,10 +626,18 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+        
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams scheduler loop"))) {
+        fmt::print("Error: ./Adams scheduler loop is already running.\n");
+        return -1;
+    }
+#endif
 
     if (!myio::FileExists("tasks.json")) {
         fmt::print("tasks.json not found\n");
-        return -1;
+        return -2;
     }
     while (true) {
         bench::Timer timer;
@@ -588,18 +669,12 @@ int main_scheduler(int argc, char** argv, int& index, const char* desc)
 
 int main_test(int argc, char** argv, int& index, const char* desc)
 {
-    myio::CmdArg1d args = {};
+    std::string cmd_prefix;
+    myio::CmdArg1d args = {{"cmd_prefix", &cmd_prefix}};
     myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    if (!myio::FileExists("tasks.json")) {
-        fmt::print("tasks.json not found\n");
-        return -1;
-    }
-
-    auto js = myio::load_json("tasks.json");
-    tpl_expand(js);
-    std::cout << js.dump(4) << std::endl;
+    fmt::print("IsAdamsRunning({}) = {}\n", cmd_prefix, IsAdamsRunning(cmd_prefix));
     return 0;
 }

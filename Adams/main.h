@@ -19,6 +19,7 @@ void set_db_t_max(const myio::Database& db, int t_max);
 void set_db_over(const myio::Database& db, const std::string& over);
 void set_db_d2_t_max(const myio::Database& db, int t_max);
 void set_db_time(const myio::Database& db);
+bool IsAdamsRunning(const std::string& cmd_prefix);
 
 /* local id for a resolution row */
 inline constexpr int LOC_V_BITS = 19;

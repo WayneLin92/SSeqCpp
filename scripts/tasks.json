@@ -77,13 +77,9 @@
     "tpl_map": {
       "json": {
         "priority": 100,
-        "map_coh {cw1} {cw2}": {
-          "cmd": "./Adams map_coh {cw1} {cw2}"
-        },
         "map_res {cw1} {cw2} {t}": {
           "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
           "pre": [
-            "map_coh {cw1} {cw2}",
             "res {from} {t}",
             "res {to} {t}"
           ]
@@ -100,7 +96,7 @@
           "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
           "pre": [
             "mkdir AdamsSS",
-            "export {cw1} {cw2} {t}"
+            "export_map {cw1} {cw2} {t}"
           ]
         }
       },
@@ -191,7 +187,6 @@
         "map_res {cw1} {cw2} {t}": {
           "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
           "pre": [
-            "map_coh {cw1} {cw2}",
             "res {from} {t}",
             "res {to} {t}",
             "cp_map {cw1} {cw2} {t_prev}"
@@ -209,7 +204,7 @@
           "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
           "pre": [
             "mkdir AdamsSS",
-            "export {cw1} {cw2} {t}"
+            "export_map {cw1} {cw2} {t}"
           ]
         }
       },
@@ -1450,13 +1445,13 @@
       }
     },
     "200": {
-      "priority": 80,
+      "priority": 70,
       "S0": {
-        "priority": 90,
+        "priority": 80,
         "S0": {"tpl123": ["ring_cont", "S0", "200", "180"]}
       },
       "hopf": {
-        "priority": 88,
+        "priority": 78,
         "C2": {"tpl123": ["module_cont", "C2", "200", "180"]},
         "Ceta": {"tpl123": ["module_cont", "Ceta", "200", "180"]},
         "Cnu": {"tpl123": ["module_cont", "Cnu", "200", "180"]},
@@ -1467,7 +1462,7 @@
         "Csigma__S0": {"tpl123": ["map_cont", "Csigma", "S0", "200", "180"]}
       },
       "theta": {
-        "priority": 87,
+        "priority": 77,
         "C2h4": {"tpl123": ["module_cont", "C2h4", "200", "180"]},
         "C2h5": {"tpl123": ["module_cont", "C2h5", "200", "180"]},
         "C2h6": {"tpl123": ["module_cont", "C2h6", "200", "180"]},
@@ -1489,7 +1484,7 @@
         "longer_theta_cw": {}
       },
       "linear": {
-        "priority": 87,
+        "priority": 77,
         "3-cell": {
           "CW_2_eta": {"tpl123": ["module_cont", "CW_2_eta", "200", "180"]},
           "CW_eta_nu": {"tpl123": ["module_cont", "CW_eta_nu", "200", "180"]},
@@ -1555,7 +1550,7 @@
         }
       },
       "Smash": {
-        "priority": 85,
+        "priority": 75,
         "C2_Ceta": {"tpl123": ["module_cont", "C2_Ceta", "200", "180"]},
         "C2_Cnu": {"tpl123": ["module_cont", "C2_Cnu", "200", "180"]},
         "C2_Csigma": {"tpl123": ["module_cont", "C2_Csigma", "200", "180"]},
@@ -1583,9 +1578,9 @@
         "CW_nu_A_sigma__Q_Cnu_Csigma": {"tpl123": ["map_vto_cont", "CW_nu_A_sigma", "Q_Cnu_Csigma","S0",  "200", "180"]}
       },
       "Joker_shape": {
-        "priority": 86,
+        "priority": 76,
         "Joker": {
-          "priority": 87,
+          "priority": 77,
           "Joker": {"tpl123": ["module_cont", "Joker", "200", "180"]},
           "CW_2_eta_V_eta__Joker": {"tpl123": ["map_cont", "CW_2_eta_V_eta", "Joker", "200", "180"]},
           "Joker__CW_eta_2_A_eta": {"tpl123": ["map_cont", "Joker", "CW_eta_2_A_eta", "200", "180"]},

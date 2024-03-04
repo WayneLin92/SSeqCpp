@@ -893,6 +893,14 @@ int main_prod(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+        
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams prod {} ", ring))) {
+        fmt::print("Error: ./Adams prod {} is already running.\n", ring);
+        return -1;
+    }
+#endif
 
     compute_products(t_max, stem_max, ring);
     return 0;
@@ -908,10 +916,21 @@ int main_prod_mod(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+        
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams prod_mod {} {} ", mod, ring))) {
+        fmt::print("Error: ./Adams prod_mod {} {} is already running.\n", mod, ring);
+        return -1;
+    }
+#endif
 
     compute_mod_products(t_max, stem_max, mod, ring);
     return 0;
 }
+
+void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil);
+void SetDbCohMap(const std::string& db_map, const std::string& table_map, const std::string& from, const std::string& to, const Mod1d& images, int sus, int fil);
 
 int main_map_res(int argc, char** argv, int& index, const char* desc)
 {
@@ -922,6 +941,32 @@ int main_map_res(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams map_res {} {} ", cw1, cw2))) {
+        fmt::print("Error: ./Adams map_res {} {} is already running.\n", cw1, cw2);
+        return -1;
+    }
+#endif
+
+    std::string db_filename = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string tablename = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
+    bool to_init = false;
+    if (!myio::FileExists(db_filename))
+        to_init = true;
+    else {
+        DbAdamsResMap dbMap(db_filename);
+        if (!dbMap.has_table(tablename))
+            to_init = true;
+    }
+    if (to_init) {
+        Mod1d images;
+        int sus = 0, fil = 0;
+        std::string from, to;
+        SetCohMap(cw1, cw2, from, to, images, sus, fil);
+        SetDbCohMap(db_filename, tablename, from, to, images, sus, fil);
+    }
 
     compute_map_res(cw1, cw2, t_max, stem_max);
     return 0;

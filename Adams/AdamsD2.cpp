@@ -529,6 +529,14 @@ int main_d2(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams d2 {} ", cw))) {
+        fmt::print("Error: ./Adams d2 {} is already running.\n", cw);
+        return -1;
+    }
+#endif
+
     compute_d2(cw, t_max, DEG_MAX);
     return 0;
 }
