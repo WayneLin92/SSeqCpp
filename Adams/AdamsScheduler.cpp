@@ -589,7 +589,7 @@ int main_scheduler_status(int argc, char** argv, int& index, const char* desc)
     return 0;
 }
 
-int main_scheduler_kill(int argc, char** argv, int& index, const char* desc)
+int main_scheduler_killall(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {};
@@ -597,6 +597,17 @@ int main_scheduler_kill(int argc, char** argv, int& index, const char* desc)
         return error;
 
     SchedulerKillAll();
+    return 0;
+}
+
+int main_scheduler_killsch(int argc, char** argv, int& index, const char* desc)
+{
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    SchedulerKillScheduler();
     return 0;
 }
 
@@ -660,7 +671,8 @@ int main_scheduler(int argc, char** argv, int& index, const char* desc)
         {"status", "Print tasks status", main_scheduler_status},
         {"run_once", "Run scheduler once", main_scheduler_run_once},
         {"loop", "Run scheduler infinitely", main_scheduler_loop},
-        {"kill", "Kill running Adams tasks", main_scheduler_kill},
+        {"killall", "Kill all running Adams tasks", main_scheduler_killall},
+        {"killsch", "Kill scheduler loop", main_scheduler_killsch}
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
