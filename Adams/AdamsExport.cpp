@@ -474,6 +474,7 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.save_basis_mod(table_out, basis, repr);
     set_db_t_max(dbE2, t_trunc);
     set_db_time(dbE2);
+    set_db_over(dbE2, std::string(ring));
 
     dbE2.end_transaction();
 }

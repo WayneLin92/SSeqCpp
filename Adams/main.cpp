@@ -27,6 +27,7 @@ int main_verify_status(int, char**, int&, const char*);
 int main_ut(int, char**, int&, const char*);
 
 int main_scheduler(int, char**, int&, const char*);
+int main_test(int, char**, int&, const char*);
 
 int main(int argc, char** argv)
 {
@@ -50,6 +51,7 @@ int main(int argc, char** argv)
         {"verify_status", "Display the verification status in the current directory", main_verify_status},
         {"ut", "Utilities", main_ut},
         {"scheduler", "scheduler", main_scheduler},
+        {"test", "test", main_test}
     };
     int index = 1;
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))

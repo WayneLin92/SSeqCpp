@@ -132,6 +132,87 @@ std::map<std::string, json::json_pointer> GetTasks(const json& js)
     return tasks;
 }
 
+void replace_all(std::string& str, const std::string& from, const std::string& to)
+{
+    std::string::size_type n = 0;
+    while ((n = str.find(from, n)) != std::string::npos) {
+        str.replace(n, from.size(), to);
+        n += to.size();
+    }
+}
+
+void tpl_expand(nlohmann::json& js)
+{
+    /* expand js.at("templates") */
+    auto& js_templates = js.at("templates");
+    auto js_templates_flat = js_templates.flatten();
+    std::unordered_set<std::string> tpl_keys;
+    for (auto it : js_templates_flat.items()) {
+        auto& key = it.key();
+        if (key.find("tpl123") != std::string::npos)
+            tpl_keys.insert(json::json_pointer(key).parent_pointer().to_string());
+    }
+    std::string template_str;
+    for (auto& str_ptr : tpl_keys) {
+        auto ptr = json::json_pointer(str_ptr);
+        auto& tpl = js_templates.at(ptr);
+        std::vector<std::string> params;
+        for (auto& k : tpl)
+            params.push_back(k.get<std::string>());
+        MyException::Assert(!params.empty(), "params should be nonempty");
+        if (js_templates.contains(params[0])) {
+            auto& template_ = js_templates.at(params[0]);
+            template_str = template_.at("json").dump();
+            for (size_t i = 1; i < params.size(); i++) {
+                auto k = template_.at("params")[i - 1].get<std::string>();
+                replace_all(template_str, fmt::format("{{{}}}", k), params[i]);
+            }
+            js_templates.at(ptr.parent_pointer()) = json::parse(template_str);
+        }
+        else {
+            fmt::print("Template {} not found\n", params[0]);
+            throw MyException(0xb1583f9e, "template not found");
+        }
+    }
+
+    std::vector<std::string> tpl_names;
+    for (auto it : js_templates.items())
+        tpl_names.push_back(it.key());
+    for (auto& k : tpl_names) {
+        js_templates.at(k)["parse"] = js_templates.at(k).at("json").dump();
+    }
+
+    /* expand all */
+    auto js_flat = js.flatten();
+    tpl_keys.clear();
+    for (auto it : js_flat.items()) {
+        auto& key = it.key();
+        if (key.find("tpl123") != std::string::npos)
+            tpl_keys.insert(json::json_pointer(key).parent_pointer().to_string());
+    }
+    for (auto& str_ptr : tpl_keys) {
+        auto ptr = json::json_pointer(str_ptr);
+        auto& tpl = js.at(ptr);
+        std::vector<std::string> params;
+        for (auto& k : tpl)
+            params.push_back(k.get<std::string>());
+        MyException::Assert(!params.empty(), "params should be nonempty");
+        if (js_templates.contains(params[0])) {
+            auto& template_ = js_templates.at(params[0]);
+            template_str = template_.at("parse").get<std::string>();
+            for (size_t i = 1; i < params.size(); i++) {
+                auto k = template_.at("params")[i - 1].get<std::string>();
+                replace_all(template_str, fmt::format("{{{}}}", k), params[i]);
+            }
+            js.at(ptr.parent_pointer()) = json::parse(template_str);
+        }
+        else {
+            fmt::print("Template {} not found\n", params[0]);
+            throw MyException(0xb1583f9e, "template not found");
+        }
+    }
+}
+
 struct FinishedTasks
 {
     std::unordered_set<std::string> set;
@@ -180,7 +261,8 @@ int get_db_t_max(const myio::Database& db);
 int get_db_metadata_int(const myio::Database& db, std::string_view key);
 std::string get_db_metadata_str(const myio::Database& db, std::string_view key);
 
-bool IsFinished(const std::smatch& match, const char* postfix) {
+bool IsFinished(const std::smatch& match, const char* postfix)
+{
     auto cw = match[1].str();
     auto t_max = std::stoi(match[2].str());
     auto filename = fmt::format("{}_{}.db", cw);
@@ -371,15 +453,20 @@ int SchedulerRunOnce(const json& js)
         }
     }
 
+    if (mem_usage > js.at("MEM_threshold")) {
+        fmt::print("Memory usage is too high to add another task.\n");
+        return 0;
+    }
+
     if (cpu_usage > js.at("CPU_threshold")) {
         fmt::print("cpu usage is too high to add another task.\n");
         return 0;
     }
 
     if (disk_available < js.at("DISK_threshold")) {
-		fmt::print("Disk available is too low to add another task.\n");
-		return 0;
-	}
+        fmt::print("Disk available is too low to add another task.\n");
+        return 0;
+    }
 
     auto tasks = GetTasks(js);
     auto finished_tasks = GetFinishedTasksFromJson(tasks);
@@ -452,6 +539,7 @@ int main_scheduler_run_once(int argc, char** argv, int& index, const char* desc)
         return -1;
     }
     auto js = myio::load_json("tasks.json");
+    tpl_expand(js);
     if (int error = SchedulerRunOnce(js)) {
         fmt::print("SchedulerRunOnce failed\n");
         return error;
@@ -473,6 +561,7 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
     while (true) {
         bench::Timer timer;
         auto js = myio::load_json("tasks.json");
+        tpl_expand(js);
         if (int error = SchedulerRunOnce(js)) {
             fmt::print("SchedulerRunOnce failed\n");
             return error;
@@ -494,5 +583,23 @@ int main_scheduler(int argc, char** argv, int& index, const char* desc)
     };
     if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
+    return 0;
+}
+
+int main_test(int argc, char** argv, int& index, const char* desc)
+{
+    myio::CmdArg1d args = {};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    if (!myio::FileExists("tasks.json")) {
+        fmt::print("tasks.json not found\n");
+        return -1;
+    }
+
+    auto js = myio::load_json("tasks.json");
+    tpl_expand(js);
+    std::cout << js.dump(4) << std::endl;
     return 0;
 }
