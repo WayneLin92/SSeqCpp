@@ -78,7 +78,7 @@
       "json": {
         "priority": 100,
         "map_coh {cw1} {cw2}": {
-          "cmd": "map_coh {cw1} {cw2}"
+          "cmd": "./Adams map_coh {cw1} {cw2}"
         },
         "map_res {cw1} {cw2} {t}": {
           "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
