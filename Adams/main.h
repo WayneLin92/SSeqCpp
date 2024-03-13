@@ -35,11 +35,4 @@ struct LocId
     }
 };
 
-namespace ut {
-inline int get(const nlohmann::json& js, std::string key, int default_)
-{
-    return js.contains(key) ? js.at(key).get<int>() : default_;
-}
-}  // namespace ut
-
 #endif
