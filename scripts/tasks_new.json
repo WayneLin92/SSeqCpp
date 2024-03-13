@@ -1,0 +1,297 @@
+{
+  "CPU_threshold": 0.8,
+  "CPU_threshold_info": "run more tasks if CPU usage is below this threshold",
+  "MEM_threshold": 0.8,
+  "MEM_threshold_info": "run more tasks if MEM usage is below this threshold",
+  "MEM_limit": 0.95,
+  "MEM_limit_info": "kill tasks if memory usage is above this limit",
+  "DISK_threshold": 100,
+  "DISK_threshold_info": "run more tasks if disk available is more than this threshold in GB",
+  "interval": 300,
+  "interval_info": "check every `interval` seconds",
+  "templates": {
+    "ring": {
+      "json": {
+        "res {ring} {t}": {
+          "cmd": "nohup ./Adams res {ring} {t} >> {ring}.out 2>&1 &"
+        },
+        "prod {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod {ring} {t} >> {ring}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}"
+          ]
+        },
+        "export {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "prod {ring} {t}"
+          ]
+        },
+        "cp {ring} {t}": {
+          "cmd": "cp {ring}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {ring} {t}"
+          ]
+        }
+      },
+      "params": ["ring", "t"]
+    },
+    "tpl_mod": {
+      "json": {
+        "res {mod} {t}": {
+          "cmd": "nohup ./Adams res {mod} {t} >> {mod}.out 2>&1 &"
+        },
+        "prod {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod_mod {mod} {ring} {t} >> {mod}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}",
+            "res {mod} {t}"
+          ]
+        },
+        "export {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export_mod {mod} {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {ring} {t}",
+            "prod {mod} {t}"
+          ]
+        },
+        "cp {mod} {t}": {
+          "cmd": "cp {mod}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {mod} {t}"
+          ]
+        }
+      },
+      "params": ["mod", "ring", "t"]
+    },
+    "module": {
+      "json": {"tpl123": ["tpl_mod", "{mod}", "S0", "{t}"]},
+      "params": ["mod", "t"]
+    },
+    "tpl_map": {
+      "json": {
+        "priority": 100,
+        "map_res {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
+          "pre": [
+            "res {from} {t}",
+            "res {to} {t}"
+          ]
+        },
+        "export_map {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams export_map {cw1} {cw2} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {from} {t}",
+            "export {to} {t}",
+            "map_res {cw1} {cw2} {t}"
+          ]
+        },
+        "cp_map {cw1} {cw2} {t}": {
+          "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export_map {cw1} {cw2} {t}"
+          ]
+        }
+      },
+      "params": ["cw1", "cw2", "from", "to", "t"]
+    },
+    "map": {
+      "json": {"tpl123": ["tpl_map", "{cw1}", "{cw2}", "{cw1}", "{cw2}", "{t}"]},
+      "params": ["cw1", "cw2", "t"]
+    },
+    "map_vto": {
+      "json": {"tpl123": ["tpl_map", "{cw1}", "{cw2}", "{cw1}", "{to}", "{t}"]},
+      "params": ["cw1", "cw2", "to", "t"]
+    },
+
+    "ring_cont": {
+      "json": {
+        "res {ring} {t}": {
+          "cmd": "nohup ./Adams res {ring} {t} >> {ring}.out 2>&1 &",
+          "pre": [
+            "cp {ring} {t_prev}"
+          ]
+        },
+        "prod {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod {ring} {t} >> {ring}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}"
+          ]
+        },
+        "export {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "prod {ring} {t}"
+          ]
+        },
+        "cp {ring} {t}": {
+          "cmd": "cp {ring}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {ring} {t}"
+          ]
+        }
+      },
+      "params": ["ring", "t", "t_prev"]
+    },
+    "tpl_mod_cont": {
+      "json": {
+        "res {mod} {t}": {
+          "cmd": "nohup ./Adams res {mod} {t} >> {mod}.out 2>&1 &",
+          "pre": [
+            "cp {mod} {t_prev}"
+          ]
+        },
+        "prod {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod_mod {mod} {ring} {t} >> {mod}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}",
+            "res {mod} {t}"
+          ]
+        },
+        "export {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export_mod {mod} {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {ring} {t}",
+            "prod {mod} {t}"
+          ]
+        },
+        "cp {mod} {t}": {
+          "cmd": "cp {mod}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {mod} {t}"
+          ]
+        }
+      },
+      "params": ["mod", "ring", "t", "t_prev"]
+    },
+    "module_cont": {
+      "json": {"tpl123": ["tpl_mod_cont", "{mod}", "S0", "{t}", "{t_prev}"]},
+      "params": ["mod", "t", "t_prev"]
+    },
+    "tpl_map_cont": {
+      "json": {
+        "priority": 100,
+        "map_res {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
+          "pre": [
+            "res {from} {t}",
+            "res {to} {t}",
+            "cp_map {cw1} {cw2} {t_prev}"
+          ]
+        },
+        "export_map {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams export_map {cw1} {cw2} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {from} {t}",
+            "export {to} {t}",
+            "map_res {cw1} {cw2} {t}"
+          ]
+        },
+        "cp_map {cw1} {cw2} {t}": {
+          "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export_map {cw1} {cw2} {t}"
+          ]
+        }
+      },
+      "params": ["cw1", "cw2", "from", "to", "t", "t_prev"]
+    },
+    "map_cont": {
+      "json": {"tpl123": ["tpl_map_cont", "{cw1}", "{cw2}", "{cw1}", "{cw2}", "{t}", "{t_prev}"]},
+      "params": ["cw1", "cw2", "t", "t_prev"]
+    },
+    "map_vto_cont": {
+      "json": {"tpl123": ["tpl_map_cont", "{cw1}", "{cw2}", "{cw1}", "{to}", "{t}", "{t_prev}"]},
+      "params": ["cw1", "cw2", "to", "t", "t_prev"]
+    }
+  },
+  "tasks": {
+    "priority": 0,
+    "mkdir AdamsSS": {
+      "priority": 100,
+      "cmd": "mkdir -p AdamsSS",
+      "info": "The exported data will be copied to this folder"
+    },
+    "160": {
+      "priority": 90,
+      "S0": {
+        "priority": 90,
+        "S0": {"tpl123": ["ring", "S0", "160"]}
+      },
+      "hopf": {
+        "priority": 98,
+        "C2": {"tpl123": ["module", "C2", "160"]},
+        "Ceta": {"tpl123": ["module", "Ceta", "160"]},
+        "Cnu": {"tpl123": ["module", "Cnu", "160"]},
+        "Csigma": {"tpl123": ["module", "Csigma", "160"]}
+      },
+      "linear": {
+        "priority": 97,
+        "3-cell": {
+          "CW_sigma_2sigma": {"tpl123": ["module", "CW_sigma_2sigma", "160"]},
+          "CW_2sigma_sigma": {"tpl123": ["module", "CW_2sigma_sigma", "160"]},
+          "Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma", "CW_sigma_2sigma", "160"]},
+          "C2sigma__CW_2sigma_sigma": {"tpl123": ["map", "C2sigma", "CW_2sigma_sigma", "160"]},
+          "CW_sigma_2sigma__S0": {"tpl123": ["map", "CW_sigma_2sigma", "S0", "160"]},
+          "CW_sigma_2sigma__C2sigma_0": {"tpl123": ["map_vto", "CW_sigma_2sigma", "C2sigma_0", "S0", "160"]}
+        }
+      },
+      "Smash": {
+        "priority": 95,
+        "C2_Ceta": {"tpl123": ["module", "C2_Ceta", "160"]},
+        "C2_Cnu": {"tpl123": ["module", "C2_Cnu", "160"]},
+        "C2_Csigma": {"tpl123": ["module", "C2_Csigma", "160"]},
+        "Ceta_Cnu": {"tpl123": ["module", "Ceta_Cnu", "160"]},
+        "Ceta_Csigma": {"tpl123": ["module", "Ceta_Csigma", "160"]},
+        "Cnu_Csigma": {"tpl123": ["module", "Cnu_Csigma", "160"]},
+
+        "C2_Ceta_Cnu": {"tpl123": ["module", "C2_Ceta_Cnu", "160"]},
+        "C2_Ceta__C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta", "C2_Ceta_Cnu", "160"]},
+        "C2_Cnu__C2_Ceta_Cnu": {"tpl123": ["map", "C2_Cnu", "C2_Ceta_Cnu", "160"]},
+        "Ceta_Cnu__C2_Ceta_Cnu": {"tpl123": ["map", "Ceta_Cnu", "C2_Ceta_Cnu", "160"]},
+        "C2_Ceta_Cnu__C2_Ceta": {"tpl123": ["map", "C2_Ceta_Cnu", "C2_Ceta", "160"]},
+        "C2_Ceta_Cnu__C2_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "C2_Cnu", "160"]},
+        "C2_Ceta_Cnu__Ceta_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "Ceta_Cnu", "160"]},
+
+        "C2_C2": {"tpl123": ["module", "C2_C2", "160"]},
+        "C2__C2_C2": {"tpl123": ["map", "C2", "C2_C2", "160"]},
+        "C2_C2__C2": {"tpl123": ["map", "C2_C2", "C2", "160"]},
+
+        "Ceta_Ceta": {"tpl123": ["module", "Ceta_Ceta", "160"]},
+        "Ceta__Ceta_Ceta": {"tpl123": ["map", "Ceta", "Ceta_Ceta", "160"]},
+        "Ceta_Ceta__Ceta": {"tpl123": ["map", "Ceta_Ceta", "Ceta", "160"]},
+
+        "Cnu_Cnu": {"tpl123": ["module", "Cnu_Cnu", "160"]},
+        "Cnu__Cnu_Cnu": {"tpl123": ["map", "Cnu", "Cnu_Cnu", "160"]},
+        "Cnu_Cnu__Cnu": {"tpl123": ["map", "Cnu_Cnu", "Cnu", "160"]},
+
+        "Csigma_Csigma": {"tpl123": ["module", "Csigma_Csigma", "160"]},
+        "Csigma__Csigma_Csigma": {"tpl123": ["map", "Csigma", "Csigma_Csigma", "160"]},
+        "Csigma_Csigma__Csigma": {"tpl123": ["map", "Csigma_Csigma", "Csigma", "160"]},
+        "Csigma_Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma_Csigma", "CW_sigma_2sigma", "160"]}
+      },
+      "RP": {
+        "priority": 94
+      },
+      "others": {
+        "priority": 93,
+        "Z": {"tpl123": ["module", "Z", "160"]}
+      }
+    },
+    "180": {}
+  }
+}

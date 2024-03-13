@@ -1,6 +1,12 @@
 #ifndef MYEXCEPTION_H
 #define MYEXCEPTION_H
 
+#ifndef NDEBUG
+#define MYDEBUG
+#else
+//#define MYDEBUG 1
+#endif
+
 #include <string>
 
 /* A custom Exception class */

@@ -401,6 +401,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
                     MyException::Assert(index != -1, maps_names[iCs] + " not found");
                     const auto& map = maps_[index];
                     cofseq.indexMap[iCs] = index;
+                    map->ind_cof = IndexCof{iCof, (int)iCs};
                     cofseq.degMap[iCs] = map->deg;
                     cofseq.isRing[iCs] = map->IsFromRing(cofseq.indexCw[iCs]);
                     if (cofseq.isRing[iCs])
@@ -427,6 +428,35 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
             SyncCofseq(flag);
         }
 
+        /*# Load commutativities */
+        if (flag & DeduceFlag::cofseq) {
+            auto& json_comms = diagram.at("commutativity");
+            for (auto& json_comm : json_comms) {
+                auto f0 = json_comm.at("f")[0].get<std::string>();
+                auto f1 = json_comm.at("f")[1].get<std::string>();
+                int if0 = GetMapIndexByName(f0);
+                int if1 = GetMapIndexByName(f1);
+                MyException::Assert(if0 >= 0, "if0 >= 0");
+                MyException::Assert(if1 >= 0, "if1 >= 0");
+                size_t to_f0, from_f1;
+                MyException::Assert(maps_[if0]->IsToRing(to_f0) == maps_[if1]->IsFromRing(from_f1), "IsToRing(to_f0) == IsFromRing(from_f1)");
+                MyException::Assert(to_f0 == from_f1, "to_f0 == from_f1");
+                int ig0 = -1, ig1 = -1;
+                if (json_comm.at("g").size() >= 1) {
+                    auto g0 = json_comm.at("g")[0].get<std::string>();
+                    ig0 = GetMapIndexByName(g0);
+                    MyException::Assert(ig0 >= 0, "ig0 >= 0");
+                }
+                if (json_comm.at("g").size() >= 2) {
+                    auto g1 = json_comm.at("g")[1].get<std::string>();
+                    ig1 = GetMapIndexByName(g1);
+                    MyException::Assert(ig1 >= 0, "ig1 >= 0");
+                }
+                auto name = json_comm.at("name").get<std::string>();
+                comms_.push_back(Commutativity{name, if0, if1, ig0, ig1});
+            }
+        }
+
         if (loadD2) {
             for (size_t iCw = 0; iCw < rings_.size(); ++iCw) {
                 if (basis_d2[iCw].empty())
@@ -440,9 +470,9 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
                             Logger::LogDiff(0, EnumReason::d2, name, deg, int1d{(int)i}, d2[i], 2);
                             SetRingDiffGlobal(iCw, deg, int1d{(int)i}, d2[i], 2, true, flag);
                         }
-					}
-				}
-			}
+                    }
+                }
+            }
             for (size_t iMod = 0; iMod < modules_.size(); ++iMod) {
                 auto iCw = rings_.size() + iMod;
                 if (basis_d2[iCw].empty())
@@ -460,7 +490,6 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
                 }
             }
         }
-
     }
     /*catch (nlohmann::detail::exception& e) {
         Logger::LogException(0, e.id, "{}\n", e.what());

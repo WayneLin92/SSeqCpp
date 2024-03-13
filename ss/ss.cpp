@@ -167,8 +167,9 @@ void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg d
 /* Return d_r(x) */
 int1d Diagram::GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const
 {
+    int1d result;
     if (x.empty())
-        return int1d{};
+        return result;
     const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
     size_t first = GetFirstIndexOnLevel(sc, LEVEL_MAX - r);
     size_t last = GetFirstIndexOfNullOnLevel(sc, LEVEL_MAX - r);
@@ -177,9 +178,71 @@ int1d Diagram::GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d
 
     /* If x is in [first,last) */
     if (lina::Residue(sc.basis.begin() + first, sc.basis.begin() + last, x1).empty())
-        return lina::GetImage(sc.basis.begin() + first, sc.basis.begin() + last, sc.diffs.begin() + first, sc.diffs.begin() + last, x1);
+        result = lina::GetImage(sc.basis.begin() + first, sc.basis.begin() + last, sc.diffs.begin() + first, sc.diffs.begin() + last, x1);
     else
-        return NULL_DIFF;
+        result = NULL_DIFF;
+    return result;
+}
+
+/* Return the level of x and dx or d^{-1}x */
+int1d Diagram::GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const
+{
+    int1d dx;
+    level = -1;
+
+#ifdef MYDEBUG
+    MyException::Assert(!x.empty(), "GetLevelAndDiff() para: !x.empty()");
+#endif
+
+    const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
+    for (size_t i = 0; i < sc.levels.size(); ++i) {
+        if (sc.levels[i] != level) {
+            level = sc.levels[i];
+            dx.clear();
+        }
+        if (std::binary_search(x.begin(), x.end(), sc.basis[i].front())) {
+            x = lina::add(x, sc.basis[i]);
+            if (dx != NULL_DIFF) {
+                if (sc.diffs[i] != NULL_DIFF)
+                    dx = lina::add(dx, sc.diffs[i]);
+                else
+                    dx = NULL_DIFF;
+            }
+        }
+        if (x.empty())
+            break;
+    }
+#ifdef MYDEBUG
+    MyException::Assert(x.empty(), "GetLevelAndDiff() end: x.empty()");
+#endif
+    return dx;
+}
+
+/* Return the level of x and dx or d^{-1}x */
+int Diagram::GetCofseqCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const
+{
+    int result = R_PERM;
+    for (int r = 1; r <= R_PERM; ++r) {
+        auto deg_x = deg + AdamsDeg{r, r};
+        if (r + r_min > result)
+            return result;
+        if (deg_x.t > t_max || PossMoreEinf(nodes_ss, deg_x))
+			return std::min(result, r + r_min);
+        if (AboveS0Vanishing(deg_x) && !ut::has(nodes_ss.front(), deg_x))
+            return result;
+        if (!ut::has(nodes_ss.front(), deg_x)) {
+            if (AboveS0Vanishing(deg_x))
+                return result;
+            continue;
+        }
+        auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
+        if (!sc.levels.empty() && sc.levels.back() > LEVEL_MAX / 2) {
+            int r1 = LEVEL_MAX - sc.levels.back();
+            if (r + r1 < result)
+                result = r + r1;
+        }
+    }
+    return result;
 }
 
 bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const
@@ -509,15 +572,15 @@ void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag
     size_t first_PC = GetFirstIndexOnLevel(sc_ss, LEVEL_PERM);
     Staircase sc = ut::GetRecentValue(nodes_cofseq, deg);
 
-    //if (cofseq.name == "S0__Ceta__S0" && iCs == 2 && deg == AdamsDeg(29, 174)) {
-    //    auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
-    //    fmt::print("Reset\n");
-    //    fmt::print("sc_ss at {} =\n{}\n", deg, sc_ss);
-    //    fmt::print("sc at {} =\n{}\n", deg, sc);
-    //    AdamsDeg deg_prev = deg - AdamsDeg{0, cofseq.degMap[(iCs + 2) % 3].stem() + 0};
-    //    //fmt::print("sc_prev at {} =\n{}\n", deg_prev, ut::GetRecentValue(cofseq.nodes_cofseq[(iCs + 2) % 3], deg_prev));
-    //    std::cout << "debug\n";
-    //}
+    // if (cofseq.name == "S0__Ceta__S0" && iCs == 2 && deg == AdamsDeg(29, 174)) {
+    //     auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
+    //     fmt::print("Reset\n");
+    //     fmt::print("sc_ss at {} =\n{}\n", deg, sc_ss);
+    //     fmt::print("sc at {} =\n{}\n", deg, sc);
+    //     AdamsDeg deg_prev = deg - AdamsDeg{0, cofseq.degMap[(iCs + 2) % 3].stem() + 0};
+    //     //fmt::print("sc_prev at {} =\n{}\n", deg_prev, ut::GetRecentValue(cofseq.nodes_cofseq[(iCs + 2) % 3], deg_prev));
+    //     std::cout << "debug\n";
+    // }
 
     int stem_map = cofseq.degMap[iCs].stem();
     int stem_prev = cofseq.degMap[iCs_prev].stem();

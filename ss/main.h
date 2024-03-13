@@ -111,7 +111,7 @@ struct CofSeq
     std::array<std::string, 3> nameCw;
     std::array<int, 3> t_max;
     std::array<Staircases1d*, 3> nodes_ss;
-    std::array<Staircases1d, 3> nodes_cofseq;
+    std::array<Staircases1d, 3> nodes_cofseq; /* size = depth + 2 */
 };
 using CofSeq1d = std::vector<CofSeq>;
 
@@ -171,8 +171,17 @@ struct NullDiff
     int direction = 0;
     int first, count;
 };
-
 using NullDiff1d = std::vector<NullDiff>;
+
+struct NullDiffCofseq
+{
+    int1d x;
+    int r;
+    int direction = 0;
+    int first, count;
+    int first_ss, count_ss;
+};
+using NullDiffCofseq1d = std::vector<NullDiffCofseq>;
 
 /* This constrains the choice of a generator g by requiring that Unknownfil(g*m)=O. */
 struct GenConstraint
@@ -184,7 +193,7 @@ struct GenConstraint
 
 struct IndexCof
 {
-    int iCof, iCs;
+    int iCof = -1, iCs = -1;
 };
 
 struct RingSp
@@ -246,6 +255,7 @@ public:
     std::string name, display;
     int t_max = -1;
     AdamsDeg deg;
+    IndexCof ind_cof;
 
 public:
     Map() {}
@@ -435,6 +445,13 @@ public:
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
+struct Commutativity
+{
+    std::string name;
+    int f0, f1, g0, g1;
+};
+using Commutativity1d = std::vector<Commutativity>;
+
 constexpr size_t FLAG_MOD = 1 << 16;
 
 class Diagram
@@ -444,6 +461,7 @@ protected:
     ModSp1d modules_;
     PMap1d maps_;
     CofSeq1d cofseqs_;
+    Commutativity1d comms_;
 
 protected:
     std::vector<size_t> deduce_list_spectra_;
@@ -590,6 +608,11 @@ private: /* ss */
 
     /* Count the number of all possible d_r sources. Return (index, count). */
     std::pair<int, int> CountPossDrSrc(const Staircases1d& nodes_ss, const AdamsDeg& deg_src, int r) const;
+    /* Count the number of all potential permant cycles. Return (index, count). */
+    auto CountPossMorePerm(const Staircases1d& nodes_ss, const AdamsDeg& deg) const -> std::pair<int, int>
+    {
+        return CountPossDrSrc(nodes_ss, deg, R_PERM - 1);
+    };
     /* Warning: this assumes that there shall not be more Einf elements */
     std::pair<int, int> CountPossDrSrcCofseq(const CofSeq& cofseq, size_t iCs, const AdamsDeg& deg_src, int r) const;
 
@@ -611,6 +634,9 @@ private: /* ss */
     int NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
+    int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const;
+    /* Return the minimal length of the cross differentials */
+    int GetCofseqCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
@@ -651,7 +677,7 @@ public:
 
     /* Cache null diffs to the most recent node. */
     void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const;
-    void CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const;
+    void CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag, NullDiffCofseq1d& nds) const;
 
     /**
      * Check first if it is a new differential before adding it.
@@ -680,7 +706,7 @@ public: /* Differentials */
     int DeduceManual();
     /* Return 0 if there is no exception */
     int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY);
-    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY);
+    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, DeduceFlag flag, bool tryY);
     int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
     /* Deduce d(xy) no matter what dx is */
@@ -689,6 +715,7 @@ public: /* Differentials */
     int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, DeduceFlag flag);
     int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag flag);
     int DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs, int stem, int depth, DeduceFlag flag);
+    int CommuteCofseq(DeduceFlag flag);
     void SyncCofseq(DeduceFlag flag);
 
 public:

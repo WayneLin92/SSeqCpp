@@ -3,6 +3,13 @@
 #include <fmt/core.h>
 #include <regex>
 
+namespace ut {
+inline int get(const nlohmann::json& js, std::string key, int default_)
+{
+    return js.contains(key) ? js.at(key).get<int>() : default_;
+}
+}  // namespace ut
+
 using json = nlohmann::json;
 
 /****************************************************
@@ -391,10 +398,8 @@ int GetCohFromJson(const json& js, const std::string& name, int t_max, Cohomolog
             ++index;
         }
         int1d cells_gen;
-        for (auto& c : cw_json.at("cells_gen")) {
-            int d = c.get<int>();
-            cells_gen.push_back(d);
-        }
+        for (auto& c : cw_json.at("cells_gen"))
+            cells_gen.push_back(c.get<int>());
         std::map<int, std::map<int, int1d>> ops;
         for (auto& op : cw_json.at("operations")) {
             int c0, i0;
@@ -851,7 +856,7 @@ int MapCohFromJson(const std::string& name, std::string& from, std::string& to, 
         auto& map_json = maps.at(name);
         from = map_json.at("from").get<std::string>();
         to = map_json.at("to").get<std::string>();
-        sus = map_json.at("sus").get<int>();
+        sus = ut::get(map_json, "sus", 0);
         images = {};
         if (map_json.contains("images")) {
             fil = 0;

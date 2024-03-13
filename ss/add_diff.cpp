@@ -261,7 +261,7 @@ int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
     }
 
     /* #Add diff */
-    int count = diagram.SetDiffLeibnizCofseq(cofseq, iCs, deg_x, x, dx, r, flag);
+    int count = diagram.SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, false, flag);
     diagram.save(diagram_name, DeduceFlag::cofseq);
     Logger::LogSummary("Changed differentials", count);
     return 0;

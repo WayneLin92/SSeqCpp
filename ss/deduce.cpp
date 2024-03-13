@@ -89,8 +89,6 @@ int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)
                                         r1 = NextRSrcCofseq(cofseq, iCs, d, R_PERM);
                                         AdamsDeg d_src = d - AdamsDeg(r1 + 1, r1 + 1 + stem_map1);
                                         Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::degree, fmt::format("{}:{}", name, iCs), d_src, d, {}, sc.basis[i], r1 + 1);
-                                        if (nodes_cofseq.size() - 2 == 0 && cofseq.name == "S0__Cnu__S0" && iCs == 1 && d == AdamsDeg(9, 77 + 9))
-                                            std::cout << "debug\n";  ////
                                         SetDiffLeibnizCofseq(cofseq, iCs1, d_src, {}, sc.basis[i], r1 + 1, flag);
                                         ++count;
                                     }
@@ -292,7 +290,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
 
     size_t index_nd = 0;
     while (index_nd < nds.size()) {
-        const NullDiff nd = nds[index_nd];
+        const auto& nd = nds[index_nd];
         int1d x, dx;
         int r;
         bool bNewDiff = false;
@@ -531,8 +529,8 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     }
     catch (InteruptAndSaveException&) {
     }
-    catch (SSException&) {
-    }
+    /*catch (SSException&) {
+    }*/
     if (flag & DeduceFlag::pi) {
         diagram.SimplifyPiRels();
     }
@@ -623,10 +621,10 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::no_op;
-    Diagram diagram(diagram_name, flag, false);
-    int count = diagram.DeduceManual();
-    // diagram.save(diagram_name, flag);
+    DeduceFlag flag = DeduceFlag::cofseq;
+    Diagram diagram(diagram_name, flag, true);
+    int count = diagram.CommuteCofseq(flag);
+    diagram.save(diagram_name, flag);
     Logger::LogSummary("Changed differentials", count);
 
     return 0;

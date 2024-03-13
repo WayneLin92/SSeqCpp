@@ -573,6 +573,7 @@ int SchedulerRunOnce(const json& js)
     if (!nohup_task)
         fmt::print("No available nohup task to run.\n");
 
+    std::fflush(stdout);
     return 0;
 }
 

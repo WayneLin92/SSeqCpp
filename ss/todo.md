@@ -1,3 +1,9 @@
+# Main
+* add Z
+* add CW_2_V_eta = RP3_5
+* check bottom cell status
+
+
 # Adams
 * Support map when multiple cells in one dimension or the starting cell is not [0]
 * Put direct sum in Adams.json
@@ -22,4 +28,3 @@
 * Mark differentials that cannot be zero
 
 # Others
-* Chua d2

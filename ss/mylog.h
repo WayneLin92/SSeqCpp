@@ -10,18 +10,21 @@ enum class EnumReason : uint32_t
     manual,    /* By other source of knowledge */
     degree,    /* For degree reason */
     deduce,    /* By deduction */
+    dd_cof,    /* By deduction in cofseq */
+    dd_cof_p,  /* ss permanent cycle by deduction in cofseq */
     nat,       /* By naturality */
     deduce_xx, /* By deduction of d(xy) and d(x^2) */
     deduce_xy, /* By deduction of d(xy) and d(x^2) */
     deduce_fx, /* By deduction of d(xy) and d(x^2) */
+    comm,      /* By commutativity */
     def,       /* By definition */
-    cofseq_b,  /* ss Boundary from cofseq logic */
+    cofseq_b,  /* ss Boundary from zero cofseq */
     try1,      /* Try dx=? */
     try2,      /* Try d?=y */
     migrate,   /* Migration */
     d2,        /* By Adams d2 computation */
 };
-constexpr std::array REASONS = {"manual", "degree", "deduce", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
+constexpr std::array REASONS = {"manual", "degree", "deduce", "dd_cof", "dd_cof_p", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "comm", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
 inline const char* INDENT = "          ";
 
 class DbLog : public myio::Database
