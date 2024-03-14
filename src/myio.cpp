@@ -164,7 +164,7 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
         else if (std::holds_alternative<std::map<std::string, std::vector<std::string>>*>(args[i].value)) {
             if (i == args.size() - 1) {
                 auto& strs = *std::get<std::map<std::string, std::vector<std::string>>*>(args[i].value);
-                std::regex key_value("(\\w+)=((?:\\w|,)+)"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
+                std::regex key_value("(\\w+)=((?:\\w|,|/|\\)+)");
                 std::smatch match;
                 while (index < argc) {
                     std::string arg(argv[index++]);
