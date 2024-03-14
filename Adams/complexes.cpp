@@ -783,7 +783,7 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
                 cw1 = "S0";
             if (cw2.empty())
                 cw2 = "S0";
-            ring = "tmf";
+            ring = "tmf_";
             name = fmt::format("{}__{}", cw1, cw2);
         }
 
@@ -792,8 +792,8 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
         auto& map_json = maps.at(name);
         auto from = map_json.at("from").get<std::string>();
         auto to = map_json.at("to").get<std::string>();
-        from_ = from == "S0" ? ring : fmt::format("{}_{}", ring, from);
-        to_ = to == "S0" ? ring : fmt::format("{}_{}", ring, to);
+        from_ = from == "S0" ? ring : fmt::format("{}{}", ring, from);
+        to_ = to == "S0" ? ring : fmt::format("{}{}", ring, to);
         sus = ut::get(map_json, "sus", 0);
         images = {};
         if (map_json.contains("images")) {
