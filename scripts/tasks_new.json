@@ -264,10 +264,31 @@
           "CW_eta_2": {"tpl123": ["module", "CW_eta_2", "160"]},
           "CW_sigma_2sigma": {"tpl123": ["module", "CW_sigma_2sigma", "160"]},
           "CW_2sigma_sigma": {"tpl123": ["module", "CW_2sigma_sigma", "160"]},
+
           "Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma", "CW_sigma_2sigma", "160"]},
           "C2sigma__CW_2sigma_sigma": {"tpl123": ["map", "C2sigma", "CW_2sigma_sigma", "160"]},
           "CW_sigma_2sigma__S0": {"tpl123": ["map", "CW_sigma_2sigma", "S0", "160"]},
           "CW_sigma_2sigma__C2sigma_0": {"tpl123": ["map_vto", "CW_sigma_2sigma", "C2sigma_0", "S0", "160"]}
+        },
+        "4-cell": {
+        },
+        "5-cell": {
+          "CW_nu_eta_2_etasigma": {"tpl123": ["module", "CW_nu_eta_2_etasigma", "160"]},
+          "CW_nu_eta_2_etasigma__S0": {"tpl123": ["map", "CW_nu_eta_2_etasigma", "S0", "160"]},
+          "CW_nu_eta_2_etasigma__Cetasigma_0": {"tpl123": ["map_vto", "CW_nu_eta_2_etasigma", "Cetasigma_0", "S0", "160"]},
+          "CW_nu_eta_2__CW_nu_eta_2_etasigma": {"tpl123": ["map", "CW_nu_eta_2", "CW_nu_eta_2_etasigma", "160"]},
+
+          "CW_etasigma_2_eta_nu": {"tpl123": ["module", "CW_etasigma_2_eta_nu", "160"]},
+          "CW_etasigma_2_eta_nu__CW_2_eta_nu": {"tpl123": ["map", "CW_etasigma_2_eta_nu", "CW_2_eta_nu", "160"]}
+        },
+        "6-cell": {
+          "CW_sigma_nu_eta_2_etasigma": {"tpl123": ["module", "CW_sigma_nu_eta_2_etasigma", "160"]},
+          "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {"tpl123": ["map", "CW_nu_eta_2_etasigma", "CW_sigma_nu_eta_2_etasigma", "160"]},
+          "CW_sigma_nu_eta_2_etasigma__CW_nu_eta_2_etasigma": {"tpl123": ["map", "CW_sigma_nu_eta_2_etasigma", "CW_nu_eta_2_etasigma", "160"]},
+
+          "CW_etasigma_2_eta_nu_sigma": {"tpl123": ["module", "CW_etasigma_2_eta_nu_sigma", "160"]},
+          "CW_etasigma_2_eta_nu__CW_etasigma_2_eta_nu_sigma": {"tpl123": ["map", "CW_2_eta_nu_sigma", "CW_etasigma_2_eta_nu_sigma", "160"]},
+          "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {"tpl123": ["map", "CW_etasigma_2_eta_nu_sigma", "CW_2_eta_nu_sigma", "160"]}
         }
       },
       "Smash": {

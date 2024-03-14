@@ -1157,6 +1157,12 @@
       "sus": 0,
       "images": [0]
     },
+    "CW_etasigma_2_eta_nu__CW_etasigma_2_eta_nu_sigma": {
+      "from": "CW_etasigma_2_eta_nu",
+      "to": "CW_etasigma_2_eta_nu_sigma",
+      "sus": 0,
+      "images": [0, 9]
+    },
 
     // 3-cell -> 2-cell
     "CW_2_eta__Ceta": {
@@ -1262,6 +1268,12 @@
     },
 
     // 6-cell -> 5-cell
+    "CW_sigma_nu_eta_2_etasigma__CW_nu_eta_2_etasigma": {
+      "from": "CW_sigma_nu_eta_2_etasigma",
+      "to": "CW_nu_eta_2_etasigma",
+      "sus": 8,
+      "images": [8]
+    },
     "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {
       "from": "CW_etasigma_2_eta_nu_sigma",
       "to": "CW_2_eta_nu_sigma",
