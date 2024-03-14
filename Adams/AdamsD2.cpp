@@ -400,6 +400,7 @@ int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
     }
     dbRes.load_generators(table_cw, id_deg, vid_num, diffs, num_diffs, t_trunc, stem_trunc);
     auto gb = AdamsResConst::load(dbRes, table_cw, t_trunc);
+    dbRes.disconnect();
 
     /* Remove computed range */
     int1d ids_old = dbD2.load_old_ids(table_d2);

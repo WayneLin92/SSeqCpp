@@ -493,7 +493,7 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     std::map<std::string, std::vector<std::string>> options;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &options}};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"deduce/flags...", &options}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 

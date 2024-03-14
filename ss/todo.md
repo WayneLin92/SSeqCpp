@@ -1,12 +1,13 @@
 # Main
-* add Z
+* add Z to ss
+* add tmf_C2_Ceta_Cnu to ss
 * add CW_2_V_eta = RP3_5
+* Adams scheduler support d2
+* plot extensions
 * check bottom cell status
-
+ 
 
 # Adams
-* Support map when multiple cells in one dimension or the starting cell is not [0]
-* Put direct sum in Adams.json
 * Brown-Gitler
 * Fast multiplication using extensions
 
