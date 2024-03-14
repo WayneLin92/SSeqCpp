@@ -373,10 +373,17 @@ struct Cohomology
     std::map<int, int> indices_cells; /* indices_cells[d] is the first index of d-cell */
 };
 
-int GetCohFromJson(const json& js, const std::string& name, int t_max, Cohomology& coh)
+int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomology& coh)
 {
     try {
         auto& cws = js.at("CW_complexes");
+        std::smatch match;
+        std::string ring = "S0";
+        std::string name = name_;
+        if (std::regex_search(name_, match, std::regex("^tmf_(\\w+)$")); match[0].matched) { /* tmf_C2 */
+            name = match[1].str();
+            ring = "tmf";
+        }
         if (!cws.contains(name)) {
             return -1;
         }
@@ -436,13 +443,26 @@ int GetCohFromJson(const json& js, const std::string& name, int t_max, Cohomolog
 
         Mod1d rels2;
         Mod tmp;
-        for (size_t i = 0; i < gen_degs.size(); ++i) {
-            for (int j = 0; (1 << j) + gen_degs[i] <= t_max; ++j) {
-                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
-                if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
-                    for (int v1 : ops.at((int)i).at(int(1 << j)))
-                        rel.iaddP(MMod(MMilnor(), v1), tmp);
-                rels2.push_back(std::move(rel));
+        if (ring == "S0") {
+            for (size_t i = 0; i < gen_degs.size(); ++i) {
+                for (int j = 0; (1 << j) + gen_degs[i] <= t_max; ++j) {
+                    Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+                    if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
+                        for (int v1 : ops.at((int)i).at(int(1 << j)))
+                            rel.iaddP(MMod(MMilnor(), v1), tmp);
+                    rels2.push_back(std::move(rel));
+                }
+            }
+        }
+        else if (ring == "tmf") {
+            for (size_t i = 0; i < gen_degs.size(); ++i) {
+                for (int j = 0; j <= 2 && (1 << j) + gen_degs[i] <= t_max; ++j) {
+                    Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+                    if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
+                        for (int v1 : ops.at((int)i).at(int(1 << j)))
+                            rel.iaddP(MMod(MMilnor(), v1), tmp);
+                    rels2.push_back(std::move(rel));
+                }
             }
         }
 
@@ -485,103 +505,8 @@ int GetCohFromJson(const std::string& name, int t_max, int1d& v_degs, Mod1d& rel
                      # d2
  ***************************************************/
 
-int GetD2FromJson(const json& js, const std::string& name, int t_max, Mod1d& h_d2_images)
+int GetD2FromJson(const json& js, const std::string& name_, int t_max, Mod1d& h_d2_images)
 {
-    try {
-        Cohomology coh;
-        auto& cws = js.at("CW_complexes");
-        if (!cws.contains(name)) {
-            return -1;
-        }
-        auto& cw_json = cws.at(name);
-        if (!cw_json.contains("operations")) {
-            fmt::print("json missing key: operations\n");
-            return -2;
-        }
-        int1d gen_degs;
-        int index = 0;
-
-        /* Set coh.num_cells and coh.indices_cells */
-        for (auto& c : cw_json.at("cells")) {
-            int d = c.get<int>();
-            gen_degs.push_back(d);
-            ++coh.num_cells[d];
-            if (!ut::has(coh.indices_cells, d))
-                coh.indices_cells[d] = index;
-            ++index;
-        }
-        int1d cells_gen;
-        for (auto& c : cw_json.at("cells_gen")) {
-            int d = c.get<int>();
-            cells_gen.push_back(d);
-        }
-        std::map<int, std::map<int, int1d>> ops;
-        for (auto& op : cw_json.at("operations")) {
-            int c0, i0;
-            if (op[0].is_number()) {
-                c0 = op[0].get<int>();
-                i0 = coh.indices_cells.at(c0);
-            }
-            else {
-                int1d arr = op[0].get<std::vector<int>>();
-                c0 = arr[0];
-                MyException::Assert(arr[1] < coh.num_cells.at(c0), "arr[1] < cells.at(c0)");
-                i0 = coh.indices_cells.at(c0) + arr[1];
-            }
-            int c1;
-            int1d i1s;
-            if (op[1].is_number()) {
-                c1 = op[1].get<int>();
-                i1s.push_back(coh.indices_cells.at(c1));
-            }
-            else {
-                int1d arr = op[1].get<std::vector<int>>();
-                c1 = arr[0];
-                for (size_t i = 1; i < arr.size(); ++i) {
-                    MyException::Assert(arr[i] < coh.num_cells.at(c1), "arr[i] < cells.at(c1)");
-                    i1s.push_back(coh.indices_cells.at(c1) + arr[i]);
-                }
-            }
-
-            int n = c1 - c0;
-            MyException::Assert(!(n & (n - 1)), "n is a power of 2");
-            for (int i1 : i1s)
-                ops[i0][n].push_back(i1);
-        }
-
-        Mod1d rels2;
-        Mod tmp;
-        for (size_t i = 0; i < gen_degs.size(); ++i) {
-            for (int j = 0; (1 << j) + gen_degs[i] <= t_max; ++j) {
-                Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
-                if (ut::has(ops, (int)i) && ut::has(ops.at((int)i), (int)(1 << j)))
-                    for (int v1 : ops.at((int)i).at(int(1 << j)))
-                        rel.iaddP(MMod(MMilnor(), v1), tmp);
-                rels2.push_back(std::move(rel));
-            }
-        }
-
-        Groebner gb(t_max, {}, gen_degs);
-        gb.AddRels(rels2, t_max, coh.min_rels);
-        gb.MinimizeOrderedGensRels(coh.cells, coh.min_rels);
-
-        int1d cells_gen_v2;
-        for (size_t i = 0; i < coh.cells.size(); ++i)
-            if (coh.cells[i].data.size() == 1 && coh.cells[i].GetLead().deg_m() == 0)
-                cells_gen_v2.push_back(gen_degs[i]);
-        ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
-        ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
-        MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
-
-        coh.v_degs = gb.v_degs();
-        ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
-        for (int i : coh.min_rels)
-            coh.rels.push_back(gb.data()[i]);
-    }
-    catch (nlohmann::detail::exception& e) {
-        fmt::print("Error({:#x}) - {}\n", e.id, e.what());
-        throw e;
-    }
     return 0;
 }
 
@@ -799,18 +724,12 @@ int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         Coh_j(v_degs, rels, d_max);
     else if (cw == "j_C2")
         Coh_j_C2(v_degs, rels, d_max);
-    else if (cw == "tmf_C2")
-        Coh_tmf_Chn(v_degs, rels, 0, d_max);
-    else if (cw == "tmf_Ceta")
-        Coh_tmf_Chn(v_degs, rels, 1, d_max);
-    else if (cw == "tmf_Cnu")
-        Coh_tmf_Chn(v_degs, rels, 2, d_max);
     else if (cw == "Fphi") {
         Mod1d tmp;
         int1d tmp_int1d;
         Coh_Fphi(v_degs, rels, tmp, tmp_int1d, d_max);
     }
-    else if (std::regex_search(cw, match, std::regex("^Fphi(\\d+)$")); match[0].matched) { /* Fphi_n */
+    else if (std::regex_search(cw, match, std::regex("^Fphi(\\d+)$")); match[0].matched) { /* Fphin */
         Mod1d tmp;
         int1d tmp_int1d;
         int n = std::stoi(match[1].str());
@@ -844,18 +763,35 @@ Mod cell2Mod(const Cohomology& coh, const json& c)
     return result;
 }
 
-int MapCohFromJson(const std::string& name, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
+int MapCohFromJson(const std::string& name_, std::string& from_, std::string& to_, Mod1d& images, int& sus, int& fil)
 {
     auto js = myio::load_json("Adams.json");
     const int t_max = 265;
     try {
         auto& cws = js.at("CW_complexes");
         auto& maps = js.at("maps");
+
+        std::smatch match;
+        std::string ring = "";
+        std::string name = name_;
+        if (std::regex_search(name_, match, std::regex("^tmf(?:_(\\w+)|)__tmf(?:_(\\w+)|)$")); match[0].matched) { /* tmf_C2__tmf */
+            auto cw1 = match[1].str();
+            auto cw2 = match[2].str();
+            if (cw1.empty())
+                cw1 = "S0";
+            if (cw2.empty())
+                cw2 = "S0";
+            ring = "tmf";
+            name = fmt::format("{}__{}", cw1, cw2);
+        }
+
         if (!maps.contains(name))
             return -1;
         auto& map_json = maps.at(name);
-        from = map_json.at("from").get<std::string>();
-        to = map_json.at("to").get<std::string>();
+        auto from = map_json.at("from").get<std::string>();
+        auto to = map_json.at("to").get<std::string>();
+        from_ = from == "S0" ? ring : fmt::format("{}_{}", ring, from);
+        to_ = to == "S0" ? ring : fmt::format("{}_{}", ring, to);
         sus = ut::get(map_json, "sus", 0);
         images = {};
         if (map_json.contains("images")) {
@@ -974,23 +910,6 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             return;
         }
     }
-    if (cw2 == "tmf") {
-        const std::vector<std::string> Cs = {"tmf_C2", "tmf_Ceta", "tmf_Cnu"};
-        int i = ut::IndexOf(Cs, cw1);
-        if (i != -1) {
-            images = {MMod(MMilnor::P(i, i + 1), 0)};
-            sus = 1 << i;
-            return;
-        }
-    }
-    if ((cw1 == "C2" && cw2 == "tmf_C2") || (cw1 == "Ceta" && cw2 == "tmf_Ceta") || (cw1 == "Cnu" && cw2 == "tmf_Cnu")) {
-        images = {MMod(MMilnor(), 0)};
-        return;
-    }
-    if (cw1 == "CW_sigma_nu_eta_2" && cw2 == "tmf") {
-        images = {MMod(MMilnor(), 0)};
-        return;
-    }
     if (cw1 == "RP1_256" && cw2 == "tmf_RP1_256") {
         images = {};
         int1d v_degs;
@@ -1002,6 +921,14 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
             images.push_back(MMod({}, i));
         for (int i = 2; 7 + 8 * (i - 2) <= t_max; ++i)
             images.push_back(cell_reduced[size_t(6 + 8 * (i - 2))]);
+        return;
+    }
+    if (cw2 == fmt::format("tmf_{}", cw1)) {
+        images = {MMod(MMilnor(), 0)};
+        return;
+    }
+    if (cw1 == "CW_sigma_nu_eta_2" && cw2 == "tmf") {
+        images = {MMod(MMilnor(), 0)};
         return;
     }
     if (cw1 == "C2") {

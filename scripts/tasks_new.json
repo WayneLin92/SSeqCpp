@@ -74,6 +74,10 @@
       "json": {"tpl123": ["tpl_mod", "{mod}", "S0", "{t}"]},
       "params": ["mod", "t"]
     },
+    "module_tmf": {
+      "json": {"tpl123": ["tpl_mod", "{mod}", "tmf", "{t}"]},
+      "params": ["mod", "t"]
+    },
     "tpl_map": {
       "json": {
         "priority": 100,
@@ -179,6 +183,10 @@
     },
     "module_cont": {
       "json": {"tpl123": ["tpl_mod_cont", "{mod}", "S0", "{t}", "{t_prev}"]},
+      "params": ["mod", "t", "t_prev"]
+    },
+    "module_tmf_cont": {
+      "json": {"tpl123": ["tpl_mod_cont", "{mod}", "tmf", "{t}", "{t_prev}"]},
       "params": ["mod", "t", "t_prev"]
     },
     "tpl_map_cont": {
@@ -298,6 +306,29 @@
       },
       "RP": {
         "priority": 94
+      },
+      "tmf": {
+        "priority": 90,
+        "tmf": {"tpl123": ["ring", "tmf", "160"]},
+        "tmf_C2": {"tpl123": ["module_tmf", "tmf_C2", "160"]},
+        "tmf_Ceta": {"tpl123": ["module_tmf", "tmf_Ceta", "160"]},
+        "tmf_Cnu": {"tpl123": ["module_tmf", "tmf_Cnu", "160"]},
+        "tmf_C2_Ceta": {"tpl123": ["module_tmf", "tmf_C2_Ceta", "160"]},
+        "tmf_C2_Cnu": {"tpl123": ["module_tmf", "tmf_C2_Cnu", "160"]},
+        "tmf_Ceta_Cnu": {"tpl123": ["module_tmf", "tmf_Ceta_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu": {"tpl123": ["module_tmf", "tmf_C2_Ceta_Cnu", "160"]},
+
+        "C2_Ceta__tmf_C2_Ceta": {"tpl123": ["map", "C2_Ceta", "tmf_C2_Ceta", "160"]},
+        "C2_Cnu__tmf_C2_Cnu": {"tpl123": ["map", "C2_Cnu", "tmf_C2_Cnu", "160"]},
+        "Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map", "Ceta_Cnu", "tmf_Ceta_Cnu", "160"]},
+        "C2_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+
+        "tmf_C2_Ceta__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Ceta", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_C2_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Ceta": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_C2_Ceta", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Cnu": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_C2_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_Ceta_Cnu", "160"]}
       },
       "others": {
         "priority": 93,
