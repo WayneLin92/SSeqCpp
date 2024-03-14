@@ -239,9 +239,21 @@
         "Cnu": {"tpl123": ["module", "Cnu", "160"]},
         "Csigma": {"tpl123": ["module", "Csigma", "160"]}
       },
+      "theta": {
+        "priority": 100,
+        "CW_2_eta_theta5sq": {"tpl123": ["module", "CW_2_eta_theta5sq", "160"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module", "CW_theta5sq_eta_2", "160"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map", "CW_2_eta", "CW_2_eta_theta5sq", "160"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map", "CW_theta5sq_eta_2", "CW_eta_2", "160"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map", "CW_2_eta_theta5sq", "S0", "160"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "160"]}
+      },
       "linear": {
         "priority": 97,
         "3-cell": {
+          "CW_2_eta": {"tpl123": ["module", "CW_2_eta", "160"]},
+          "CW_eta_2": {"tpl123": ["module", "CW_eta_2", "160"]},
           "CW_sigma_2sigma": {"tpl123": ["module", "CW_sigma_2sigma", "160"]},
           "CW_2sigma_sigma": {"tpl123": ["module", "CW_2sigma_sigma", "160"]},
           "Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma", "CW_sigma_2sigma", "160"]},
@@ -292,6 +304,47 @@
         "Z": {"tpl123": ["module", "Z", "160"]}
       }
     },
-    "180": {}
+    "180": {
+      "priority": 80,
+      "S0": {
+        "priority": 90,
+        "S0": {"tpl123": ["ring_cont", "S0", "180", "160"]}
+      },
+      "hopf": {
+        "priority": 88,
+        "C2": {"tpl123": ["module_cont", "C2", "180", "160"]},
+        "Ceta": {"tpl123": ["module_cont", "Ceta", "180", "160"]},
+        "Cnu": {"tpl123": ["module_cont", "Cnu", "180", "160"]},
+        "Csigma": {"tpl123": ["module_cont", "Csigma", "180", "160"]}
+      },
+      "theta": {
+        "priority": 100,
+        "CW_2_eta_theta5sq": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "180", "160"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module_cont", "CW_theta5sq_eta_2", "180", "160"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map_cont", "CW_2_eta", "CW_2_eta_theta5sq", "180", "160"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map_cont", "CW_theta5sq_eta_2", "CW_eta_2", "180", "160"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map_cont", "CW_2_eta_theta5sq", "S0", "180", "160"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto_cont", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "180", "160"]}
+      },
+      "linear": {
+        "priority": 100,
+        "3-cell": {
+          "CW_2_eta": {"tpl123": ["module_cont", "CW_2_eta", "180", "160"]},
+          "CW_eta_2": {"tpl123": ["module_cont", "CW_eta_2", "180", "160"]}
+        }
+      },
+      "Smash": {
+        "priority": 85,
+
+        "C2_C2": {"tpl123": ["module_cont", "C2_C2", "180", "160"]},
+        "C2__C2_C2": {"tpl123": ["map_cont", "C2", "C2_C2", "180", "160"]},
+        "C2_C2__C2": {"tpl123": ["map_cont", "C2_C2", "C2", "180", "160"]}
+      },
+      "others": {
+        "priority": 83,
+        "Z": {"tpl123": ["module_cont", "Z", "180", "160"]}
+      }
+    }
   }
 }

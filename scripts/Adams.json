@@ -2,22 +2,13 @@
   "CW_complexes": {
     "example": {
       "cells": [0, 1, 1, 2], // dimension of cells
-      "cells_gen": [0], // dimension of A-module generators
+      "cells_gen": [0, 1], // dimension of A-module generators
       "operations": [
         [0, [1, 0, 1]], // [a, b] means that Sq^{b-a}a = b. a=[d, i, j] mean that a = c_i + c_j in degree d
         [0, 2],
         [[1, 0], 2],
         [[1, 1], 2]
       ]
-    },
-    "CW_sigmasq_sigmasq": {
-        "cells_gen": [0, 14, 28]
-    },
-    "CW_theta4_theta4": {
-        "cells_gen": [0, 30, 60]
-    },
-    "CW_theta5_theta5": {
-        "cells_gen": [0, 62, 124]
     },
     "S0": {
       "cells_gen": [0],
@@ -104,6 +95,15 @@
         [63, 64]
       ]
     },
+    "CW_sigmasq_sigmasq": {
+      "cells_gen": [0, 14, 28]
+    },
+    "CW_theta4_theta4": {
+      "cells_gen": [0, 30, 60]
+    },
+    "Ctheta5sq": {
+      "cells_gen": [0, 125]
+    },
     "CW_sigmasq_2_sigmasq": {
       "cells_gen": [0, 15],
       "cells": [0, 15, 16, 31],
@@ -146,6 +146,24 @@
       "operations": [
         [0, 16],
         [8, 16]
+      ]
+    },
+    "CW_2_eta_theta5sq": {
+      "cells_gen": [0],
+      "cells": [0, 1, 3, 128],
+      "operations": [
+        [0, 1],
+        [1, 3],
+        [0, 128]
+      ]
+    },
+    "CW_theta5sq_eta_2": {
+      "cells_gen": [0],
+      "cells": [0, 125, 127, 128],
+      "operations": [
+        [0, 128],
+        [125, 127],
+        [127, 128]
       ]
     },
 
@@ -1056,27 +1074,59 @@
     "CW_2_eta__CW_2_eta_nu": {
       "from": "CW_2_eta",
       "to": "CW_2_eta_nu",
-      "sus": 0,
       "images": [0]
     },
     "CW_eta_nu__CW_eta_nu_sigma": {
       "from": "CW_eta_nu",
       "to": "CW_eta_nu_sigma",
-      "sus": 0,
       "images": [0]
     },
 
     "CW_nu_eta__CW_nu_eta_2": {
       "from": "CW_nu_eta",
       "to": "CW_nu_eta_2",
-      "sus": 0,
       "images": [0]
     },
     "CW_sigma_nu__CW_sigma_nu_eta": {
       "from": "CW_sigma_nu",
       "to": "CW_sigma_nu_eta",
-      "sus": 0,
       "images": [0]
+    },
+
+    // theta5sq
+    "CW_2_eta__CW_2_eta_theta5sq": {
+      "from": "CW_2_eta",
+      "to": "CW_2_eta_theta5sq",
+      "images": [0]
+    },
+    "CW_theta5sq_eta_2__CW_eta_2": {
+      "from": "CW_theta5sq_eta_2",
+      "to": "CW_eta_2",
+      "sus": 125,
+      "images": [125]
+    },
+    "CW_2_eta_theta5sq__S0": {
+      "from": "CW_2_eta_theta5sq",
+      "to": "S0",
+      "sus": 128,
+      "images": [128]
+    },
+    "CW_2_eta_theta5sq__Ctheta5sq_0": {
+      "from": "CW_2_eta_theta5sq",
+      "to": "S0",
+      "sus": 3,
+      "images": [3]
+    },
+    "CW_2_eta_theta5sq__Ctheta5sq": {
+      "from": "CW_2_eta_theta5sq",
+      "to": "Ctheta5sq",
+      "summands": ["CW_2_eta_theta5sq__S0", "CW_2_eta_theta5sq__Ctheta5sq_0"],
+      "sus": 3
+    },
+    "Ctheta5sq__CW_theta5sq_eta_2": {
+      "from": "Ctheta5sq",
+      "to": "CW_theta5sq_eta_2",
+      "free_images": [[0, 0, 0], [125, 0, 0]]
     },
 
     // 4-cell -> 5-cell
@@ -2213,8 +2263,8 @@
     "C2_Ceta_Cnu__Ceta_Cnu": {
       "from": "C2_Ceta_Cnu",
       "to": "Ceta_Cnu",
-      "images": [2],
-      "sus": 2
+      "images": [1],
+      "sus": 1
     }
   }
 }
