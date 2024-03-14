@@ -187,7 +187,7 @@ void UtStatus(const std::string& dir, int num)
         std::sort(names_maps.begin(), names_maps.end(), [&timestamps_maps](const std::string& name1, const std::string& name2) { return timestamps_maps.at(name1) > timestamps_maps.at(name2); });
     }
 
-    std::array<size_t, 6> spectra_widths = {7, 3, 4, 6, 2, 8};
+    std::array<size_t, 6> spectra_widths = {7, 3, 4, 3, 2, 5};
     size_t i_max = num < 0 ? names_spectra.size() : std::min((size_t)num, names_spectra.size());
     for (size_t i = 0; i < i_max; ++i) {
         auto& cw = names_spectra[i];
@@ -201,8 +201,8 @@ void UtStatus(const std::string& dir, int num)
     }
     auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3],
                           spectra_widths[4], spectra_widths[5]);
-    fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "export", light_red, "d2", light_red, "exportd2");
-    fmt::print(fs, white, "-------", white, "---", white, "----", white, "------", white, "---", white, "------");
+    fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "exp", light_red, "d2", light_red, "expd2");
+    fmt::print(fs, white, "-------", white, "---", white, "----", white, "---", white, "--", white, "-----");
     for (size_t i = 0; i < i_max; ++i) {
         auto& cw = names_spectra[i];
         auto& t_maxes = table_spectra.at(cw);

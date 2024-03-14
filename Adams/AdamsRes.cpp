@@ -78,10 +78,7 @@ int res_P(const std::string& cw, int t_max, int stem_max)
     ParseFP(match[2].str(), hopf, n1, n2);
     std::string field = match[3].str();
 
-    if (!(n1 + 1 < n2)) {
-        fmt::print("We need n1 + 1 < n2");
-        return -1;
-    }
+    MyException::Assert(n1 + 1 < n2, "n1 + 1 < n2");
     int n1_ = n1, n2_ = n2;
 
     if (field == "R") {
@@ -89,6 +86,7 @@ int res_P(const std::string& cw, int t_max, int stem_max)
         if (n1 != n1_)
             fmt::print("We use n1={} n2={} because of James periodicity\n", n1_, n2_);
     }
+    MyException::Assert(!(n1_ == 3 && n2_ == 5), "!(n1_ == 3 && n2_ == 5)");
 
     int1d v_degs;
     Mod1d rels, tmp_Mod1d;

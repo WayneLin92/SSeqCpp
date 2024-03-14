@@ -192,7 +192,7 @@ void normalize_RP(int n1, int n2, int& n1_, int& n2_)  //// TODO: normalize CP a
     }
 }
 
-void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over, int hopf)
+void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cells, int1d& min_rels, int n1, int n2, int t_max, const std::string& over, int hopf)
 {
     size_t i_max = 0;
     if (over == "S0")
@@ -229,7 +229,7 @@ void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int
     Groebner gb(t_max, {}, v_degs2);
     min_rels.clear();
     gb.AddRels(rels2, t_max, min_rels);
-    gb.MinimizeOrderedGensRels(cell_reduced, min_rels);
+    gb.MinimizeOrderedGensRels(cells, min_rels);
 
     v_degs = gb.v_degs();
     rels.clear();
@@ -553,7 +553,7 @@ void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2)
         n2 = -n2;
 }
 
-void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
+void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil)
 {
     int hopf1, hopf2, n1, n2, m1, m2;
     ParseFP(cw1, hopf1, n1, n2);
@@ -566,7 +566,6 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
     std::string field2 = hopf2 == 0 ? "R" : (hopf2 == 1 ? "C" : "H");
 
     /*# Normalize cw1 */
-
     if (hopf1 == 0)
         normalize_RP(n1, n2, n1_, n2_);
     if (n2 - n1 == 1) {
@@ -579,13 +578,22 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         n1_ = 0;
         n2_ = 0;
     }
+    else if (n1 == 3 && n2 == 5) {
+        from = hopf1 == 0 ? "CW_2_V_eta" : (hopf1 == 1 ? "CW_eta_V_nu" : "CW_nu_V_sigma");
+        n1_ = 0;
+        n2_ = 2;
+    }
+    else if (n1 == 2 && n2 == 4) {
+        from = hopf1 == 0 ? "CW_2_A_eta" : (hopf2 == 1 ? "CW_eta_A_nu" : "CW_nu_A_sigma");
+        n1_ = 0;
+        n2_ = 2;
+    }
     else
         from = fmt::format("{}P{}_{}", field1, n1_, n2_);
     if (from != cw1)
-        fmt::print("We use {} instead of {} because of James periodicity\n", from, cw1);
+        fmt::print("We use {} instead of {}\n", from, cw1);
 
     /*# Normalize cw2 */
-
     if (hopf2 == 0)
         normalize_RP(m1, m2, m1_, m2_);
     if (m2 - m1 == 1) {
@@ -598,10 +606,20 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         m1_ = 0;
         m2_ = 0;
     }
+    else if (m1 == 3 && m2 == 5) {
+        to = hopf2 == 0 ? "CW_2_V_eta" : (hopf2 == 1 ? "CW_eta_V_nu" : "CW_nu_V_sigma");
+        m1_ = 0;
+        m2_ = 2;
+    }
+    else if (m1 == 2 && m2 == 4) {
+        to = hopf2 == 0 ? "CW_2_A_eta" : (hopf2 == 1 ? "CW_eta_A_nu" : "CW_nu_A_sigma");
+        m1_ = 0;
+        m2_ = 2;
+    }
     else
         to = fmt::format("{}P{}_{}", field2, m1_, m2_);
     if (to != cw2)
-        fmt::print("We use {} instead of {} because of James periodicity\n", to, cw2);
+        fmt::print("We use {} instead of {}\n", to, cw2);
 
     if (hopf1 == hopf2) {
         int hopf = hopf1;
@@ -681,26 +699,10 @@ void SetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
 
         images.clear();
         for (size_t i = 0; i < v_degs_m.size(); ++i)
-            images.push_back(cell_reduced_n[size_t((v_degs_m[i] << hopf1) - n1)]);
+            images.push_back(cell_reduced_n[size_t((v_degs_m[i] - n1) >> hopf1)]);
         sus = (n2_ - 2 * m2_) << hopf1;
         return;
     }
-}
-
-/* CW_hn1_hn2 --> Chn2 */
-void SetCohMapQ3cell_2cell(Mod1d& images, int& sus, int n1, int n2)
-{
-    images = {MMod(MMilnor::P(n1, n1 + 1), 0)};
-    sus = 1 << n1;
-    return;
-}
-
-/* Chn1 smash Chn2 --> Chn2 */
-void SetCohMapQSmash_2cell(Mod1d& images, int& sus, int n1, int n2)
-{
-    images = {MMod(MMilnor::P(n1, n1 + 1), 0)};
-    sus = 1 << n1;
-    return;
 }
 
 int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
@@ -763,7 +765,7 @@ Mod cell2Mod(const Cohomology& coh, const json& c)
     return result;
 }
 
-int MapCohFromJson(const std::string& name_, std::string& from_, std::string& to_, Mod1d& images, int& sus, int& fil)
+int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string& to_, Mod1d& images, int& sus, int& fil)
 {
     auto js = myio::load_json("Adams.json");
     const int t_max = 265;
@@ -953,7 +955,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         return;
     }
     if (IsFP(cw1) && IsFP(cw2)) {
-        SetCohMapFP2FP(cw1, cw2, from, to, images, sus, fil);
+        GetCohMapFP2FP(cw1, cw2, from, to, images, sus, fil);
         return;
     }
     if (int n1 = IsFphi_n(cw1), n2 = IsFphi_n(cw2); 0 < n1 && n1 < n2) {
@@ -977,7 +979,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         }
     }
     std::string name = fmt::format("{}__{}", cw1, cw2);
-    if (int error = MapCohFromJson(name, from, to, images, sus, fil)) {
+    if (int error = GetCohMapFromJson(name, from, to, images, sus, fil)) {
         fmt::print("Error({}) - map not supported.\n", error);
         throw MyException(0x8636b4b2, "map not supported.");
     }
