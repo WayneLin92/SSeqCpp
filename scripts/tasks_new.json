@@ -305,7 +305,12 @@
         "Csigma_Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma_Csigma", "CW_sigma_2sigma", "160"]}
       },
       "RP": {
-        "priority": 94
+        "priority": 94,
+        "RP1_4": {"tpl123": ["module", "RP1_4", "160"]},
+        "RP3_6": {"tpl123": ["module", "RP3_6", "160"]},
+        "RP1_4__RP2_4": {"tpl123": ["map", "RP1_4", "RP2_4", "160"]},
+        "RP3_5__RP3_6": {"tpl123": ["map", "RP3_5", "RP3_6", "160"]},
+        "CW_2_eta__Q_RP1_6": {"tpl123": ["map_vto", "CW_2_eta", "Q_RP1_6", "CW_eta_2", "160"]}
       },
       "tmf": {
         "priority": 90,
