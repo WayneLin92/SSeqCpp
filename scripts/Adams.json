@@ -2216,14 +2216,14 @@
     "Cnu_Cnu__Cnu": {
       "from": "Cnu_Cnu",
       "to": "Cnu",
-      "images": [[3, 1]],
-      "sus": 3
+      "images": [[4, 1]],
+      "sus": 4
     },
     "Csigma_Csigma__Csigma": {
       "from": "Csigma_Csigma",
       "to": "Csigma",
-      "images": [[4, 1]],
-      "sus": 4
+      "images": [[8, 1]],
+      "sus": 8
     },
     "Csigma_Csigma__CW_sigma_2sigma": {
       "from": "Csigma_Csigma",
