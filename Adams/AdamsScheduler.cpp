@@ -573,7 +573,7 @@ int SchedulerRunOnce(const json& js)
     if (!nohup_task)
         fmt::print("No available nohup task to run.\n");
 
-    std::fflush(stdout);
+    fflush(stdout);
     return 0;
 }
 
@@ -660,9 +660,9 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
             return error;
         }
         timer.print("Scheduler");
-        std::this_thread::sleep_for(std::chrono::seconds(js.at("interval").get<int>()));
         fmt::print("\n----------------------------\n\n");
         fflush(stdout);
+        std::this_thread::sleep_for(std::chrono::seconds(js.at("interval").get<int>()));
     }
     return 0;
 }
