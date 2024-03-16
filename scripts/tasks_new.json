@@ -283,7 +283,7 @@
         },
         "6-cell": {
           "CW_sigma_nu_eta_2_etasigma": {"tpl123": ["module", "CW_sigma_nu_eta_2_etasigma", "160"]},
-          "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {"tpl123": ["map", "CW_nu_eta_2_etasigma", "CW_sigma_nu_eta_2_etasigma", "160"]},
+          "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {"tpl123": ["map", "CW_sigma_nu_eta_2", "CW_sigma_nu_eta_2_etasigma", "160"]},
           "CW_sigma_nu_eta_2_etasigma__CW_nu_eta_2_etasigma": {"tpl123": ["map", "CW_sigma_nu_eta_2_etasigma", "CW_nu_eta_2_etasigma", "160"]},
 
           "CW_etasigma_2_eta_nu_sigma": {"tpl123": ["module", "CW_etasigma_2_eta_nu_sigma", "160"]},
@@ -402,6 +402,18 @@
         "priority": 83,
         "Z": {"tpl123": ["module_cont", "Z", "180", "160"]}
       }
+    },
+    "200": {
+      "theta": {
+        "priority": 100,
+        "CW_2_eta_theta5sq": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "200", "180"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module_cont", "CW_theta5sq_eta_2", "200", "180"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map_cont", "CW_2_eta", "CW_2_eta_theta5sq", "200", "180"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map_cont", "CW_theta5sq_eta_2", "CW_eta_2", "200", "180"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map_cont", "CW_2_eta_theta5sq", "S0", "200", "180"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto_cont", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "200", "180"]}
+      },
     }
   }
 }

@@ -102,7 +102,8 @@
       "cells_gen": [0, 30, 60]
     },
     "Ctheta5sq": {
-      "cells_gen": [0, 125]
+      "cells_gen": [0, 125],
+      "free": true
     },
     "CW_sigmasq_2_sigmasq": {
       "cells_gen": [0, 15],
@@ -158,7 +159,7 @@
       ]
     },
     "CW_theta5sq_eta_2": {
-      "cells_gen": [0],
+      "cells_gen": [0, 125],
       "cells": [0, 125, 127, 128],
       "operations": [
         [0, 128],
@@ -1120,7 +1121,7 @@
     "CW_2_eta_theta5sq__Ctheta5sq": {
       "from": "CW_2_eta_theta5sq",
       "to": "Ctheta5sq",
-      "summands": ["CW_2_eta_theta5sq__S0", "CW_2_eta_theta5sq__Ctheta5sq_0"],
+      "summands": ["CW_2_eta_theta5sq__Ctheta5sq_0", "CW_2_eta_theta5sq__S0"],
       "sus": 3
     },
     "Ctheta5sq__CW_theta5sq_eta_2": {
@@ -1202,22 +1203,22 @@
       "sus": 8,
       "images": [8]
     },
-    "CW_sigma_2sigma__S0": {
-      "from": "CW_sigma_2sigma",
-      "to": "S0",
-      "images": [16],
-      "sus": 16
-    },
     "CW_sigma_2sigma__C2sigma_0": {
       "from": "CW_sigma_2sigma",
       "to": "S0",
       "images": [8],
       "sus": 8
     },
+    "CW_sigma_2sigma__S0": {
+      "from": "CW_sigma_2sigma",
+      "to": "S0",
+      "images": [16],
+      "sus": 16
+    },
     "CW_sigma_2sigma__C2sigma": {
       "from": "CW_sigma_2sigma",
       "to": "C2sigma",
-      "summands": ["CW_sigma_2sigma__S0", "CW_sigma_2sigma__C2sigma_0"], 
+      "summands": ["CW_sigma_2sigma__C2sigma_0", "CW_sigma_2sigma__S0"], 
       "sus": 8
     },
 
@@ -2179,6 +2180,18 @@
       "free_images": [[0, 0, 0], [9, 0, 0]],
       "sus": 0,
       "fil": 0
+    },
+    "CW_nu_eta_2_etasigma__Cetasigma_0": {
+      "from": "CW_nu_eta_2_etasigma",
+      "to": "S0",
+      "sus": 7,
+      "images": [7]
+    },
+    "CW_nu_eta_2_etasigma__S0": {
+      "from": "CW_nu_eta_2_etasigma",
+      "to": "S0",
+      "sus": 16,
+      "images": [16]
     },
     "CW_nu_eta_2_etasigma__Cetasigma": {
       "from": "CW_nu_eta_2_etasigma",

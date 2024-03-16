@@ -756,13 +756,13 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int d1, int t_trunc)
+void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int sus, int fil, int t_trunc)
 {
     using namespace alg2;
     std::regex is_map_regex("^map_AdamsSS_(\\w+?__\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4__RP3_4_t169.db */
     std::smatch match;
 
-    int t_max_map1 = 500, t_max_map2 = 500, sus, fil;
+    int t_max_map1 = 500, t_max_map2 = 500;
     Poly1d images1, images2;
 
     if (!db_map1.empty()) {
@@ -778,8 +778,6 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             throw MyException(0x248b04b, "File name is not supported.");
         }
         images1 = dbMap1.get_column_from_str<Poly>(table1, "map", "ORDER BY id", myio::Deserialize<Poly>);
-        sus = dbMap1.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
-        fil = dbMap1.get_int("select value from version where id=651971502");
     }
 
     if (!db_map2.empty()) {
@@ -795,8 +793,6 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             throw MyException(0xa833c7c4, "File name is not supported.");
         }
         images2 = dbMap2.get_column_from_str<Poly>(table2, "map", "ORDER BY id", myio::Deserialize<Poly>);
-        sus = dbMap2.get_int("select value from version where id=1585932889") - d1; /* cw1->Sigma^sus cw2 */
-        fil = dbMap2.get_int("select value from version where id=651971502");
     }
 
     if (images1.empty())
@@ -1147,9 +1143,9 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
         if (maps.contains(name)) {
             auto& map_json = maps.at(name);
             if (map_json.contains("summands")) {
-                auto summand0 = map_json.at("summands")[0].get<std::string>();
-                auto summand1 = map_json.at("summands")[1].get<std::string>();
-                ExportMapSumAdamsE2(cw1, cw2, summand0, summand1, 0, 1, map_json.at("sus")[1].get<int>(), t_max);
+                auto summand0 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[0].get<std::string>());
+                auto summand1 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[1].get<std::string>());
+                ExportMapSumAdamsE2(cw1, cw2, summand0, summand1, 0, 1, ut::get(map_json, "sus", 0), ut::get(map_json, "fil", 0), t_max);
                 return 0;
             }
             else if (map_json.contains("free_images")) {
