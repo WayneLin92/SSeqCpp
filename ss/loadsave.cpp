@@ -2,7 +2,6 @@
  * Load settings from json
  */
 
-#include "json.h"
 #include "main.h"
 #include "mylog.h"
 #include <filesystem>
@@ -100,23 +99,18 @@ int1d get_compostion(const int1d& x, AdamsDeg deg, const Diagram& diagram, const
     return result;
 }
 
-Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD2)
+Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
 {
-    using json = nlohmann::json;
-    json js = myio::load_json("ss.json");
-
     try {
-        json& diagrams = js.at("diagrams");
-        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        json diagram = myio::load_json(fmt::format("{}/ss.json", dir));
+        js_ = myio::load_json(fmt::format("{}/ss.json", diagram_name));
         if (log) {
-            auto path_log = fmt::format("{}/{}", dir, diagram.at("log").get<std::string>());
+            auto path_log = fmt::format("{}/{}", diagram_name, js_.at("log").get<std::string>());
             Logger::SetOutDeduce(path_log.c_str());
         }
 
         /*# Load rings */
 
-        json& json_rings = diagram.at("rings");
+        auto& json_rings = js_.at("rings");
         rings_.reserve(json_rings.size());
         size_t iCw = 0;
         AdamsDeg2d ring_gen_degs;
@@ -126,7 +120,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
             std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
             if (!json_ring.contains("deduce") || json_ring.at("deduce").get<std::string>() == "on")
                 deduce_list_spectra_.push_back(iCw);
-            std::string abs_path = fmt::format("{}/{}", dir, path);
+            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
             myio::AssertFileExists(abs_path);
@@ -142,11 +136,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
             ring.nodes_ss.reserve(MAX_DEPTH + 1);
             ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
 
-            if (flag & DeduceFlag::pi) {
+            if (flag & SSFlag::pi) {
                 ring.pi_gen_Einf = db.get_column_from_str<Poly>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
                 ring.pi_gb = algZ::Groebner(ring.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb(name, DEG_MAX), true);
                 ring.nodes_pi_basis.reserve(MAX_DEPTH + 2);
-                if (flag & DeduceFlag::pi_def)
+                if (flag & SSFlag::pi_def)
                     db.load_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
             }
 
@@ -157,7 +151,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
 
         /*# Load modules */
 
-        json& json_mods = diagram.at("modules");
+        auto& json_mods = js_.at("modules");
         AdamsDeg2d module_gen_degs;
         modules_.reserve(json_mods.size());
         for (auto& json_mod : json_mods) {
@@ -165,7 +159,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
             std::string over = json_mod.at("over").get<std::string>();
             if (!json_mod.contains("deduce") || json_mod.at("deduce").get<std::string>() == "on")
                 deduce_list_spectra_.push_back(iCw);
-            std::string abs_path = fmt::format("{}/{}", dir, path);
+            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
             myio::AssertFileExists(abs_path);
@@ -185,11 +179,11 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
             Mod1d xs = db.load_gb_mod(table_prefix, DEG_MAX);
             mod.gb = GroebnerMod(&ring.gb, mod.t_max, {}, std::move(xs));
 
-            if (flag & DeduceFlag::pi) {
+            if (flag & SSFlag::pi) {
                 mod.pi_gen_Einf = db.get_column_from_str<Mod>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
                 mod.pi_gb = algZ::GroebnerMod(&ring.pi_gb, mod.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb_mod(name, DEG_MAX), true);
                 mod.nodes_pi_basis.reserve(MAX_DEPTH);
-                if (flag & DeduceFlag::pi_def)
+                if (flag & SSFlag::pi_def)
                     db.load_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
             }
 
@@ -203,9 +197,9 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
         std::regex is_map_regex("^map_AdamsSS_(\\w+?_(?:to|)_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
         std::smatch match;
 
-        json json_maps = diagram.at("maps");
-        if (flag & DeduceFlag::cofseq) {
-            for (auto& item : diagram.at("maps_v2"))
+        auto& json_maps = js_.at("maps");
+        if (flag & SSFlag::cofseq) {
+            for (auto& item : js_.at("maps_v2"))
                 json_maps.push_back(item);
         }
         maps_.reserve(json_maps.size());
@@ -217,18 +211,19 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
 
             if (json_map.contains("factor")) {
                 auto& strt_factor = json_map.at("factor");
-                int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>(), i_factor = strt_factor[2].get<int>();
+                int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>();
+                int i_factor = strt_factor.size() > 2 ? strt_factor[2].get<int>() : -1;
                 AdamsDeg deg_factor(s, stem + s);
                 if (int index_from = GetRingIndexByName(from); index_from != -1) {
                     if (int index_to = GetRingIndexByName(to); index_to != -1) {
                         MyException::Assert(index_from == index_to, "index_from == index_to");
-                        Poly factor = rings_[index_from].basis.at(deg_factor)[i_factor];
+                        Poly factor = i_factor != -1 ? rings_[index_from].basis.at(deg_factor)[i_factor] : Poly{};
                         int t_max = rings_[index_to].t_max - deg_factor.t;
                         map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg_factor, (size_t)index_from, std::move(factor));
                     }
                     else {
                         index_to = GetModuleIndexByName(to);
-                        Mod factor = modules_[index_to].basis.at(deg_factor)[i_factor];
+                        Mod factor = i_factor != -1 ? modules_[index_to].basis.at(deg_factor)[i_factor] : Mod{};
                         int t_max = modules_[index_to].t_max - deg_factor.t;
                         map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg_factor, (size_t)index_from, (size_t)index_to, std::move(factor));
                     }
@@ -326,7 +321,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
                 AdamsDeg deg(fil, fil - sus);
 
                 std::string path = json_map.at("path").get<std::string>();
-                std::string abs_path = fmt::format("{}/{}", dir, path);
+                std::string abs_path = fmt::format("{}/{}", diagram_name, path);
                 myio::AssertFileExists(abs_path);
                 DBSS db(abs_path);
                 std::string table;
@@ -384,15 +379,15 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
         }
 
         /*# Load cofseqs */
-        if (flag & DeduceFlag::cofseq) {
-            auto& json_cofseqs = diagram.at("cofseqs");
+        if (flag & SSFlag::cofseq) {
+            auto& json_cofseqs = js_.at("cofseqs");
             std::vector<std::string> cofseq_maps;
             int iCof = 0;
             for (auto& json_cofseq : json_cofseqs) {
                 CofSeq cofseq;
                 cofseq.name = json_cofseq.at("name").get<std::string>();
                 auto path_cofseq = json_cofseq.at("path").get<std::string>();
-                auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
+                auto abs_path_cofseq = fmt::format("{}/{}", diagram_name, path_cofseq);
                 std::array<std::string, 3> maps_names = {json_cofseq.at("i").get<std::string>(), json_cofseq.at("q").get<std::string>(), json_cofseq.at("d").get<std::string>()};
                 if (!json_cofseq.contains("deduce") || json_cofseq.at("deduce").get<std::string>() == "on")
                     deduce_list_cofseq_.push_back(iCof);
@@ -429,8 +424,8 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
         }
 
         /*# Load commutativities */
-        if (flag & DeduceFlag::cofseq) {
-            auto& json_comms = diagram.at("commutativity");
+        if (flag & SSFlag::cofseq && js_.contains("commutativity")) {
+            auto& json_comms = js_.at("commutativity");
             for (auto& json_comm : json_comms) {
                 auto f0 = json_comm.at("f")[0].get<std::string>();
                 auto f1 = json_comm.at("f")[1].get<std::string>();
@@ -498,7 +493,7 @@ Diagram::Diagram(std::string diagram_name, DeduceFlag flag, bool log, bool loadD
     catch (NoException&) {
     }
 
-    /*if (flag & DeduceFlag::homotopy)
+    /*if (flag & SSFlag::homotopy)
         UpdateAllPossEinf();*/
 
     // VersionConvertReorderRels();
@@ -522,22 +517,15 @@ void Diagram::SetDeduceList(const std::vector<std::string>& cws)
     }
 }
 
-void Diagram::save(std::string diagram_name, DeduceFlag flag)
+void Diagram::save(std::string diagram_name, SSFlag flag)
 {
-    using json = nlohmann::json;
-    json js = myio::load_json("ss.json");
-
     std::map<std::string, std::string> paths;
     try {
-        json& diagrams = js.at("diagrams");
-        std::string dir = diagrams.contains(diagram_name) ? diagrams[diagram_name].get<std::string>() : diagram_name;
-        json diagram = myio::load_json(fmt::format("{}/ss.json", dir));
-
         /* #save rings */
-        json& json_rings = diagram["rings"];
+        auto& json_rings = js_["rings"];
         for (auto& json_ring : json_rings) {
             std::string name = json_ring["name"].get<std::string>(), path = json_ring["path"].get<std::string>();
-            std::string abs_path = fmt::format("{}/{}", dir, path);
+            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
             DBSS db(abs_path);
@@ -546,7 +534,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             auto& ring = rings_[iRing];
             db.update_ss(table_prefix, ring.nodes_ss[1]);
 
-            if (flag & DeduceFlag::pi) {
+            if (flag & SSFlag::pi) {
                 db.drop_and_create_pi_relations(name);
                 db.drop_and_create_pi_basis(name);
 
@@ -554,7 +542,7 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
                 db.save_pi_generators(name, ring.pi_gb.gen_degs(), ring.pi_gen_Einf);
                 db.save_pi_gb(name, ring.pi_gb.OutputForDatabase(), GetRingGbEinf(iRing));
                 db.save_pi_basis(name, ring.nodes_pi_basis.front());
-                if (flag & DeduceFlag::pi_def) {
+                if (flag & SSFlag::pi_def) {
                     db.drop_and_create_pi_definitions(name);
                     db.save_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
                 }
@@ -563,11 +551,11 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
         }
 
         /* #save modules */
-        json& json_mods = diagram["modules"];
+        auto& json_mods = js_["modules"];
         for (auto& json_mod : json_mods) {
             std::string name = json_mod["name"].get<std::string>(), path = json_mod["path"].get<std::string>();
             std::string over = json_mod["over"].get<std::string>();
-            std::string abs_path = fmt::format("{}/{}", dir, path);
+            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
             std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
             DBSS db(abs_path);
@@ -576,15 +564,15 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
             auto& mod = modules_[iMod];
             db.update_ss(table_prefix, mod.nodes_ss[1]);
 
-            if (flag & DeduceFlag::pi) {
+            if (flag & SSFlag::pi) {
                 db.drop_and_create_pi_relations(name);
                 db.drop_and_create_pi_basis(name);
-                if (flag & DeduceFlag::pi_def)
+                if (flag & SSFlag::pi_def)
                     db.drop_and_create_pi_generators_mod(name);
                 db.save_pi_generators_mod(name, mod.pi_gb.v_degs(), mod.pi_gen_Einf);
                 db.save_pi_gb_mod(name, mod.pi_gb.OutputForDatabase(), GetModuleGbEinf(iMod));
                 db.save_pi_basis_mod(name, mod.nodes_pi_basis.front());
-                if (flag & DeduceFlag::pi_def) {
+                if (flag & SSFlag::pi_def) {
                     db.drop_and_create_pi_definitions(name);
                     db.save_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
                 }
@@ -593,12 +581,12 @@ void Diagram::save(std::string diagram_name, DeduceFlag flag)
         }
 
         /* #save cofseq */
-        if (flag & DeduceFlag::cofseq) {
-            auto& json_cofseqs = diagram.at("cofseqs");
+        if (flag & SSFlag::cofseq) {
+            auto& json_cofseqs = js_.at("cofseqs");
             std::vector<std::string> cofseq_maps;
             for (size_t i = 0; i < cofseqs_.size(); ++i) {
                 auto path_cofseq = json_cofseqs[i].at("path").get<std::string>();
-                auto abs_path_cofseq = fmt::format("{}/{}", dir, path_cofseq);
+                auto abs_path_cofseq = fmt::format("{}/{}", diagram_name, path_cofseq);
                 auto name = json_cofseqs[i].at("name").get<std::string>();
                 DBSS db(abs_path_cofseq);
                 db.begin_transaction();

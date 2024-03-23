@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include "json.h"
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
 #include "pigroebner.h"
@@ -22,7 +23,7 @@ constexpr size_t MAX_DEPTH = 3; /* Maximum deduction depth */
 inline const auto NULL_DIFF = int1d{-1};
 inline const algZ::Mod MOD_V0 = algZ::MMod(algZ::Mon(), 0, 0);
 
-enum class DeduceFlag : uint32_t
+enum class SSFlag : uint32_t
 {
     no_op = 0,
     all_x = 1,                /* Deduce dx for all x including linear combinations */
@@ -35,12 +36,12 @@ enum class DeduceFlag : uint32_t
     depth_ss_ss = 128,        /* Deduce cof inside ss */
 };
 
-inline DeduceFlag operator|(DeduceFlag lhs, DeduceFlag rhs)
+inline SSFlag operator|(SSFlag lhs, SSFlag rhs)
 {
-    return DeduceFlag(uint32_t(lhs) | uint32_t(rhs));
+    return SSFlag(uint32_t(lhs) | uint32_t(rhs));
 }
 
-inline bool operator&(DeduceFlag lhs, DeduceFlag rhs)
+inline bool operator&(SSFlag lhs, SSFlag rhs)
 {
     return uint32_t(lhs) & uint32_t(rhs);
 }
@@ -464,6 +465,7 @@ protected:
     Commutativity1d comms_;
 
 protected:
+    nlohmann::json js_;
     std::vector<size_t> deduce_list_spectra_;
     std::vector<size_t> deduce_list_cofseq_;
     int deduce_count_max_ = 10;
@@ -471,7 +473,7 @@ protected:
     const int1d* a_leibniz_ = nullptr; /* For logging */
 
 public:
-    Diagram(std::string diagram_name, DeduceFlag flag, bool log = true, bool loadD2 = false);
+    Diagram(std::string diagram_name, SSFlag flag, bool log = true, bool loadD2 = false);
     void VersionConvertReorderRels()
     {
         for (auto& ring : rings_)
@@ -479,7 +481,7 @@ public:
         for (auto& mod : modules_)
             mod.pi_gb.SimplifyRelsReorder(mod.basis_ss_possEinf);
     }
-    void save(std::string diagram_name, DeduceFlag flag);
+    void save(std::string diagram_name, SSFlag flag);
 
 public: /* Getters */
     static auto GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDeg deg) -> const PiBase*;
@@ -636,20 +638,20 @@ private: /* ss */
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
     int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const;
     /* Return the minimal length of the cross differentials */
-    int GetCofseqCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const;
+    int GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag);
+    void SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag);
     /* Add an image. dx must be nonempty and not null. x must be nonempty. */
-    void SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r, DeduceFlag flag);
+    void SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r, SSFlag flag);
 
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, DeduceFlag flag);
+    void SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, SSFlag flag);
     /* Add an image. dx must be nonempty and not null. x must be nonempty. */
-    void SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag);
+    void SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, SSFlag flag);
     /* Retriangulate when ss changes */
-    void ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag);
+    void ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag);
 
     /**
      * Add d_r(x)=dx;
@@ -658,26 +660,26 @@ private:
      *
      * dx should not be null.
      */
-    int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
+    int SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, SSFlag flag);
     /** This version deduces d(xy) even if dx is uncertain */
-    int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
-    int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag);
+    int SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag);
+    int SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, SSFlag flag);
     /** This version deduces d(xy) even if dx is uncertain */
-    int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
+    int SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag);
 
 public:
     /* Add a node */
-    void AddNode(DeduceFlag flag);
+    void AddNode(SSFlag flag);
 
     /* Pop the lastest node */
-    void PopNode(DeduceFlag flag);
+    void PopNode(SSFlag flag);
 
     /* Apply the change of the staircase to the current history */
     void UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image);
 
     /* Cache null diffs to the most recent node. */
-    void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const;
-    void CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag, NullDiffCofseq1d& nds) const;
+    void CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, SSFlag flag, NullDiff1d& nds) const;
+    void CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag, NullDiffCofseq1d& nds) const;
 
     /**
      * Check first if it is a new differential before adding it.
@@ -685,38 +687,38 @@ public:
      *
      * Return the number of changed degrees.
      */
-    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
-    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
-    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
+    int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
+    int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
+    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_r(y)=0 (y on level < LEVEL_MAX - r);
      */
-    int SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
-    int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag);
+    int SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag);
+    int SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag);
 
-    int SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag);
-    int SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag);
+    int SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag);
+    int SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
 
 public: /* Differentials */
     bool IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
     bool IsNewDiffCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const;
-    int DeduceTrivialDiffs(DeduceFlag flag);
-    int DeduceTrivialDiffsCofseq(DeduceFlag flag);
+    int DeduceTrivialDiffs(SSFlag flag);
+    int DeduceTrivialDiffsCofseq(SSFlag flag);
     int DeduceManual();
     /* Return 0 if there is no exception */
-    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY);
-    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, DeduceFlag flag, bool tryY);
-    int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag);
-    int DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag);
+    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, SSFlag flag, bool tryY);
+    int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, SSFlag flag, bool tryY);
+    int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag);
+    int DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag);
     /* Deduce d(xy) no matter what dx is */
     int DeduceDiffsV2();
 
-    int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, DeduceFlag flag);
-    int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag flag);
-    int DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs, int stem, int depth, DeduceFlag flag);
-    int CommuteCofseq(DeduceFlag flag);
-    void SyncCofseq(DeduceFlag flag);
+    int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, SSFlag flag);
+    int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, SSFlag flag);
+    int DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs, int stem, int depth, SSFlag flag);
+    int CommuteCofseq(SSFlag flag);
+    void SyncCofseq(SSFlag flag);
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
@@ -777,10 +779,10 @@ public: /* homotopy groups */
     int DeduceExtensions2tor();
     int DeduceExtensionsByExactness(int stem_min, int stem_max, int depth);
 
-    unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
-    unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag);
-    unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag);
-    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, DeduceFlag flag);
+    unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag);
+    unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag);
+    unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag);
+    void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, SSFlag flag);
     int DefineDependenceInExtensions(int stem_min, int stem_max, int depth);
     int DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth);
 };

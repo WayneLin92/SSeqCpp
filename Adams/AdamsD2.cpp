@@ -370,7 +370,7 @@ int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
  *   V                V
  *  F_{s-1} --f--> F_{s-3}
  */
-int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
+int compute_d2(const std::string& cw, int t_trunc)
 {
     std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
     std::string table_d2 = fmt::format("{}_Adams_d2", cw);
@@ -398,7 +398,7 @@ int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
         t_trunc = t_max_cw;
         fmt::print("t_max is truncated to {}\n", t_max_cw);
     }
-    dbRes.load_generators(table_cw, id_deg, vid_num, diffs, num_diffs, t_trunc, stem_trunc);
+    dbRes.load_generators(table_cw, id_deg, vid_num, diffs, num_diffs, t_trunc);
     auto gb = AdamsResConst::load(dbRes, table_cw, t_trunc);
     dbRes.disconnect();
 
@@ -418,13 +418,10 @@ int compute_d2(const std::string& cw, int t_trunc, int stem_trunc)
     int1d arr_s, arr_v, arr_i;
     int t = 2;
     std::mutex print_mutex = {};
-    /*for (size_t s = 1; s <= 2; ++s) {
-        for (size_t i = 0; i < 10; ++i)
-            fmt::print("s={} i={} d={}\n", s, i, diffs[s][i]);
-    }*/
+    int1d ids;
 
     for (; t <= t_trunc; ++t) {
-        int1d ids;
+        ids.clear();
         degs.clear();
         f.clear();
         fd.clear();
@@ -538,6 +535,6 @@ int main_d2(int argc, char** argv, int& index, const char* desc)
     }
 #endif
 
-    compute_d2(cw, t_max, DEG_MAX);
+    compute_d2(cw, t_max);
     return 0;
 }

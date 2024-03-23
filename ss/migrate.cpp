@@ -6,7 +6,7 @@
 /* Add the differentials from diagram1 to diagram2 */
 void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
 {
-    auto flag = DeduceFlag::no_op;
+    auto flag = SSFlag::no_op;
     int count = 0;
     int1d diff;
     const size_t num_cw = diagram1.GetRings().size() + diagram1.GetModules().size();
@@ -249,7 +249,7 @@ void ImportChuaD2(Diagram& diagram)
 
     for (auto& [deg, x_d] : x) {
         for (size_t i = 0; i < x_d.size(); ++i)
-            diagram.SetRingDiffGlobal(0, deg, x_d[i], dx[deg][i], 2, false, DeduceFlag::no_op);
+            diagram.SetRingDiffGlobal(0, deg, x_d[i], dx[deg][i], 2, false, SSFlag::no_op);
     }
 }
 
@@ -262,7 +262,7 @@ int main_import_chua_d2(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    auto flag_no_op = DeduceFlag::no_op;
+    auto flag_no_op = SSFlag::no_op;
     Diagram diagram(diagram_name, flag_no_op);
 
     try {
@@ -291,7 +291,7 @@ int main_migrate_ss(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    auto flag_no_op = DeduceFlag::no_op;
+    auto flag_no_op = SSFlag::no_op;
     Diagram diagram1(diagram_name1, flag_no_op, false);
     Diagram diagram2(diagram_name2, flag_no_op);
 
@@ -321,7 +321,7 @@ int main_migrate_pi(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::pi | DeduceFlag::pi_def;
+    SSFlag flag = SSFlag::pi | SSFlag::pi_def;
     Diagram diagram1(diagram_name1, flag);
     Diagram diagram2(diagram_name2, flag, false);
 
@@ -370,10 +370,10 @@ int main_resetfrom(int argc, char** argv, int& index, const char* desc)
 
 int main_truncate(int argc, char** argv, int index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 

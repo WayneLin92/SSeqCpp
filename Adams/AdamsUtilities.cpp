@@ -31,6 +31,24 @@ int get_db_metadata_int(const myio::Database& db, std::string_view key)
     return -2;
 }
 
+int get_db_metadata_int_v2(const myio::Database& db, std::string_view key, int& result)
+{
+    try {
+        if (db.has_table("version")) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0) {
+                result = db.get_int(fmt::format("select value from version where name=\"{}\"", key));
+                return 0;
+            }
+            else
+                return -1;
+        }
+    }
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
+        return -3;
+    }
+    return -2;
+}
+
 std::string get_db_metadata_str(const myio::Database& db, std::string_view key)
 {
     try {
@@ -50,6 +68,16 @@ std::string get_db_metadata_str(const myio::Database& db, std::string_view key)
 int get_db_t_max(const myio::Database& db)
 {
     return get_db_metadata_int(db, "t_max");
+}
+
+int get_db_fil(const myio::Database& db, int& result)
+{
+    return get_db_metadata_int_v2(db, "filtration", result);
+}
+
+int get_db_sus(const myio::Database& db, int& result)
+{
+    return get_db_metadata_int_v2(db, "suspension", result);
 }
 
 int get_db_d2_t_max(const myio::Database& db)

@@ -11,7 +11,7 @@ int main_add_pi(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    Diagram diagram(diagram_name, DeduceFlag::pi);
+    Diagram diagram(diagram_name, SSFlag::pi);
 
     /*int1d arr_rel = myio::Deserialize<int1d>(strRel);
     algZ::Poly tmp;
@@ -143,7 +143,7 @@ int main_add_pi(int argc, char** argv, int& index, const char* desc)
         int count_ss = 0, count_homotopy = 0;
         diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
 
-        diagram.save(dbnames, DeduceFlag::homotopy);
+        diagram.save(dbnames, SSFlag::homotopy);
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {

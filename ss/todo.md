@@ -1,8 +1,5 @@
 # Main
-* add Z to ss
-* add tmf_C2_Ceta_Cnu to ss
-* add CW_2_V_eta = RP3_5
-* Adams scheduler support d2
+* Leibniz: perm * boundary = boundary
 * plot extensions
 * check bottom cell status
  

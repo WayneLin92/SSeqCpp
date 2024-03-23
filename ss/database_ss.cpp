@@ -254,10 +254,10 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
 
 int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -269,7 +269,7 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
         for (size_t i = 0; i < names.size(); ++i)
             generate_ss(names[i], paths[i], isRing[i]);
 
-        auto flag = DeduceFlag::no_op;
+        auto flag = SSFlag::no_op;
         Diagram diagram(diagram_name, flag, true, true);
         // int count = diagram.DeduceTrivialDiffs(flag);
         diagram.save(diagram_name, flag);
@@ -292,9 +292,9 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
     fmt::print("Confirm to reset_cofseq {}\n", diagram_name);
     if (myio::UserConfirm()) {
         //// Remove files
-        Diagram diagram(diagram_name, DeduceFlag::cofseq);
+        Diagram diagram(diagram_name, SSFlag::cofseq);
         // int count = diagram.DeduceTrivialCofSeqDiffs();
-        diagram.save(diagram_name, DeduceFlag::cofseq);
+        diagram.save(diagram_name, SSFlag::cofseq);
     }
 
     return 0;
@@ -302,10 +302,10 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
 
 int main_reset_pi(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 

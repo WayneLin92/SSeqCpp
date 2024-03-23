@@ -203,9 +203,9 @@ int2d DbAdamsResLoader::load_basis_degrees(const std::string& table_prefix, int 
 }
 
 /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const
+void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc) const
 {
-    Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} AND t-s<={} ORDER BY id;", table_prefix, t_trunc, stem_trunc));
+    Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} ORDER BY id;", table_prefix, t_trunc));
     AdamsDegV2 d_prev = AdamsDegV2(-1, -1);
     ut::map_seq2d<int, 0> gen_num; /* gen_num[(s,stem)] is the number of generators in (stem, s) */
     while (stmt.step() == MYSQLITE_ROW) {
@@ -234,9 +234,9 @@ void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vec
 }
 
 /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc, int stem_trunc) const
+void DbAdamsResLoader::load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc) const
 {
-    Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} AND t-s<={} ORDER BY id;", table_prefix, t_trunc, stem_trunc));
+    Statement stmt(*this, fmt::format("SELECT id, s, t, diff FROM {}_generators WHERE t<={} ORDER BY id;", table_prefix, t_trunc));
     AdamsDegV2 d_prev = AdamsDegV2(-1, -1);
     ut::map_seq2d<int, 0> gen_num; /* gen_num[(s,stem)] is the number of generators in (stem, s) */
     while (stmt.step() == MYSQLITE_ROW) {

@@ -4,7 +4,7 @@
 #include <set>
 
 /* Deduce zero differentials for degree reason */
-int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
+int Diagram::DeduceTrivialDiffs(SSFlag flag)
 {
     int old_count = 0, count = 0;
     const size_t num_cw = rings_.size() + modules_.size();
@@ -52,7 +52,7 @@ int Diagram::DeduceTrivialDiffs(DeduceFlag flag)
 }
 
 /* Deduce zero differentials for degree reason */
-int Diagram::DeduceTrivialDiffsCofseq(DeduceFlag flag)
+int Diagram::DeduceTrivialDiffsCofseq(SSFlag flag)
 {
     int old_count = 0, count = 0;
     while (true) {
@@ -220,7 +220,7 @@ int Diagram::DeduceManual()
                             const int r = LEVEL_MAX - sc.levels[i];
                             if (IsPermanent(name, deg, r)) {
                                 Logger::LogDiff(depth, EnumReason::manual, name, deg, sc.basis[i], {}, R_PERM - 1);
-                                SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true, DeduceFlag::no_op);
+                                SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true, SSFlag::no_op);
                                 ++count;
                             }
                         }
@@ -236,7 +236,7 @@ int Diagram::DeduceManual()
     return count;
 }
 
-int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, DeduceFlag flag, bool tryY)
+int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, SSFlag flag, bool tryY)
 {
     AddNode(flag);
     bool bException = false;
@@ -246,7 +246,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
         Logger::Checkpoint();
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
-        if (depth == 0 && flag & DeduceFlag::depth_ss_cofseq) {
+        if (depth == 0 && flag & SSFlag::depth_ss_cofseq) {
             const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
             for (auto& ind_cof : ind_cofs) {
                 auto& cofseq = cofseqs_[ind_cof.iCof];
@@ -254,7 +254,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
                 DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
             }
         }
-        if (depth == 0 && flag & DeduceFlag::depth_ss_ss) {
+        if (depth == 0 && flag & SSFlag::depth_ss_ss) {
             DeduceDiffs(deg_x.stem(), deg_x.stem(), depth + 1, flag);
             if (tryY && !dx.empty()) {
                 auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
@@ -278,7 +278,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
     }
 }
 
-int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
+int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
 {
     auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
     int t_max = iCw < rings_.size() ? rings_[iCw].t_max : modules_[iCw - rings_.size()].t_max;
@@ -395,13 +395,13 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
                 Logger::LogDiffInv(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg_src, deg, x, dx, r);
 
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
-            // if (flag & DeduceFlag::cofseq)
+            // if (flag & SSFlag::cofseq)
             //     count += DeduceTrivialDiffsCofseq(flag);  ////
             // DeduceTrivialDiffs(flag);
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
         }
         else {
-            if ((flag & DeduceFlag::xy) && nd.r > 0) {
+            if ((flag & SSFlag::xy) && nd.r > 0) {
                 if (iCw < rings_.size())
                     count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r, flag);
                 else
@@ -412,7 +412,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, DeduceFlag flag)
     return count;
 }
 
-int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, DeduceFlag flag)
+int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag)
 {
     int count = 0;
     if (depth == 0)
@@ -457,7 +457,7 @@ int Diagram::DeduceDiffsV2()
                     if (sc.levels[i] > LEVEL_PERM) {
                         const int r = LEVEL_MAX - sc.levels[i];
                         auto& x = sc.basis[i];
-                        count += SetRingDiffLeibnizV2(iRing, deg, x, r, DeduceFlag::no_op);
+                        count += SetRingDiffLeibnizV2(iRing, deg, x, r, SSFlag::no_op);
                     }
                 }
             }
@@ -477,7 +477,7 @@ int Diagram::DeduceDiffsV2()
                     if (sc.levels[i] > LEVEL_PERM) {
                         const int r = LEVEL_MAX - sc.levels[i];
                         auto& x = sc.basis[i];
-                        count += SetModuleDiffLeibnizV2(iMod, deg, x, r, DeduceFlag::no_op);
+                        count += SetModuleDiffLeibnizV2(iMod, deg, x, r, SSFlag::no_op);
                     }
                 }
             }
@@ -489,29 +489,29 @@ int Diagram::DeduceDiffsV2()
 int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 261;
-    std::string diagram_name = "default";
+    std::string diagram_name;
     std::map<std::string, std::vector<std::string>> options;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"deduce/flags...", &options}};
+    myio::CmdArg1d args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {{"deduce/flags...", &options}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::no_op;
+    SSFlag flag = SSFlag::no_op;
     if (ut::has(options, "flags")) {
         for (auto& f : options.at("flags")) {
             if (f == "all_x")
-                flag = flag | DeduceFlag::all_x;
+                flag = flag | SSFlag::all_x;
             else if (f == "xy")
-                flag = flag | DeduceFlag::xy;
+                flag = flag | SSFlag::xy;
             else if (f == "cofseq")
-                flag = flag | DeduceFlag::cofseq;
+                flag = flag | SSFlag::cofseq;
             else if (f == "ss_cofseq")
-                flag = flag | DeduceFlag::depth_ss_cofseq;
+                flag = flag | SSFlag::depth_ss_cofseq;
             else if (f == "ss_ss")
-                flag = flag | DeduceFlag::depth_ss_ss;
+                flag = flag | SSFlag::depth_ss_ss;
             else if (f == "pi")
-                flag = flag | DeduceFlag::pi;
+                flag = flag | SSFlag::pi;
             else {
                 std::cout << "Not a supported flag: " << f << '\n';
                 return 100;
@@ -531,7 +531,7 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
     }
     /*catch (SSException&) {
     }*/
-    if (flag & DeduceFlag::pi) {
+    if (flag & SSFlag::pi) {
         diagram.SimplifyPiRels();
     }
     diagram.save(diagram_name, flag);
@@ -542,14 +542,14 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
 
 int main_deduce_diff_v2(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::no_op;
+    SSFlag flag = SSFlag::no_op;
     Diagram diagram(diagram_name, flag, false);
     int count = diagram.DeduceDiffsV2();
     diagram.save(diagram_name, flag);
@@ -561,22 +561,22 @@ int main_deduce_diff_v2(int argc, char** argv, int& index, const char* desc)
 int main_deduce_cofseq(int argc, char** argv, int& index, const char* desc)
 {
     int stem_min = 0, stem_max = 261;
-    std::string diagram_name = "default";
+    std::string diagram_name;
     std::vector<std::string> strFlags;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    myio::CmdArg1d args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {{"flags...", &strFlags}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::cofseq;
+    SSFlag flag = SSFlag::cofseq;
     for (auto& f : strFlags) {
         if (f == "all_x")
-            flag = flag | DeduceFlag::all_x;
+            flag = flag | SSFlag::all_x;
         else if (f == "xy")
-            flag = flag | DeduceFlag::xy;
+            flag = flag | SSFlag::xy;
         else if (f == "pi")
-            flag = flag | DeduceFlag::pi;
+            flag = flag | SSFlag::pi;
         else {
             std::cout << "Not a supported flag: " << f << '\n';
             return 100;
@@ -595,14 +595,13 @@ int main_deduce_cofseq(int argc, char** argv, int& index, const char* desc)
 
 int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
-
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    std::string diagram_name;
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::no_op;
+    SSFlag flag = SSFlag::no_op;
     Diagram diagram(diagram_name, flag);
     int count = diagram.DeduceManual();
     diagram.save(diagram_name, flag);
@@ -614,14 +613,14 @@ int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
 /* This is for debugging */
 int main_deduce_test(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::cofseq;
+    SSFlag flag = SSFlag::cofseq;
     Diagram diagram(diagram_name, flag, true);
     int count = diagram.CommuteCofseq(flag);
     diagram.save(diagram_name, flag);

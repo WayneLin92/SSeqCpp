@@ -315,7 +315,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
     std::string plot_dir = root_json.at("dir_website_ss").get<std::string>() + "/" + diag_json.at("dir_plot").get<std::string>();
     myio::AssertFolderExists(plot_dir);
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, SSFlag::no_op);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
     const auto& maps = diagram.GetMaps();
@@ -594,7 +594,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
     std::string plot_dir = root_json.at("dir_website_ss").get<std::string>() + "/" + diag_json.at("dir_plot").get<std::string>();
     myio::AssertFolderExists(plot_dir);
 
-    Diagram diagram(diagram_name, DeduceFlag::cofseq);
+    Diagram diagram(diagram_name, SSFlag::cofseq);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
     const auto& maps = diagram.GetMaps();
@@ -759,7 +759,7 @@ int main_plot_pi(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    Diagram diagram(diagram_name, DeduceFlag::pi);
+    Diagram diagram(diagram_name, SSFlag::pi);
     /* pi_basis_products */
     int count_ss = 0, count_homotopy = 0;
     diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
@@ -913,7 +913,7 @@ int main_plot_pi(int argc, char** argv, int& index, const char* desc)
     // for (auto& db : dbPlots)
     //     db.end_transaction();
 
-    // diagram.save(dbnames, DeduceFlag::homotopy);
+    // diagram.save(dbnames, SSFlag::homotopy);
     return 0;
 }
 
@@ -979,7 +979,7 @@ int main_rename_gen_export(int argc, char** argv, int& index, const char* desc)
     LoadJson(diagram_name, root_json, diag_json);
     std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, SSFlag::no_op);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
 
@@ -1175,7 +1175,7 @@ int main_rename_gen_cell(int argc, char** argv, int& index, const char* desc)
     LoadJson(diagram_name, root_json, diag_json);
     std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, SSFlag::no_op);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
 
@@ -1329,7 +1329,7 @@ int main_rename_gen_pull_back(int argc, char** argv, int& index, const char* des
     LoadJson(diagram_name, root_json, diag_json);
     std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, SSFlag::no_op);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
     const auto& maps = diagram.GetMaps();
@@ -1488,7 +1488,7 @@ int main_rename_gen_push_forward(int argc, char** argv, int& index, const char* 
     LoadJson(diagram_name, root_json, diag_json);
     std::string db_dir = root_json["diagrams"].contains(diagram_name) ? root_json["diagrams"][diagram_name].get<std::string>() : diagram_name;
 
-    Diagram diagram(diagram_name, DeduceFlag::no_op);
+    Diagram diagram(diagram_name, SSFlag::no_op);
     const auto& rings = diagram.GetRings();
     const auto& mods = diagram.GetModules();
     const auto& maps = diagram.GetMaps();

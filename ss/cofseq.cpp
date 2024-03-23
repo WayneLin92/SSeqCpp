@@ -136,7 +136,7 @@ int Diagram::NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int 
     return -1;
 }
 
-void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag, NullDiffCofseq1d& nds) const
+void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag, NullDiffCofseq1d& nds) const
 {
     nds.clear();
     auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
@@ -190,7 +190,7 @@ void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg de
         size_t j = i + 1;
         while (j < sc.levels.size() && sc.diffs[j] == NULL_DIFF && sc.levels[i] == sc.levels[j])
             ++j;
-        if (flag & DeduceFlag::all_x) {
+        if (flag & SSFlag::all_x) {
             const unsigned k_max = unsigned(1) << (j - i);
             for (unsigned k = 1; k < k_max; ++k) {
                 nd.x.clear();
@@ -224,7 +224,7 @@ bool Diagram::IsNewDiffCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, 
     return !diff.empty() && !IsZeroOnLevel(ut::GetRecentValue(nodes_cofseq_dx, deg_dx), diff, r);
 }
 
-int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
+int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag)
 {
     int count = 0;
     if (newCertain || IsNewDiffCofseq(cofseq, iCs, deg_x, x, dx, r)) {
@@ -236,14 +236,22 @@ int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, con
             if (r != r1)
                 deg_x = deg_dx - AdamsDeg(r, r + stem_map);
         }
-        else if (dx.empty())
+        else if (dx.empty()) {
             r = NextRTgtCofseq(cofseq, iCs, deg_x, r + 1) - 1;
-        count = SetDiffLeibnizCofseq(cofseq, iCs, deg_x, x, dx, r, flag);
+        }
+        if (!x.empty() && r == R_PERM - 1) {
+            int r1 = NextRSrcCofseq(cofseq, iCs, deg_x, R_PERM);
+            size_t iCs_prev = (iCs + 2) % 3;
+            AdamsDeg d_src = deg_x - AdamsDeg(r1 + 1, r1 + 1 + cofseq.degMap[iCs_prev].stem());
+            SetDiffLeibnizCofseq(cofseq, iCs_prev, d_src, {}, x, r1 + 1, flag);
+        }
+        else
+            count = SetDiffLeibnizCofseq(cofseq, iCs, deg_x, x, dx, r, flag);
     }
     return count;
 }
 
-int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, DeduceFlag flag, bool tryY)
+int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, SSFlag flag, bool tryY)
 {
     /*if (cofseq.name == "S0__C2__S0" && iCs == 2 && deg_dx == AdamsDeg(6, 104 + 6) && r == 0)
         fmt::print("debug\n");*/
@@ -280,7 +288,7 @@ int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg 
         return 0;
 }
 
-int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, DeduceFlag flag)
+int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, SSFlag flag)
 {
     int count = 0;
     NullDiffCofseq1d nds;
@@ -448,7 +456,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
             CacheNullDiffsCofseq(cofseq, iCs, deg, flag, nds);
         }
         else {
-            /*if ((flag & DeduceFlag::xy) && nd.direction > 0) {
+            /*if ((flag & SSFlag::xy) && nd.direction > 0) {
                 if (iCw < rings_.size())
                     count += SetRingDiffLeibnizV2(iCw, deg, nd.x, nd.r);
                 else
@@ -459,10 +467,12 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
     return count;
 }
 
-int Diagram::DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag flag)
+int Diagram::DeduceDiffsCofseq(int stem_min, int stem_max, int depth, SSFlag flag)
 {
     int count = 0;
-    DeduceTrivialDiffsCofseq(flag);
+    count += DeduceTrivialDiffsCofseq(flag);
+    count += CommuteCofseq(flag);
+    count += DeduceTrivialDiffsCofseq(flag);
     for (size_t iCof : deduce_list_cofseq_) {
         auto& cofseq = cofseqs_[iCof];
         for (size_t iCs = 0; iCs < 3; ++iCs) {
@@ -485,7 +495,7 @@ int Diagram::DeduceDiffsCofseq(int stem_min, int stem_max, int depth, DeduceFlag
     return count;
 }
 
-int Diagram::DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs_, int stem, int depth, DeduceFlag flag)
+int Diagram::DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs_, int stem, int depth, SSFlag flag)
 {
     int count = 0;
     DeduceTrivialDiffsCofseq(flag);
@@ -505,7 +515,7 @@ int Diagram::DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs_, int stem, int de
     return count;
 }
 
-void Diagram::SyncCofseq(DeduceFlag flag)
+void Diagram::SyncCofseq(SSFlag flag)
 {
     size_t size_rings = rings_.size();
     const size_t num_cw = size_rings + modules_.size();
@@ -538,7 +548,34 @@ void Diagram::SyncCofseq(DeduceFlag flag)
     }
 }
 
-int Diagram::CommuteCofseq(DeduceFlag flag)
+/* Return the level of x and dx or d^{-1}x */
+int Diagram::GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const
+{
+    int result = R_PERM;
+    for (int r = 1; r <= R_PERM; ++r) {
+        auto deg_x = deg + AdamsDeg{r, r};
+        if (r + r_min > result)
+            return result;
+        if (deg_x.t > t_max || PossMoreEinf(nodes_ss, deg_x))
+            return std::min(result, r + r_min);
+        if (AboveS0Vanishing(deg_x) && !ut::has(nodes_cofseq.front(), deg_x))
+            return result;
+        if (!ut::has(nodes_cofseq.front(), deg_x)) {
+            if (AboveS0Vanishing(deg_x))
+                return result;
+            continue;
+        }
+        auto& sc = ut::GetRecentValue(nodes_cofseq, deg_x);
+        if (!sc.levels.empty() && sc.levels.back() > LEVEL_MAX / 2) {
+            int r1 = LEVEL_MAX - sc.levels.back();
+            if (r + r1 < result)
+                result = r + r1;
+        }
+    }
+    return result;
+}
+
+int Diagram::CommuteCofseq(SSFlag flag)
 {
     int count = 0;
     for (size_t iComm = 0; iComm < comms_.size(); ++iComm) {
@@ -551,7 +588,7 @@ int Diagram::CommuteCofseq(DeduceFlag flag)
         auto& name_f1_src = cofseq_f1.nameCw[f1->ind_cof.iCs];
         if (comm.g0 == -1) {
             for (auto& [deg, _] : nodes_cof_f0_tgt.front()) {
-                auto& sc = ut::GetRecentValue(nodes_cof_f0_tgt, deg);
+                Staircase sc = ut::GetRecentValue(nodes_cof_f0_tgt, deg);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.levels[i] < LEVEL_MAX / 2) {
                         if (IsNewDiffCofseq(cofseq_f1, f1->ind_cof.iCs, deg, sc.basis[i], int1d{}, R_PERM - 1)) {
@@ -568,66 +605,84 @@ int Diagram::CommuteCofseq(DeduceFlag flag)
             auto& cofseq_g0 = cofseqs_[g0->ind_cof.iCof];
             int stem_f0 = cofseq_f0.degMap[f0->ind_cof.iCs].stem();
             auto& nodes_cof_f0_src = cofseq_f0.nodes_cofseq[f0->ind_cof.iCs];
+            auto& nodes_ss_f0_src = *cofseq_f0.nodes_ss[f0->ind_cof.iCs];
             auto& nodes_cof_f1_src = cofseq_f1.nodes_cofseq[f1->ind_cof.iCs];
+            auto& nodes_ss_f1_src = *cofseq_f1.nodes_ss[f1->ind_cof.iCs];
             auto& nodes_cof_g0_src = cofseqs_[g0->ind_cof.iCof].nodes_cofseq[g0->ind_cof.iCs];
             for (auto& [deg, _] : nodes_cof_f0_src.front()) {
-                auto& sc = ut::GetRecentValue(nodes_cof_f0_src, deg);
+                /*if (comm.name == "2nu" && deg == AdamsDeg(5, 20 + 5))
+                    fmt::print("debug\n");*/
+                Staircase sc = ut::GetRecentValue(nodes_cof_f0_src, deg);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    if (sc.levels[i] > LEVEL_MAX / 2 && sc.diffs[i] != NULL_DIFF) {
-                        int r_f0 = LEVEL_MAX - sc.levels[i];
-                        int cross_f0 = GetCofseqCrossR(nodes_cof_f0_src, deg, cofseq_f0.t_max[f0->ind_cof.iCs], cofseq_f0.degMap[f0->ind_cof.iCs].s);
-                        AdamsDeg deg_f0x = deg + AdamsDeg(r_f0, r_f0 + stem_f0);
-                        /* f1(f0x) = g0x */
-                        if (r_f0 < cross_f0) {
-                            int level_g0 = -1;
-                            int1d g0x = GetLevelAndDiff(nodes_cof_g0_src, deg, sc.basis[i], level_g0);
-                            int r_f1 = -1;
-                            int1d f1f0x;
-                            if (level_g0 < LEVEL_MAX / 2) {
-                                r_f1 = R_PERM - 1;
-                            }
-                            else {
-                                int r_g0 = LEVEL_MAX - level_g0;
-                                if (g0x == NULL_DIFF) {
-                                    g0x.clear();
-                                    --r_g0;
-                                }
-                                int r_f1 = r_g0 - r_f0;
-                                f1f0x = std::move(g0x);
-                            }
-                            if (r_f1 >= 0 && IsNewDiffCofseq(cofseq_f1, f1->ind_cof.iCs, deg_f0x, sc.diffs[i], f1f0x, r_f1)) {
-                                Logger::LogDiff((int)nodes_cof_f0_tgt.size() - 2, EnumReason::comm, fmt::format("{} => {}", comm.name, f1->name), deg_f0x, sc.diffs[i], f1f0x, r_f1);
-                                SetDiffGlobalCofseq(cofseq_f1, f1->ind_cof.iCs, deg_f0x, sc.diffs[i], f1f0x, r_f1, true, flag);
-                                ++count;
-                            }
-                        }
-                        /* g0x = f1f0x */
-                        {
-                            int level_f1 = -1;
-                            int1d f1f0x = GetLevelAndDiff(nodes_cof_f1_src, deg_f0x, sc.diffs[i], level_f1);
-                            int r_f1;
-                            if (level_f1 > LEVEL_MAX / 2)
-                                r_f1 = LEVEL_MAX - level_f1;
-                            else {
-                                r_f1 = R_PERM;
-                                f1f0x.clear();
-                            }
-                            int cross = GetCofseqCrossR(nodes_cof_f1_src, deg_f0x, cofseq_f1.t_max[f1->ind_cof.iCs], cofseq_f1.degMap[f1->ind_cof.iCs].s);
+                    int r_f0;
+                    int1d f0x;
+                    if (sc.levels[i] < LEVEL_MAX / 2)
+                        r_f0 = R_PERM - 1;
+                    else if (sc.diffs[i] != NULL_DIFF) {
+                        f0x = sc.diffs[i];
+                        r_f0 = LEVEL_MAX - sc.levels[i];
+                    }
+                    else {
+                        r_f0 = LEVEL_MAX - sc.levels[i] - 1;
+                    }
 
-                            if (r_f1 >= cross) {
-                                r_f1 = cross - 1;
-                                f1f0x.clear();
+                    int cross_f0 = GetCofseqCrossR(nodes_cof_f0_src, nodes_ss_f0_src, deg, cofseq_f0.t_max[f0->ind_cof.iCs], cofseq_f0.degMap[f0->ind_cof.iCs].s);
+                    AdamsDeg deg_f0x = deg + AdamsDeg(r_f0, r_f0 + stem_f0);
+                    /* f1(f0x) = g0x */
+                    if (r_f0 < cross_f0 && !f0x.empty()) {
+                        int level_g0 = -1, r_g0 = 10001;
+                        int1d g0x = GetLevelAndDiff(nodes_cof_g0_src, deg, sc.basis[i], level_g0);
+                        int r_f1 = -1;
+                        int1d f1f0x;
+                        if (level_g0 < LEVEL_MAX / 2) {
+                            r_f1 = R_PERM - 1;
+                        }
+                        else {
+                            r_g0 = LEVEL_MAX - level_g0;
+                            if (g0x == NULL_DIFF) {
+                                g0x.clear();
+                                --r_g0;
                             }
-                            if (f1f0x == NULL_DIFF) {
-                                f1f0x.clear();
-                                --r_f1;
-                            }
-                            int r_g0 = r_f0 + r_f1;
-                            if (r_g0 >= 0 && IsNewDiffCofseq(cofseq_g0, g0->ind_cof.iCs, deg, sc.basis[i], f1f0x, r_g0)) {
-                                Logger::LogDiff((int)nodes_cof_f0_tgt.size() - 2, EnumReason::comm, fmt::format("{} => {}", comm.name, g0->name), deg, sc.basis[i], f1f0x, r_g0);
-                                SetDiffGlobalCofseq(cofseq_g0, g0->ind_cof.iCs, deg, sc.basis[i], f1f0x, r_g0, true, flag);
-                                ++count;
-                            }
+                            r_f1 = r_g0 >= R_PERM - 1 ? R_PERM - 1 : r_g0 - r_f0;
+                            f1f0x = std::move(g0x);
+                        }
+                        if (r_f1 >= 0 && IsNewDiffCofseq(cofseq_f1, f1->ind_cof.iCs, deg_f0x, f0x, f1f0x, r_f1)) {
+                            Logger::LogDiff((int)nodes_cof_f0_tgt.size() - 2, EnumReason::comm, fmt::format("{} => {}", comm.name, f1->name), deg_f0x, f0x, f1f0x, r_f1);
+                            SetDiffGlobalCofseq(cofseq_f1, f1->ind_cof.iCs, deg_f0x, f0x, f1f0x, r_f1, true, flag);
+                            ++count;
+                        }
+                    }
+
+                    /* g0x = f1f0x */
+                    {
+                        int level_f1 = -1;
+                        int1d f1f0x;
+                        if (!f0x.empty())
+                            f1f0x = GetLevelAndDiff(nodes_cof_f1_src, deg_f0x, f0x, level_f1);
+                        int r_f1;
+                        if (level_f1 > LEVEL_MAX / 2)
+                            r_f1 = LEVEL_MAX - level_f1;
+                        else {
+                            r_f1 = R_PERM - 1;
+                            f1f0x.clear();
+                        }
+                        int cross_f1 = GetCofseqCrossR(nodes_cof_f1_src, nodes_ss_f1_src, deg_f0x, cofseq_f1.t_max[f1->ind_cof.iCs], cofseq_f1.degMap[f1->ind_cof.iCs].s);
+
+                        if (r_f1 >= cross_f1) {
+                            r_f1 = cross_f1 - 1;
+                            f1f0x.clear();
+                        }
+                        if (f1f0x == NULL_DIFF) {
+                            f1f0x.clear();
+                            --r_f1;
+                        }
+                        int r_g0 = r_f0 + r_f1;
+                        if (r_g0 > R_PERM - 1)
+                            r_g0 = R_PERM - 1;
+                        if (r_g0 >= 0 && IsNewDiffCofseq(cofseq_g0, g0->ind_cof.iCs, deg, sc.basis[i], f1f0x, r_g0)) {
+                            Logger::LogDiff((int)nodes_cof_f0_tgt.size() - 2, EnumReason::comm, fmt::format("{} => {}", comm.name, g0->name), deg, sc.basis[i], f1f0x, r_g0);
+                            SetDiffGlobalCofseq(cofseq_g0, g0->ind_cof.iCs, deg, sc.basis[i], f1f0x, r_g0, true, flag);
+                            ++count;
                         }
                     }
                 }

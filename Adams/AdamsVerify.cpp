@@ -116,7 +116,7 @@ void verify_map(const std::string& cw1, const std::string& cw2)
     {
         DbAdamsResLoader dbResCw2(db_cw2);
         t_max_cw2 = get_db_t_max(dbResCw2);
-        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs_cw2, std::max(t_max_map + fil - sus, 0), 10000);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs_cw2, std::max(t_max_map + fil - sus, 0));
     }
 
     DbAdamsVerifyLoader dbResCw1(db_cw1);

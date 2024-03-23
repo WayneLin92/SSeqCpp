@@ -19,7 +19,7 @@ int main_mul(int argc, char** argv, int& index, const char* desc)
     x1 = myio::Deserialize<int1d>(str_x1);
     x2 = myio::Deserialize<int1d>(str_x2);
 
-    DeduceFlag flag = DeduceFlag::no_op;
+    SSFlag flag = SSFlag::no_op;
     Diagram diagram(diagram_name, flag);
 
     int iCw = diagram.GetRingIndexByName(cw);

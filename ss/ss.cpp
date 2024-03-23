@@ -108,7 +108,7 @@ int Diagram::NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const
     return -1;
 }
 
-void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, DeduceFlag flag, NullDiff1d& nds) const
+void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, SSFlag flag, NullDiff1d& nds) const
 {
     nds.clear();
     const auto& sc = ut::GetRecentValue(nodes_ss, deg);
@@ -145,7 +145,7 @@ void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg d
         size_t j = i + 1;
         while (j < sc.levels.size() && sc.diffs[j] == NULL_DIFF && sc.levels[i] == sc.levels[j])
             ++j;
-        if (flag & DeduceFlag::all_x) {
+        if (flag & SSFlag::all_x) {
             const unsigned k_max = unsigned(1) << (j - i);
             for (unsigned k = 1; k < k_max; ++k) {
                 nd.x.clear();
@@ -218,33 +218,6 @@ int1d Diagram::GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int
     return dx;
 }
 
-/* Return the level of x and dx or d^{-1}x */
-int Diagram::GetCofseqCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const
-{
-    int result = R_PERM;
-    for (int r = 1; r <= R_PERM; ++r) {
-        auto deg_x = deg + AdamsDeg{r, r};
-        if (r + r_min > result)
-            return result;
-        if (deg_x.t > t_max || PossMoreEinf(nodes_ss, deg_x))
-			return std::min(result, r + r_min);
-        if (AboveS0Vanishing(deg_x) && !ut::has(nodes_ss.front(), deg_x))
-            return result;
-        if (!ut::has(nodes_ss.front(), deg_x)) {
-            if (AboveS0Vanishing(deg_x))
-                return result;
-            continue;
-        }
-        auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
-        if (!sc.levels.empty() && sc.levels.back() > LEVEL_MAX / 2) {
-            int r1 = LEVEL_MAX - sc.levels.back();
-            if (r + r1 < result)
-                result = r + r1;
-        }
-    }
-    return result;
-}
-
 bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r) const
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg{r, r - 1};
@@ -257,7 +230,7 @@ bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1
     return !diff.empty() && !IsZeroOnLevel(ut::GetRecentValue(nodes_ss, deg_dx), diff, r);
 }
 
-void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, DeduceFlag flag)
+void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, SSFlag flag)
 {
     /*if (deg_x == AdamsDeg(10, 135) && r == 2 && (x_ == int1d{0} || x_ == int1d{1} || x_ == int1d{0, 1})) {
         auto& name = !(iCw & FLAG_MOD) ? rings_[iCw].name : modules_[iCw ^ FLAG_MOD].name;
@@ -308,7 +281,7 @@ void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d
     }
 
     /* ss to cofseq */
-    if ((flag & DeduceFlag::cofseq) && r == R_PERM) {
+    if ((flag & SSFlag::cofseq) && r == R_PERM) {
         const auto& ind_cofs = !(iCw & FLAG_MOD) ? rings_[iCw].ind_cofs : modules_[iCw ^ FLAG_MOD].ind_cofs;
         for (auto& ind_cof : ind_cofs) {
             auto& cofseq = cofseqs_[ind_cof.iCof];
@@ -338,7 +311,7 @@ void Diagram::SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x_, const int1d
         SetImageSc(iCw, deg_dx, dx, x, r, flag);
 }
 
-void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, DeduceFlag flag)
+void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const int1d& x, int r, SSFlag flag)
 {
     const auto& name = !(iCw & FLAG_MOD) ? rings_[iCw].name : modules_[iCw ^ FLAG_MOD].name;
     auto& nodes_ss = !(iCw & FLAG_MOD) ? rings_[iCw].nodes_ss : modules_[iCw ^ FLAG_MOD].nodes_ss;
@@ -379,7 +352,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
     }
 
     /* ss to cofseq */
-    if (flag & DeduceFlag::cofseq) {
+    if (flag & SSFlag::cofseq) {
         const auto& ind_cofs = !(iCw & FLAG_MOD) ? rings_[iCw].ind_cofs : modules_[iCw ^ FLAG_MOD].ind_cofs;
         for (auto& ind_cof : ind_cofs) {
             auto& cofseq = cofseqs_[ind_cof.iCof];
@@ -404,7 +377,7 @@ void Diagram::SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx_, const in
     }
 }
 
-void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx_, int r, DeduceFlag flag)
+void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx_, int r, SSFlag flag)
 {
     /*if (cofseq.name == "S0__Ceta__S0" && iCs == 1 && deg_x == AdamsDeg(29, 176)) {
         auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg_x);
@@ -492,7 +465,7 @@ void Diagram::SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const 
     }*/
 }
 
-void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x_, int r, DeduceFlag flag)
+void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, const int1d& dx_, const int1d& x_, int r, SSFlag flag)
 {
     const size_t iCs_prev = (iCs + 2) % 3;
     auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
@@ -558,7 +531,7 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
     }
 }
 
-void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag flag)
+void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag)
 {
     const size_t iCs_next = (iCs + 1) % 3;
     const size_t iCs_prev = (iCs + 2) % 3;
@@ -630,7 +603,7 @@ void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, DeduceFlag
     }
 }
 
-int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag)
+int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, SSFlag flag)  ////
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -723,7 +696,7 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
     return count;
 }
 
-int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, DeduceFlag flag)
+int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, SSFlag flag) ////
 {
     int count = 0;
 
@@ -775,7 +748,7 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
     return count;
 }
 
-int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
+int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -923,7 +896,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
     return count;
 }
 
-int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
+int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag)
 {
     int count = 0;
 
@@ -1054,7 +1027,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
     return count;
 }
 
-int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
+int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -1123,7 +1096,7 @@ int Diagram::SetRingBoundaryLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x
     return count;
 }
 
-int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, DeduceFlag flag)
+int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, int r, SSFlag flag)
 {
     int count = 0;
     auto& mod = modules_[iMod];
@@ -1163,7 +1136,7 @@ int Diagram::SetModuleBoundaryLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& 
     return count;
 }
 
-int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, DeduceFlag flag)
+int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag)
 {
     int count = 0;
     size_t iCs2 = (iCs + 1) % 3;

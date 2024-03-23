@@ -72,8 +72,8 @@ public:
 
 public:
     int2d load_basis_degrees(const std::string& table_prefix, int t_trunc) const;
-    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc, int stem_trunc) const;
-    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc, int stem_trunc) const;
+    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, std::map<AdamsDegV2, Mod1d>& diffs, int t_trunc) const;
+    void load_generators(const std::string& table_prefix, std::vector<std::pair<int, AdamsDegV2>>& id_st, int2d& vid_num, Mod2d& diffs, std::map<AdamsDegV2, size_t>& num_diffs, int t_trunc) const;
     DataMResConst2d load_data(const std::string& table_prefix, int t_trunc) const;
     DataMResConst1d load_data_s(const std::string& table_prefix, int s, int t_trunc) const;
 };

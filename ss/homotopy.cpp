@@ -1519,7 +1519,7 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     return count_htpy;
 }
 
-unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, DeduceFlag flag)
+unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag)
 {
     AddNode(flag);
     unsigned error = 0;
@@ -1528,7 +1528,7 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, Deduc
         AddPiRelsRing({std::move(rel)});
         int count_ss1 = 0, count_homotopy1 = 0;
         SyncHomotopy(deg_change, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::pi_exact) {
+        if (flag & SSFlag::pi_exact) {
             if (count_ss1)
                 DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_change.stem(), stem_max_exactness_, depth + 1);
@@ -1542,7 +1542,7 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, Deduc
     return error;
 }
 
-unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, DeduceFlag flag)
+unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag)
 {
     AddNode(flag);
     unsigned error = 0;
@@ -1552,7 +1552,7 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
         int count_ss1 = 0, count_homotopy1 = 0;
         auto deg_min = deg_change - modules_[iCof].deg_qt;
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::pi_exact) {
+        if (flag & SSFlag::pi_exact) {
             if (count_ss1)
                 DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
@@ -1566,7 +1566,7 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
     return error;
 }
 
-unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, DeduceFlag flag)
+unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag)
 {
     AddNode(flag);
     unsigned error = 0;
@@ -1577,7 +1577,7 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
         int count_ss1 = 0, count_homotopy1 = 0;
         auto deg_min = deg_change;
         SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-        if (flag & DeduceFlag::pi_exact) {
+        if (flag & SSFlag::pi_exact) {
             DeduceTrivialExtensions(depth + 1);
             DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
         }
@@ -1590,11 +1590,11 @@ unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg
     return error;
 }
 
-void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, DeduceFlag flag)
+void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, SSFlag flag)
 {
     // SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
     // count_htpy += DeduceTrivialExtensions(depth);
-    // if (flag & DeduceFlag::pi_exact)
+    // if (flag & SSFlag::pi_exact)
     //     count_htpy += DeduceExtensionsByExactness(0, stem_max_exactness_, depth);
 
     // algZ::Poly tmp;
@@ -1673,7 +1673,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                AdamsDeg deg_min = deg;
     //                SyncHomotopy(deg_min, count_ss, count_htpy, depth);
     //                count_htpy += DeduceTrivialExtensions(depth);
-    //                if (flag & DeduceFlag::pi_exact)
+    //                if (flag & SSFlag::pi_exact)
     //                    count_htpy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
 
     //                algZ::Poly h = rings_.pi_gb.Gen((uint32_t)iCof);
@@ -1767,7 +1767,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                    AddPiRelsRing({std::move(rel_pass)});
     //                    SyncHomotopy(deg, count_ss, count_htpy, depth);
     //                    count_htpy += DeduceTrivialExtensions(depth);
-    //                    if (flag & DeduceFlag::pi_exact)
+    //                    if (flag & SSFlag::pi_exact)
     //                        count_htpy += DeduceExtensionsByExactness(deg.stem(), stem_max_exactness_, depth);
     //                }
     //                else
@@ -1850,7 +1850,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //                        auto deg_min = deg - ssCof.deg_qt;
     //                        SyncHomotopy(deg_min, count_ss, count_htpy, depth);
     //                        count_htpy += DeduceTrivialExtensions(depth);
-    //                        if (flag & DeduceFlag::pi_exact)
+    //                        if (flag & SSFlag::pi_exact)
     //                            count_htpy += DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth);
     //                    }
     //                    else
@@ -1899,10 +1899,10 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::pi;
+    SSFlag flag = SSFlag::pi;
     for (auto& f : strFlags) {
         // if (f == "exact")
-        //     flag = flag | DeduceFlag::pi_exact;
+        //     flag = flag | SSFlag::pi_exact;
     }
 
     Diagram diagram(diagram_name, flag);
@@ -1947,7 +1947,7 @@ int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::pi;
+    SSFlag flag = SSFlag::pi;
     Diagram diagram(diagram_name, flag);
 
     try {

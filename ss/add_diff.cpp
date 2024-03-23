@@ -24,15 +24,15 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     int stem = 0, s = 0, r = 0;
     std::string x_str, dx_str;
     std::string cw;
-    std::string diagram_name = "default";
+    std::string diagram_name;
     std::string mode = "add";
 
-    myio::CmdArg1d args = {{"cw", &cw}, {"stem", &stem}, {"s", &s}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}, {"mode:add/deduce/try", &mode}};
+    myio::CmdArg1d args = {{"cw", &cw}, {"stem", &stem}, {"s", &s}, {"r", &r}, {"x", &x_str}, {"dx", &dx_str}, {"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {{"mode:add/deduce/try", &mode}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    auto flag = DeduceFlag::no_op;
+    auto flag = SSFlag::no_op;
 
     AdamsDeg deg_x(s, stem + s);
     int1d x = myio::Deserialize<int1d>(x_str);
@@ -77,11 +77,11 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     }
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Logger::LogSummary("Changed differentials", count);
-        diagram.DeduceDiffs(0, 500, 0, DeduceFlag::no_op);  ////
+        diagram.DeduceDiffs(0, 500, 0, SSFlag::no_op);  ////
     }
     if (mode == "add" || mode == "deduce") {
         Logger::LogSummary("Changed differentials", count);
-        diagram.save(diagram_name, DeduceFlag::no_op);
+        diagram.save(diagram_name, SSFlag::no_op);
     }
     return 0;
 }
@@ -97,7 +97,7 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    auto flag = DeduceFlag::no_op;
+    auto flag = SSFlag::no_op;
 
     myio::AssertFileExists(filenameLog);
     std::ifstream fileLog(filenameLog);
@@ -160,7 +160,7 @@ int main_add_diff_from_log(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    auto flag = DeduceFlag::no_op;
+    auto flag = SSFlag::no_op;
 
     myio::AssertFileExists(filenameLog);
     DbLog dbLog(filenameLog);
@@ -225,7 +225,7 @@ int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
     int1d x = myio::Deserialize<int1d>(x_str);
     int1d dx = myio::Deserialize<int1d>(dx_str);
 
-    auto flag = DeduceFlag::cofseq;
+    auto flag = SSFlag::cofseq;
 
     Diagram diagram(diagram_name, flag);
 
@@ -262,7 +262,7 @@ int main_add_cofseq_diff(int argc, char** argv, int& index, const char* desc)
 
     /* #Add diff */
     int count = diagram.SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, false, flag);
-    diagram.save(diagram_name, DeduceFlag::cofseq);
+    diagram.save(diagram_name, SSFlag::cofseq);
     Logger::LogSummary("Changed differentials", count);
     return 0;
 }

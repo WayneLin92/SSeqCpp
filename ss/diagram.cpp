@@ -4,19 +4,19 @@
 #include "mylog.h"
 
 /* Add a node */
-void Diagram::AddNode(DeduceFlag flag)
+void Diagram::AddNode(SSFlag flag)
 {
     for (auto& ring : rings_)
         ring.nodes_ss.push_back({});
     for (auto& mod : modules_)
         mod.nodes_ss.push_back({});
-    if (flag & DeduceFlag::cofseq) {
+    if (flag & SSFlag::cofseq) {
         for (auto& cofseq : cofseqs_)
             for (size_t iCs = 0; iCs < 3; ++iCs)
                 cofseq.nodes_cofseq[iCs].push_back({});
     }
 
-    if (flag & DeduceFlag::pi) {
+    if (flag & SSFlag::pi) {
         for (auto& ring : rings_) {
             ring.pi_gb.AddNode();
             ring.nodes_pi_basis.push_back({});
@@ -31,19 +31,19 @@ void Diagram::AddNode(DeduceFlag flag)
 }
 
 /* Pop the lastest node */
-void Diagram::PopNode(DeduceFlag flag)
+void Diagram::PopNode(SSFlag flag)
 {
     for (auto& ring : rings_)
         ring.nodes_ss.pop_back();
     for (auto& mod : modules_)
         mod.nodes_ss.pop_back();
-    if (flag & DeduceFlag::cofseq) {
+    if (flag & SSFlag::cofseq) {
         for (auto& cofseq : cofseqs_)
             for (size_t iCs = 0; iCs < 3; ++iCs)
                 cofseq.nodes_cofseq[iCs].pop_back();
     }
 
-    if (flag & DeduceFlag::pi) {
+    if (flag & SSFlag::pi) {
         for (auto& ring : rings_) {
             ring.pi_gb.PopNode();
             ring.nodes_pi_basis.pop_back();
@@ -329,7 +329,7 @@ int1d MapMulMod2Mod::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram)
     return result;
 }
 
-int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
+int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag)
 {
     int count = 0;
     auto& ring = rings_[iRing];
@@ -384,7 +384,7 @@ int Diagram::SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, con
     return count;
 }
 
-int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
+int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag)
 {
     AdamsDeg deg_dx = deg_x + AdamsDeg(r, r - 1);
     int count = 0;
@@ -443,7 +443,7 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
     return count;
 }
 
-int Diagram::SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, DeduceFlag flag)
+int Diagram::SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag)
 {
     if (iCw < rings_.size())
         return SetRingDiffGlobal(iCw, deg_x, x, dx, r, newCertain, flag);

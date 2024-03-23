@@ -159,7 +159,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
     std::vector<std::pair<int, AdamsDegV2>> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
-    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc, t_trunc);  ////
+    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc);  ////
 
     DbAdamsResCell dbProd(db_out);
     dbProd.create_products(table_out);
