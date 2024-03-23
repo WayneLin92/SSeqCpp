@@ -14,6 +14,12 @@
 #include <unordered_set>
 
 using json = nlohmann::json;
+namespace ut {
+inline int get(const json& js, std::string key, int default_)
+{
+    return js.contains(key) ? js.at(key).get<int>() : default_;
+}
+}  // namespace ut
 
 /* Read CPU stat via /proc/stat */
 void GetProcStat(long long& total, long long& work)
@@ -433,8 +439,10 @@ void SchedulerKillAll()
     auto running_adams = GetRunningAdams();
     fmt::print("Killing the following tasks:\n");
     for (auto& [cmd, pid] : running_adams) {
-        system(fmt::format("kill {}", pid).c_str());
-        fmt::print("  {} ({})\n", pid, cmd);
+        if (int error = system(fmt::format("kill {}", pid).c_str()))
+            fmt::print("  Error ({}): failed to kill {}\n", error, pid);
+        else
+            fmt::print("  {} ({})\n", pid, cmd);
     }
 }
 
@@ -445,8 +453,10 @@ void SchedulerKillScheduler()
     fmt::print("Killing the following tasks:\n");
     for (auto& [cmd, pid] : running_adams) {
         if (myio::starts_with(cmd, "./Adams scheduler loop")) {
-            system(fmt::format("kill {}", pid).c_str());
-            fmt::print("  {} ({})\n", pid, cmd);
+            if (int error = system(fmt::format("kill {}", pid).c_str()))
+                fmt::print("  Error ({}): failed to kill {}\n", error, pid);
+            else
+                fmt::print("  {} ({})\n", pid, cmd);
         }
     }
 }
@@ -511,7 +521,19 @@ int SchedulerRunOnce(const json& js)
     uint64_t disk_available = GetDiskAvailable();
     fmt::print("Disk available: {:.0f} GB\n\n", disk_available / 1.074e9);
 
+
     auto running_adams = GetRunningAdams();
+    auto num_tasks_limit = ut::get(js, "num_tasks_limit", 64);
+    if (running_adams.size() > num_tasks_limit) {
+		fmt::print("Too many tasks running. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
+		if (int error = system(fmt::format("kill {}", running_adams.begin()->second).c_str()))
+			return error;
+		return 0;
+    }
+    else if (running_adams.size() == num_tasks_limit) {
+		fmt::print("Too many tasks running. No new task added.\n");
+		return 0;
+	}
     if (mem_usage > js.at("MEM_limit")) {
         if (running_adams.size() > 0) {
             fmt::print("Memory usage exceeds limit. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);

@@ -7,6 +7,7 @@
   "MEM_limit_info": "kill tasks if memory usage is above this limit",
   "DISK_threshold": 100,
   "DISK_threshold_info": "run more tasks if disk available is more than this threshold in GB",
+  "num_tasks_limit": 64,
   "interval": 300,
   "interval_info": "check every `interval` seconds",
   "templates": {
