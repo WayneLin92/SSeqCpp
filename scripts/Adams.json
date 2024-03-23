@@ -849,6 +849,22 @@
       "cells_gen": [0, 4],
       "free": true
     },
+    "C4": {
+      "cells_gen": [0, 1],
+      "free": true
+    },
+    "C8": {
+      "cells_gen": [0, 1],
+      "free": true
+    },
+    "Cetasq": {
+      "cells_gen": [0, 3],
+      "free": true
+    },
+    "Cetacube": {
+      "cells_gen": [0, 4],
+      "free": true
+    },
     "Cetasigma": {
       "cells_gen": [0, 9],
       "free": true
@@ -1128,6 +1144,13 @@
       "from": "Ctheta5sq",
       "to": "CW_theta5sq_eta_2",
       "free_images": [[0, 0, 0], [125, 0, 0]]
+    },
+    "Ctheta5sq__C2_by_eta": {
+      "from": "Ctheta5sq",
+      "to": "C2",
+      "free_images": [[2, 1, 0], [127, 1, 0]],
+      "sus": -2,
+      "fil": 1
     },
 
     // 4-cell -> 5-cell
@@ -2151,6 +2174,13 @@
       "sus": 63,
       "fil": 0
     },
+    "Ctheta5sq__S0": {
+      "from": "Ctheta5",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 125,
+      "fil": 0
+    },
 
     //----------------- C2nu, Cetasigma -----------------
     "C2nu__S0": {
@@ -2158,6 +2188,13 @@
       "to": "S0",
       "free_images": [[], [0, 0, 0]],
       "sus": 4,
+      "fil": 0
+    },
+    "C2sigma__S0": {
+      "from": "C2sigma",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 8,
       "fil": 0
     },
     "Cetasigma__S0": {
@@ -2198,6 +2235,34 @@
       "to": "Cetasigma",
       "summands": ["CW_nu_eta_2_etasigma__Cetasigma_0", "CW_nu_eta_2_etasigma__S0"],
       "sus": 7,
+      "fil": 0
+    },
+    "C4__S0": {
+      "from": "C4",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 1,
+      "fil": 0
+    },
+    "C8__S0": {
+      "from": "C8",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 1,
+      "fil": 0
+    },
+    "Cetasq__S0": {
+      "from": "Cetasq",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 3,
+      "fil": 0
+    },
+    "Cetacube__S0": {
+      "from": "Cetacube",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 4,
       "fil": 0
     },
 

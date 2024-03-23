@@ -41,6 +41,7 @@
 ./Adams export_map C2sigma CW_2sigma_sigma 200
 ./Adams export_map Cetasigma CW_etasigma_2_eta_nu 200
 ./Adams export_map Ctheta5sq CW_theta5sq_eta_2 200
+./Adams export_map Ctheta5sq C2_by_eta 200
 
 
 cp C2nu_AdamsSS.db AdamsSS
@@ -55,3 +56,22 @@ cp map_AdamsSS_CW_sigma_2sigma__C2sigma.db AdamsSS
 cp map_AdamsSS_C2sigma__CW_2sigma_sigma.db AdamsSS
 cp map_AdamsSS_Cetasigma__CW_etasigma_2_eta_nu.db AdamsSS
 cp map_AdamsSS_Ctheta5sq__CW_theta5sq_eta_2.db AdamsSS
+cp map_AdamsSS_Ctheta5sq__C2_by_eta.db AdamsSS
+
+./Adams export_mod C4 S0 200
+./Adams export_mod C8 S0 200
+./Adams export_mod Cetasq S0 200
+./Adams export_mod Cetacube S0 200
+./Adams export_map C4 S0 200
+./Adams export_map C8 S0 200
+./Adams export_map Cetasq S0 200
+./Adams export_map Cetacube S0 200
+
+cp C4_AdamsSS.db AdamsSS
+cp C8_AdamsSS.db AdamsSS
+cp Cetasq_AdamsSS.db AdamsSS
+cp Cetacube_AdamsSS.db AdamsSS
+cp map_AdamsSS_C4__S0.db AdamsSS
+cp map_AdamsSS_C8__S0.db AdamsSS
+cp map_AdamsSS_Cetasq__S0.db AdamsSS
+cp map_AdamsSS_Cetacube__S0.db AdamsSS
