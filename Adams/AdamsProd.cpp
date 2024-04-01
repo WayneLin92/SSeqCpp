@@ -752,7 +752,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
     /* Remove computed range */
     int1d ids_old = dbMap.load_old_ids(table_map);
-    ut::RemoveIf(id_deg_cw2, [fil, &ids_old](const std::pair<int, AdamsDegV2>& p) { return ut::has(ids_old, p.first) || p.second.s < fil || p.second.s == 0; });
+    ut::RemoveIf(id_deg_cw2, [fil, &ids_old](const std::pair<int, AdamsDegV2>& p) { return ut::has(ids_old, p.first) || p.second.s <= fil || p.second.s == 0; });
 
     bench::Timer timer;
     timer.SuppressPrint();
@@ -785,7 +785,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
             if (deg.s > 0) {
                 size_t vid_num_sm1 = (size_t)vid_num[size_t(deg.s - 1)][deg.stem()];
-                ut::get(all_f, (size_t)(deg.s - 1)).resize(vid_num_sm1);
+                ut::extend(ut::get(all_f, (size_t)(deg.s - 1)), vid_num_sm1);
             }
 
             auto v = LocId(id).v;
@@ -797,14 +797,14 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
 
         /*# compute fd */
         std::atomic<int> threadsLeft = (int)arr_i.size();
-        ut::for_each_par128(arr_i.size(), [t, sus, &diffs, &all_f, &fd, &arr_deg, &arr_i, &threadsLeft, &print_mutex](size_t i) {
+        ut::for_each_par128(arr_i.size(), [t, fil, &diffs, &all_f, &fd, &arr_deg, &arr_i, &threadsLeft, &print_mutex](size_t i) {
             const auto& deg = arr_deg[i];
             int j = arr_i[i];
             fd[deg.s][j] = subs(diffs.at(deg)[j], all_f[size_t(deg.s - 1)]); /* deg.s is always positive */
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                fmt::print("t={} s={} threadsLeft={}\n", t, deg.s - sus, threadsLeft.load());
+                fmt::print("t={} s={} threadsLeft={}\n", t, deg.s - fil, threadsLeft.load());
                 std::fflush(stdout);
             }
         });
@@ -841,7 +841,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
         double time = timer.Elapsed();
         timer.Reset();
         if (count > 0) {
-            fmt::print("t={} time={}\n", t, time);
+            fmt::print("  t={} time={}\n", t, time);
             std::fflush(stdout);
             dbMap.save_time(table_map, -1, t, time);
         }

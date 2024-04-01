@@ -115,11 +115,10 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
     }
 }
 
-void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const MMod& mon, int O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs)
+void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, const MMod& mon, int O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs)
 {
     size_t leadsx_size = leadsx.size();
     size_t leads_size = leads.size();
-    MonTrace t = mon.m.Trace();
 
     /* Populate `new_pairs__` */
     new_pairs__.clear();
@@ -167,12 +166,10 @@ void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, co
     }
 }
 
-void GbCriPairs::AddToBuffersX(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, size_t i_start)
+void GbCriPairs::AddToBuffersX(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, size_t i_start)
 {
     for (size_t l = 0; l < leads.size(); ++l) {
         auto& mon = leads[l];
-        auto& t = traces[l];
-
         size_t leadsx_size = leadsx.size();
 
         /* Populate `new_pairs__` */
@@ -255,7 +252,7 @@ void ExtendO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, Mod& re
     TplExtendO(possEinf, t_max, stem, rel);
 }
 
-Groebner::Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)), nodes_gen_2tor_degs_({})
+Groebner::Groebner(int deg_trunc, AdamsDeg1d gen_degs, Poly1d polys) : criticals_(deg_trunc), gen_degs_(std::move(gen_degs)), nodes_gen_2tor_degs_({})
 {
     for (AdamsDeg deg : gen_degs_) {
         if (deg == AdamsDeg(1, 1))
@@ -545,7 +542,7 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
         criticals_.ClearBuffer();
 }
 
-void Groebner::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
+void Groebner::SimplifyRels()
 {
     Poly1d data;
     MonTrace1d traces;
@@ -667,7 +664,7 @@ void powP(const Poly& poly, int n, const Groebner& gb, Poly& result, Poly& tmp)
 
 /********************************* Modules ****************************************/
 
-GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size())
+GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size())
 {
     for (auto& p : polys) {
         AdamsDeg deg = GetDeg(p.GetLead(), pGb_->gen_degs(), v_degs_);
@@ -941,7 +938,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
     if (t_max > d_trunc)
         throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
     if (old_pGb_size_ != pGb_->leads_.size()) {
-        criticals_.AddToBuffersX(pGb_->leads_, pGb_->traces_, pGb_->data_O_, leads_, traces_, data_O_, pGb_->gen_degs(), v_degs_, old_pGb_size_);
+        criticals_.AddToBuffersX(pGb_->leads_, pGb_->data_O_, leads_, data_O_, pGb_->gen_degs(), v_degs_, old_pGb_size_);
         old_pGb_size_ = pGb_->leads_.size();
     }
 
@@ -1000,7 +997,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
         criticals_.ClearBuffer();
 }
 
-void GroebnerMod::SimplifyRels(const ut::map_seq2d<int, 0>& possEinf)
+void GroebnerMod::SimplifyRels()
 {
     Mod1d data;
     MonTrace1d traces;

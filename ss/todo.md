@@ -1,16 +1,22 @@
-# Main
-* Leibniz: perm * boundary = boundary
-* plot extensions
-* check bottom cell status
- 
+# Main todo
+- [ ] 更有效的flags=ss_cofseq
+- [ ] try prefix and postfix tree for `IndexOfDivisibleLeading()`
+- [ ] E3乘法
+- [ ] synthetic cofseq
+- [x] Leibniz: perm * boundary = boundary
+- [ ] plot extensions
+- [ ] check bottom cell status
+- [ ] cofseq_cofseq
+- [ ] f1f2=g1g2 in cofseq
+
 
 # Adams
-* Brown-Gitler
-* Fast multiplication using extensions
+- [ ] Fast multiplication
+- [ ] Brown-Gitler
 
 # ss
 * Add more cofseq
-* Improve rename_gen
+* Improve `ss name`
 * smaller log.db
 * Cache contradictions
 

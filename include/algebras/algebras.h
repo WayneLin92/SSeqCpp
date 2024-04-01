@@ -184,7 +184,7 @@ inline std::ostream& operator<<(std::ostream& sout, const AdamsDeg& deg)
 struct GE
 {
     uint32_t data;
-    constexpr GE() : data(0xffff << 16) {} /* default value x_0^0 */
+    constexpr GE() : data(0xffffu << 16) {} /* default value x_0^0 */
     constexpr explicit GE(uint32_t data_) : data(data_) {}
     constexpr GE(uint32_t g, uint32_t e) : data((~g << 16) | e) {}
 
@@ -626,9 +626,6 @@ inline Poly subs(const Poly& poly, const uint1d& map_gen_id)
     return subsTpl(poly, [&map_gen_id](size_t i) { return Poly::Gen(map_gen_id[i]); });
 }
 
-int1d Poly2Indices(const Poly& poly, const Mon1d& basis);
-Poly Indices2Poly(const int1d& indices, const Mon1d& basis);
-
 /********************************************************
  *                      Modules
  ********************************************************/
@@ -638,7 +635,20 @@ struct MMod
     uint32_t v;
     Mon m;
 
-    MMod(const Mon& m_, uint32_t v_) : m(m_), v(v_) {}
+    constexpr MMod(const Mon& m_, uint32_t v_) : m(m_), v(v_) {}
+
+    /* This is made for `SortMod2()` */
+    constexpr static MMod Null()
+    {
+        MMod result(Mon::Null(), 0);
+        return result;
+    }
+
+    /* This is made for `SortMod2()` */
+    bool IsNull() const
+    {
+        return m.IsNull();
+    }
 
     bool operator<(const MMod& rhs) const
     {
@@ -744,7 +754,8 @@ inline Mod operator*(const Poly& p, const Mod& x)
     return result;
 }
 
-void mulP(const Mon& mon, const Mod& poly, Mod& result);
+void mulP(const Mon& mon, const Mod& mod, Mod& result);
+void mulP(const Poly& poly, const Mod& mod, Mod& result);
 
 /**
  * Replace the generators in `poly` with elements given in `map`.
@@ -771,8 +782,53 @@ inline Mod subs(const Mod& x, const std::vector<Mod>& map)
     return subsModTpl(x, [&map](size_t i) { return map[i]; });
 }
 
+int1d Poly2Indices(const Poly& poly, const Mon1d& basis);
+Poly Indices2Poly(const int1d& indices, const Mon1d& basis);
 int1d Mod2Indices(const Mod& x, const MMod1d& basis);
 Mod Indices2Mod(const int1d& indices, const MMod1d& basis);
+
+template<typename Alg, typename TypeMon>
+void Alg2IndicesP(const Alg& alg, const std::vector<TypeMon>& basis, int1d& result)
+{
+    result.clear();
+    for (const auto& m : alg.data) {
+        auto p = std::lower_bound(basis.begin(), basis.end(), m);
+#ifdef MYDEBUG
+        if (p == basis.end() || m < (*p)) {
+            throw MyException(0x57f14e21U, "Index not found");
+        }
+#endif
+        result.push_back(uint32_t(p - basis.begin()));
+    }
+}
+
+template <typename Alg, typename Basis>
+void Alg2IndicesP(const Alg& alg, const Basis& basis, AdamsDeg deg, int1d& result)
+{
+    if (alg)
+        Alg2IndicesP(alg, basis.at(deg), result);
+	else
+		result.clear();
+}
+
+template <typename Alg, typename TypeMon>
+void Indices2AlgP(const int1d& indices, const std::vector<TypeMon>& basis, Alg& result)
+{
+    result.data.clear();
+    for (int i : indices)
+        result.data.push_back(basis[i]);
+}
+
+template <typename Alg, typename Basis>
+void Indices2AlgP(const int1d& indices, const Basis& basis, AdamsDeg deg, Alg& result)
+{
+    if (indices.empty())
+		result.data.clear();
+	else
+		Indices2AlgP(indices, basis.at(deg), result);
+}
+
+
 
 }  // namespace alg2
 

@@ -3,8 +3,8 @@
 
 #include "json.h"
 #include <cstring>
-#include <fmt/format.h>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <sstream>
 #include <variant>
 #include <vector>
@@ -185,6 +185,16 @@ int LoadSubCmd(int argc, char** argv, int& index, const char* program, const cha
                      json
  *********************************************************/
 nlohmann::json load_json(const std::string& file_name);
+
+inline int get(const nlohmann::json& js, std::string key, int default_)
+{
+    return js.contains(key) ? js.at(key).get<int>() : default_;
+}
+
+inline std::string get(const nlohmann::json& js, std::string key, const std::string& default_)
+{
+    return js.contains(key) ? js.at(key).get<std::string>() : default_;
+}
 
 }  // namespace myio
 

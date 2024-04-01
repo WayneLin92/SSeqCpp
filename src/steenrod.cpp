@@ -366,13 +366,13 @@ std::string MMod::Str() const
     return (s == "1" ? "" : s) + "v_{" + std::to_string(v()) + '}';
 }
 
-void MulMayP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp)
+void MulMayP(MMilnor mon, const Mod& x, Mod& result, Milnor& tmp)
 {
     result.data.clear();
-    for (MMod m2 : x.data) {
+    for (MMod mx : x.data) {
         tmp.data.clear();
-        MulMay(m, m2.m(), tmp);
-        auto v_raw = m2.v_raw();
+        MulMay(mon, mx.m(), tmp);
+        auto v_raw = mx.v_raw();
         for (MMilnor m : tmp.data)
             result.data.push_back(MMod(m.data() + v_raw));
     }

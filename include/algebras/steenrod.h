@@ -364,7 +364,7 @@ inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
 
 inline std::ostream& operator<<(std::ostream& sout, MMilnor m)
 {
-    return std::cout << m.StrP();
+    return sout << m.StrP();
 }
 
 /* Elements of A as linear combinations of Milnor basis
@@ -407,7 +407,7 @@ using Milnor1d = std::vector<Milnor>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
-    return std::cout << x.StrP();
+    return sout << x.StrP();
 }
 
 void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result);
@@ -533,6 +533,10 @@ struct Mod
     MMod1d data;
     Mod() {}
     Mod(MMod mv) : data({mv}) {}
+    Mod(const Milnor& a, uint64_t v) {
+        for (MMilnor m : a.data)
+			data.push_back(MMod(m, v));
+    }
 
     MMod GetLead() const
     {

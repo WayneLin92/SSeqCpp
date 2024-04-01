@@ -468,7 +468,7 @@ struct MMod
     uint32_t v;
     Mon m; /* m.fil_ should include the filtration of v */
 
-    MMod() : v(-1), m() {}
+    MMod() : v(uint32_t(-1)), m() {}
     MMod(const Mon& m_, uint32_t v_, int fil_v) : m(m_.c(), m_.m(), m_.fil() + fil_v), v(v_) {}
     MMod(int c, const alg2::Mon& m_, int fil, int v_) : m(c, m_, fil), v(v_) {}
 

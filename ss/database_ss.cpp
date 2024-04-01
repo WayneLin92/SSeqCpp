@@ -116,8 +116,8 @@ void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<EnumDe
         std::string name;
         if (mons) {
             name = mons.data[0].Str();
-            for (size_t i = 1; i < mons.data.size(); ++i)
-                name += "," + mons.data[i].Str();
+            for (size_t j = 1; j < mons.data.size(); ++j)
+                name += "," + mons.data[j].Str();
         }
         stmt.bind_and_step((int)i, (int)pi_gen_defs[i], myio::Serialize(map_ids), myio::Serialize(mons), name, myio::Serialize(fils));
     }
@@ -223,7 +223,6 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     std::map<AdamsDeg, Staircase> nodes_ss;
 
     /* fill nodes_ss */
-    int prev_t = 0;
     for (auto& [d, basis_d] : basis) {
         for (int i = 0; i < (int)basis_d.size(); ++i) {
             nodes_ss[d].basis.push_back({i});

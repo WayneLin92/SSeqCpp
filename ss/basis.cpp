@@ -49,7 +49,6 @@ void generate_db(const std::string& diagram, const std::string& name, int t_max,
     }
 
     /* Fill nodes_ss */
-    int prev_t = 0;
     for (auto& [d, basis_d] : basis) {
         for (int i = 0; i < (int)basis_d.size(); ++i) {
             nodes_ss[d].basis.push_back({i});

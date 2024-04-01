@@ -108,89 +108,88 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
             Logger::SetOutDeduce(path_log.c_str());
         }
 
-        /*# Load rings */
+        /*# Load rings and modules */
 
         auto& json_rings = js_.at("rings");
-        rings_.reserve(json_rings.size());
-        size_t iCw = 0;
-        AdamsDeg2d ring_gen_degs;
-
-        std::vector<std::map<AdamsDeg, int2d>> basis_d2;
-        for (auto& json_ring : json_rings) {
-            std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
-            if (!json_ring.contains("deduce") || json_ring.at("deduce").get<std::string>() == "on")
-                deduce_list_spectra_.push_back(iCw);
-            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
-            std::string table_prefix = fmt::format("{}_AdamsE2", name);
-
-            myio::AssertFileExists(abs_path);
-            DBSS db(abs_path);
-            RingSp ring;
-            ring.name = name;
-            ring.basis = db.load_basis(table_prefix);
-            if (loadD2)
-                basis_d2.push_back(db.load_basis_d2(table_prefix));
-            ring.degs_basis_order_by_stem = OrderDegsByStem(ring.basis);
-            ring.t_max = ring.basis.rbegin()->first.t;
-            ring.nodes_ss = {db.load_ss(table_prefix), {}};
-            ring.nodes_ss.reserve(MAX_DEPTH + 1);
-            ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
-
-            if (flag & SSFlag::pi) {
-                ring.pi_gen_Einf = db.get_column_from_str<Poly>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
-                ring.pi_gb = algZ::Groebner(ring.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb(name, DEG_MAX), true);
-                ring.nodes_pi_basis.reserve(MAX_DEPTH + 2);
-                if (flag & SSFlag::pi_def)
-                    db.load_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
-            }
-
-            ring_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
-            rings_.push_back(std::move(ring));
-            ++iCw;
-        }
-
-        /*# Load modules */
-
         auto& json_mods = js_.at("modules");
+        AdamsDeg2d ring_gen_degs;
         AdamsDeg2d module_gen_degs;
+        rings_.reserve(json_rings.size());
         modules_.reserve(json_mods.size());
-        for (auto& json_mod : json_mods) {
-            std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
-            std::string over = json_mod.at("over").get<std::string>();
-            if (!json_mod.contains("deduce") || json_mod.at("deduce").get<std::string>() == "on")
-                deduce_list_spectra_.push_back(iCw);
-            std::string abs_path = fmt::format("{}/{}", diagram_name, path);
-            std::string table_prefix = fmt::format("{}_AdamsE2", name);
+        std::vector<std::map<AdamsDeg, int2d>> basis_d2;
+        {
+            size_t iCw = 0;
+            for (auto& json_ring : json_rings) {
+                std::string name = json_ring.at("name").get<std::string>(), path = json_ring.at("path").get<std::string>();
+                if (myio::get(json_ring, "deduce", "on") == "on")
+                    deduce_list_spectra_.push_back(iCw);
+                std::string abs_path = fmt::format("{}/{}", diagram_name, path);
+                std::string table_prefix = fmt::format("{}_AdamsE2", name);
 
-            myio::AssertFileExists(abs_path);
-            DBSS db(abs_path);
-            ModSp mod;
-            mod.name = name;
-            mod.iRing = (size_t)GetRingIndexByName(over);
-            MyException::Assert(mod.iRing != -1, "mod.iRing != -1");
-            auto& ring = rings_[mod.iRing];
-            mod.basis = db.load_basis_mod(table_prefix);
-            if (loadD2)
-                basis_d2.push_back(db.load_basis_d2(table_prefix));
-            mod.degs_basis_order_by_stem = OrderDegsByStem(mod.basis);
-            mod.t_max = mod.basis.rbegin()->first.t;
-            mod.nodes_ss = {db.load_ss(table_prefix), {}};
-            mod.nodes_ss.reserve(MAX_DEPTH + 1);
-            Mod1d xs = db.load_gb_mod(table_prefix, DEG_MAX);
-            mod.gb = GroebnerMod(&ring.gb, mod.t_max, {}, std::move(xs));
+                myio::AssertFileExists(abs_path);
+                DBSS db(abs_path);
+                RingSp ring;
+                ring.name = name;
+                ring.basis = db.load_basis(table_prefix);
+                if (loadD2)
+                    basis_d2.push_back(db.load_basis_d2(table_prefix));
+                ring.degs_basis_order_by_stem = OrderDegsByStem(ring.basis);
+                ring.t_max = ring.basis.rbegin()->first.t;
+                ring.nodes_ss = {db.load_ss(table_prefix), {}};
+                ring.nodes_ss.reserve(MAX_DEPTH + 1);
+                ring.gb = Groebner(ring.t_max, {}, db.load_gb(table_prefix, DEG_MAX));
 
-            if (flag & SSFlag::pi) {
-                mod.pi_gen_Einf = db.get_column_from_str<Mod>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
-                mod.pi_gb = algZ::GroebnerMod(&ring.pi_gb, mod.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb_mod(name, DEG_MAX), true);
-                mod.nodes_pi_basis.reserve(MAX_DEPTH);
-                if (flag & SSFlag::pi_def)
-                    db.load_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
+                if (flag & SSFlag::pi) {
+                    ring.pi_gen_Einf = db.get_column_from_str<Poly>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Poly>);
+                    ring.pi_gb = algZ::Groebner(ring.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb(name, DEG_MAX));
+                    ring.nodes_pi_basis.reserve(MAX_DEPTH + 2);
+                    if (flag & SSFlag::pi_def)
+                        db.load_pi_def(name, ring.pi_gen_defs, ring.pi_gen_def_mons);
+                }
+
+                ring_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
+                rings_.push_back(std::move(ring));
+                ++iCw;
             }
 
-            modules_.push_back(std::move(mod));
-            module_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
-            ring.ind_mods.push_back(modules_.size() - 1);
-            ++iCw;
+            for (auto& json_mod : json_mods) {
+                std::string name = json_mod.at("name").get<std::string>(), path = json_mod.at("path").get<std::string>();
+                std::string over = json_mod.at("over").get<std::string>();
+                if (myio::get(json_mod, "deduce", "on") == "on")
+                    deduce_list_spectra_.push_back(iCw);
+                std::string abs_path = fmt::format("{}/{}", diagram_name, path);
+                std::string table_prefix = fmt::format("{}_AdamsE2", name);
+
+                myio::AssertFileExists(abs_path);
+                DBSS db(abs_path);
+                ModSp mod;
+                mod.name = name;
+                mod.iRing = (size_t)GetRingIndexByName(over);
+                MyException::Assert(mod.iRing != -1, "mod.iRing != -1");
+                auto& ring = rings_[mod.iRing];
+                mod.basis = db.load_basis_mod(table_prefix);
+                if (loadD2)
+                    basis_d2.push_back(db.load_basis_d2(table_prefix));
+                mod.degs_basis_order_by_stem = OrderDegsByStem(mod.basis);
+                mod.t_max = mod.basis.rbegin()->first.t;
+                mod.nodes_ss = {db.load_ss(table_prefix), {}};
+                mod.nodes_ss.reserve(MAX_DEPTH + 1);
+                Mod1d xs = db.load_gb_mod(table_prefix, DEG_MAX);
+                mod.gb = GroebnerMod(&ring.gb, mod.t_max, {}, std::move(xs));
+
+                if (flag & SSFlag::pi) {
+                    mod.pi_gen_Einf = db.get_column_from_str<Mod>(name + "_pi_generators", "Einf", "ORDER BY id", myio::Deserialize<Mod>);
+                    mod.pi_gb = algZ::GroebnerMod(&ring.pi_gb, mod.t_max, db.load_pi_gen_adamsdegs(name), db.load_pi_gb_mod(name, DEG_MAX));
+                    mod.nodes_pi_basis.reserve(MAX_DEPTH);
+                    if (flag & SSFlag::pi_def)
+                        db.load_pi_def(name, mod.pi_gen_defs, mod.pi_gen_def_mons);
+                }
+
+                modules_.push_back(std::move(mod));
+                module_gen_degs.push_back(db.load_gen_adamsdegs(table_prefix));
+                ring.ind_mods.push_back(modules_.size() - 1);
+                ++iCw;
+            }
         }
 
         /*# Load maps */
@@ -198,7 +197,7 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
         std::smatch match;
 
         auto& json_maps = js_.at("maps");
-        if (flag & SSFlag::cofseq) {
+        if (flag & SSFlag::cofseq || flag & SSFlag::naming) {
             for (auto& item : js_.at("maps_v2"))
                 json_maps.push_back(item);
         }
@@ -283,7 +282,7 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                         Poly1d images_map;
                         for (size_t i = 0; i < gen_degs.size(); ++i) {
                             if (gen_degs[i].t > t_max_map)
-                                images_map.push_back(Poly::Gen(-1));
+                                images_map.push_back(Mon::Null());
                             else {
                                 int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
                                 if (fx.empty())
@@ -301,7 +300,7 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                         Mod1d images_map;
                         for (size_t i = 0; i < gen_degs.size(); ++i) {
                             if (gen_degs[i].t > t_max_map)
-                                images_map.push_back(MMod({}, -1));
+                                images_map.push_back(MMod::Null());
                             else {
                                 int1d fx = get_compostion(generators[i], gen_degs[i], *this, maps_, indices);
                                 if (fx.empty())
@@ -421,6 +420,12 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                 ++iCof;
             }
             SyncCofseq(flag);
+
+            if (flag & SSFlag::depth_ss_cofseq)
+                ut::RemoveIf(deduce_list_spectra_, [&](size_t iCw) {
+                    const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
+                    return ind_cofs.empty();
+                });
         }
 
         /*# Load commutativities */
@@ -458,7 +463,6 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                     continue;
                 auto& name = rings_[iCw].name;
                 auto& nodes_ss = rings_[iCw].nodes_ss;
-                auto& basis = rings_[iCw].basis;
                 for (auto& [deg, d2] : basis_d2[iCw]) {
                     for (size_t i = 0; i < d2.size(); ++i) {
                         if (IsNewDiff(nodes_ss, deg, int1d{(int)i}, d2[i], 2)) {
@@ -474,7 +478,6 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                     continue;
                 auto& name = modules_[iMod].name;
                 auto& nodes_ss = modules_[iMod].nodes_ss;
-                auto& basis = modules_[iMod].basis;
                 for (auto& [deg, d2] : basis_d2[iCw]) {
                     for (size_t i = 0; i < d2.size(); ++i) {
                         if (IsNewDiff(nodes_ss, deg, int1d{(int)i}, d2[i], 2)) {

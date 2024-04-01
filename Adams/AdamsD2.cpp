@@ -358,7 +358,7 @@ Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
     return result;
 }
 
-int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
+int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images);
 
 /*
  * Ext^2(cw) --> H^*(cw)
@@ -372,6 +372,9 @@ int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
  */
 int compute_d2(const std::string& cw, int t_trunc)
 {
+    Mod1d h_d2_images;
+    GetD2FromJson(cw, t_trunc, h_d2_images);
+
     std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
     std::string table_d2 = fmt::format("{}_Adams_d2", cw);
     DbAdamsd2Map dbD2(db_d2);
@@ -450,15 +453,15 @@ int compute_d2(const std::string& cw, int t_trunc)
 
         /*# compute fd+A */
         std::atomic<int> threadsLeft = (int)arr_s.size();
-        ut::for_each_par32(arr_s.size(), [&arr_s, &arr_v, &arr_i, &fd, &f, &all_f, &diffs, &print_mutex, &threadsLeft, t](size_t i) {  ////
+        ut::for_each_par32(arr_s.size(), [&h_d2_images, &arr_s, &arr_v, &arr_i, &fd, &f, &all_f, &diffs, &print_mutex, &threadsLeft, t](size_t i) {  ////
             int s = arr_s[i];
             int v = arr_v[i];
             int j = arr_i[i];
             if (s > 2)
                 fd[s][j] = subs(diffs[s][v], all_f[size_t(s - 1)]) + ddd(diffs[s][v], diffs, s);
             else if (s == 2) {
-                // if (v == 0)
-                //     f[s][j] = MMilnor::P(1, 2) * MMod(MMilnor::P(0, 1), 0);
+                if (v < h_d2_images.size())
+                    f[s][j] = h_d2_images[v];
             }
 
             {

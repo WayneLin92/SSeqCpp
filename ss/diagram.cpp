@@ -6,6 +6,7 @@
 /* Add a node */
 void Diagram::AddNode(SSFlag flag)
 {
+    ++depth_;
     for (auto& ring : rings_)
         ring.nodes_ss.push_back({});
     for (auto& mod : modules_)
@@ -33,6 +34,7 @@ void Diagram::AddNode(SSFlag flag)
 /* Pop the lastest node */
 void Diagram::PopNode(SSFlag flag)
 {
+    --depth_;
     for (auto& ring : rings_)
         ring.nodes_ss.pop_back();
     for (auto& mod : modules_)
@@ -134,7 +136,6 @@ int1d MapMod2ModV2::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) 
     if (!x.empty()) {
         auto& mods = diagram.GetModules();
         auto& maps = diagram.GetMaps();
-        auto& ring_map = maps[over];
         auto x_alg = Indices2Mod(x, mods[from].basis.at(deg_x));
         auto fx_alg = mods[to].gb.Reduce(subs(x_alg, ((MapRing2Ring*)maps[over].get())->images, images));
         if (fx_alg) {
@@ -241,7 +242,6 @@ int1d MapMod2RingV2::map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram)
         auto& rings = diagram.GetRings();
         auto& mods = diagram.GetModules();
         auto& maps = diagram.GetMaps();
-        auto& ring_map = maps[over];
         auto x_alg = Indices2Mod(x, mods[from].basis.at(deg_x));
         auto fx_alg = rings[to].gb.Reduce(subs(x_alg, ((MapRing2Ring*)maps[over].get())->images, images));
         if (fx_alg) {
@@ -390,8 +390,6 @@ int Diagram::SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, co
     int count = 0;
 
     auto& mod = modules_[iMod];
-    auto& ring = rings_[mod.iRing];
-    auto& basis = mod.basis;
     auto& nodes_ss = mod.nodes_ss;
     int t_max = mod.t_max;
 

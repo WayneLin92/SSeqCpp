@@ -106,8 +106,8 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
 /* Add the homotopy from diagram1 to diagram2
  * Currently we only support migration from small range to bigger range
  */
-void Migrate_htpy(const Diagram& diagram1, Diagram& diagram2)
-{
+//void Migrate_htpy(const Diagram& diagram1, Diagram& diagram2)
+//{
     // for (size_t iSS = 0; iSS < diagram1.GetAllBasisSs().size(); ++iSS) {
     //     if (iSS == 0) {
     //         auto& pi_gb1 = diagram1.GetRings().pi_gb;
@@ -154,7 +154,7 @@ void Migrate_htpy(const Diagram& diagram1, Diagram& diagram2)
     // }
     // int count_ss = 0, count_htpy = 0;
     // diagram2.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, 0);
-}
+//}
 
 void ImportChuaD2(Diagram& diagram)
 {
@@ -326,7 +326,7 @@ int main_migrate_pi(int argc, char** argv, int& index, const char* desc)
     Diagram diagram2(diagram_name2, flag, false);
 
     try {
-        Migrate_htpy(diagram1, diagram2);
+        //Migrate_htpy(diagram1, diagram2);
         diagram2.save(diagram_name2, flag);
     }
     /* catch (SSException& e) {

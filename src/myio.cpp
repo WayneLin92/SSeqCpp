@@ -205,9 +205,9 @@ int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const ch
 void PrintHelp(const std::string& cmd, const char* description, const char* version, SubCmdArg1d& cmds)
 {
     fmt::print("{}\nUsage:\n  {} <cmd> ...\n\ncmd can be one of the following:\n", description, cmd);
-    for (auto& cmd : cmds)
-        fmt::print("  {}: {}\n", cmd.name, cmd.description);
-    fmt::print("\n{}\n", version);
+    for (auto& c : cmds)
+        fmt::print("  {}: {}\n", c.name, c.description);
+    fmt::print("\n{} {}\n", version, COMPILE_MODE);
 }
 
 int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds)

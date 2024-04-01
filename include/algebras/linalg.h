@@ -44,15 +44,15 @@ inline int1d Residue(const int2d& spaceV, int1d v)
 void GetInvMap(const int2d& fx, int2d& image, int2d& g);
 /* Setup a linear map */
 void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g);
-void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt fx_last, int2d& image, int2d& kernel, int2d& g);
+void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2d& image, int2d& kernel, int2d& g);
 void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel, int2d& g);
 void SetLinearMapV3(const int2d& x, const int2d& fx, int2d& domain, int2d& f, int2d& image, int2d& g, int2d& kernel);
 
 /* Return f(v) for v\\in V. fi=f(vi) */
-int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int2dIt f_last, int1d v);
+int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int1d v);
 inline int1d GetImage(const int2d& spaceV, const int2d& f, int1d v)
 {
-    return GetImage(spaceV.begin(), spaceV.end(), f.begin(), f.end(), std::move(v));
+    return GetImage(spaceV.begin(), spaceV.end(), f.begin(), std::move(v));
 }
 /* Return f^{-1}(v) where fi=vi */
 int1d GetInvImage(const int2d& spaceV, int1d v);

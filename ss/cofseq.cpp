@@ -26,8 +26,8 @@ bool Diagram::IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, in
 
 size_t Diagram::GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int level_min)
 {
-    const size_t iCs2 = (iCs + 1) % 3;
-    auto& nodes_ss2 = *cofseq.nodes_ss[iCs2];
+    const size_t iCs_next = (iCs + 1) % 3;
+    auto& nodes_ss_next = *cofseq.nodes_ss[iCs_next];
     const int stem_map = cofseq.degMap[iCs].stem();
     const auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
     size_t result = sc.levels.size();
@@ -36,8 +36,8 @@ size_t Diagram::GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iC
             break;
         if (i == 0 || sc.levels[i] != sc.levels[i - 1]) {
             int r = LEVEL_MAX - sc.levels[i];
-            AdamsDeg deg2 = deg + AdamsDeg{r, r + stem_map};
-            if (IsPossTgt(nodes_ss2, deg2) || IsPossTgtCofseq(cofseq, iCs2, deg2, r - 1))
+            AdamsDeg deg_tgt = deg + AdamsDeg{r, r + stem_map};
+            if (IsPossTgt(nodes_ss_next, deg_tgt) || IsPossTgtCofseq(cofseq, iCs_next, deg_tgt, r - 1))
                 break;
             else
                 result = i;
@@ -98,13 +98,14 @@ int Diagram::NextRTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int 
 {
     size_t iCs2 = (iCs + 1) % 3;
     auto& nodes_ss_tgt = *cofseq.nodes_ss[iCs2];
-    auto& nodes_cofseq_tgt = cofseq.nodes_cofseq[iCs2];
     int stem_map = cofseq.degMap[iCs].stem();
     int t_max2 = cofseq.t_max[iCs2];
     for (int r1 = r; r1 <= R_PERM; ++r1) {
         AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 + stem_map};
         if (d_tgt.t > t_max2)
             return r1;
+        if (r1 >= 20 && AboveJ(d_tgt) && BelowCokerJ(deg)) /* Image of J */
+            return R_PERM;
         if (AboveS0Vanishing(d_tgt) && !PossEinf(nodes_ss_tgt, d_tgt))
             return R_PERM;
         if (PossMoreEinf(nodes_ss_tgt, d_tgt))
@@ -127,6 +128,8 @@ int Diagram::NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int 
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 + stem_map};
         if (d_src.t > t_max1)
             return r1;
+        if (r1 >= 20 && AboveJ(deg) && BelowCokerJ(d_src)) /* Image of J */
+            continue;
         if (PossMoreEinf(nodes_ss_src, d_src))
             return r1;
         auto [_, count] = CountPossDrSrcCofseq(cofseq, iCs1, d_src, r1);
@@ -138,6 +141,7 @@ int Diagram::NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int 
 
 void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag, NullDiffCofseq1d& nds) const
 {
+    const int count_ss_max = depth_ == 0 ? 3 : 0;
     nds.clear();
     auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
     size_t iCs_prev = (iCs + 2) % 3;
@@ -175,7 +179,7 @@ void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg de
                 continue;
             auto [index, count] = CountPossDrSrcCofseq(cofseq, iCs_prev, deg_src, r);
             auto [index_ss, count_ss] = CountPossMorePerm(nodes_ss_prev, deg_src);
-            if (count + count_ss > deduce_count_max_ || count_ss > 3)
+            if (count + count_ss > deduce_count_max_ || count_ss > count_ss_max)
                 continue;
             nd.direction = -1;
             nd.r = r;
@@ -224,6 +228,66 @@ bool Diagram::IsNewDiffCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, 
     return !diff.empty() && !IsZeroOnLevel(ut::GetRecentValue(nodes_cofseq_dx, deg_dx), diff, r);
 }
 
+void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag)
+{
+    const size_t iCs_next = (iCs + 1) % 3;
+    const size_t iCs_prev = (iCs + 2) % 3;
+    const auto& nodes_ss = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].nodes_ss : modules_[cofseq.indexCw[iCs]].nodes_ss;
+
+    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+
+    const auto& sc_ss = ut::GetRecentValue(nodes_ss, deg);
+    size_t first_PC = GetFirstIndexOnLevel(sc_ss, LEVEL_PERM);
+    Staircase sc = ut::GetRecentValue(nodes_cofseq, deg);
+
+    int stem_map = cofseq.degMap[iCs].stem();
+    int stem_prev = cofseq.degMap[iCs_prev].stem();
+
+    Staircase sc_new;
+    int2d images;
+    int1d levels;
+
+    for (size_t i = 0; i < sc.basis.size(); ++i) {
+        /* Reduce basis by ss boundaries */
+        sc.basis[i] = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_PC, std::move(sc.basis[i]));
+        for (size_t j = 0; j < sc_new.basis.size(); ++j) {
+            if (std::binary_search(sc.basis[i].begin(), sc.basis[i].end(), sc_new.basis[j][0])) {
+                sc.basis[i] = lina::add(sc.basis[i], sc_new.basis[j]);
+                if (sc.levels[i] == sc_new.levels[j] && sc.diffs[i] != NULL_DIFF)
+                    sc.diffs[i] = lina::add(sc.diffs[i], sc_new.diffs[j]);
+            }
+        }
+        if (sc.basis[i].empty()) {
+            if (!sc.diffs[i].empty() && sc.diffs[i] != NULL_DIFF) {
+                images.push_back(std::move(sc.diffs[i]));
+                levels.push_back(LEVEL_MAX - sc.levels[i]);
+            }
+        }
+        else {
+            sc_new.basis.push_back(std::move(sc.basis[i]));
+            sc_new.diffs.push_back(std::move(sc.diffs[i]));
+            sc_new.levels.push_back(sc.levels[i]);
+        }
+    }
+
+    nodes_cofseq.back()[deg] = std::move(sc_new);
+
+    /* Add images and cycles */
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i] < LEVEL_MAX / 2) {
+            /* Set an image */
+            AdamsDeg deg_image_new = deg + AdamsDeg{levels[i], stem_map + levels[i]};
+            SetImageScCofseq(cofseq, iCs_next, deg_image_new, images[i], NULL_DIFF, levels[i] - 1, flag);
+        }
+        else {
+            /* Set a cycle */
+            int r_image = LEVEL_MAX - levels[i];
+            AdamsDeg deg_image_new = deg - AdamsDeg{r_image, stem_prev + r_image};
+            SetDiffScCofseq(cofseq, iCs_prev, deg_image_new, images[i], NULL_DIFF, r_image + 1, flag);
+        }
+    }
+}
+
 int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag)
 {
     int count = 0;
@@ -240,7 +304,13 @@ int Diagram::SetDiffGlobalCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, con
             r = NextRTgtCofseq(cofseq, iCs, deg_x, r + 1) - 1;
         }
         if (!x.empty() && r == R_PERM - 1) {
+            if (cofseq.name == "S0__Ctheta5sq__S0" && iCs == 2 && deg_x == AdamsDeg(8, 25))
+                fmt::print("debug\n");
             int r1 = NextRSrcCofseq(cofseq, iCs, deg_x, R_PERM);
+
+            if (cofseq.name == "S0__Ctheta5sq__S0" && iCs == 2 && deg_x == AdamsDeg(8, 25)) {
+                fmt::print("debug\n");
+            }
             size_t iCs_prev = (iCs + 2) % 3;
             AdamsDeg d_src = deg_x - AdamsDeg(r1 + 1, r1 + 1 + cofseq.degMap[iCs_prev].stem());
             SetDiffLeibnizCofseq(cofseq, iCs_prev, d_src, {}, x, r1 + 1, flag);
@@ -299,7 +369,6 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
     auto& nodes_ss_next = *cofseq.nodes_ss[iCs_next];
     int stem_map_prev = cofseq.degMap[iCs_prev].stem();
     int stem_map = cofseq.degMap[iCs].stem();
-    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
     auto& nodes_cofseq_prev = cofseq.nodes_cofseq[iCs_prev];
     auto& nodes_cofseq_next = cofseq.nodes_cofseq[iCs_next];
 
@@ -506,9 +575,9 @@ int Diagram::DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs_, int stem, int de
 
     for (size_t i = 0; i < 3; ++i) {
         size_t iCs = iCss[i];
-        int stem = stems[i];
+        int stem_ = stems[i];
         auto degs = ut::get_keys(cofseq.nodes_cofseq[iCs].front());
-        ut::RemoveIf(degs, [stem](AdamsDeg d) { return d.stem() != stem; });
+        ut::RemoveIf(degs, [stem_](AdamsDeg d) { return d.stem() != stem_; });
         for (AdamsDeg deg : degs)
             count += DeduceDiffsCofseq(cofseq, iCs, deg, depth, flag);
     }
@@ -522,7 +591,6 @@ void Diagram::SyncCofseq(SSFlag flag)
     for (size_t iCw = 0; iCw < num_cw; ++iCw) {
         auto& nodes_ss = iCw < size_rings ? rings_[iCw].nodes_ss : modules_[iCw - size_rings].nodes_ss;
         const auto& ind_cofs = iCw < size_rings ? rings_[iCw].ind_cofs : modules_[iCw - size_rings].ind_cofs;
-        int t_max = iCw < size_rings ? rings_[iCw].t_max : modules_[iCw - size_rings].t_max;
         for (auto& [d, _] : nodes_ss.front()) {
             const auto& sc = ut::GetRecentValue(nodes_ss, d);
             for (size_t i = 0; i < sc.levels.size(); ++i) {
@@ -585,7 +653,6 @@ int Diagram::CommuteCofseq(SSFlag flag)
         auto& cofseq_f0 = cofseqs_[f0->ind_cof.iCof];
         auto& nodes_cof_f0_tgt = cofseq_f0.nodes_cofseq[((size_t)f0->ind_cof.iCs + 1) % 3];
         auto& cofseq_f1 = cofseqs_[f1->ind_cof.iCof];
-        auto& name_f1_src = cofseq_f1.nameCw[f1->ind_cof.iCs];
         if (comm.g0 == -1) {
             for (auto& [deg, _] : nodes_cof_f0_tgt.front()) {
                 Staircase sc = ut::GetRecentValue(nodes_cof_f0_tgt, deg);

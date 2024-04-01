@@ -118,112 +118,31 @@ int Diagram::DeduceTrivialDiffsCofseq(SSFlag flag)
     return count;
 }
 
-namespace mydetail {
-template <typename T, std::size_t N>
-constexpr void QuickSort(std::array<T, N>& array, std::size_t low, std::size_t high)
+int Diagram::DeduceManual(SSFlag flag)
 {
-    if (high <= low)
-        return;
-    auto i = low, j = high + 1;
-    auto key = array[low];
-    for (;;) {
-        while (array[++i] < key && i < high)
-            ;
-        while (key < array[--j] && j > low)
-            ;
-        if (i >= j)
-            break;
-        auto tmp = array[i];
-        array[i] = array[j];
-        array[j] = tmp;
-    }
-
-    auto tmp = array[low];
-    array[low] = array[j];
-    array[j] = tmp;
-
-    if (j > 0)
-        QuickSort(array, low, j - 1);
-    QuickSort(array, j + 1, high);
-}
-
-template <typename T, std::size_t N>
-constexpr std::array<T, N> QuickSort(std::array<T, N> array)
-{
-    QuickSort(array, 0, N - 1);
-    return array;
-}
-
-constexpr std::array<std::pair<int, int>, 10> coor_S0 = {std::make_pair(1, 1), {2, 2}, {3, 1}, {3, 2}, {3, 3}, {7, 2}, {7, 3}, {7, 4}, {8, 3}, {1, 0}};
-constexpr std::array<std::pair<int, int>, 3> coor_Ceta = {std::make_pair(3, 0), {3, 1}, {3, 2}};
-constexpr std::array<std::pair<int, int>, 15> coor_Cnu = {std::make_pair(9, 5), {10, 6}, {11, 2}, {11, 3}, {11, 4}, {11, 5}, {11, 6}, {11, 7}, {5, 1}, {6, 2}, {7, 2}, {7, 3}, {7, 4}, {8, 3}, {9, 4}};
-constexpr std::array<std::pair<int, int>, 8> coor_Csigma = {std::make_pair(15, 6), {15, 7}, {15, 8}, {1, 1}, {2, 2}, {3, 1}, {3, 2}, {3, 3}};
-constexpr std::array<std::pair<int, int>, 7> coor_j = {std::make_pair(2, 2), {3, 1}, {3, 2}, {3, 3}, {7, 2}, {7, 3}, {7, 4}};
-template <typename Arr>
-constexpr auto perm_degs(Arr coor, AdamsDeg mod)
-{
-    std::array<AdamsDeg, coor.size()> result = {};
-    for (size_t i = 0; i < coor.size(); ++i)
-        result[i] = AdamsDeg(coor[i].second, coor[i].first + coor[i].second) % mod;
-    return QuickSort(result);
-}
-}  // namespace mydetail
-constexpr auto perm_degs_S0 = mydetail::perm_degs(mydetail::coor_S0, AdamsDeg(4, 12));
-constexpr auto perm_degs_Ceta = mydetail::perm_degs(mydetail::coor_Ceta, AdamsDeg(1, 3));
-constexpr auto perm_degs_Cnu = mydetail::perm_degs(mydetail::coor_Cnu, AdamsDeg(4, 12));
-constexpr auto perm_degs_Csigma = mydetail::perm_degs(mydetail::coor_Csigma, AdamsDeg(4, 12));
-constexpr auto perm_degs_j = mydetail::perm_degs(mydetail::coor_j, AdamsDeg(4, 12));
-
-bool IsPermanent(const std::string& name, AdamsDeg deg, int r)
-{
-    if (name == "S0" || name == "Cnu" || name == "Csigma" || name == "j") {
-        AdamsDeg deg_dx = deg + AdamsDeg(r, r - 1);
-        AdamsDeg deg_dx_residue = deg_dx % AdamsDeg(4, 12);
-        if (name == "S0")
-            return ut::has(perm_degs_S0, deg_dx_residue);
-        if (name == "j")
-            return ut::has(perm_degs_j, deg_dx_residue);
-        if (name == "Cnu")
-            return ut::has(perm_degs_Cnu, deg_dx_residue);
-        if (name == "Csigma")
-            return ut::has(perm_degs_Csigma, deg_dx_residue);
-    }
-    if (name == "Ceta") {
-        AdamsDeg deg_dx = deg + AdamsDeg(r, r - 1);
-        AdamsDeg deg_dx_residue = deg_dx % AdamsDeg(1, 3);
-        return ut::has(perm_degs_Ceta, deg_dx_residue);
-    }
-    if (name == "CP1_128") {
-        AdamsDeg deg_dx = deg + AdamsDeg(r, r - 1);
-        return !BelowS0VanishingLine(deg_dx);
-    }
-    if (name == "tmp" || name == "tmf_C2" || name == "tmf_Ceta" || name == "tmf_Cnu")
-        return r > 4;
-    return false;
-}
-
-int Diagram::DeduceManual()
-{
+    /* S0__Fphi = 0 in positive dimensions */
     int old_count = 0, count = 0;
-    const size_t num_cw = rings_.size() + modules_.size();
-
     while (true) {
-        for (size_t iCw = 0; iCw < num_cw; ++iCw) {
-            auto& name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
-            auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
-            int depth = int(nodes_ss.size() - 2);
-            for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
-                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+        for (auto& cofseq : cofseqs_) {
+            if (cofseq.name != "Fphi__RP1_256__S0")
+                continue;
+            size_t iCs = 2;
+            size_t iCs_prev = (iCs + 2) % 3;
+            auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
+            if (nodes_cofseq.size() > 2 && nodes_cofseq.back().empty())
+                continue;
+            const int stem_map_prev = cofseq.degMap[iCs_prev].stem();
+            for (auto& [d, _] : nodes_cofseq.front()) {
+                if (d.stem() == 0)
+                    continue;
+                const auto& sc = ut::GetRecentValue(nodes_cofseq, d);
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
-                    if (sc.diffs[i] == NULL_DIFF) {
-                        if (sc.levels[i] > LEVEL_PERM) {
-                            const int r = LEVEL_MAX - sc.levels[i];
-                            if (IsPermanent(name, deg, r)) {
-                                Logger::LogDiff(depth, EnumReason::manual, name, deg, sc.basis[i], {}, R_PERM - 1);
-                                SetCwDiffGlobal(iCw, deg, sc.basis[i], {}, R_PERM - 1, true, SSFlag::no_op);
-                                ++count;
-                            }
-                        }
+                    if (sc.diffs[i] == NULL_DIFF && sc.levels[i] > LEVEL_PERM) {
+                        int r = NextRSrcCofseq(cofseq, iCs, d, R_PERM);
+                        AdamsDeg d_src = d - AdamsDeg(r + 1, r + 1 + stem_map_prev);
+                        Logger::LogDiffInv(int(nodes_cofseq.size() - 2), EnumReason::degree, maps_[cofseq.indexMap[iCs_prev]]->name, d_src, d, {}, sc.basis[i], r + 1);
+                        SetDiffLeibnizCofseq(cofseq, iCs_prev, d_src, {}, sc.basis[i], r + 1, flag);
+                        ++count;
                     }
                 }
             }
@@ -246,15 +165,7 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
         Logger::Checkpoint();
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, name, deg_x, x, dx, r);
         SetCwDiffGlobal(iCw, deg_x, x, dx, r, true, flag);
-        if (depth == 0 && flag & SSFlag::depth_ss_cofseq) {
-            const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
-            for (auto& ind_cof : ind_cofs) {
-                auto& cofseq = cofseqs_[ind_cof.iCof];
-                auto iCs = (size_t)ind_cof.iCs;
-                DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
-            }
-        }
-        if (depth == 0 && flag & SSFlag::depth_ss_ss) {
+        if (depth == 0 && (flag & SSFlag::depth_ss_ss)) {
             DeduceDiffs(deg_x.stem(), deg_x.stem(), depth + 1, flag);
             if (tryY && !dx.empty()) {
                 auto& nodes_ss = iCw < rings_.size() ? rings_[iCw].nodes_ss : modules_[iCw - rings_.size()].nodes_ss;
@@ -262,6 +173,18 @@ int Diagram::TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx
                     Logger::LogSSSSException(depth + 1, 0x311a);
                     throw SSException(0x311a, "Equivalent to trivial differential");
                 }
+            }
+        }
+        if (depth == 0 && (flag & SSFlag::depth_ss_cofseq)) {
+            const auto& ind_cofs = iCw < rings_.size() ? rings_[iCw].ind_cofs : modules_[iCw - rings_.size()].ind_cofs;
+            for (auto& ind_cof : ind_cofs) {
+                auto& cofseq = cofseqs_[ind_cof.iCof];
+                auto iCs = (size_t)ind_cof.iCs;
+                auto iCs_prev = (iCs + 2) % 3;
+                size_t iCw_prev = cofseq.indexCw[iCs_prev] + (cofseq.isRing[iCs_prev] ? 0 : rings_.size());
+                int stem_prev = deg_x.stem() - cofseq.degMap[iCs_prev].stem();
+                DeduceDiffs({iCw_prev}, stem_prev - 1, stem_prev, depth + 1, flag);
+                DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth + 1, flag);
             }
         }
     }
@@ -319,7 +242,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
 
                     if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true)) {
                         ++count_pass;
-                        if (count_pass > 1)
+                        if (!(flag & SSFlag::try_all) && count_pass > 1)
                             break;
                         dx = std::move(dx1);
                     }
@@ -328,15 +251,15 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
                     dx.clear();
                     bNewDiff = true;
                 }
-                else if (count_pass > 1)
-                    ++index_nd;
-                else {
+                else if (count_pass == 1) {
                     dx1.clear();
                     if (TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true))
                         bNewDiff = true;
                     else
                         ++index_nd;
                 }
+                else
+                    ++index_nd;
             }
         }
         /* Fixed target, find source. */
@@ -362,7 +285,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
 
                     if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false)) {
                         ++count_pass;
-                        if (count_pass > 1)
+                        if (!(flag & SSFlag::try_all) && count_pass > 1)
                             break;
                         x = std::move(x1);
                     }
@@ -412,14 +335,13 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
     return count;
 }
 
-int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag)
+int Diagram::DeduceDiffs(const size_t1d& cws, int stem_min, int stem_max, int depth, SSFlag flag)
 {
     int count = 0;
     if (depth == 0)
         DeduceTrivialDiffs(flag);
 
-    const size_t num_cw = rings_.size() + modules_.size();
-    for (size_t iCw : deduce_list_spectra_) {
+    for (size_t iCw : cws) {
         std::string_view name = iCw < rings_.size() ? rings_[iCw].name : modules_[iCw - rings_.size()].name;
         auto& degs = iCw < rings_.size() ? rings_[iCw].degs_basis_order_by_stem : modules_[iCw - rings_.size()].degs_basis_order_by_stem;
         for (AdamsDeg deg : degs) {
@@ -441,15 +363,17 @@ int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag)
     return count;
 }
 
+int Diagram::DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag)
+{
+    return DeduceDiffs(deduce_list_spectra_, stem_min, stem_max, depth, flag);
+}
+
 int Diagram::DeduceDiffsV2()
 {
     int count = 0;
     for (size_t iRing = 0; iRing < rings_.size(); ++iRing) {
         auto& ring = rings_[iRing];
-        auto& basis = ring.basis;
-        auto& name = ring.name;
         auto& nodes_ss = ring.nodes_ss;
-        int t_max = ring.t_max;
         for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             const auto& sc = ut::GetRecentValue(nodes_ss, deg);
             for (size_t i = 0; i < sc.levels.size(); ++i) {
@@ -465,10 +389,8 @@ int Diagram::DeduceDiffsV2()
     }
     for (size_t iMod = 0; iMod < modules_.size(); ++iMod) {
         auto& mod = modules_[iMod];
-        auto& basis = mod.basis;
         auto& name = mod.name;
         auto& nodes_ss = mod.nodes_ss;
-        int t_max = mod.t_max;
         for (auto& [deg, basis_ss_d] : nodes_ss.front()) {
             fmt::print("{} deg={}                        \r", name, deg);
             const auto& sc = ut::GetRecentValue(nodes_ss, deg);
@@ -512,6 +434,8 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
                 flag = flag | SSFlag::depth_ss_ss;
             else if (f == "pi")
                 flag = flag | SSFlag::pi;
+            else if (f == "try_all")
+                flag = flag | SSFlag::try_all;
             else {
                 std::cout << "Not a supported flag: " << f << '\n';
                 return 100;
@@ -601,9 +525,9 @@ int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    SSFlag flag = SSFlag::no_op;
+    SSFlag flag = SSFlag::cofseq;
     Diagram diagram(diagram_name, flag);
-    int count = diagram.DeduceManual();
+    int count = diagram.DeduceManual(flag);
     diagram.save(diagram_name, flag);
     Logger::LogSummary("Changed differentials", count);
 

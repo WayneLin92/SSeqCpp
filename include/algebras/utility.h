@@ -214,7 +214,7 @@ void RemoveZeroElements(Container& cont)
 template <typename T>
 void copy(std::vector<T>& tmp, std::vector<T>& dest)
 {
-    if (tmp.capacity() <= tmp.size() + tmp.size() / 2)
+    if (tmp.capacity() * 2 <= tmp.size() + tmp.size())
         std::swap(dest, tmp);
     else {
         dest.clear();
@@ -224,29 +224,10 @@ void copy(std::vector<T>& tmp, std::vector<T>& dest)
 
 /* The container `map` maps a key to a collection of type T */
 template <typename T>
-T& get(std::vector<T>& map, size_t k)
+void extend(std::vector<T>& vec, size_t sz)
 {
-    if (map.size() <= k)
-        map.resize(k + 1);
-    return map[k];
-}
-
-template <typename T>
-const T get(std::vector<T>& map, size_t k, T default_)
-{
-    if (map.size() <= k)
-        return default_;
-    return map[k];
-}
-
-/* Obtain a vector of keys */
-template <typename Map>
-auto get_keys(const Map& map)
-{
-    std::vector<std::remove_cv_t<decltype(map.begin()->first)>> result;
-    for (auto p = map.begin(); p != map.end(); ++p)
-        result.push_back(p->first);
-    return result;
+    if (vec.size() < sz)
+        vec.resize(sz);
 }
 
 template <typename T>
@@ -288,6 +269,34 @@ int IndexOf(const std::vector<T>& vec, FnEq fnEq)
 {
     auto it = std::find_if(vec.begin(), vec.end(), fnEq);
     return it != vec.end() ? int(it - vec.begin()) : -1;
+}
+
+/* The container `map` maps a key to a collection of type T */
+template <typename T>
+T& get(std::vector<T>& map, size_t k)
+{
+    if (map.size() <= k)
+        map.resize(k + 1);
+    return map[k];
+}
+
+/* T should be a small type */
+template <typename T>
+const T get(std::vector<T>& map, size_t k, T default_)
+{
+    if (map.size() <= k)
+        return default_;
+    return map[k];
+}
+
+/* Obtain a vector of keys */
+template <typename Map>
+auto get_keys(const Map& map)
+{
+    std::vector<std::remove_cv_t<decltype(map.begin()->first)>> result;
+    for (auto p = map.begin(); p != map.end(); ++p)
+        result.push_back(p->first);
+    return result;
 }
 
 namespace detail {
@@ -389,8 +398,8 @@ void for_each_par128(size_t n, Fn f)
             for (size_t i = t; i < n; i += THREADS_MAX)
                 f(i);
         }));
-    for (auto& f : futures)
-        f.wait();
+    for (auto& fu : futures)
+        fu.wait();
 }
 
 /**

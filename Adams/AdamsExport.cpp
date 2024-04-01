@@ -7,13 +7,6 @@
 #include <map>
 #include <regex>
 
-namespace ut {
-inline int get(const nlohmann::json& js, std::string key, int default_)
-{
-    return js.contains(key) ? js.at(key).get<int>() : default_;
-}
-}  // namespace ut
-
 class MyDB : public myio::DbAdamsSS
 {
     using Statement = myio::Statement;
@@ -898,8 +891,8 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
         dbMapAdamsE2.save_map(table_out, images_mod);
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
-        int sus = ut::get(map_json, "sus", 0);
-        int fil = ut::get(map_json, "fil", 0);
+        int sus = myio::get(map_json, "sus", 0);
+        int fil = myio::get(map_json, "fil", 0);
         stmt.bind_and_step(1585932889, std::string("suspension"), sus);
         stmt.bind_and_step(651971502, std::string("filtration"), fil);
         stmt.bind_and_step(446174262, std::string("from"), cw1);
@@ -1145,7 +1138,7 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
             if (map_json.contains("summands")) {
                 auto summand0 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[0].get<std::string>());
                 auto summand1 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[1].get<std::string>());
-                ExportMapSumAdamsE2(cw1, cw2, summand0, summand1, 0, 1, ut::get(map_json, "sus", 0), ut::get(map_json, "fil", 0), t_max);
+                ExportMapSumAdamsE2(cw1, cw2, summand0, summand1, 0, 1, myio::get(map_json, "sus", 0), myio::get(map_json, "fil", 0), t_max);
                 return 0;
             }
             else if (map_json.contains("free_images")) {

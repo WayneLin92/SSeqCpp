@@ -144,7 +144,7 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
 
     for (size_t i = 0; i < xs.size(); ++i)
         if (xs[i]) {
-            fmt::print("Something is wrong: d_inv(x) is not well defined. s={}\n", s);
+            fmt::print("Something is wrong: d_inv(x) is not well defined. s={}, xs[i]={}\n", s, xs[i]);
             std::exit(-2);
         }
 

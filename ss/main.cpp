@@ -23,7 +23,7 @@ int main_import_chua_d2(int, char**, int&, const char*);
 int main_plot_ss(int, char**, int&, const char*);
 int main_plot_cofseq(int, char**, int&, const char*);
 int main_plot_pi(int, char**, int&, const char*);
-int main_rename_gen(int, char**, int&, const char*);
+int main_name(int, char**, int&, const char*);
 
 int main_add_basis(int argc, char** argv, int& index, const char* desc);
 int main_mul(int argc, char** argv, int& index, const char* desc);
@@ -51,7 +51,7 @@ int main(int argc, char** argv)
         {"plot_ss", "Generate the json data for plotting ss", main_plot_ss},
         {"plot_cofseq", "Generate the json data for plotting cofiber sequences", main_plot_cofseq},
         {"plot_pi", "Compute the multiplications by hi", main_plot_pi},
-        {"rename_gen", "Manage generator names", main_rename_gen},
+        {"name", "Manage generator names", main_name},
         {"add_basis", "Add basis from generators and relations", main_add_basis},
         {"mul", "Display the product", main_mul},
     };

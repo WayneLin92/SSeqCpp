@@ -78,7 +78,7 @@ void GetInvMap(const int2d& fx, int2d& image, int2d& g)
 
 void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g)
 {
-#ifndef NDEBUG
+#ifdef MYDEBUG
     if (!is_sorted(fx))
         throw MyException(0x98e11820U, "fx is not sorted");
 #endif
@@ -101,7 +101,7 @@ void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g)
     }
 }
 
-void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt fx_last, int2d& image, int2d& kernel, int2d& g)
+void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2d& image, int2d& kernel, int2d& g)
 {
     /* f(g[i]) = image[i] */
     for (auto p_x = x_first, p_fx = fx_first; p_x != x_last; ++p_x, ++p_fx) {
@@ -124,7 +124,7 @@ void SetLinearMapV2(int2dIt x_first, int2dIt x_last, int2dIt fx_first, int2dIt f
 
 void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel, int2d& g)
 {
-#ifndef NDEBUG
+#ifdef MYDEBUG
     if (!is_sorted(fx))
         throw MyException(0xad97b098U, "fx is not sorted");
 #endif
@@ -182,7 +182,7 @@ void SetLinearMapV3(const int2d& x, const int2d& fx, int2d& domain, int2d& f, in
     }
 }
 
-int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int2dIt f_last, int1d v)
+int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int1d v)
 {
     int1d result;
     for (auto p_Vi = spaceV_first, p_fi = f_first; p_Vi != spaceV_last && !v.empty(); ++p_Vi, ++p_fi)
@@ -190,7 +190,7 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int2d
             v = add(v, *p_Vi);
             result = add(result, *p_fi);
         }
-#ifndef NDEBUG
+#ifdef MYDEBUG
     if (!v.empty()) {
         throw MyException(0x6a4fe8a1U, "v is not in spaceV");
     }
@@ -207,7 +207,7 @@ int1d GetInvImage(const int2d& spaceV, int1d v)
             result.push_back((int)j);
         }
     }
-#ifndef NDEBUG
+#ifdef MYDEBUG
     if (!v.empty())
         throw MyException(0x1a4ef6d8U, "GetInvImage not well defined");
 #endif
@@ -218,7 +218,7 @@ int2d QuotientSpace(const int2d& spaceV, const int2d& spaceW)
 {
     int2d quotient;
     size_t dimQuo = spaceV.size() - spaceW.size();
-#ifndef NDEBUG
+#ifdef MYDEBUG
     for (size_t i = 0; i < spaceV.size(); i++)
 #else
     for (size_t i = 0; i < spaceV.size() && quotient.size() < dimQuo; i++)
@@ -228,7 +228,7 @@ int2d QuotientSpace(const int2d& spaceV, const int2d& spaceW)
         if (!v1.empty())
             quotient.push_back(std::move(v1));
     }
-#ifndef NDEBUG
+#ifdef MYDEBUG
     if (quotient.size() != dimQuo) {
         std::cerr << "W is not a subspace of V!\n";
         throw "cec7f701";

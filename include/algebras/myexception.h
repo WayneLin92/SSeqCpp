@@ -3,8 +3,10 @@
 
 #ifndef NDEBUG
 #define MYDEBUG
+#define COMPILE_MODE "debug"
 #else
-//#define MYDEBUG 1
+//#define MYDEBUG
+#define COMPILE_MODE "release"
 #endif
 
 #include <string>

@@ -874,3 +874,40 @@ void benchmark_B9_Lex()
     size_t answer = 402;
     std::cout << "new: " << gb.size() << "==" << answer << '\n';
 }
+
+namespace mydetail {
+template <typename T, std::size_t N>
+constexpr void QuickSort(std::array<T, N>& array, std::size_t low, std::size_t high)
+{
+    if (high <= low)
+        return;
+    auto i = low, j = high + 1;
+    auto key = array[low];
+    for (;;) {
+        while (array[++i] < key && i < high)
+            ;
+        while (key < array[--j] && j > low)
+            ;
+        if (i >= j)
+            break;
+        auto tmp = array[i];
+        array[i] = array[j];
+        array[j] = tmp;
+    }
+
+    auto tmp = array[low];
+    array[low] = array[j];
+    array[j] = tmp;
+
+    if (j > 0)
+        QuickSort(array, low, j - 1);
+    QuickSort(array, j + 1, high);
+}
+
+template <typename T, std::size_t N>
+constexpr std::array<T, N> QuickSort(std::array<T, N> array)
+{
+    QuickSort(array, 0, N - 1);
+    return array;
+}
+}  // namespace mydetail

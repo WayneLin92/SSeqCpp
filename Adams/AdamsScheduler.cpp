@@ -14,12 +14,6 @@
 #include <unordered_set>
 
 using json = nlohmann::json;
-namespace ut {
-inline int get(const json& js, std::string key, int default_)
-{
-    return js.contains(key) ? js.at(key).get<int>() : default_;
-}
-}  // namespace ut
 
 /* Read CPU stat via /proc/stat */
 void GetProcStat(long long& total, long long& work)
@@ -523,7 +517,7 @@ int SchedulerRunOnce(const json& js)
 
 
     auto running_adams = GetRunningAdams();
-    auto num_tasks_limit = ut::get(js, "num_tasks_limit", 64);
+    auto num_tasks_limit = myio::get(js, "num_tasks_limit", 64);
     if (running_adams.size() > num_tasks_limit) {
 		fmt::print("Too many tasks running. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
 		if (int error = system(fmt::format("kill {}", running_adams.begin()->second).c_str()))

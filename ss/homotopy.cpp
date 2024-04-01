@@ -486,33 +486,33 @@ std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
     return result;
 }
 
-void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)  //// TODO: correct this
-{
-    /*auto& nodes_ss = modules_[iMod].nodes_ss;
-    if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
-        const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
-        size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
-        size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, LEVEL_PERM + 1);
-        if (i_stable - i_end_perm == 1) {
-            int r = LEVEL_MAX - LEVEL_PERM;
-            if (i_end_perm > 0)
-                r = std::min(r, LEVEL_MAX - sc.levels[i_end_perm - 1]);
-            if (r != LEVEL_MAX - sc.levels[i_end_perm]) {
-                int1d x = {sc.basis[i_end_perm]};
-                Logger::LogDiff(depth, EnumReason::exact_hq, modules_[iMod].name, deg_x, x, {}, r - 1);
-                SetModuleDiffGlobal(iMod, deg_x, x, {}, r - 1, true);
-            }
-        }
-        else if (i_stable - i_end_perm > 1) {
-            Logger::LogException(0, 0xc625fffU, "More than one possible permanent cycles. {} deg={}.\n", modules_[iMod].name, deg_x);
-            throw MyException(0xc625fffU, "More than one possible permanent cycles");
-        }
-    }
-    else {
-        Logger::LogException(0, 0xccd5e2c4U, "Permanent cycle not found. {} deg={}.\n", modules_[iMod].name, deg_x);
-        throw MyException(0xccd5e2c4U, "Permanent cycle not found");
-    }*/
-}
+//void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)  //// TODO: correct this
+//{
+//    auto& nodes_ss = modules_[iMod].nodes_ss;
+//    if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
+//        const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
+//        size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
+//        size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, LEVEL_PERM + 1);
+//        if (i_stable - i_end_perm == 1) {
+//            int r = LEVEL_MAX - LEVEL_PERM;
+//            if (i_end_perm > 0)
+//                r = std::min(r, LEVEL_MAX - sc.levels[i_end_perm - 1]);
+//            if (r != LEVEL_MAX - sc.levels[i_end_perm]) {
+//                int1d x = {sc.basis[i_end_perm]};
+//                Logger::LogDiff(depth, EnumReason::exact_hq, modules_[iMod].name, deg_x, x, {}, r - 1);
+//                SetModuleDiffGlobal(iMod, deg_x, x, {}, r - 1, true);
+//            }
+//        }
+//        else if (i_stable - i_end_perm > 1) {
+//            Logger::LogException(0, 0xc625fffU, "More than one possible permanent cycles. {} deg={}.\n", modules_[iMod].name, deg_x);
+//            throw MyException(0xc625fffU, "More than one possible permanent cycles");
+//        }
+//    }
+//    else {
+//        Logger::LogException(0, 0xccd5e2c4U, "Permanent cycle not found. {} deg={}.\n", modules_[iMod].name, deg_x);
+//        throw MyException(0xccd5e2c4U, "Permanent cycle not found");
+//    }
+//}
 
 void Diagram::AddPiRelsRing(size_t iRing, algZ::Poly1d rels)
 {
@@ -537,17 +537,17 @@ void Diagram::AddPiRelsCof(size_t iMod, algZ::Mod1d rels)
     AddPiRelsRing(std::move(relsS0));*/
 }
 
-void Diagram::AddPiRelsByNat(size_t iMap)
-{
-    /*algZ::Poly1d relsS0;
-    for (auto& rel : modules_[iCof].pi_gb.data()) {
-        auto relS0 = algZ::subs(rel, modules_[iCof].nodes_pi_qt.back(), modules_[iCof].pi_gb.v_degs());
-        if (algZ::IsValidRel(relS0)) {
-            relsS0.push_back(std::move(relS0));
-        }
-    }
-    AddPiRelsRing(std::move(relsS0));*/
-}
+//void Diagram::AddPiRelsByNat(size_t iMap)
+//{
+//    algZ::Poly1d relsS0;
+//    for (auto& rel : modules_[iCof].pi_gb.data()) {
+//        auto relS0 = algZ::subs(rel, modules_[iCof].nodes_pi_qt.back(), modules_[iCof].pi_gb.v_degs());
+//        if (algZ::IsValidRel(relS0)) {
+//            relsS0.push_back(std::move(relS0));
+//        }
+//    }
+//    AddPiRelsRing(std::move(relsS0));
+//}
 
 algZ::Mon1d Diagram::GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis)
 {
@@ -585,8 +585,8 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
     return result;
 }
 
-void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
-{
+//void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
+//{
     // int t_max = rings_.t_max;
     // auto& gb = rings_.gb;
     // auto& basis = rings_.basis;
@@ -699,10 +699,10 @@ void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotop
     //}
     // if (count_ss_old != count_ss)
     //    UpdatePossEinf(rings_.nodes_ss, rings_.basis_ss_possEinf);
-}
+//}
 
-void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
-{
+//void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
+//{
     // auto& ssCof = modules_[iCof];
     // int t_max = ssCof.t_max;
     // auto& gb = ssCof.gb;
@@ -828,11 +828,11 @@ void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& co
     //}
     // if (count_ss_old != count_ss)
     //    UpdatePossEinf(ssCof.nodes_ss, ssCof.basis_ss_possEinf);
-}
+//}
 
-int Diagram::DeduceTrivialExtensions(int depth)
-{
-    int count_homotopy = 0;
+//int Diagram::DeduceTrivialExtensions(int depth)
+//{
+//    int count_homotopy = 0;
 
     ///* top cell maps */
     //{
@@ -996,12 +996,12 @@ int Diagram::DeduceTrivialExtensions(int depth)
     //    else
     //        break;
     //}
-    return count_homotopy;
-}
+//    return count_homotopy;
+//}
 
-int Diagram::DeduceExtensions2tor()
-{
-    int count_homotopy = 0;
+//int Diagram::DeduceExtensions2tor()
+//{
+//    int count_homotopy = 0;
     //{
     //    ut::map_seq2d<int, 0> torS0;
     //    for (size_t stem = 0; stem < rings_.basis_ss_possEinf.data.size(); ++stem) {
@@ -1091,12 +1091,12 @@ int Diagram::DeduceExtensions2tor()
     //    }
     //    AddPiRelsCof(iCof, std::move(new_rels));
     //}
-    return 0;
-}
+//    return 0;
+//}
 
-int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, int depth)
-{
-    int count_htpy = 0;
+//int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, int depth)
+//{
+//    int count_htpy = 0;
 
     /* Populate `basis_S0` and `basis_Cofs` */
     // algZ::Mon2d basis_S0(size_t(rings_.t_max + 1));
@@ -1516,13 +1516,13 @@ int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, i
     //        count_htpy += DeduceTrivialExtensions(depth);
     //}
 
-    return count_htpy;
-}
+//    return count_htpy;
+//}
 
-unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag)
-{
-    AddNode(flag);
-    unsigned error = 0;
+//unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag)
+//{
+//    AddNode(flag);
+//    unsigned error = 0;
     /*try {
         Logger::LogHtpyRel(depth + 1, EnumReason::try_, "S0", deg_change, rel);
         AddPiRelsRing({std::move(rel)});
@@ -1537,15 +1537,15 @@ unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFla
     catch (SSException& e) {
         error = e.id();
     }*/
-    PopNode(flag);
+//    PopNode(flag);
+//
+//    return error;
+//}
 
-    return error;
-}
-
-unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag)
-{
-    AddNode(flag);
-    unsigned error = 0;
+//unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag)
+//{
+//    AddNode(flag);
+//    unsigned error = 0;
     /*try {
         Logger::LogHtpyRel(depth + 1, EnumReason::try_, modules_[iCof].name, deg_change, rel);
         AddPiRelsCof(iCof, {std::move(rel)});
@@ -1563,35 +1563,35 @@ unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int
     }
     PopNode(flag);*/
 
-    return error;
-}
+//    return error;
+//}
 
-unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag)
-{
-    AddNode(flag);
-    unsigned error = 0;
-    /*try {
-        Logger::LogHtpyMap(depth + 1, EnumReason::try_, modules_[iCof].name, deg_change, "q", gen_id, q);
-        modules_[iCof].nodes_pi_qt.back()[gen_id] = std::move(q);
-        AddPiRelsByNat(iCof);
-        int count_ss1 = 0, count_homotopy1 = 0;
-        auto deg_min = deg_change;
-        SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
-        if (flag & SSFlag::pi_exact) {
-            DeduceTrivialExtensions(depth + 1);
-            DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
-        }
-    }
-    catch (SSException& e) {
-        error = e.id();
-    }
-    PopNode(flag);*/
+//unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag)
+//{
+//    AddNode(flag);
+//    unsigned error = 0;
+//    try {
+//        Logger::LogHtpyMap(depth + 1, EnumReason::try_, modules_[iCof].name, deg_change, "q", gen_id, q);
+//        modules_[iCof].nodes_pi_qt.back()[gen_id] = std::move(q);
+//        AddPiRelsByNat(iCof);
+//        int count_ss1 = 0, count_homotopy1 = 0;
+//        auto deg_min = deg_change;
+//        SyncHomotopy(deg_min, count_ss1, count_homotopy1, depth + 1);
+//        if (flag & SSFlag::pi_exact) {
+//            DeduceTrivialExtensions(depth + 1);
+//            DeduceExtensionsByExactness(deg_min.stem(), stem_max_exactness_, depth + 1);
+//        }
+//    }
+//    catch (SSException& e) {
+//        error = e.id();
+//    }
+//    PopNode(flag);
+//
+//    return error;
+//}
 
-    return error;
-}
-
-void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, SSFlag flag)
-{
+//void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, SSFlag flag)
+//{
     // SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
     // count_htpy += DeduceTrivialExtensions(depth);
     // if (flag & SSFlag::pi_exact)
@@ -1886,7 +1886,7 @@ void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& c
     //            i = 0;
     //    }
     //}
-}
+//}
 
 int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 {
@@ -1900,17 +1900,17 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
         return error;
 
     SSFlag flag = SSFlag::pi;
-    for (auto& f : strFlags) {
+    //for (auto& f : strFlags) {
         // if (f == "exact")
         //     flag = flag | SSFlag::pi_exact;
-    }
+    //}
 
     Diagram diagram(diagram_name, flag);
 
     try {
         int count_ss = 0, count_homotopy = 0;
         try {
-            diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
+            //diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
         }
         catch (InteruptAndSaveException&) {
         }
@@ -1951,7 +1951,7 @@ int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
     Diagram diagram(diagram_name, flag);
 
     try {
-        diagram.DeduceExtensions2tor();
+        //diagram.DeduceExtensions2tor();
         diagram.SimplifyPiRels();
 
         diagram.save(diagram_name, flag);

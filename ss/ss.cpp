@@ -86,9 +86,11 @@ std::pair<int, int> Diagram::CountPossDrSrc(const Staircases1d& nodes_ss, const 
 int Diagram::NextRTgt(const Staircases1d& nodes_ss, int t_max, AdamsDeg deg, int r) const
 {
     for (int r1 = r; r1 <= R_PERM; ++r1) {
-        if (deg.t + r1 - 1 > t_max)
-            return r1;
         AdamsDeg d_tgt = deg + AdamsDeg{r1, r1 - 1};
+        if (d_tgt.t > t_max)
+            return r1;
+        if (r1 >= 20 && AboveJ(d_tgt) && BelowCokerJ(deg)) /* Image of J */
+			return R_PERM;
         if (AboveS0Vanishing(d_tgt) && !ut::has(nodes_ss.front(), d_tgt))
             return R_PERM;
         if (CountPossDrTgt(nodes_ss, t_max, d_tgt, r1).second > 0)
@@ -102,6 +104,8 @@ int Diagram::NextRSrc(const Staircases1d& nodes_ss, AdamsDeg deg, int r) const
     int r_max = std::min(r, deg.s);
     for (int r1 = r_max; r1 >= LEVEL_MIN; --r1) {
         AdamsDeg d_src = deg - AdamsDeg{r1, r1 - 1};
+        if (r1 >= 20 && AboveJ(deg) && BelowCokerJ(d_src)) /* Image of J */
+            continue;
         if (CountPossDrSrc(nodes_ss, d_src, r1).second > 0)
             return r1;
     }
@@ -178,7 +182,7 @@ int1d Diagram::GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d
 
     /* If x is in [first,last) */
     if (lina::Residue(sc.basis.begin() + first, sc.basis.begin() + last, x1).empty())
-        result = lina::GetImage(sc.basis.begin() + first, sc.basis.begin() + last, sc.diffs.begin() + first, sc.diffs.begin() + last, x1);
+        result = lina::GetImage(sc.basis.begin() + first, sc.basis.begin() + last, sc.diffs.begin() + first, x1);
     else
         result = NULL_DIFF;
     return result;
@@ -470,7 +474,6 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
     const size_t iCs_prev = (iCs + 2) % 3;
     auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
     auto& nodes_ss = *cofseq.nodes_ss[iCs];
-    auto& name = cofseq.nameCw[iCs];
     int stem_map = cofseq.degMap[iCs].stem();
     int stem_map_prev = cofseq.degMap[iCs_prev].stem();
     AdamsDeg deg_x = deg_dx - AdamsDeg{r, stem_map_prev + r};
@@ -481,7 +484,7 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
         x = Residue(std::move(x), *cofseq.nodes_ss[iCs_prev], deg_x, LEVEL_PERM);
     const auto& sc = ut::GetRecentValue(nodes_cofseq, deg_dx);
     size_t first_r = GetFirstIndexOnLevel(sc, r);
-    dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, std::move(dx));
+    dx = lina::Residue(sc.basis.begin(), sc.basis.begin() + first_r, std::move(dx)); 
     if (dx.empty()) {
         if (x != NULL_DIFF)
             SetDiffScCofseq(cofseq, iCs_prev, deg_x, x, NULL_DIFF, r + 1, flag);
@@ -531,83 +534,18 @@ void Diagram::SetImageScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_dx, cons
     }
 }
 
-void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag flag)
-{
-    const size_t iCs_next = (iCs + 1) % 3;
-    const size_t iCs_prev = (iCs + 2) % 3;
-    const auto& nodes_ss = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].nodes_ss : modules_[cofseq.indexCw[iCs]].nodes_ss;
-
-    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
-    auto& nodes_cofseq_next = cofseq.nodes_cofseq[iCs_next];
-    auto& nodes_cofseq_prev = cofseq.nodes_cofseq[iCs_prev];
-
-    const auto& sc_ss = ut::GetRecentValue(nodes_ss, deg);
-    size_t first_PC = GetFirstIndexOnLevel(sc_ss, LEVEL_PERM);
-    Staircase sc = ut::GetRecentValue(nodes_cofseq, deg);
-
-    // if (cofseq.name == "S0__Ceta__S0" && iCs == 2 && deg == AdamsDeg(29, 174)) {
-    //     auto& sc = ut::GetRecentValue(cofseq.nodes_cofseq[iCs], deg);
-    //     fmt::print("Reset\n");
-    //     fmt::print("sc_ss at {} =\n{}\n", deg, sc_ss);
-    //     fmt::print("sc at {} =\n{}\n", deg, sc);
-    //     AdamsDeg deg_prev = deg - AdamsDeg{0, cofseq.degMap[(iCs + 2) % 3].stem() + 0};
-    //     //fmt::print("sc_prev at {} =\n{}\n", deg_prev, ut::GetRecentValue(cofseq.nodes_cofseq[(iCs + 2) % 3], deg_prev));
-    //     std::cout << "debug\n";
-    // }
-
-    int stem_map = cofseq.degMap[iCs].stem();
-    int stem_prev = cofseq.degMap[iCs_prev].stem();
-
-    Staircase sc_new;
-    int2d images;
-    int1d levels;
-
-    for (size_t i = 0; i < sc.basis.size(); ++i) {
-        /* Reduce basis by ss boundaries */
-        sc.basis[i] = lina::Residue(sc_ss.basis.begin(), sc_ss.basis.begin() + first_PC, std::move(sc.basis[i]));
-        for (size_t j = 0; j < sc_new.basis.size(); ++j) {
-            if (std::binary_search(sc.basis[i].begin(), sc.basis[i].end(), sc_new.basis[j][0])) {
-                sc.basis[i] = lina::add(sc.basis[i], sc_new.basis[j]);
-                if (sc.levels[i] == sc_new.levels[j] && sc.diffs[i] != NULL_DIFF)
-                    sc.diffs[i] = lina::add(sc.diffs[i], sc_new.diffs[j]);
-            }
-        }
-        if (sc.basis[i].empty()) {
-            if (!sc.diffs[i].empty() && sc.diffs[i] != NULL_DIFF) {
-                images.push_back(std::move(sc.diffs[i]));
-                levels.push_back(LEVEL_MAX - sc.levels[i]);
-            }
-        }
-        else {
-            sc_new.basis.push_back(std::move(sc.basis[i]));
-            sc_new.diffs.push_back(std::move(sc.diffs[i]));
-            sc_new.levels.push_back(sc.levels[i]);
-        }
-    }
-
-    nodes_cofseq.back()[deg] = std::move(sc_new);
-
-    /* Add images and cycles */
-    for (size_t i = 0; i < levels.size(); ++i) {
-        if (levels[i] < LEVEL_MAX / 2) {
-            /* Set an image */
-            AdamsDeg deg_image_new = deg + AdamsDeg{levels[i], stem_map + levels[i]};
-            SetImageScCofseq(cofseq, iCs_next, deg_image_new, images[i], NULL_DIFF, levels[i] - 1, flag);
-        }
-        else {
-            /* Set a cycle */
-            int r_image = LEVEL_MAX - levels[i];
-            AdamsDeg deg_image_new = deg - AdamsDeg{r_image, stem_prev + r_image};
-            SetDiffScCofseq(cofseq, iCs_prev, deg_image_new, images[i], NULL_DIFF, r_image + 1, flag);
-        }
-    }
-}
-
 int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int r_min, SSFlag flag)  ////
 {
     int count = 0;
     auto& ring = rings_[iRing];
-    Poly poly_x = Indices2Poly(x, ring.basis.at(deg_x));
+    Poly poly_x = Indices2Poly(x, ring.basis.at(deg_x)), poly_zero;
+    Poly poly_drx = !dx.empty() ? Indices2Poly(dx, ring.basis.at(deg_x + AdamsDeg(r, r - 1))) : poly_zero;
+    Poly poly_a, poly_ax, poly_da, poly_dax, poly_tmp1, poly_tmp2;
+    int1d ax, dax;
+    Mod mod_y, mod_xy, mod_dy, mod_dxy, mod_tmp1, mod_tmp2;
+    int1d xy, dxy;
+
+    int r_zero = dx.empty() ? r : r - 1;
     {
         auto& nodes_ss = ring.nodes_ss;
         auto& basis = ring.basis;
@@ -618,34 +556,59 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
             if (deg_ax.t > t_max)
                 break;
             for (size_t i = 0; i < sc_a.levels.size(); ++i) {
-                const int r_a = LEVEL_MAX - sc_a.levels[i] - (sc_a.diffs[i] == NULL_DIFF ? 1 : 0);
-                if (r_a < r_min)
-                    break;
-                const int R = std::min(r, r_a);
-                AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
-                AdamsDeg deg_dax = deg_ax + AdamsDeg(R, R - 1);
-
-                Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();  //// TODO: precompute
-                Poly poly_a = Indices2Poly(sc_a.basis[i], basis.at(deg_a));
-                Poly poly_ax = ring.gb.Reduce(poly_x * poly_a);
-                int1d ax = poly_ax ? Poly2Indices(poly_ax, basis.at(deg_ax)) : int1d{};
-
-                Poly poly_da = (R == LEVEL_MAX - sc_a.levels[i]) ? Indices2Poly(sc_a.diffs[i], basis.at(deg_a + AdamsDeg(R, R - 1))) : Poly();
-                Poly poly_dax = ring.gb.Reduce(poly_a * poly_dx + poly_da * poly_x);
-                int1d dax;
-                if (poly_dax) {
-                    if (deg_dax.t <= t_max)
-                        dax = Poly2Indices(poly_dax, basis.at(deg_dax));
-                    else
-                        dax = NULL_DIFF;
+                if (sc_a.levels[i] < LEVEL_MAX / 2 && sc_a.diffs[i] == NULL_DIFF && sc_a.levels[i] >= r_min && sc_a.levels[i] <= r_zero) { /* ax=d_R[?] */
+                    const int R = sc_a.levels[i];
+                    Indices2AlgP(sc_a.basis[i], basis.at(deg_a), poly_a);
+                    mulP(poly_a, poly_x, poly_ax); /* poly_ax = poly_a * poly_x */
+                    ring.gb.ReduceP(poly_ax, poly_tmp1, poly_tmp2);
+                    if (poly_ax) {
+                        Alg2IndicesP(poly_ax, basis.at(deg_ax), ax);
+                        deg_leibniz_ = deg_a;
+                        a_leibniz_ = &sc_a.basis[i];
+                        SetImageSc(iRing, deg_ax, ax, NULL_DIFF, R, flag);
+                        a_leibniz_ = nullptr;
+                        ++count;
+                    }
                 }
+                else if (sc_a.levels[i] > LEVEL_MAX / 2) {
+                    const int r_a = LEVEL_MAX - sc_a.levels[i] - (sc_a.diffs[i] == NULL_DIFF ? 1 : 0);
+                    if (r_a < r_min)
+                        break;
+                    const int R = std::min(r, r_a);
+                    AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
+                    AdamsDeg deg_dax = deg_ax + AdamsDeg(R, R - 1);
 
-                if (!ax.empty() || !dax.empty()) {
-                    deg_leibniz_ = deg_a;
-                    a_leibniz_ = &sc_a.basis[i];
-                    SetDiffSc(iRing, deg_ax, ax, dax, R, flag);
-                    a_leibniz_ = nullptr;
-                    ++count;
+                    const Poly& poly_dx = (R == r) ? poly_drx : poly_zero;
+                    Indices2AlgP(sc_a.basis[i], basis.at(deg_a), poly_a);
+                    mulP(poly_a, poly_x, poly_ax); /* poly_ax = poly_a * poly_x */
+                    ring.gb.ReduceP(poly_ax, poly_tmp1, poly_tmp2);
+                    Alg2IndicesP(poly_ax, basis, deg_ax, ax);
+
+                    if (R == LEVEL_MAX - sc_a.levels[i])
+                        Indices2AlgP(sc_a.diffs[i], basis.at(deg_a + AdamsDeg(R, R - 1)), poly_da);
+					else
+                        poly_da.data.clear();
+                    /* poly_dax = poly_a * poly_dx + poly_da * poly_x */
+                    mulP(poly_a, poly_dx, poly_dax);
+                    mulP(poly_da, poly_x, poly_tmp1);
+                    poly_dax.iaddP(poly_tmp1, poly_tmp2);
+                    ring.gb.ReduceP(poly_dax, poly_tmp1, poly_tmp2);
+                    if (poly_dax) {
+                        if (deg_dax.t <= t_max)
+                            Alg2IndicesP(poly_dax, basis.at(deg_dax), dax);
+                        else
+                            dax = NULL_DIFF;
+                    }
+                    else
+                        dax.clear();
+
+                    if (!ax.empty() || !dax.empty()) {
+                        deg_leibniz_ = deg_a;
+                        a_leibniz_ = &sc_a.basis[i];
+                        SetDiffSc(iRing, deg_ax, ax, dax, R, flag);
+                        a_leibniz_ = nullptr;
+                        ++count;
+                    }
                 }
             }
         }
@@ -661,34 +624,60 @@ int Diagram::SetRingDiffLeibniz(size_t iRing, AdamsDeg deg_x, const int1d& x, co
             if (deg_xy.t > t_max)
                 break;
             for (size_t i = 0; i < sc_y.levels.size(); ++i) {
-                const int r_y = LEVEL_MAX - sc_y.levels[i] - (sc_y.diffs[i] == NULL_DIFF ? 1 : 0);
-                if (r_y < r_min)
-                    break;
-                const int R = std::min(r, r_y);
-                AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
-                AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
-
-                Poly poly_dx = (R == r && !dx.empty()) ? Indices2Poly(dx, ring.basis.at(deg_dx)) : Poly();
-                Mod poly_y = Indices2Mod(sc_y.basis[i], basis.at(deg_y));
-                Mod poly_xy = mod.gb.Reduce(poly_x * poly_y);
-                int1d xy = poly_xy ? Mod2Indices(poly_xy, basis.at(deg_x + deg_y)) : int1d{};
-
-                Mod poly_dy = (R == LEVEL_MAX - sc_y.levels[i]) ? Indices2Mod(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1))) : Mod();
-                Mod poly_dxy = mod.gb.Reduce(poly_x * poly_dy + poly_dx * poly_y);
-                int1d dxy;
-                if (poly_dxy) {
-                    if (deg_dxy.t <= t_max)
-                        dxy = Mod2Indices(poly_dxy, basis.at(deg_dxy));
-                    else
-                        dxy = NULL_DIFF;
+                if (sc_y.levels[i] < LEVEL_MAX / 2 && sc_y.diffs[i] == NULL_DIFF && sc_y.levels[i] >= r_min && sc_y.levels[i] <= r_zero) { /* xy=d_R[?] */
+                    const int R = sc_y.levels[i];
+                    Indices2AlgP(sc_y.basis[i], basis.at(deg_y), mod_y);
+                    mulP(poly_x, mod_y, mod_xy); /* mod_xy = poly_x * mod_y */
+                    mod.gb.ReduceP(mod_xy, poly_tmp1, mod_tmp1, mod_tmp2);
+                    if (mod_xy) {
+                        Alg2IndicesP(mod_xy, basis.at(deg_xy), xy);
+                        deg_leibniz_ = deg_y;
+                        a_leibniz_ = &sc_y.basis[i];
+                        SetImageSc(iMod | FLAG_MOD, deg_xy, xy, NULL_DIFF, R, flag);
+                        a_leibniz_ = nullptr;
+                        ++count;
+                    }
                 }
+                else if (sc_y.levels[i] > LEVEL_MAX / 2) {
+                    const int r_y = LEVEL_MAX - sc_y.levels[i] - (sc_y.diffs[i] == NULL_DIFF ? 1 : 0);
+                    if (r_y < r_min)
+                        break;
+                    const int R = std::min(r, r_y);
+                    AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
+                    AdamsDeg deg_dxy = deg_xy + AdamsDeg(R, R - 1);
 
-                if (!xy.empty() || !dxy.empty()) {
-                    deg_leibniz_ = deg_y;
-                    a_leibniz_ = &sc_y.basis[i];
-                    SetDiffSc(iMod | FLAG_MOD, deg_xy, xy, dxy, R, flag);
-                    a_leibniz_ = nullptr;
-                    ++count;
+                    const Poly& poly_dx = (R == r) ? poly_drx : poly_zero;
+                    Indices2AlgP(sc_y.basis[i], basis.at(deg_y), mod_y);
+
+                    mulP(poly_x, mod_y, mod_xy); /* mod_xy = poly_x * mod_y */
+                    mod.gb.ReduceP(mod_xy, poly_tmp1, mod_tmp1, mod_tmp2);
+                    Alg2IndicesP(mod_xy, basis, deg_x + deg_y, xy);
+
+                    if (R == LEVEL_MAX - sc_y.levels[i])
+						Indices2AlgP(sc_y.diffs[i], basis.at(deg_y + AdamsDeg(R, R - 1)), mod_dy);
+                    else
+                        mod_dy.data.clear();
+                    /* mod_dxy = poly_y * poly_dx + poly_dy * poly_x */
+                    mulP(poly_dx, mod_y, mod_dxy);
+                    mulP(poly_x, mod_dy, mod_tmp1);
+                    mod_dxy.iaddP(mod_tmp1, mod_tmp2);
+                    mod.gb.ReduceP(mod_dxy, poly_tmp1, mod_tmp1, mod_tmp2);
+                    if (mod_dxy) {
+                        if (deg_dxy.t <= t_max)
+                            Alg2IndicesP(mod_dxy, basis.at(deg_dxy), dxy);
+                        else
+                            dxy = NULL_DIFF;
+                    }
+                    else
+                        dxy.clear();
+
+                    if (!xy.empty() || !dxy.empty()) {
+                        deg_leibniz_ = deg_y;
+                        a_leibniz_ = &sc_y.basis[i];
+                        SetDiffSc(iMod | FLAG_MOD, deg_xy, xy, dxy, R, flag);
+                        a_leibniz_ = nullptr;
+                        ++count;
+                    }
                 }
             }
         }
@@ -702,11 +691,15 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
 
     auto& mod = modules_[iMod];
     auto& ring = rings_[mod.iRing];
-    auto& nodes_ss = mod.nodes_ss;
     auto& basis = mod.basis;
     auto& gb = mod.gb;
     const int t_max = mod.t_max;
-    Mod poly_x = Indices2Mod(x, basis.at(deg_x));
+    Mod poly_x = Indices2Mod(x, basis.at(deg_x)), poly_zero;
+    Mod poly_drx = !dx.empty() ? Indices2Mod(dx, basis.at(deg_x + AdamsDeg(r, r - 1))) : poly_zero;
+    int r_zero = dx.empty() ? r : r - 1;
+    Poly poly_a, poly_da, poly_tmp1;
+    Mod mod_ax, mod_dax, mod_tmp1, mod_tmp2;
+    int1d ax, dax;
 
     for (auto& [deg_a, _] : ring.nodes_ss.front()) {
         const auto& sc_a = ut::GetRecentValue(ring.nodes_ss, deg_a);
@@ -714,34 +707,59 @@ int Diagram::SetModuleDiffLeibniz(size_t iMod, AdamsDeg deg_x, const int1d& x, c
         if (deg_ax.t > t_max)
             break;
         for (size_t i = 0; i < sc_a.levels.size(); ++i) {
-            const int r_a = LEVEL_MAX - sc_a.levels[i] - (sc_a.diffs[i] == NULL_DIFF ? 1 : 0);
-            if (r_a < r_min)
-                break;
-            int R = std::min(r, r_a);
-            AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
-            AdamsDeg deg_dax = deg_ax + AdamsDeg(R, R - 1);
-
-            Mod poly_dx = (R == r && !dx.empty()) ? Indices2Mod(dx, basis.at(deg_dx)) : Mod();
-            Poly poly_a = Indices2Poly(sc_a.basis[i], ring.basis.at(deg_a));
-            Mod poly_ax = gb.Reduce(poly_a * poly_x);
-            int1d ax = poly_ax ? Mod2Indices(poly_ax, basis.at(deg_x + deg_a)) : int1d{};
-
-            Poly poly_da = (R == LEVEL_MAX - sc_a.levels[i]) ? Indices2Poly(sc_a.diffs[i], ring.basis.at(deg_a + AdamsDeg(R, R - 1))) : Poly();
-            Mod poly_dax = gb.Reduce(poly_da * poly_x + poly_a * poly_dx);
-            int1d dax;
-            if (poly_dax) {
-                if (deg_dax.t <= t_max)
-                    dax = Mod2Indices(poly_dax, basis.at(deg_dax));
-                else
-                    dax = NULL_DIFF;
+            if (sc_a.levels[i] < LEVEL_MAX / 2 && sc_a.diffs[i] == NULL_DIFF && sc_a.levels[i] >= r_min && sc_a.levels[i] <= r_zero) { /* ax=d_R[?] */
+                const int R = sc_a.levels[i];
+                Indices2AlgP(sc_a.basis[i], ring.basis.at(deg_a), poly_a);
+                mulP(poly_a, poly_x, mod_ax); /* poly_ax = poly_a * poly_x */
+                mod.gb.ReduceP(mod_ax, poly_tmp1, mod_tmp1, mod_tmp2);
+                if (mod_ax) {
+                    Alg2IndicesP(mod_ax, basis.at(deg_ax), ax);
+                    deg_leibniz_ = deg_a;
+                    a_leibniz_ = &sc_a.basis[i];
+                    SetImageSc(iMod | FLAG_MOD, deg_ax, ax, NULL_DIFF, R, flag);
+                    a_leibniz_ = nullptr;
+                    ++count;
+                }
             }
+            else if (sc_a.levels[i] > LEVEL_MAX / 2) {
+                const int r_a = LEVEL_MAX - sc_a.levels[i] - (sc_a.diffs[i] == NULL_DIFF ? 1 : 0);
+                if (r_a < r_min)
+                    break;
+                int R = std::min(r, r_a);
+                AdamsDeg deg_dx = deg_x + AdamsDeg(R, R - 1);
+                AdamsDeg deg_dax = deg_ax + AdamsDeg(R, R - 1);
 
-            if (!ax.empty() || !dax.empty()) {
-                deg_leibniz_ = deg_a;
-                a_leibniz_ = &sc_a.basis[i];
-                SetDiffSc(iMod | FLAG_MOD, deg_ax, ax, dax, R, flag);
-                a_leibniz_ = nullptr;
-                ++count;
+                const Mod& poly_dx = (R == r) ? poly_drx : poly_zero;
+                Indices2AlgP(sc_a.basis[i], ring.basis.at(deg_a), poly_a);
+                mulP(poly_a, poly_x, mod_ax); /* mod_ax = poly_a * mod_x */
+                gb.ReduceP(mod_ax, poly_tmp1, mod_tmp1, mod_tmp2);
+                Alg2IndicesP(mod_ax, basis, deg_x + deg_a, ax);
+
+                if (R == LEVEL_MAX - sc_a.levels[i])
+                    Indices2AlgP(sc_a.diffs[i], ring.basis.at(deg_a + AdamsDeg(R, R - 1)), poly_da);
+                else
+                    poly_da.data.clear();
+                /* mod_dax = poly_a * mod_dx + poly_da * mod_x */
+                mulP(poly_a, poly_dx, mod_dax);
+                mulP(poly_da, poly_x, mod_tmp1);
+                mod_dax.iaddP(mod_tmp1, mod_tmp2);
+                gb.ReduceP(mod_dax, poly_tmp1, mod_tmp1, mod_tmp2);
+                if (mod_dax) {
+                    if (deg_dax.t <= t_max)
+                        Alg2IndicesP(mod_dax, basis.at(deg_dax), dax);
+                    else
+                        dax = NULL_DIFF;
+                }
+                else
+                    dax.clear();
+
+                if (!ax.empty() || !dax.empty()) {
+                    deg_leibniz_ = deg_a;
+                    a_leibniz_ = &sc_a.basis[i];
+                    SetDiffSc(iMod | FLAG_MOD, deg_ax, ax, dax, R, flag);
+                    a_leibniz_ = nullptr;
+                    ++count;
+                }
             }
         }
     }
@@ -1142,7 +1160,6 @@ int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, co
     size_t iCs2 = (iCs + 1) % 3;
     bool isRing1 = cofseq.isRing[iCs], isRing2 = cofseq.isRing[iCs2];
     auto& ring = isRing1 ? rings_[cofseq.indexCw[iCs]] : rings_[modules_[cofseq.indexCw[iCs]].iRing];
-    auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
     using BasisVariant = std::variant<std::map<AdamsDeg, Mon1d>*, std::map<AdamsDeg, MMod1d>*>;
     BasisVariant basis1 = isRing1 ? BasisVariant(&ring.basis) : BasisVariant(&modules_[cofseq.indexCw[iCs]].basis);
     BasisVariant basis2 = isRing2 ? BasisVariant(&ring.basis) : BasisVariant(&modules_[cofseq.indexCw[iCs2]].basis);

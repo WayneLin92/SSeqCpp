@@ -505,8 +505,30 @@ int GetCohFromJson(const std::string& name, int t_max, int1d& v_degs, Mod1d& rel
                      # d2
  ***************************************************/
 
-int GetD2FromJson(const json& js, const std::string& name_, int t_max, Mod1d& h_d2_images)
+int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images)
 {
+    if (name == "j") {
+        ut::get(h_d2_images, 6) = Mod(MMilnor::Sq(6) * MMilnor::Sq(3), 1);
+        ut::get(h_d2_images, 7) = Mod(Milnor(MMilnor::Sq(10)), 1);////
+        return 0;
+    }
+    Cohomology coh;
+    if (!myio::FileExists("Adams.json"))
+        return 0;
+    auto js = myio::load_json("Adams.json");
+    if (int error = GetCohFromJson(js, name, t_max, coh))
+        return error;
+    if (!js.at("CW_complexes").contains(name))
+        return 0;
+    if (!js.at("CW_complexes").at(name).contains("secondary"))
+        return 0;
+    auto& secondary = js.at("CW_complexes").at(name).at("secondary");
+    for (auto it = secondary.begin(); it != secondary.end(); ++it) {
+        int i = std::stoi(it.key());
+        int c = it.value().get<int>();
+        int iCell = coh.indices_cells.at(c);
+        ut::get(h_d2_images, i) = coh.cells[iCell];
+    }
     return 0;
 }
 
@@ -796,7 +818,7 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
         to_ = to == "S0" ? ring : fmt::format("{}{}", ring, to);
         if (to_.empty())
             to_ = "S0";
-        sus = ut::get(map_json, "sus", 0);
+        sus = myio::get(map_json, "sus", 0);
         images = {};
         if (map_json.contains("images")) {
             fil = 0;
@@ -819,7 +841,7 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             Cohomology coh_to;
             GetCohFromJson(js, to, t_max, coh_to);
             Groebner gb_to(t_max, {}, coh_to.v_degs);
-            gb_to.AddRels(coh_to.rels, t_max, coh_to.min_rels);
+            gb_to.AddRels(coh_to.rels, t_max);
 
             Cohomology coh_from;
             GetCohFromJson(js, from, t_max, coh_from);
