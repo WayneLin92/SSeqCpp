@@ -534,7 +534,7 @@
         "C2_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
 
         "tmf_C2__tmf_CW_2_V_eta": {"tpl123": ["map", "tmf_C2", "tmf_CW_2_V_eta", "160"]},
-        "tmf_Ceta__tmf_C2__tmf_CW_2_V_eta": {"tpl123": ["map", "tmf_Ceta", "tmf_C2", "160"]},
+        "tmf_Ceta__tmf_CW_2_V_eta": {"tpl123": ["map", "tmf_Ceta", "tmf_CW_2_V_eta", "160"]},
         "tmf_Ceta__tmf_CW_eta_V_nu": {"tpl123": ["map", "tmf_Ceta", "tmf_CW_eta_V_nu", "160"]},
         "tmf_Cnu__tmf_CW_eta_V_nu": {"tpl123": ["map", "tmf_Cnu", "tmf_CW_eta_V_nu", "160"]},
         "tmf_CW_2_V_eta__tmf_C2_Ceta": {"tpl123": ["map", "tmf_CW_2_V_eta", "tmf_C2_Ceta", "160"]},
