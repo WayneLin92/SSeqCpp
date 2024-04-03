@@ -9,7 +9,6 @@
 - [ ] cofseq_cofseq
 - [ ] f1f2=g1g2 in cofseq
 
-
 # Adams
 - [ ] Fast multiplication
 - [ ] Brown-Gitler

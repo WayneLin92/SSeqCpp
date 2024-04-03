@@ -108,7 +108,7 @@ void Coh_M(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   j
  ***************************************************/
-void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
+void Coh_j(int1d& v_degs, Mod1d& rels, int)
 {
     auto& Sq = MMilnor::Sq;
 
@@ -130,7 +130,7 @@ void Coh_j(int1d& v_degs, Mod1d& rels, int t_max)
 /****************************************************
  *                   j/2
  ***************************************************/
-void Coh_j_C2(int1d& v_degs, Mod1d& rels, int t_max)
+void Coh_j_C2(int1d& v_degs, Mod1d& rels, int)
 {
     auto& Sq = MMilnor::Sq;
 
@@ -373,6 +373,11 @@ struct Cohomology
     std::map<int, int> indices_cells; /* indices_cells[d] is the first index of d-cell */
 };
 
+inline std::string Serialize(const int1d& arr)
+{
+    return myio::StrCont("", ",", "", "", arr, [](int i) { return std::to_string(i); });
+}
+
 int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomology& coh)
 {
     try {
@@ -476,7 +481,7 @@ int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomolo
                 cells_gen_v2.push_back(gen_degs[i]);
         ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
         ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
-        MyException::Assert(cells_gen == cells_gen_v2, "cells_gen == cells_gen_v2");
+        MyException::Assert(cells_gen == cells_gen_v2, fmt::format("cells_gen == cells_gen_v2 = {}", Serialize(cells_gen_v2)));
 
         coh.v_degs = gb.v_degs();
         ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
@@ -501,15 +506,40 @@ int GetCohFromJson(const std::string& name, int t_max, int1d& v_degs, Mod1d& rel
     return 0;
 }
 
+Mod Combination(Mod1d& xs, uint32_t n)
+{
+    Mod x;
+    for (int i : ut::two_exp(n))
+        if (i < xs.size())
+            x += xs[i];
+    return x;
+}
+
 /****************************************************
                      # d2
  ***************************************************/
 
-int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images)
+int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images, const int1d& /*nTry*/)
 {
     if (name == "j") {
-        ut::get(h_d2_images, 6) = Mod(MMilnor::Sq(6) * MMilnor::Sq(3), 1);
-        ut::get(h_d2_images, 7) = Mod(Milnor(MMilnor::Sq(10)), 1);////
+        auto nTry1 = int1d{1, 1, 0, 2, 0, 5};
+        ut::get(h_d2_images, 3) = MMod({}, 1); /* stem=7 */
+
+        Mod1d xs8 = {Mod(MMilnor::Sqm({8}), 0)};
+        Mod1d xs14 = {Mod(MMilnor::Sqm({0, 0, 1}), 1), Mod(MMilnor::Sqm({0, 0, 2}), 0)};
+        Mod1d xs16 = {Mod(MMilnor::Sqm({0, 3}), 1), Mod(MMilnor::Sqm({2, 0, 1}), 1), Mod(MMilnor::Sqm({16}), 0)};
+        Mod1d xs17 = {Mod(MMilnor::Sqm({10}), 1), Mod(MMilnor::Sqm({0, 1, 1}), 1)};
+        Mod1d xs19 = {Mod(MMilnor::Sqm({12}), 1), Mod(MMilnor::Sqm({0, 4}), 1), Mod(MMilnor::Sqm({2, 1, 1}), 1)};
+        Mod1d xs20 = {Mod(MMilnor::Sqm({10, 1}), 1), Mod(MMilnor::Sqm({0, 2, 1}), 1), Mod(MMilnor::Sqm({8, 4}), 0)};
+        Mod1d xs22 = {Mod(MMilnor::Sqm({2, 2, 1}), 1), Mod(MMilnor::Sqm({0, 5}), 1), Mod(MMilnor::Sqm({8, 0, 1}), 1), Mod(MMilnor::Sqm({0, 0, 0, 1}), 1), Mod(MMilnor::Sqm({8, 0, 2}), 0)};
+
+        ut::get(h_d2_images, 4) = Combination(xs8, ut::get(nTry1, 0, 0));
+        ut::get(h_d2_images, 5) = Combination(xs14, ut::get(nTry1, 1, 0));
+        ut::get(h_d2_images, 6) = Combination(xs16, ut::get(nTry1, 2, 0));
+        ut::get(h_d2_images, 7) = Combination(xs17, ut::get(nTry1, 3, 0));
+        ut::get(h_d2_images, 8) = Combination(xs19, ut::get(nTry1, 4, 0));
+        ut::get(h_d2_images, 9) = Combination(xs20, ut::get(nTry1, 5, 0));
+        ut::get(h_d2_images, 10) = Combination(xs22, ut::get(nTry1, 6, 0));
         return 0;
     }
     Cohomology coh;
@@ -729,6 +759,7 @@ void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
 
 int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
 {
+    std::regex is_P_regex("^(tmf_|X2_|)((R|C|H)P(?:m|)\\d+_(?:m|)\\d+)$"); /* match example: RP1_4, CPm1_10 */
     std::smatch match;
     if (cw == "S0")
         Coh_S0(v_degs, rels, d_max);
@@ -759,12 +790,48 @@ int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         int n = std::stoi(match[1].str());
         Coh_Fphi_n(v_degs, rels, tmp, tmp_int1d, n, d_max);
     }
+    else if (std::regex_search(cw, match, is_P_regex); match[0].matched) {
+        std::string ring = match[1].str();
+        int hopf, n1, n2;
+        ParseFP(match[2].str(), hopf, n1, n2);
+        std::string field = match[3].str();
+        MyException::Assert(n1 + 1 < n2, "n1 + 1 < n2");
+        if (field == "R") {
+            int n1_ = n1, n2_ = n2;
+            normalize_RP(n1, n2, n1_, n2_);
+            if (n1 != n1_) {
+                fmt::print("Please use n1={} n2={} because of James periodicity\n", n1_, n2_);
+                return -1;
+            }
+        }
+        if (n1 == 2 && n2 == 4) {
+            fmt::print("Please use CW_2_A_eta instead\n");
+            return -2;
+        }
+        if (n1 == 3 && n2 == 5) {
+            fmt::print("Please use CW_2_V_eta instead\n");
+            return -3;
+        }
+
+        Mod1d tmp_Mod1d;
+        int1d tmp_ind1d;
+        if (ring == "")
+            Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1, n2, d_max, "S0", hopf);
+        else if (ring == "tmf_")
+            Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1, n2, d_max, "tmf", hopf);
+        else if (ring == "X2_")
+            Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1, n2, d_max);  ////
+        else {
+            fmt::print("ring={} not supported\n", ring);
+            return -4;
+        }
+    }
     else if (cw == "M") {
         Coh_M(v_degs, rels, d_max);
     }
     else if (int error = GetCohFromJson(cw, d_max, v_degs, rels)) {
         fmt::print("Error({}) - Unsupported arugment cw={}\n", error, cw);
-        return -1;
+        return -5;
     }
     return 0;
 }
@@ -787,10 +854,12 @@ Mod cell2Mod(const Cohomology& coh, const json& c)
     return result;
 }
 
+constexpr int MAP_T_MAX = 265;
+
 int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string& to_, Mod1d& images, int& sus, int& fil)
 {
     auto js = myio::load_json("Adams.json");
-    const int t_max = 265;
+    const int t_max = MAP_T_MAX;
     try {
         auto& cws = js.at("CW_complexes");
         auto& maps = js.at("maps");
@@ -1007,4 +1076,115 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
         fmt::print("Error({}) - map not supported.\n", error);
         throw MyException(0x8636b4b2, "map not supported.");
     }
+}
+
+int1d SteenrodMod2Indices(const Mod& x, const MMod1d& basis)
+{
+    int1d result;
+    for (const MMod& mon : x.data) {
+        auto p = std::lower_bound(basis.begin(), basis.end(), mon);
+#ifndef NDEBUG
+        if (p == basis.end() || mon < (*p)) {
+            std::cerr << "MyException(0x62885502U): Index not found\n";
+            throw MyException(0x62885502U, "Index not found");
+        }
+#endif
+        result.push_back(int(p - basis.begin()));
+    }
+    return result;
+}
+
+/* Generate cell structure from generators and relations */
+void GenerateCellStructure(const int1d& v_degs, const Mod1d& rels, int t_max)
+{
+    Groebner gb(t_max, {}, v_degs);
+    gb.AddRels(rels, t_max);
+    MMod2d basis;
+    for (size_t i = 0; i < v_degs.size(); ++i) {
+        if (v_degs[i] > t_max)
+            break;
+        ut::get(basis, v_degs[i]).push_back(MMod({}, i));
+    }
+    for (int t = 0; t <= t_max; ++t) {
+        for (size_t i = 0; i < MMILNOR_E_BITS; ++i) {
+            auto m = MMilnor::FromIndex(i);
+            int tGen = MMILNOR_GEN_DEG[i];
+            int t1 = t - tGen;
+            if (t1 < 0)
+                break;
+            for (const MMod& m1 : basis[t1]) {
+                if (m1.m().begin() != m1.m().end() && *m1.m().begin() <= i)
+                    continue;
+                auto m_new = MMod(m1.m().mulLF(m), m1.v());
+                if (gb.IsBasis(m_new)) {
+                    ut::get(basis, (size_t)t).push_back(m_new);
+                }
+            }
+        }
+    }
+    json js = "{\"cells_gen\": [], \"cells\": [], \"operations\": []}"_json;
+    for (size_t t = 0; t < basis.size(); ++t) {
+        std::sort(basis[t].begin(), basis[t].end());
+        for (size_t i = 0; i < basis[t].size(); ++i) {
+            js.at("cells").push_back(t);
+            fmt::print("t={}, {}\n", t, basis[t][i]);
+        }
+        if (basis[t].size())
+            fmt::print("\n");
+    }
+    for (int d : v_degs) {
+        if (d > t_max)
+            break;
+        js.at("cells_gen").push_back(d);
+    }
+    for (size_t t = 0; t < basis.size(); ++t) {
+        for (size_t i = 0; i < basis[t].size(); ++i) {
+            for (size_t j = 1; j + t < basis.size(); j <<= 1) {
+                auto y = MMilnor::Sq((uint32_t)j) * basis[t][i];
+                y = gb.Reduce(std::move(y));
+                int t_y = int(j + t);
+                if (y) {
+                    if (basis[t_y].size() == 1) {
+                        if (basis[t].size() == 1) {
+                            js.at("operations").push_back({t, t_y});
+                        }
+                        else {
+                            js.at("operations").push_back({{t, i}, t_y});
+                        }
+                    }
+                    else {
+                        int1d iy = SteenrodMod2Indices(y, basis[t_y]);
+                        iy.insert(iy.begin(), t_y);
+                        if (basis[t].size() == 1) {
+                            js.at("operations").push_back({t, iy});
+                        }
+                        else {
+                            js.at("operations").push_back({{t, i}, iy});
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fmt::print("{}\n", js.dump(2));
+}
+
+extern const char* PROGRAM;
+extern const char* VERSION;
+
+int main_cellstructure(int argc, char** argv, int& index, const char* desc)
+{
+    std::string cw;
+    int t_max = 100;
+
+    myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    int1d v_degs;
+    Mod1d rels;
+    GetCoh(v_degs, rels, t_max, cw);
+    GenerateCellStructure(v_degs, rels, t_max);
+    return 0;
 }

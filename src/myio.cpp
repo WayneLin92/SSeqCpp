@@ -94,13 +94,15 @@ int TplLoadArg(int argc, char** argv, int& index, const char* name, T* x, bool o
             ++index;
             return 0;
         }
-        std::istringstream ss(argv[index]);
-        if (!(ss >> *x)) {
-            fmt::print("Invalid: {}={}\n", name, argv[index]);
-            return -index;
+        else {
+            std::istringstream ss(argv[index]);
+            if (!(ss >> *x)) {
+                fmt::print("Invalid: {}={}\n", name, argv[index]);
+                return -index;
+            }
+            ++index;
+            return 0;
         }
-        ++index;
-        return 0;
     }
     else if (!optional) {
         fmt::print("Mising argument <{}>\n", name);
@@ -137,6 +139,22 @@ void PrintHelp(const std::string& cmd, const char* description, const char* vers
     fmt::print("\n{}\n", version);
 }
 
+int1d Deserialize(const std::string& str) ////
+{
+    int1d result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        int i;
+        ss >> i;
+        result.push_back(i);
+        if (ss.peek() == ',')
+            ss.ignore();
+    }
+    return result;
+}
+
 int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optional)
 {
     for (size_t i = 0; i < args.size(); ++i) {
@@ -151,6 +169,12 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
         else if (std::holds_alternative<std::string*>(args[i].value)) {
             if (int error = TplLoadArg(argc, argv, index, args[i].name, std::get<std::string*>(args[i].value), optional))
                 return error;
+        }
+        else if (std::holds_alternative<std::vector<int>*>(args[i].value)) {
+            std::string nums;
+            if (int error = TplLoadArg(argc, argv, index, args[i].name, &nums, optional))
+                return error;
+            *std::get<std::vector<int>*>(args[i].value) = Deserialize(nums);
         }
         else if (std::holds_alternative<std::vector<std::string>*>(args[i].value)) {
             if (i == args.size() - 1) {

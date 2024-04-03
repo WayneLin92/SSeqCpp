@@ -323,8 +323,8 @@ Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
                                         if (Contr(m1 - k, k, n1 - k, k, R, R1) && Contr(k + 1, 0, S, S1)) {
                                             tmp1.data.clear();
                                             MulMilnor(R1, S1, tmp1.data);
-                                            for (auto m : tmp1.data)
-                                                tmp_m1.data.push_back(MMod(m.data() | mdv_mdv.v_raw()));
+                                            for (auto m_ : tmp1.data)
+                                                tmp_m1.data.push_back(MMod(m_.data() | mdv_mdv.v_raw()));
                                         }
                                     }
                                 }
@@ -334,8 +334,8 @@ Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
                                 std::array<uint32_t, XI_MAX> R1S1 = m_R1S1.m().ToXi();
                                 tmp1.data.clear();
                                 MulMilnor(Q1, R1S1, tmp1.data);
-                                for (auto m : tmp1.data)
-                                    tmp_m2.data.push_back(MMod(m.data() | m_R1S1.v_raw()));
+                                for (auto m_ : tmp1.data)
+                                    tmp_m2.data.push_back(MMod(m_.data() | m_R1S1.v_raw()));
                             }
                         }
                     }
@@ -349,8 +349,8 @@ Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
                 std::array<uint32_t, XI_MAX> Q1R1S1 = m_Q1R1S1.m().ToXi();
                 tmp1.data.clear();
                 MulMilnor(M, Q1R1S1, tmp1.data);
-                for (auto m : tmp1.data)
-                    result.data.push_back(MMod(m.data() | m_Q1R1S1.v_raw()));
+                for (auto m_ : tmp1.data)
+                    result.data.push_back(MMod(m_.data() | m_Q1R1S1.v_raw()));
             }
         }
     }
@@ -358,7 +358,7 @@ Mod ddd(const Mod& dg, const Mod2d& diffs, int s)
     return result;
 }
 
-int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images);
+int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images, const int1d& nTry);
 
 /*
  * Ext^2(cw) --> H^*(cw)
@@ -370,10 +370,10 @@ int GetD2FromJson(const std::string& name, int t_max, Mod1d& h_d2_images);
  *   V                V
  *  F_{s-1} --f--> F_{s-3}
  */
-int compute_d2(const std::string& cw, int t_trunc)
+int compute_d2(const std::string& cw, int t_trunc, const int1d& nTry)
 {
     Mod1d h_d2_images;
-    GetD2FromJson(cw, t_trunc, h_d2_images);
+    GetD2FromJson(cw, t_trunc, h_d2_images, nTry);
 
     std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
     std::string table_d2 = fmt::format("{}_Adams_d2", cw);
@@ -524,9 +524,10 @@ int main_d2(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw;
     int t_max = 0;
+    int1d nTry;
 
     myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
-    myio::CmdArg1d op_args = {};
+    myio::CmdArg1d op_args = {{"nTry", &nTry}};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -538,6 +539,6 @@ int main_d2(int argc, char** argv, int& index, const char* desc)
     }
 #endif
 
-    compute_d2(cw, t_max);
+    compute_d2(cw, t_max, nTry);
     return 0;
 }

@@ -798,7 +798,7 @@ void Alg2IndicesP(const Alg& alg, const std::vector<TypeMon>& basis, int1d& resu
             throw MyException(0x57f14e21U, "Index not found");
         }
 #endif
-        result.push_back(uint32_t(p - basis.begin()));
+        result.push_back(int(p - basis.begin()));
     }
 }
 

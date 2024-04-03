@@ -846,8 +846,6 @@ int main_res_csv(int argc, char** argv, int& index, const char* desc)
 {
     std::string db_filename, table_name, out_csv;
 
-    const char* description = "Export the resolution to csv file.";
-    const char* cmd = "Adams export_map";
     myio::CmdArg1d args = {{"db", &db_filename}, {"table", &table_name}, {"out_csv", &out_csv}};
     myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))

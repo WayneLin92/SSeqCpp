@@ -165,6 +165,11 @@ public:
         return Xi(xi);
     }
 
+    static MMilnor Sqm(std::array<uint32_t, XI_MAX> xi)
+    {
+        return Xi(xi.data());
+    }
+
     static MMilnor FromE(uint64_t e)
     {
         return MMilnor(e + WRaw(e));

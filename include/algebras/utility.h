@@ -282,7 +282,7 @@ T& get(std::vector<T>& map, size_t k)
 
 /* T should be a small type */
 template <typename T>
-const T get(std::vector<T>& map, size_t k, T default_)
+const T get(const std::vector<T>& map, size_t k, T default_)
 {
     if (map.size() <= k)
         return default_;
@@ -323,6 +323,21 @@ inline std::string get_time(const std::string& fmt = "%F %T")
     auto bt = detail::localtime_xp(std::time(0));
     char buf[64];
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
+}
+
+/* If n = 2^k1 + ... + 2^kn,
+ * return the array k1, ..., kn. */
+inline std::vector<int> two_exp(unsigned n)
+{
+    std::vector<int> result;
+    int k = 0;
+    while (n > 0) {
+        if (n & 1)
+            result.push_back(k);
+        n >>= 1;
+        ++k;
+    }
+    return result;
 }
 
 /**
@@ -419,8 +434,8 @@ void for_each_par32(size_t n, Fn f)
             for (size_t i = t; i < n; i += THREADS_MAX)
                 f(i);
         }));
-    for (auto& f : futures)
-        f.wait();
+    for (auto& fu : futures)
+        fu.wait();
 }
 
 /**

@@ -89,6 +89,11 @@ $Sq(n)Sq(m)=\sum_i (n-2i, m-i)Sq(n+m-3i, i)$
 
 
 # others
+## read d2 from db
+```sql
+ATTACH "j_Adams_res.db" as j; SELECT t-s as stem,s,d2_h FROM j_Adams_d2 LEFT JOIN j_Adams_res_generators USING (id) ORDER BY stem,s;
+```
+
 ## Replace
 `(./Adams res (\w+) )180(": \{\n)(.*)`
 `$1180$3$4, "pre": ["cp $2_AdamsSS.db AdamsSS/"],`

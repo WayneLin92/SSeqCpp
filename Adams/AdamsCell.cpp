@@ -319,8 +319,8 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                         int index = kernel_ht_dual[i].front() - id_d1;
                         if (!fh_id_ind[index].empty()) {
                             int1d prod_h_g;
-                            for (int i : fh_id_ind[index])
-                                prod_h_g.push_back(LocId(deg1.s - id_ind_to_s.at(id_ind), i).id());
+                            for (int j : fh_id_ind[index])
+                                prod_h_g.push_back(LocId(deg1.s - id_ind_to_s.at(id_ind), j).id());
                             stmt_prod.bind_and_step(gen_id_cell1_start + (int)i, id_ind, myio::Serialize(prod_h_g));
 
                             for (int k : fh_id_ind[index]) {
@@ -409,8 +409,8 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                         int1d prod_h, prod_h_g;
                         for (int j : kernel_ht[i])
                             add_prod_h(prod_h, fh.at(id_ind)[j], tmp_prod_h);
-                        for (int i : prod_h)
-                            prod_h_g.push_back(LocId(deg.s - id_ind_to_s.at(id_ind), i).id());
+                        for (int j : prod_h)
+                            prod_h_g.push_back(LocId(deg.s - id_ind_to_s.at(id_ind), j).id());
                         if (!prod_h.empty()) {
                             stmt_prod.bind_and_step(gen_id_cell0_start + (int)i, id_ind, myio::Serialize(prod_h_g));
                         }
@@ -459,7 +459,7 @@ int main_2cell(int argc, char** argv, int& index, const char* desc)
         {"prod", "Compute the multiplications", main_2cell_prod},
         {"export", "Export the Adams E2 page.", main_2cell_export},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))
+    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }

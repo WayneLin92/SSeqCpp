@@ -158,6 +158,8 @@ public:
         return gb_;
     }
 
+    bool IsBasis(MMod m) const;
+
     CriMilnor1d Criticals(int t);
     Mod Reduce(const CriMilnor& cp) const;
     Mod Reduce(Mod x) const;

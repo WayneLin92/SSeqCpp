@@ -541,9 +541,9 @@ void ExportAdamsD2(std::string_view cw)
         myio::Statement stmt(dbE2, fmt::format("UPDATE {}_AdamsE2_basis SET d2=?1 WHERE id=?2;", cw));
         for (auto& [id, repr] : monid_repr) {
             int1d d2;
-            for (int id : repr)
-                if (ut::has(d2E2, id))
-                    for (int id_d2 : d2E2.at(id))
+            for (int i : repr)
+                if (ut::has(d2E2, i))
+                    for (int id_d2 : d2E2.at(i))
                         d2 = lina::add(d2, res_id_to_basis.at(id_d2));
             stmt.bind_and_step(myio::Serialize(d2), id);
         }
@@ -699,7 +699,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
         Poly1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
-                images.push_back(Poly::Gen(-1));
+                images.push_back(Poly::Gen(uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
@@ -721,7 +721,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
         Mod1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
-                images.push_back(MMod(Mon(), -1));
+                images.push_back(MMod(Mon(), uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {

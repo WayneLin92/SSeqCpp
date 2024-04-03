@@ -323,7 +323,7 @@ int1d Poly2Indices(const Poly& poly, const Mon1d& basis)
             throw MyException(0x57f14e21U, "Index not found");
         }
 #endif
-        result.push_back(uint32_t(p - basis.begin()));
+        result.push_back(int(p - basis.begin()));
     }
     return result;
 }
@@ -389,7 +389,7 @@ int1d Mod2Indices(const Mod& x, const MMod1d& basis)
             throw MyException(0xc3389529U, "Index not found");
         }
 #endif
-        result.push_back(uint32_t(p - basis.begin()));
+        result.push_back(int(p - basis.begin()));
     }
     return result;
 }

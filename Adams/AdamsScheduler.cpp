@@ -255,7 +255,7 @@ struct FinishedTasks
     }
 };
 
-FinishedTasks GetFinishedTasksFromJson(const std::map<std::string, json::json_pointer>& tasks)
+FinishedTasks GetFinishedTasksFromJson()
 {
     FinishedTasks finished_tasks;
     if (myio::FileExists("tasks_status.json")) {
@@ -557,7 +557,7 @@ int SchedulerRunOnce(const json& js)
     }
 
     auto tasks = GetTasks(js);
-    auto finished_tasks = GetFinishedTasksFromJson(tasks);
+    auto finished_tasks = GetFinishedTasksFromJson();
     auto prepared_tasks = GetPreparedTasks(js, tasks, finished_tasks.set);
     AddNewFinishedTasks(prepared_tasks, finished_tasks);
     update_finished_tasks(finished_tasks.list);

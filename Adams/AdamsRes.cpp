@@ -19,7 +19,6 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }
 
-int res_P(const std::string& cw, int t_max, int stem_max);
 int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
@@ -45,11 +44,6 @@ int main_res(int argc, char** argv, int& index, const char* desc)
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
 
-    std::regex is_P_regex("^(?:tmf_|X2_|)(?:R|C|H)P(?:m|)\\d+_(?:m|)\\d+$"); /* match example: RP1_4, CPm1_10 */
-    std::smatch match;
-    if (std::regex_search(cw, match, is_P_regex); match[0].matched) ////
-        return res_P(cw, t_max, stem_max);
-
     int1d v_degs;
     Mod1d rels;
     int d_max = std::min(t_max, stem_max);
@@ -58,59 +52,6 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 
     std::string db_filename = cw + "_Adams_res.db";
     std::string tablename = cw + "_Adams_res";
-    ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
-    return 0;
-}
-
-void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2);
-void normalize_RP(int n1, int n2, int& n1_, int& n2_);
-void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over, int hopf);
-void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
-
-int res_P(const std::string& cw, int t_max, int stem_max)
-{
-    std::regex is_P_regex("^(tmf_|X2_|)((R|C|H)P(?:m|)\\d+_(?:m|)\\d+)$"); /* match example: RP1_4, CPm1_10 */
-    std::smatch match;
-    std::regex_search(cw, match, is_P_regex);
-
-    std::string ring = match[1].str();
-    int hopf, n1, n2;
-    ParseFP(match[2].str(), hopf, n1, n2);
-    std::string field = match[3].str();
-
-    MyException::Assert(n1 + 1 < n2, "n1 + 1 < n2");
-    int n1_ = n1, n2_ = n2;
-
-    if (field == "R") {
-        normalize_RP(n1, n2, n1_, n2_);
-        if (n1 != n1_)
-            fmt::print("We use n1={} n2={} because of James periodicity\n", n1_, n2_);
-    }
-    MyException::Assert(!(n1_ == 3 && n2_ == 5), "!(n1_ == 3 && n2_ == 5)");
-
-    int1d v_degs;
-    Mod1d rels, tmp_Mod1d;
-    int1d tmp_ind1d;
-    if (ring == "")
-        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "S0", hopf);
-    else if (ring == "tmf_")
-        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "tmf", hopf);
-    else if (ring == "X2_")
-        Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);  ////
-    else {
-        fmt::print("ring={} not supported\n", ring);
-        return 1;
-    }
-    std::string db_filename, tablename;
-    std::string str_n1 = std::to_string(abs(n1_));
-    std::string str_n2 = std::to_string(abs(n2_));
-    if (n1_ < 0)
-        str_n1 = "m" + str_n1;
-    if (n2_ < 0)
-        str_n2 = "m" + str_n2;
-    db_filename = fmt::format("{}{}P{}_{}_Adams_res.db", ring, field, str_n1, str_n2);
-    tablename = fmt::format("{}{}P{}_{}_Adams_res", ring, field, str_n1, str_n2);
-
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
     return 0;
 }

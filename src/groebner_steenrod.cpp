@@ -213,6 +213,11 @@ inline int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map
     return -1;
 }
 
+bool Groebner::IsBasis(MMod m) const
+{
+    return IndexOfDivisibleLeading(leads_, indices_, m) == -1;
+}
+
 Mod Groebner::Reduce(const CriMilnor& cp) const
 {
     Mod result;

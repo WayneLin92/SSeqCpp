@@ -197,7 +197,7 @@ public:
         return -1;
     }
 
-    bool ConvertVersion(const DbAdamsResLoader& dbRes)
+    bool ConvertVersion(const DbAdamsResLoader& /*dbRes*/)
     {
         return true;
     }
@@ -451,7 +451,6 @@ void compute_products(int t_trunc, const std::string& ring)  ////TODO: abstract 
         if (deg.s > 1) {
             for (size_t i_g = 0; i_g < gs_hopf.size(); ++i_g) {
                 int g = gs_hopf[i_g];
-                int t = t_gs_hopf[i_g];
                 for (size_t i = 0; i < diffs_d_size; ++i)
                     stmt_prod.bind_and_step(id + (int)i, g, myio::SQL_NULL(), myio::Serialize(fh.at(g)[i]));
             }
@@ -788,7 +787,6 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
                 ut::extend(ut::get(all_f, (size_t)(deg.s - 1)), vid_num_sm1);
             }
 
-            auto v = LocId(id).v;
             for (size_t i = 0; i < diffs_d_size; ++i) {
                 arr_deg.push_back(deg);
                 arr_i.push_back((int)i);

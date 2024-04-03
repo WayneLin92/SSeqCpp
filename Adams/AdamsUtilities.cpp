@@ -147,7 +147,7 @@ void UtStatus(const std::string& dir, int num)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -187,7 +187,7 @@ void UtStatus(const std::string& dir, int num)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -340,7 +340,7 @@ void UtExport(const std::string& dir)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -357,7 +357,7 @@ void UtExport(const std::string& dir)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;

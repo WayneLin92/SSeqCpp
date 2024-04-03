@@ -159,7 +159,7 @@ void AssertFolderExists(const std::string& foldername);
 struct CmdArg
 {
     const char* name;
-    std::variant<int*, double*, std::string*, std::vector<std::string>*, std::map<std::string, std::vector<std::string>>*> value;
+    std::variant<int*, double*, std::string*, std::vector<int>*, std::vector<std::string>*, std::map<std::string, std::vector<std::string>>*> value;
     std::string StrValue();
 };
 using CmdArg1d = std::vector<CmdArg>;

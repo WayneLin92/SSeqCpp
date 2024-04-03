@@ -198,7 +198,7 @@ void Diagram::CacheNullDiffsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg de
             const unsigned k_max = unsigned(1) << (j - i);
             for (unsigned k = 1; k < k_max; ++k) {
                 nd.x.clear();
-                for (int l : two_expansion(k))
+                for (int l : ut::two_exp(k))
                     nd.x = lina::add(nd.x, sc.basis[i + l]);
                 nds.push_back(nd);
             }
@@ -404,7 +404,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 for (unsigned i = 1; i < i_max; ++i) {
                     dx1.clear();
                     perm1.clear();
-                    for (int j : two_expansion(i)) {
+                    for (int j : ut::two_exp(i)) {
                         if (j < nd.count)
                             dx1 = lina::add(dx1, sc_tgt->basis[(size_t)(nd.first + j)]);
                         else
@@ -463,7 +463,7 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
                 for (unsigned i = 1; i < i_max; ++i) {
                     x1.clear();
                     perm1.clear();
-                    for (int j : two_expansion(i)) {
+                    for (int j : ut::two_exp(i)) {
                         if (j < nd.count)
                             x1 = lina::add(x1, sc_src->basis[(size_t)(nd.first + j)]);
                         else

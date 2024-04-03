@@ -888,21 +888,6 @@ AdamsDeg1d OrderDegsByStem(const T& cont)
     return result;
 }
 
-/* If n = 2^k1 + ... + 2^kn,
- * return the array k1, ..., kn. */
-inline int1d two_expansion(unsigned n)
-{
-    int1d result;
-    int k = 0;
-    while (n > 0) {
-        if (n & 1)
-            result.push_back(k);
-        n >>= 1;
-        ++k;
-    }
-    return result;
-}
-
 inline bool BelowS0VanishingLine(AdamsDeg deg)
 {
     return 3 * deg.s <= deg.t + 3;

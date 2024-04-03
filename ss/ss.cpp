@@ -153,7 +153,7 @@ void Diagram::CacheNullDiffs(const Staircases1d& nodes_ss, int t_max, AdamsDeg d
             const unsigned k_max = unsigned(1) << (j - i);
             for (unsigned k = 1; k < k_max; ++k) {
                 nd.x.clear();
-                for (int l : two_expansion(k))
+                for (int l : ut::two_exp(k))
                     nd.x = lina::add(nd.x, sc.basis[i + l]);
                 nds.push_back(nd);
             }
@@ -805,7 +805,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                     bool ydx_always_zero = true;
                     for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                         dx.clear();
-                        for (int k : two_expansion(j))
+                        for (int k : ut::two_exp(j))
                             dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                         Poly poly_dx = Indices2Poly(dx, basis.at(deg_dx));
                         Poly poly_ydx = ring.gb.Reduce(poly_dx * poly_y);
@@ -856,7 +856,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
                     bool ydx_always_zero = true;
                     for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                         dx.clear();
-                        for (int k : two_expansion(j))
+                        for (int k : ut::two_exp(j))
                             dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                         Poly poly_dx = Indices2Poly(dx, ring.basis.at(deg_dx));
                         Mod poly_ydx = mod.gb.Reduce(poly_dx * poly_y);
@@ -892,7 +892,7 @@ int Diagram::SetRingDiffLeibnizV2(size_t iRing, AdamsDeg deg_x, const int1d& x, 
             bool fdx_always_zero = true;
             for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                 dx.clear();
-                for (int k : two_expansion(j))
+                for (int k : ut::two_exp(j))
                     dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                 int1d fdx = map->map(dx, deg_dx, *this);
                 if (!fdx.empty() && !IsZeroOnLevel(ut::GetRecentValue(rings_[map->to].nodes_ss, deg_dx), fdx, r)) {
@@ -956,7 +956,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                 bool ydx_always_zero = true;
                 for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                     dx.clear();
-                    for (int k : two_expansion(j))
+                    for (int k : ut::two_exp(j))
                         dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                     Mod poly_dx = Indices2Mod(dx, basis.at(deg_dx));
                     Mod poly_ydx = mod.gb.Reduce(poly_y * poly_dx);
@@ -996,7 +996,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                 bool fdx_always_zero = true;
                 for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                     dx.clear();
-                    for (int k : two_expansion(j))
+                    for (int k : ut::two_exp(j))
                         dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                     int1d fdx = map->map(dx, deg_dx, *this);
                     if (!fdx.empty() && !IsZeroOnLevel(ut::GetRecentValue(rings_[to].nodes_ss, deg_fdx), fdx, r)) {
@@ -1022,7 +1022,7 @@ int Diagram::SetModuleDiffLeibnizV2(size_t iMod, AdamsDeg deg_x, const int1d& x,
                 bool fdx_always_zero = true;
                 for (unsigned j = 1; j < j_max; ++j) { /* Loop over dx */
                     dx.clear();
-                    for (int k : two_expansion(j))
+                    for (int k : ut::two_exp(j))
                         dx = lina::add(dx, sc_dx.basis[(size_t)(first_dx + k)]);
                     int1d fdx = map->map(dx, deg_dx, *this);
                     if (!fdx.empty() && !IsZeroOnLevel(ut::GetRecentValue(modules_[to].nodes_ss, deg_fdx), fdx, r)) {

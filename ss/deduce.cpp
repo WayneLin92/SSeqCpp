@@ -237,7 +237,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
 
                 for (unsigned i = 1; i < i_max; ++i) {
                     dx1.clear();
-                    for (int j : two_expansion(i))
+                    for (int j : two_exp(i))
                         dx1 = lina::add(dx1, sc_tgt.basis[(size_t)(nd.first + j)]);
 
                     if (!TryDiff(iCw, deg_src, x, dx1, r, depth, flag, true)) {
@@ -280,7 +280,7 @@ int Diagram::DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag)
 
                 for (unsigned i = 1; i < i_max; ++i) {
                     x1.clear();
-                    for (int j : two_expansion(i))
+                    for (int j : two_exp(i))
                         x1 = lina::add(x1, sc_src.basis[(size_t)(nd.first + j)]);
 
                     if (!TryDiff(iCw, deg_src, x1, dx, r, depth, flag, false)) {

@@ -16,7 +16,7 @@ using namespace steenrod;
 struct Filtr
 {
     uint64_t data;
-    Filtr() : data(~0) {}
+    Filtr() : data(~0uLL) {}
     Filtr(MMod m) : data(m.v_raw() | m.w_may()) {}
     Filtr(uint64_t data_) : data(data_) {}
     bool operator<(Filtr rhs) const
