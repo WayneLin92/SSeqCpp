@@ -551,7 +551,7 @@ int SchedulerRunOnce(const json& js)
         return 0;
     }
 
-    if (disk_available < js.at("DISK_threshold")) {
+    if (disk_available / 1.074e9 < js.at("DISK_threshold")) {
         fmt::print("Disk available is too low to add another task.\n");
         return 0;
     }
