@@ -194,7 +194,8 @@ void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const
 
             if (!sc.basis[i].empty()) {
                 size_t index = (size_t)sc.basis[i].front();
-                bool isGen = cofseq.isRing[iCs] ? diagram.GetRings()[cofseq.indexCw[iCs]].basis.at(deg)[index].IsGen() : diagram.GetModules()[cofseq.indexCw[iCs]].basis.at(deg)[index].IsGen();
+                auto iCw = cofseq.indexCw[iCs];
+                bool isGen = iCw.isRing ? diagram.GetRings()[iCw.index].basis.at(deg)[index].IsGen() : diagram.GetModules()[iCw.index].basis.at(deg)[index].IsGen();
                 bullet["c"] = isGen ? "blue" : "black";
             }
             else
@@ -471,7 +472,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         }
 
         auto out = fmt::output_file(plot_dir + "/" + name + ".js");
-        out.print("globalThis.DATA_JSON_{} = {};\n", name, js.dump());
+        out.print("globalThis.DATA_JSON_{} = {};\n", name, js.dump(1));
     }
 
     /*
@@ -485,14 +486,14 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
     for (auto& map : maps) {
         if (map->IsMul())
             continue;
-        size_t from, to;
+        size_t from = map->from.index, to = map->to.index;
         json js;
         js["type"] = "map";
         js["maps"] = json::object();
         auto& map_json = js["maps"];
 
-        if (map->IsFromRing(from)) {
-            if (!map->IsToRing(to))
+        if (map->from.isRing) {
+            if (!map->to.isRing)
                 throw MyException(0x189448f, "Incorrect map type");
             auto& nodes_ss = rings[from].nodes_ss;
             js["from"] = rings[from].name;
@@ -516,7 +517,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             }
         }
         else {
-            if (map->IsToRing(to)) {
+            if (map->to.isRing) {
                 auto& nodes_ss = mods[from].nodes_ss;
                 js["from"] = mods[from].name;
                 js["to"] = rings[to].name;
@@ -565,7 +566,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         }
 
         auto out = fmt::output_file(plot_dir + "/" + map->name + ".js");
-        out.print("globalThis.DATA_JSON_{} = {};\n", map->name, js.dump());
+        out.print("globalThis.DATA_JSON_{} = {};\n", map->name, js.dump(1));
     }
 
     return 0;
@@ -635,8 +636,8 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
             AdamsDeg1d degs_factors;
             Poly1d bjs;
             std::map<AdamsDeg, int> deg2id_ring;
-            size_t iRing = cofseq.isRing[iCs] ? cofseq.indexCw[iCs] : mods[cofseq.indexCw[iCs]].iRing;
-            if (cofseq.isRing[iCs])
+            size_t iRing = cofseq.indexCw[iCs].isRing ? cofseq.indexCw[iCs].index : mods[cofseq.indexCw[iCs].index].iRing;
+            if (cofseq.indexCw[iCs].isRing)
                 deg2id_ring = deg2id_ss;
             else
                 deg2id_ring = get_deg2id(rings[iRing].nodes_ss);
@@ -649,10 +650,10 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
                 bjs.push_back(rings[iRing].basis.at(degs_factors.back())[i_factor]);
             }
 
-            if (cofseq.isRing[iCs])
-                plotRingStrLines(nodes_cofseq, rings[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, jsi, 1, true);
+            if (auto iCw = cofseq.indexCw[iCs]; iCw.isRing)
+                plotRingStrLines(nodes_cofseq, rings[iCw.index], deg2id_cofseq, degs_factors, bjs, jsi, 1, true);
             else
-                plotModuleStrLines(nodes_cofseq, mods[cofseq.indexCw[iCs]], deg2id_cofseq, degs_factors, bjs, jsi, 1, true);
+                plotModuleStrLines(nodes_cofseq, mods[iCw.index], deg2id_cofseq, degs_factors, bjs, jsi, 1, true);
 
             /* diff lines */
             jsi["diffs"] = json::array();
@@ -697,7 +698,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
         }
 
         auto out = fmt::output_file(plot_dir + "/" + cofseq.name + ".js");
-        out.print("globalThis.DATA_JSON_{} = {};\n", cofseq.name, js.dump());
+        out.print("globalThis.DATA_JSON_{} = {};\n", cofseq.name, js.dump(1));
     }
 
     return 0;
@@ -1004,7 +1005,7 @@ int main_name_export(int argc, char** argv, int& index, const char* desc)
     }
 
     auto out = fmt::output_file(gen_names_json);
-    out.print("{}", js.dump());
+    out.print("{}", js.dump(1));
 
     return 0;
 }
@@ -1329,13 +1330,13 @@ int main_name_pullback(int argc, char** argv, int& index, const char* desc)
         gen_names_rings[iRing] = db.load_gen_names(fmt::format("{}_AdamsE2", name));
     }
     for (size_t iMap = 0; iMap < maps.size(); ++iMap) {
-        auto map = (MapRing2Ring*)maps[iMap].get();
+        auto map = (MapMod2Ring*)maps[iMap].get();
         size_t iMap_json = 0;
         while (js.at("maps")[iMap_json].at("name") != map->name)
             ++iMap_json;
         if (!js.at("maps")[iMap_json].contains("type") || js.at("maps")[iMap_json].at("type") != "top_cell")
             continue;
-        size_t iMod = map->from, iRing = map->to;
+        size_t iMod = map->from.index, iRing = map->to.index;
         auto& name = mods[iMod].name;
         {
             auto path = js.at("modules")[iMod].at("path").get<std::string>();
@@ -1487,12 +1488,12 @@ int main_name_pushforward(int argc, char** argv, int& index, const char* desc)
                         continue;
                     if (map->deg.s != 0)
                         continue;
-                    auto& gen_names_tgt = gen_names_mods[map->to];
-                    auto& gen_cells_tgt = gen_cells_mods[map->to];
+                    auto& gen_names_tgt = gen_names_mods[map->to.index];
+                    auto& gen_cells_tgt = gen_cells_mods[map->to.index];
                     AdamsDeg deg_tgt = deg + map->deg;
-                    if (!ut::has(gen_indices_all[rings.size() + map->to], deg_tgt))
+                    if (!ut::has(gen_indices_all[rings.size() + map->to.index], deg_tgt))
                         continue;
-                    auto& indices_tgt = gen_indices_all[rings.size() + map->to].at(deg_tgt);
+                    auto& indices_tgt = gen_indices_all[rings.size() + map->to.index].at(deg_tgt);
                     if (std::all_of(indices_tgt.begin(), indices_tgt.end(), [&gen_names_tgt](int i) { return !gen_names_tgt[i].empty(); }))
                         continue;
                     int2d fxs, image, kernel, g;
@@ -1500,7 +1501,7 @@ int main_name_pushforward(int argc, char** argv, int& index, const char* desc)
                         fxs.push_back(map->map({int(i)}, deg, diagram));
                     lina::SetLinearMap(fxs, image, kernel, g);
 
-                    auto& mod_tgt = mods[map->to];
+                    auto& mod_tgt = mods[map->to.index];
                     int gen_index = 0;
                     for (int i : indices_tgt) {
                         ++gen_index;
@@ -1518,7 +1519,7 @@ int main_name_pushforward(int argc, char** argv, int& index, const char* desc)
                                     gen_cells_tgt[i].cell += map->deg.stem();
                                     gen_names_tgt[i] = StrGenCell(gen_cells_tgt[i], gen_names_rings[mod.iRing]);
                                     auto old_gen_name = fmt::format("v_{{{},{}{}}}", deg_tgt.stem(), deg_tgt.s, gen_index == 1 ? "" : fmt::format(",{}", gen_index));
-                                    fmt::print("({}) {} {} --> {}\n", map->display, mods[map->to].name, old_gen_name, gen_names_tgt[i]);
+                                    fmt::print("({}) {} {} --> {}\n", map->display, mods[map->to.index].name, old_gen_name, gen_names_tgt[i]);
                                     ++count;
                                 }
                             }

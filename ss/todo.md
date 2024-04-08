@@ -8,6 +8,7 @@
 - [ ] check bottom cell status
 - [ ] cofseq_cofseq
 - [ ] f1f2=g1g2 in cofseq
+- [ ] fix CW_2_eta_thetasq
 
 # Adams
 - [ ] Fast multiplication

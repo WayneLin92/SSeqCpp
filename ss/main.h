@@ -3,6 +3,7 @@
 
 #include "algebras/benchmark.h"
 #include "algebras/dbAdamsSS.h"
+#include "algebras/linalg.h"
 #include "json.h"
 #include "pigroebner.h"
 #include <memory>
@@ -10,7 +11,7 @@
 #include <variant>
 
 inline const char* PROGRAM = "ss";
-inline const char* VERSION = "Version:\n  2.1 (2024-03-25)";
+inline const char* VERSION = "Version:\n  3.0 (2024-04-07)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -27,16 +28,17 @@ using size_t1d = std::vector<size_t>;
 enum class SSFlag : uint32_t
 {
     no_op = 0,
-    all_x = 1,                /* Deduce dx for all x including linear combinations */
-    xy = 2,                   /* Deduce d(xy) for even if dx is uncertain */
-    cofseq = 4,               /* Consider cofiber sequence */
-    pi = 8,                   /* Consider homotopy */
-    pi_def = 16,              /* Define generators in pi */
-    no_save = 32,             /* Do not save the database */
-    depth_ss_cofseq = 4 + 64, /* Deduce cof inside ss */
-    depth_ss_ss = 128,        /* Deduce cof inside ss */
-    naming = 256,             /* naming mode */
-    try_all = 512,            /* Try all possible differentials */
+    all_x = 1,            /* Deduce dx for all x including linear combinations */
+    xy = 2,               /* Deduce d(xy) for even if dx is uncertain */
+    cofseq = 4,           /* Consider cofiber sequence */
+    pi = 8,               /* Consider homotopy */
+    pi_def = 16,          /* Define generators in pi */
+    no_save = 32,         /* Do not save the database */
+    depth_ss_cofseq = 64, /* Deduce cof inside ss */
+    depth_ss_ss = 128,    /* Deduce cof inside ss */
+    naming = 256,         /* naming mode */
+    try_all = 512,        /* Try all possible differentials */
+    synthetic = 1024,     /* Sync method */
 };
 
 inline SSFlag operator|(SSFlag lhs, SSFlag rhs)
@@ -104,14 +106,36 @@ struct fmt::formatter<Staircase>
     }
 };
 
+struct IndexCof
+{
+    size_t iCof = size_t(-1), iCs = size_t(-1);
+};
+
+struct IndexCw
+{
+    bool isRing = true;
+    size_t index = size_t(-1);
+    bool operator==(IndexCw rhs) const
+    {
+        return isRing == rhs.isRing && index == rhs.index;
+    }
+};
+inline IndexCw IndexRing(size_t iRing)
+{
+    return IndexCw{true, iRing};
+}
+inline IndexCw IndexMod(size_t iMod)
+{
+    return IndexCw{false, iMod};
+}
+
 /* cw1 --map1--> cw2 --map2--> cw3 --map3--> cw1 */
 struct CofSeq
 {
     std::string name;
     std::array<size_t, 3> indexMap;
     std::array<AdamsDeg, 3> degMap;
-    std::array<bool, 3> isRing;
-    std::array<size_t, 3> indexCw;
+    std::array<IndexCw, 3> indexCw;
     std::array<std::string, 3> nameCw;
     std::array<int, 3> t_max;
     std::array<Staircases1d*, 3> nodes_ss;
@@ -195,17 +219,12 @@ struct GenConstraint
     int O;
 };
 
-struct IndexCof
-{
-    int iCof = -1, iCs = -1;
-};
-
 struct RingSp
 {
     /* #metadata */
     std::string name;
     int t_max = -1;
-    std::vector<size_t> ind_mods, ind_maps;
+    std::vector<size_t> ind_mods, ind_maps, ind_maps_prev;
     std::vector<IndexCof> ind_cofs;
 
     /* #ss */
@@ -231,7 +250,7 @@ struct ModSp
     std::string name;
     int t_max = -1;
     size_t iRing;
-    std::vector<size_t> ind_maps;
+    std::vector<size_t> ind_maps, ind_maps_prev;
     std::vector<IndexCof> ind_cofs;
 
     /* #ss */
@@ -259,14 +278,13 @@ public:
     std::string name, display;
     int t_max = -1;
     AdamsDeg deg;
+    IndexCw from, to;
     IndexCof ind_cof;
 
 public:
     Map() {}
-    Map(std::string name, std::string display, int t_max, AdamsDeg deg) : name(std::move(name)), display(std::move(display)), t_max(t_max), deg(deg) {}
+    Map(std::string name, std::string display, int t_max, AdamsDeg deg, IndexCw from, IndexCw to) : name(std::move(name)), display(std::move(display)), t_max(t_max), deg(deg), from(from), to(to) {}
     virtual ~Map() {}
-    virtual bool IsFromRing(size_t& from) const = 0;
-    virtual bool IsToRing(size_t& to) const = 0;
     virtual bool IsMul() /* in maps_v2 */
     {
         return false;
@@ -278,38 +296,16 @@ using PMap1d = std::vector<std::unique_ptr<Map>>;
 class MapRing2Ring : public Map  ////TODO: Add pi_images
 {
 public:
-    size_t from, to;
     std::vector<Poly> images;
-    MapRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return true;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return true;
-    }
+    MapRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg, IndexRing(from), IndexRing(to)), images(std::move(images)) {}
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
 };
 
 class MapMod2Mod : public Map
 {
 public:
-    size_t from, to;
     std::vector<Mod> images;
-    MapMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Mod> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return false;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return false;
-    }
+    MapMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Mod> images) : Map(std::move(name), std::move(display), t_max, deg, IndexMod(from), IndexMod(to)), images(std::move(images)) {}
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
     void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
@@ -317,21 +313,11 @@ public:
 class MapMod2ModV2 : public Map
 {
 public:
-    size_t from, to, over;
+    size_t over;
     std::vector<Mod> images;
     MapMod2ModV2(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, size_t over, std::vector<Mod> images)
-        : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
+        : Map(std::move(name), std::move(display), t_max, deg, IndexMod(from), IndexMod(to)), over(over), images(std::move(images))
     {
-    }
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return false;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return false;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
     void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
@@ -340,19 +326,8 @@ public:
 class MapMod2Ring : public Map
 {
 public:
-    size_t from, to;
     std::vector<Poly> images;
-    MapMod2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), images(std::move(images)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return false;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return true;
-    }
+    MapMod2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, std::vector<Poly> images) : Map(std::move(name), std::move(display), t_max, deg, IndexMod(from), IndexRing(to)), images(std::move(images)) {}
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
     void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
 };
@@ -360,21 +335,11 @@ public:
 class MapMod2RingV2 : public Map
 {
 public:
-    size_t from, to, over;
+    size_t over;
     std::vector<Poly> images;
     MapMod2RingV2(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, size_t over, std::vector<Poly> images)
-        : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), over(over), images(std::move(images))
+        : Map(std::move(name), std::move(display), t_max, deg, IndexMod(from), IndexRing(to)), over(over), images(std::move(images))
     {
-    }
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return false;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return true;
     }
     int1d map(const int1d& x, AdamsDeg deg_x, const Diagram& diagram) const;
     void Verify(const Diagram& diagram, const AdamsDeg2d& ring_gen_degs);
@@ -383,19 +348,8 @@ public:
 class MapMulRing2Ring : public Map
 {
 public:
-    size_t index;
     Poly factor;
-    MapMulRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = index;
-        return true;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = index;
-        return true;
-    }
+    MapMulRing2Ring(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg, IndexRing(index), IndexRing(index)), factor(std::move(factor)) {}
     bool IsMul()
     {
         return true;
@@ -406,19 +360,8 @@ public:
 class MapMulRing2Mod : public Map
 {
 public:
-    size_t from, to;
     Mod factor;
-    MapMulRing2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, Mod factor) : Map(std::move(name), std::move(display), t_max, deg), from(from), to(to), factor(std::move(factor)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = from;
-        return true;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = to;
-        return false;
-    }
+    MapMulRing2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t from, size_t to, Mod factor) : Map(std::move(name), std::move(display), t_max, deg, IndexRing(from), IndexMod(to)), factor(std::move(factor)) {}
     bool IsMul()
     {
         return true;
@@ -429,19 +372,8 @@ public:
 class MapMulMod2Mod : public Map
 {
 public:
-    size_t index;
     Poly factor;
-    MapMulMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg), index(index), factor(std::move(factor)) {}
-    bool IsFromRing(size_t& from_) const
-    {
-        from_ = index;
-        return false;
-    }
-    bool IsToRing(size_t& to_) const
-    {
-        to_ = index;
-        return false;
-    }
+    MapMulMod2Mod(std::string name, std::string display, int t_max, AdamsDeg deg, size_t index, Poly factor) : Map(std::move(name), std::move(display), t_max, deg, IndexMod(index), IndexMod(index)), factor(std::move(factor)) {}
     bool IsMul()
     {
         return true;
@@ -456,8 +388,6 @@ struct Commutativity
 };
 using Commutativity1d = std::vector<Commutativity>;
 
-constexpr size_t FLAG_MOD = 1 << 16;
-
 class Diagram
 {
 protected:
@@ -469,7 +399,7 @@ protected:
 
 protected:
     nlohmann::json js_;
-    std::vector<size_t> deduce_list_spectra_;
+    std::vector<IndexCw> deduce_list_spectra_;
     std::vector<size_t> deduce_list_cofseq_;
     int depth_ = 0;
     int deduce_count_max_ = 10;
@@ -536,20 +466,40 @@ public: /* Getters */
         return cofseqs_;
     }
 
-    int GetRingIndexByName(const std::string& name) const
+    auto& GetCwName(IndexCw iCw) const
+    {
+        return iCw.isRing ? rings_[iCw.index].name : modules_[iCw.index].name;
+    }
+
+    auto& GetIndexCof(IndexCw iCw)
+    {
+        return iCw.isRing ? rings_[iCw.index].ind_cofs : modules_[iCw.index].ind_cofs;
+    }
+
+    auto& GetTMax(IndexCw iCw) const
+    {
+        return iCw.isRing ? rings_[iCw.index].t_max : modules_[iCw.index].t_max;
+    }
+
+    auto& GetSS(IndexCw iCw) const
+    {
+        return iCw.isRing ? rings_[iCw.index].nodes_ss : modules_[iCw.index].nodes_ss;
+    }
+
+    auto& GetSS(IndexCw iCw)
+    {
+        return iCw.isRing ? rings_[iCw.index].nodes_ss : modules_[iCw.index].nodes_ss;
+    }
+
+    IndexCw GetIndexCwByName(const std::string& name) const
     {
         for (size_t i = 0; i < rings_.size(); ++i)
             if (rings_[i].name == name)
-                return (int)i;
-        return -1;
-    }
-
-    int GetModuleIndexByName(const std::string& name) const
-    {
+                return IndexRing(i);
         for (size_t i = 0; i < modules_.size(); ++i)
             if (modules_[i].name == name)
-                return (int)i;
-        return -1;
+                return IndexMod(i);
+        throw MyException(0x8d0358d4, fmt::format("Incorrect name {}", name));
     }
 
     int GetMapIndexByName(const std::string& name) const
@@ -645,15 +595,17 @@ private: /* ss */
     int NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
+    /* Return the level of x or d^{-1}x */
     int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const;
-    /* Return the minimal length of the cross differentials */
+    /* Return the minimal length of the crossing differentials */
+    int GetCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max) const;
     int GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
-    void SetDiffSc(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag);
+    void SetDiffSc(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag);
     /* Add an image. dx must be nonempty and not null. x must be nonempty. */
-    void SetImageSc(size_t iCw, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r, SSFlag flag);
+    void SetImageSc(IndexCw iCw, AdamsDeg deg_dx, const int1d& dx, const int1d& x, int r, SSFlag flag);
 
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
     void SetDiffScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, const int1d& x_, const int1d& dx, int r, SSFlag flag);
@@ -698,7 +650,10 @@ public:
      */
     int SetRingDiffGlobal(size_t iRing, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
     int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
-    int SetCwDiffGlobal(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
+    int SetCwDiffGlobal(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
+
+    [[nodiscard]] int GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_d_inv_x, bool maximal);
+    int SetCwDiffSynthetic(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool hasCross, SSFlag flag);
 
     /* Add d_r(?)=x;
      * Add d_r(?)=xy for d_r(y)=0 (y on level < LEVEL_MAX - r);
@@ -715,11 +670,13 @@ public: /* Differentials */
     int DeduceTrivialDiffs(SSFlag flag);
     int DeduceTrivialDiffsCofseq(SSFlag flag);
     int DeduceManual(SSFlag flag);
+    int DeduceDiffBySynthetic(SSFlag flag);
+    int DeduceDiffBySyntheticCofseq(SSFlag flag);
     /* Return 0 if there is no exception */
-    int TryDiff(size_t iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, int depth, SSFlag flag, bool tryY);
+    int TryDiff(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, SSFlag flag, bool tryY);
     int TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg deg_dx, const int1d& x, const int1d& dx, const int1d& perm, int r, int depth, SSFlag flag, bool tryY);
-    int DeduceDiffs(size_t iCw, AdamsDeg deg, int depth, SSFlag flag);
-    int DeduceDiffs(const size_t1d& cws, int stem_min, int stem_max, int depth, SSFlag flag);
+    int DeduceDiffs(IndexCw iCw, AdamsDeg deg, int depth, SSFlag flag);
+    int DeduceDiffs(IndexCw& iCw, int stem_min, int stem_max, int s_min, int s_max, int depth, SSFlag flag);
     int DeduceDiffs(int stem_min, int stem_max, int depth, SSFlag flag);
     /* Deduce d(xy) no matter what dx is */
     int DeduceDiffsV2();
@@ -764,10 +721,10 @@ public:
     std::map<AdamsDeg, int2d> GetModuleGbEinf(size_t iMod) const;
 
 public: /* homotopy groups */
-    //void SetPermanentCycle(int depth, size_t iCof, AdamsDeg deg_x);
+    // void SetPermanentCycle(int depth, size_t iCof, AdamsDeg deg_x);
     void AddPiRelsRing(size_t iRing, algZ::Poly1d rels);
     void AddPiRelsCof(size_t iMod, algZ::Mod1d rels);
-    //void AddPiRelsByNat(size_t iMod);
+    // void AddPiRelsByNat(size_t iMod);
     void SimplifyPiRels()
     {
         for (auto& ring : rings_)
@@ -777,24 +734,24 @@ public: /* homotopy groups */
     }
     static algZ::Mon1d GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis);
     static algZ::MMod1d GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& basis);
-    //void SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopyy, int depth);
-    //void SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth);
+    // void SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopyy, int depth);
+    // void SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth);
     /*void SyncHomotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
     {
         SyncS0Homotopy(deg_min, count_ss, count_homotopy, depth);
         for (size_t iCof = 0; iCof < modules_.size(); ++iCof)
             SyncCofHomotopy((int)iCof, deg_min, count_ss, count_homotopy, depth);
     }*/
-    //int DeduceTrivialExtensions(int depth);
-    //int DeduceExtensions2tor();
-    //int DeduceExtensionsByExactness(int stem_min, int stem_max, int depth);
+    // int DeduceTrivialExtensions(int depth);
+    // int DeduceExtensions2tor();
+    // int DeduceExtensionsByExactness(int stem_min, int stem_max, int depth);
 
-    //unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag);
-    //unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag);
-    //unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag);
-    //void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, SSFlag flag);
-    //int DefineDependenceInExtensions(int stem_min, int stem_max, int depth);  ////;
-    //int DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth);
+    // unsigned TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag);
+    // unsigned TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag);
+    // unsigned TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag);
+    // void DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_homotopy, int depth, SSFlag flag);
+    // int DefineDependenceInExtensions(int stem_min, int stem_max, int depth);  ////;
+    // int DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth);
 };
 
 class DBSS : public myio::DbAdamsSS
@@ -914,7 +871,21 @@ inline bool BelowCokerJ(AdamsDeg deg)
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
 
 /* Compute x mod (level-1) */
-int1d Residue(int1d x, const Staircases1d& nodes_ss, AdamsDeg deg, int level);
+inline int1d& ResidueInplace(int1d& x, const Staircase& sc, int level)
+{
+    size_t first_l = GetFirstIndexOnLevel(sc, level);
+    lina::ResidueInplace(sc.basis.begin(), sc.basis.begin() + first_l, x);
+    return x;
+}
+
+/* Compute x mod (level-1) */
+inline int1d Residue(int1d x, const Staircases1d& nodes_ss, AdamsDeg deg, int level)
+{
+    if (x.empty())
+        return x;
+    ResidueInplace(x, ut::GetRecentValue(nodes_ss, deg), level);
+    return x;
+}
 
 void GetAllDbNames(const std::string& diagram_name, std::vector<std::string>& names, std::vector<std::string>& paths, std::vector<int>& isRing, bool log = false);
 

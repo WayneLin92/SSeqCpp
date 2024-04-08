@@ -22,8 +22,7 @@ int main_mul(int argc, char** argv, int& index, const char* desc)
     SSFlag flag = SSFlag::no_op;
     Diagram diagram(diagram_name, flag);
 
-    int iCw = diagram.GetRingIndexByName(cw);
-    if (iCw != -1) {
+    if (auto iCw = diagram.GetIndexCwByName(cw); iCw.isRing) {
         auto& ring = diagram.GetRingByName(cw);
         if (d3.t > ring.t_max) {
             fmt::print("degree out of range");

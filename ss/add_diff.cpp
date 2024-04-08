@@ -41,8 +41,8 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
     Diagram diagram(diagram_name, flag);
 
     /* #Check if x, dx are valid */
-    bool isRing = diagram.GetRingIndexByName(cw) != -1;
-    auto& ss = isRing ? diagram.GetRingByName(cw).nodes_ss.front() : diagram.GetModuleByName(cw).nodes_ss.front();
+    auto iCw = diagram.GetIndexCwByName(cw);
+    auto& ss = diagram.GetSS(iCw).front();
     if (!x.empty()) {
         if (!ut::has(ss, deg_x)) {
             fmt::print("deg_x not found\n");
@@ -67,14 +67,7 @@ int main_add_diff(int argc, char** argv, int& index, const char* desc)
 
     /* #Add diff */
     int count = 0;
-    if (isRing) {
-        size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-        count += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
-    }
-    else {
-        size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
-        count += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
-    }
+    count += diagram.SetCwDiffGlobal(iCw, deg_x, x, dx, r, false, flag);
     if (count > 0 && (mode == "try" || mode == "deduce")) {
         Logger::LogSummary("Changed differentials", count);
         diagram.DeduceDiffs(0, 500, 0, SSFlag::no_op);  ////
@@ -123,18 +116,9 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
                 x = myio::Deserialize<int1d>(match[5].str());
                 dx = myio::Deserialize<int1d>(match[6].str());
 
-                bool isRing = diagram.GetRingIndexByName(cw) != -1;
-                if (isRing) {
-                    size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-                    Logger::LogDiff(0, EnumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
-                    count_diffs += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
-                }
-                else {
-                    size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
-                    MyException::Assert(iMod != -1, "iMod != -1");
-                    Logger::LogDiff(0, EnumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
-                    count_diffs += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
-                }
+                auto iCw = diagram.GetIndexCwByName(cw);
+                Logger::LogDiff(0, EnumReason::manual, diagram.GetCwName(iCw), deg_x, x, dx, r);
+                count_diffs += diagram.SetCwDiffGlobal(iCw, deg_x, x, dx, r, false, flag);
             }
             if (count_lines % 10000 == 0) {
                 fmt::print("Deduce trivial diffs\n\n");
@@ -183,18 +167,9 @@ int main_add_diff_from_log(int argc, char** argv, int& index, const char* desc)
             x = myio::Deserialize<int1d>(stmt.column_str(4));
             dx = myio::Deserialize<int1d>(stmt.column_str(5));
 
-            bool isRing = diagram.GetRingIndexByName(cw) != -1;
-            if (isRing) {
-                size_t iRing = (size_t)diagram.GetRingIndexByName(cw);
-                Logger::LogDiff(0, EnumReason::manual, diagram.GetRings()[iRing].name, deg_x, x, dx, r);
-                count_diffs += diagram.SetRingDiffGlobal(iRing, deg_x, x, dx, r, false, flag);
-            }
-            else {
-                size_t iMod = (size_t)diagram.GetModuleIndexByName(cw);
-                MyException::Assert(iMod != -1, "iMod != -1");
-                Logger::LogDiff(0, EnumReason::manual, diagram.GetModules()[iMod].name, deg_x, x, dx, r);
-                count_diffs += diagram.SetModuleDiffGlobal(iMod, deg_x, x, dx, r, false, flag);
-            }
+            auto iCw = diagram.GetIndexCwByName(cw);
+            Logger::LogDiff(0, EnumReason::manual, diagram.GetCwName(iCw), deg_x, x, dx, r);
+            count_diffs += diagram.SetCwDiffGlobal(iCw, deg_x, x, dx, r, false, flag);
         }
         if (count_lines % 10000 == 0) {
             fmt::print("Deduce trivial diffs\n\n");

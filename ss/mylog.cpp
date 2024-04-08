@@ -141,6 +141,14 @@ void Logger::LogDiff(int depth, EnumReason reason, const std::string& name, alg:
     db_deduce_.InsertDiff(depth, reason, name, deg_x, x, dx, r);
 }
 
+void Logger::LogDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)
+{
+    std::string_view indent(INDENT, depth * 2);
+    if (depth == 0)
+        fmt::print(fmt::fg(fmt::color::gray), "{}{} {} d_{}{}={}\n", indent, name, deg_x, r, x, dx);
+    db_deduce_.InsertNullDiff(depth, name, deg_x, x, r);
+}
+
 void Logger::LogNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r)
 {
     std::string_view indent(INDENT, depth * 2);
@@ -157,8 +165,8 @@ void Logger::LogDiffInv(int depth, EnumReason reason, const std::string& name, a
     db_deduce_.InsertDiff(depth, reason, name, deg_x, x, dx, r);
 }
 
-void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx)
-{
+//void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {} is a boundary\n", indent, GetReason(reason), name, deg_dx, dx);
@@ -168,7 +176,7 @@ void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, 
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
 void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf)
 {

@@ -51,6 +51,13 @@ int1d Residue(int2dIt spaceV_first, int2dIt spaceV_last, int1d v)
     return v;
 }
 
+void ResidueInplace(int2dIt spaceV_first, int2dIt spaceV_last, int1d& v)
+{
+    for (auto p_vi = spaceV_first; p_vi != spaceV_last; ++p_vi)
+        if (std::binary_search(v.begin(), v.end(), p_vi->front()))
+            v = add(v, *p_vi);
+}
+
 inline void AddToSpace(int2d& spaceV, const int1d& v)
 {
     int1d v1 = Residue(spaceV, v);
@@ -190,11 +197,11 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int1d
             v = add(v, *p_Vi);
             result = add(result, *p_fi);
         }
-#ifdef MYDEBUG
+//#ifdef MYDEBUG
     if (!v.empty()) {
         throw MyException(0x6a4fe8a1U, "v is not in spaceV");
     }
-#endif
+//#endif
     return result;
 }
 

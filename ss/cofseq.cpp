@@ -232,7 +232,7 @@ void Diagram::ReSetScCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, SSFlag fla
 {
     const size_t iCs_next = (iCs + 1) % 3;
     const size_t iCs_prev = (iCs + 2) % 3;
-    const auto& nodes_ss = cofseq.isRing[iCs] ? rings_[cofseq.indexCw[iCs]].nodes_ss : modules_[cofseq.indexCw[iCs]].nodes_ss;
+    const auto& nodes_ss = GetSS(cofseq.indexCw[iCs]);
 
     auto& nodes_cofseq = cofseq.nodes_cofseq[iCs];
 
@@ -330,18 +330,10 @@ int Diagram::TryDiffCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, AdamsDeg 
     try {
         Logger::LogDiff(depth + 1, tryY ? EnumReason::try1 : EnumReason::try2, fmt::format("{}:{}", cofseq.name, iCs), deg_x, x, dx, r);
         if (!perm.empty()) {
-            if (tryY) {
-                if (cofseq.isRing[(iCs + 1) % 3])
-                    SetRingDiffGlobal(cofseq.indexCw[(iCs + 1) % 3], deg_dx, perm, int1d{}, R_PERM - 1, true, flag);
-                else
-                    SetModuleDiffGlobal(cofseq.indexCw[(iCs + 1) % 3], deg_dx, perm, int1d{}, R_PERM - 1, true, flag);
-            }
-            else {
-                if (cofseq.isRing[iCs])
-                    SetRingDiffGlobal(cofseq.indexCw[iCs], deg_x, perm, int1d{}, R_PERM - 1, true, flag);
-                else
-                    SetModuleDiffGlobal(cofseq.indexCw[iCs], deg_x, perm, int1d{}, R_PERM - 1, true, flag);
-            }
+            if (tryY)
+                SetCwDiffGlobal(cofseq.indexCw[(iCs + 1) % 3], deg_dx, perm, int1d{}, R_PERM - 1, true, flag);
+            else
+                SetCwDiffGlobal(cofseq.indexCw[iCs], deg_x, perm, int1d{}, R_PERM - 1, true, flag);
         }
         SetDiffGlobalCofseq(cofseq, iCs, deg_x, x, dx, r, true, flag);
         // DeduceTrivialDiffsCofseq(flag);
@@ -502,17 +494,11 @@ int Diagram::DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int dep
             if (!perm.empty()) {
                 if (nd.direction > 0) {
                     Logger::LogDiff(depth, EnumReason::dd_cof_p, cofseq.nameCw[iCs_next], deg_tgt, perm, int1d{}, R_PERM - 1);
-                    if (cofseq.isRing[iCs_next])
-                        SetRingDiffGlobal(cofseq.indexCw[iCs_next], deg_tgt, perm, int1d{}, R_PERM - 1, true, flag);
-                    else
-                        SetModuleDiffGlobal(cofseq.indexCw[iCs_next], deg_tgt, perm, int1d{}, R_PERM - 1, true, flag);
+                    SetCwDiffGlobal(cofseq.indexCw[iCs_next], deg_tgt, perm, int1d{}, R_PERM - 1, true, flag);
                 }
                 else {
                     Logger::LogDiff(depth, EnumReason::dd_cof_p, cofseq.nameCw[iCs_prev], deg_src, perm, int1d{}, R_PERM - 1);
-                    if (cofseq.isRing[iCs_prev])
-                        SetRingDiffGlobal(cofseq.indexCw[iCs_prev], deg_src, perm, int1d{}, R_PERM - 1, true, flag);
-                    else
-                        SetModuleDiffGlobal(cofseq.indexCw[iCs_prev], deg_src, perm, int1d{}, R_PERM - 1, true, flag);
+                    SetCwDiffGlobal(cofseq.indexCw[iCs_prev], deg_src, perm, int1d{}, R_PERM - 1, true, flag);
                 }
             }
             if (nd.direction > 0)
@@ -616,7 +602,7 @@ void Diagram::SyncCofseq(SSFlag flag)
     }
 }
 
-/* Return the level of x and dx or d^{-1}x */
+/* Return the minimal length of the crossing differentials */
 int Diagram::GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const
 {
     int result = R_PERM;

@@ -13,6 +13,8 @@ enum class EnumReason : uint32_t
     dd_cof,    /* By deduction in cofseq */
     dd_cof_p,  /* ss permanent cycle by deduction in cofseq */
     nat,       /* By naturality */
+    synnat,    /* By naturality of synthetic */
+    synext,    /* By naturality of synthetic */
     deduce_xx, /* By deduction of d(xy) and d(x^2) */
     deduce_xy, /* By deduction of d(xy) and d(x^2) */
     deduce_fx, /* By deduction of d(xy) and d(x^2) */
@@ -24,7 +26,7 @@ enum class EnumReason : uint32_t
     migrate,   /* Migration */
     d2,        /* By Adams d2 computation */
 };
-constexpr std::array REASONS = {"manual", "degree", "deduce", "dd_cof", "dd_cof_p", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "comm", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
+constexpr std::array REASONS = {"manual", "degree", "deduce", "dd_cof", "dd_cof_p", "nat", "synnat", "synext", "deduce_xx", "deduce_xy", "deduce_fx", "comm", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
 inline const char* INDENT = "          ";
 
 class DbLog : public myio::Database
@@ -76,9 +78,10 @@ public:
     static void RollBackToCheckpoint();
 
     static void LogDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
+    static void LogDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
     static void LogNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
     static void LogDiffInv(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, alg::AdamsDeg deg_dx, const alg::int1d& x, const alg::int1d& dx, int r);
-    static void LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx);
+    //static void LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx);
     static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Poly& Einf);
     static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf);
     static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel);
