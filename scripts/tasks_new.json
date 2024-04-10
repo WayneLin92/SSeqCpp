@@ -311,14 +311,20 @@
         "C2_C2": {"tpl123": ["module", "C2_C2", "160"]},
         "C2__C2_C2": {"tpl123": ["map", "C2", "C2_C2", "160"]},
         "C2_C2__C2": {"tpl123": ["map", "C2_C2", "C2", "160"]},
+        "CW_2_A_eta__C2_C2": {"tpl123": ["map", "CW_2_A_eta", "C2_C2", "160"]},
+        "C2_C2__CW_2_V_eta": {"tpl123": ["map", "C2_C2", "CW_2_V_eta", "160"]},
 
         "Ceta_Ceta": {"tpl123": ["module", "Ceta_Ceta", "160"]},
         "Ceta__Ceta_Ceta": {"tpl123": ["map", "Ceta", "Ceta_Ceta", "160"]},
         "Ceta_Ceta__Ceta": {"tpl123": ["map", "Ceta_Ceta", "Ceta", "160"]},
+        "CW_eta_V_nu__Ceta_Ceta": {"tpl123": ["map", "CW_eta_V_nu", "Ceta_Ceta", "160"]},
+        "Ceta_Ceta__CW_eta_V_nu": {"tpl123": ["map", "Ceta_Ceta", "CW_eta_V_nu", "160"]},
 
         "Cnu_Cnu": {"tpl123": ["module", "Cnu_Cnu", "160"]},
         "Cnu__Cnu_Cnu": {"tpl123": ["map", "Cnu", "Cnu_Cnu", "160"]},
         "Cnu_Cnu__Cnu": {"tpl123": ["map", "Cnu_Cnu", "Cnu", "160"]},
+        "CW_nu_A_sigma__Cnu_Cnu": {"tpl123": ["map", "CW_nu_A_sigma", "Cnu_Cnu", "160"]},
+        "Cnu_Cnu__CW_nu_V_sigma": {"tpl123": ["map", "Cnu_Cnu", "CW_nu_V_sigma", "160"]},
 
         "Csigma_Csigma": {"tpl123": ["module", "Csigma_Csigma", "160"]},
         "Csigma__Csigma_Csigma": {"tpl123": ["map", "Csigma", "Csigma_Csigma", "160"]},
@@ -633,6 +639,7 @@
         "Ceta_Ceta": {"tpl123": ["module_cont", "Ceta_Ceta", "180", "160"]},
         "Ceta__Ceta_Ceta": {"tpl123": ["map_cont", "Ceta", "Ceta_Ceta", "180", "160"]},
         "Ceta_Ceta__Ceta": {"tpl123": ["map_cont", "Ceta_Ceta", "Ceta", "180", "160"]},
+
 
         "Cnu_Cnu": {"tpl123": ["module_cont", "Cnu_Cnu", "180", "160"]},
         "Cnu__Cnu_Cnu": {"tpl123": ["map_cont", "Cnu", "Cnu_Cnu", "180", "160"]},

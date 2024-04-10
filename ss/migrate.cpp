@@ -14,7 +14,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
         if (iCw < diagram1.GetRings().size()) {
             auto& name = diagram1.GetRings()[iCw].name;
             auto indCw2 = diagram2.GetIndexCwByName(name);
-            MyException::Assert(indCw2.isRing, "indCw2.isRing");
+            MyException::Assert(indCw2.isRing, fmt::format("indCw2({}).isRing", name));
             auto iRing2 = indCw2.index;
 
             auto& nodes_ss1 = diagram1.GetRings()[iCw].nodes_ss;
@@ -60,7 +60,7 @@ void Migrate_ss(const Diagram& diagram1, Diagram& diagram2)
             size_t iMod = iCw - diagram1.GetRings().size();
             const auto& name = diagram1.GetModules()[iMod].name;
             auto indCw2 = diagram2.GetIndexCwByName(name);
-            MyException::Assert(indCw2.isRing, "indCw2.isRing");
+            MyException::Assert(!indCw2.isRing, fmt::format("!indCw2({}).isRing", name));
             size_t iMod2 = indCw2.index;
 
             const auto& nodes_ss1 = diagram1.GetModules()[iMod].nodes_ss;

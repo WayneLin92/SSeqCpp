@@ -270,10 +270,6 @@ int Diagram::TryDiff(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& d
                 DeduceDiffsNbhdCofseq(cofseq, iCs, deg_x.stem(), depth_, flag);
             }
         }
-        if (depth_ == 1 && (flag & SSFlag::synthetic) && r <= 6 && x.size() && dx != NULL_DIFF && dx.size()) {
-            bool has_cross = GetCrossR(GetSS(iCw), deg_x, GetTMax(iCw)) <= r;
-            SetCwDiffSynthetic(iCw, deg_x, x, dx, r, has_cross, flag);
-        }
     }
     catch (SSException&) {
         bException = true;
@@ -405,10 +401,6 @@ int Diagram::DeduceDiffs(IndexCw iCw, AdamsDeg deg, int depth, SSFlag flag)
                 Logger::LogDiffInv(depth, nd.count > 0 ? EnumReason::deduce : EnumReason::degree, name, deg_src, deg, x, dx, r);
 
             SetCwDiffGlobal(iCw, deg_src, x, dx, r, true, flag);
-            if ((flag & SSFlag::synthetic) && x.size() && dx != NULL_DIFF && dx.size()) {
-                bool has_cross = GetCrossR(nodes_ss, deg_src, GetTMax(iCw)) <= r;
-                count += SetCwDiffSynthetic(iCw, deg_src, x, dx, r, has_cross, flag);  //// TODO: maximize r
-            }
             CacheNullDiffs(nodes_ss, t_max, deg, flag, nds);
         }
         else {

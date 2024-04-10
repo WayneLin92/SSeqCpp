@@ -11,7 +11,7 @@
 #include <variant>
 
 inline const char* PROGRAM = "ss";
-inline const char* VERSION = "Version:\n  3.0 (2024-04-07)";
+inline const char* VERSION = "Version:\n  3.1 (2024-04-08)";
 using namespace alg2;
 
 constexpr int LEVEL_MAX = 10000;
@@ -652,7 +652,7 @@ public:
     int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
     int SetCwDiffGlobal(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
 
-    [[nodiscard]] int GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_d_inv_x, bool maximal);
+    [[nodiscard]] int GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_dinv_x, bool maximal);
     int SetCwDiffSynthetic(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool hasCross, SSFlag flag);
 
     /* Add d_r(?)=x;

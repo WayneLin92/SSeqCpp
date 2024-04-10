@@ -432,6 +432,11 @@ int Diagram::SetCwDiffGlobal(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const 
         count += SetRingDiffGlobal(iCw.index, deg_x, x, dx, r, newCertain, flag);
     else
         count += SetModuleDiffGlobal(iCw.index, deg_x, x, dx, r, newCertain, flag);
+
+    if (depth_ <= 1 && (flag & SSFlag::synthetic) && r <= 6 && x.size() && dx != NULL_DIFF && dx.size()) {
+        bool has_cross = GetCrossR(GetSS(iCw), deg_x, GetTMax(iCw)) <= r;
+        SetCwDiffSynthetic(iCw, deg_x, x, dx, r, has_cross, flag);
+    }
     return count;
 }
 
