@@ -2431,6 +2431,34 @@
       "sus": 4,
       "fil": 0
     },
+    "Ckappa__S0": {
+      "from": "Ckappa",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 15,
+      "fil": 0
+    },
+    "Cg__S0": {
+      "from": "Cg",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 21,
+      "fil": 0
+    },
+    "Ceta4__S0": {
+      "from": "Ceta4",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 17,
+      "fil": 0
+    },
+    "Ceta5__S0": {
+      "from": "Ceta5",
+      "to": "S0",
+      "free_images": [[], [0, 0, 0]],
+      "sus": 33,
+      "fil": 0
+    },
 
     //----------------- Ch_Ch -----------------
     "C2__C2_C2": {
