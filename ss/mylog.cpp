@@ -80,7 +80,7 @@ void Logger::SetOutDeduce(const char* filename)
 
 std::string Logger::GetCmd(int argc, char** argv)
 {
-    return fmt::format("cmd: {}\nLogging start at {}", fmt::join(argv, argv + argc, " "), ut::get_time());
+    return fmt::format("cmd: {}\nLogging start at {}\n", fmt::join(argv, argv + argc, " "), ut::get_time());
 }
 
 void Logger::LogCmd(int argc, char** argv)

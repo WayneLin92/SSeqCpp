@@ -41,6 +41,13 @@ enum class SSFlag : uint32_t
     synthetic = 1024,     /* Sync method */
 };
 
+enum class CrossType
+{
+    no_cross,
+	no_strict_cross,
+    all_cases
+};
+
 inline SSFlag operator|(SSFlag lhs, SSFlag rhs)
 {
     return SSFlag(uint32_t(lhs) | uint32_t(rhs));

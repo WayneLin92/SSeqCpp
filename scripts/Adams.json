@@ -1887,6 +1887,18 @@
       "sus": 0,
       "images": [0]
     },
+    "CW_2_V_eta__S1": {
+      "from": "CW_2_V_eta",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
+    "CW_2_V_eta__S2": {
+      "from": "CW_2_V_eta",
+      "to": "S0",
+      "sus": 2,
+      "images": [2]
+    },
 
     "C2__CW_2_V_nu": {
       "from": "C2",
@@ -1899,6 +1911,18 @@
       "to": "CW_2_V_nu",
       "sus": 0,
       "images": [0]
+    },
+    "CW_2_V_nu__S1": {
+      "from": "CW_2_V_nu",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
+    "CW_2_V_nu__S4": {
+      "from": "CW_2_V_nu",
+      "to": "S0",
+      "sus": 4,
+      "images": [4]
     },
 
     "C2__CW_2_V_sigma": {
@@ -1913,6 +1937,18 @@
       "sus": 0,
       "images": [0]
     },
+    "CW_2_V_sigma__S1": {
+      "from": "CW_2_V_sigma",
+      "to": "S0",
+      "sus": 1,
+      "images": [1]
+    },
+    "CW_2_V_sigma__S8": {
+      "from": "CW_2_V_sigma",
+      "to": "S0",
+      "sus": 8,
+      "images": [8]
+    },
 
     "Ceta__CW_eta_V_nu": {
       "from": "Ceta",
@@ -1925,6 +1961,18 @@
       "to": "CW_eta_V_nu",
       "sus": 0,
       "images": [0]
+    },
+    "CW_eta_V_nu__S2": {
+      "from": "CW_eta_V_nu",
+      "to": "S0",
+      "sus": 2,
+      "images": [2]
+    },
+    "CW_eta_V_nu__S4": {
+      "from": "CW_eta_V_nu",
+      "to": "S0",
+      "sus": 4,
+      "images": [4]
     },
 
     "Ceta__CW_eta_V_sigma": {
@@ -1939,6 +1987,18 @@
       "sus": 0,
       "images": [0]
     },
+    "CW_eta_V_sigma__S2": {
+      "from": "CW_eta_V_sigma",
+      "to": "S0",
+      "sus": 2,
+      "images": [2]
+    },
+    "CW_eta_V_sigma__S8": {
+      "from": "CW_eta_V_sigma",
+      "to": "S0",
+      "sus": 8,
+      "images": [8]
+    },
 
     "Cnu__CW_nu_V_sigma": {
       "from": "Cnu",
@@ -1951,6 +2011,18 @@
       "to": "CW_nu_V_sigma",
       "sus": 0,
       "images": [0]
+    },
+    "CW_nu_V_sigma__S4": {
+      "from": "CW_nu_V_sigma",
+      "to": "S0",
+      "sus": 4,
+      "images": [4]
+    },
+    "CW_nu_V_sigma__S8": {
+      "from": "CW_nu_V_sigma",
+      "to": "S0",
+      "sus": 8,
+      "images": [8]
     },
 
     //##---------- 2 V 1 ----------

@@ -557,7 +557,7 @@ int main_deduce_diff_v2(int argc, char** argv, int& index, const char* desc)
         return error;
 
     SSFlag flag = SSFlag::no_op;
-    Diagram diagram(diagram_name, flag, false);
+    Diagram diagram(diagram_name, flag);
     int count = diagram.DeduceDiffsV2();
     diagram.save(diagram_name, flag);
     Logger::LogSummary("Changed differentials", count);

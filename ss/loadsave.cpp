@@ -213,35 +213,36 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
             if (json_map.contains("factor")) {
                 auto& strt_factor = json_map.at("factor");
                 int stem = strt_factor[0].get<int>(), s = strt_factor[1].get<int>();
-                int i_factor = strt_factor.size() > 2 ? strt_factor[2].get<int>() : -1;
+                int1d factor = strt_factor[2].is_number() ? int1d{strt_factor[2].get<int>()} : strt_factor[2].get<std::vector<int>>();
                 AdamsDeg deg_factor(s, stem + s);
                 if (auto ifrom = GetIndexCwByName(from); ifrom.isRing) {
                     if (auto ito = GetIndexCwByName(to); ito.isRing) {
                         MyException::Assert(ifrom == ito, "index_from == index_to");
-                        Poly factor = i_factor != -1 ? rings_[ifrom.index].basis.at(deg_factor)[i_factor] : Poly{};
+                        Poly poly_factor = factor.size() ? Indices2Poly(factor, rings_[ifrom.index].basis.at(deg_factor)): Poly();
                         int t_max = rings_[ito.index].t_max - deg_factor.t;
-                        map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg_factor, ifrom.index, std::move(factor));
+                        map = std::make_unique<MapMulRing2Ring>(name, display, t_max, deg_factor, ifrom.index, std::move(poly_factor));
                     }
                     else {
-                        Mod factor = i_factor != -1 ? modules_[ito.index].basis.at(deg_factor)[i_factor] : Mod{};
+                        Mod mod_factor = factor.size() ? Indices2Mod(factor, modules_[ito.index].basis.at(deg_factor)) : Mod();
                         int t_max = modules_[ito.index].t_max - deg_factor.t;
-                        map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg_factor, ifrom.index, ito.index, std::move(factor));
+                        map = std::make_unique<MapMulRing2Mod>(name, display, t_max, deg_factor, ifrom.index, ito.index, std::move(mod_factor));
                     }
                 }
                 else {
                     auto ito = GetIndexCwByName(to);
                     MyException::Assert(ifrom == ito, "index_from == index_to");
-                    Poly factor = rings_[modules_[ifrom.index].iRing].basis.at(deg_factor)[i_factor];
+                    Poly poly_factor = factor.size() ? Indices2Poly(factor, rings_[modules_[ifrom.index].iRing].basis.at(deg_factor)) : Poly();
                     int t_max = modules_[ito.index].t_max - deg_factor.t;
-                    map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg_factor, ifrom.index, std::move(factor));
+                    map = std::make_unique<MapMulMod2Mod>(name, display, t_max, deg_factor, ifrom.index, std::move(poly_factor));
                 }
             }
             else if (json_map.contains("composition")) {
                 auto& json_composition = json_map.at("composition");
                 int1d indices;
                 for (auto& json_f : json_composition) {
-                    int index_map = GetMapIndexByName(json_f.get<std::string>());
-                    MyException::Assert(index_map != -1, "index_map != -1");
+                    auto name_map = json_f.get<std::string>();
+                    int index_map = GetMapIndexByName(name_map);
+                    MyException::Assert(index_map != -1, fmt::format("index_map({}) != -1", name_map));
                     indices.push_back(index_map);
                 }
                 int t_max_map;

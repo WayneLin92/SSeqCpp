@@ -1,35 +1,35 @@
 # Main todo
-- [ ] 更有效的flags=ss_cofseq
+- [ ] Add more cofseq
+- [ ] Cache contradictions
+- [ ] skip crossing case
+- [ ] f1f2=g1g2 in cofseq
+- [ ] Merge SetRingGlobal and SetModuleGlobal
 - [ ] try prefix and postfix tree for `IndexOfDivisibleLeading()`
-- [ ] E3乘法
-- [ ] synthetic cofseq
-- [x] Leibniz: perm * boundary = boundary
+- [x] synthetic cofseq
+- [x] Leibniz: perm - [ ] boundary = boundary
 - [ ] plot extensions
 - [ ] check bottom cell status
-- [ ] cofseq_cofseq
-- [ ] f1f2=g1g2 in cofseq
 - [ ] fix CW_2_eta_thetasq
 
 # Adams
+- [ ] E3乘法
 - [ ] Fast multiplication
 - [ ] Brown-Gitler
 
 # ss
-* Add more cofseq
-* Improve `ss name`
-* smaller log.db
-* Cache contradictions
+- [ ] Improve `ss name`
+- [ ] smaller log.db
 
-* Cache multiplications
-* Simplify pi generators and relations
-* Fast sync
-* Test differential monomial orderings for mod
-* Optimize deduce diff for dr=0 and increase r.
-* Support stem_trunc
+- [ ] Cache multiplications
+- [ ] Simplify pi generators and relations
+- [ ] Fast sync
+- [ ] Test differential monomial orderings for mod
+- [ ] Optimize deduce diff for dr=0 and increase r.
+- [ ] Support stem_trunc
 
 # html
-* multiplication by theta and g
-* Mark differentials that cannot be zero
+- [ ] multiplication by theta and g
+- [ ] Mark differentials that cannot be zero
 
 # Others
 ## tasks
