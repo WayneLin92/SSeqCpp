@@ -2078,6 +2078,19 @@
       "sus": 0,
       "images": [0]
     },
+    "C2__Q_CW_2_A_eta": {
+      "from": "C2",
+      "to": "S0",
+      "total": "CW_2_A_eta",
+      "sus": 0
+    },
+    "Ceta__Q_CW_2_A_eta": {
+      "from": "Ceta",
+      "to": "S0",
+      "total": "CW_2_A_eta",
+      "sub_lift": [1],
+      "sus": 2
+    },
 
     "CW_2_A_nu__C2": {
       "from": "CW_2_A_nu",
@@ -2117,6 +2130,20 @@
       "sus": 0,
       "images": [0]
     },
+    "Ceta__Q_CW_eta_A_nu": {
+      "from": "Ceta",
+      "to": "S0",
+      "total": "CW_eta_A_nu",
+      "sus": -1
+    },
+    "Cnu__Q_CW_eta_A_nu": {
+      "from": "Cnu",
+      "to": "S0",
+      "total": "CW_eta_A_nu",
+      "sub_lift": [1],
+      "sus": 3
+    },
+
     
     "CW_eta_A_sigma__Ceta": {
       "from": "CW_eta_A_sigma",
@@ -2142,6 +2169,19 @@
       "to": "Csigma",
       "sus": 0,
       "images": [0]
+    },
+    "Cnu__Q_CW_nu_A_sigma": {
+      "from": "Cnu",
+      "to": "S0",
+      "total": "CW_nu_A_sigma",
+      "sus": -3
+    },
+    "Csigma__Q_CW_nu_A_sigma": {
+      "from": "Csigma",
+      "to": "S0",
+      "total": "CW_nu_A_sigma",
+      "sub_lift": [1],
+      "sus": 5
     },
 
     //##---------- 2 A 1 ----------
@@ -2228,8 +2268,7 @@
       "from": "CW_2_eta",
       "to": "CW_eta_2",
       "total": "RP1_6",
-      "sub": [1],
-      "quo": [0, []],
+      "sub_lift": [1],
       "sus": 3
     },
 

@@ -925,21 +925,37 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
                 cells_from.push_back(c.get<int>());
 
             Mod1d sub_lift;
-            if (map_json.contains("sub_lift"))
-                for (auto& i : map_json.at("sub_lift"))
-                    sub_lift.push_back(steenrod::MMod({}, i.get<int>()));
+            if (map_json.contains("sub_lift")) {
+                for (auto& i : map_json.at("sub_lift")) {
+                    if (i.is_array()) {
+                        if (i.size())
+                            return -9;
+                        sub_lift.push_back({});
+                    }
+                    else
+                        sub_lift.push_back(steenrod::MMod({}, i.get<int>()));
+                }
+            }
             Mod1d quo_lift;
-            if (map_json.contains("quo_lift"))
-                for (auto& i : map_json.at("quo_lift"))
-                    quo_lift.push_back(steenrod::MMod({}, i.get<int>()));
+            if (map_json.contains("quo_lift")) {
+                for (auto& i : map_json.at("quo_lift")) {
+                    if (i.is_array()) {
+                        if (i.size())
+                            return -9;
+                        quo_lift.push_back({});
+                    }
+                    else
+                        quo_lift.push_back(steenrod::MMod({}, i.get<int>()));
+                }
+            }
 
             for (int i : coh_to.min_rels) {
-                steenrod::Mod rel = gb_to.data()[i];
-                rel = sub_lift.empty() ? rel : subs(rel, sub_lift);
+                steenrod::Mod rel0 = gb_to.data()[i];
+                Mod rel = sub_lift.empty() ? rel0 : subs(rel0, sub_lift);
                 rel = gb.Reduce(std::move(rel));
                 if (rel) {
                     if (quo_lift.empty()) {
-                        int rel_deg = rel.GetLead().deg_m() + coh_to.v_degs[rel.GetLead().v()];
+                        int rel_deg = rel0.GetLead().deg_m() + coh_to.v_degs[rel0.GetLead().v()];
                         int index = ut::IndexOf(cells_from, rel_deg + sus - 1);  ////
                         if (index == -1)
                             return -6;
@@ -948,8 +964,7 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
                         images.push_back(coh_from.cells[index]);
                     }
                     else {
-                        rel = quo_lift.empty() ? rel : subs(rel, quo_lift);
-                        images.push_back(std::move(rel));
+                        return -404;
                     }
                 }
                 else

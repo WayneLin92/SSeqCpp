@@ -241,7 +241,7 @@
         "S0": {"tpl123": ["ring", "S0", "160"]}
       },
       "hopf": {
-        "priority": 98,
+        "priority": 99,
         "C2": {"tpl123": ["module", "C2", "160"]},
         "Ceta": {"tpl123": ["module", "Ceta", "160"]},
         "Cnu": {"tpl123": ["module", "Cnu", "160"]},
@@ -291,6 +291,32 @@
           "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {"tpl123": ["map", "CW_etasigma_2_eta_nu_sigma", "CW_2_eta_nu_sigma", "160"]}
         }
       },
+      "V": {
+        "priority": 101,
+        "CW_2_V_eta": {"tpl123": ["module", "CW_2_V_eta", "160"]},
+        "CW_eta_V_nu": {"tpl123": ["module", "CW_eta_V_nu", "160"]},
+        "CW_nu_V_sigma": {"tpl123": ["module", "CW_nu_V_sigma", "160"]},
+
+        "CW_2_V_eta__S1": {"tpl123": ["map_vto", "CW_2_V_eta", "S1", "S0", "160"]},
+        "CW_2_V_eta__S2": {"tpl123": ["map_vto", "CW_2_V_eta", "S2", "S0", "160"]},
+        "CW_eta_V_nu__S2": {"tpl123": ["map_vto", "CW_eta_V_nu", "S2", "S0,", "160"]},
+        "CW_eta_V_nu__S4": {"tpl123": ["map_vto", "CW_eta_V_nu", "S4", "S0", "160"]},
+        "CW_nu_V_sigma__S4": {"tpl123": ["map_vto", "CW_nu_V_sigma", "S4", "S0", "160"]},
+        "CW_nu_V_sigma__S8": {"tpl123": ["map_vto", "CW_nu_V_sigma", "S8", "S0", "160"]}
+      },
+      "A": {
+        "priority": 102,
+        "CW_2_A_eta": {"tpl123": ["module", "CW_2_A_eta", "160"]},
+        "CW_eta_A_nu": {"tpl123": ["module", "CW_eta_A_nu", "160"]},
+        "CW_nu_A_sigma": {"tpl123": ["module", "CW_nu_A_sigma", "160"]},
+
+        "C2__Q_CW_2_A_eta": {"tpl123": ["map_vto", "C2", "Q_CW_2_A_eta", "S0", "160"]},
+        "Ceta__Q_CW_2_A_eta": {"tpl123": ["map_vto", "Ceta", "Q_CW_2_A_eta", "S0", "160"]},
+        "Ceta__Q_CW_eta_A_nu": {"tpl123": ["map_vto", "Ceta", "Q_CW_eta_A_nu", "S0", "160"]},
+        "Cnu__Q_CW_eta_A_nu": {"tpl123": ["map_vto", "Cnu", "Q_CW_eta_A_nu", "S0", "160"]},
+        "Cnu__Q_CW_nu_A_sigma": {"tpl123": ["map_vto", "Cnu", "Q_CW_nu_A_sigma", "S0", "160"]},
+        "Csigma__Q_CW_nu_A_sigma": {"tpl123": ["map_vto", "Csigma", "Q_CW_nu_A_sigma", "S0", "160"]}
+      },
       "Smash": {
         "priority": 101,
         "C2_Ceta": {"tpl123": ["module", "C2_Ceta", "160"]},
@@ -299,13 +325,6 @@
         "Ceta_Cnu": {"tpl123": ["module", "Ceta_Cnu", "160"]},
         "Ceta_Csigma": {"tpl123": ["module", "Ceta_Csigma", "160"]},
         "Cnu_Csigma": {"tpl123": ["module", "Cnu_Csigma", "160"]},
-
-        "CW_2_V_eta": {"tpl123": ["module", "CW_2_V_eta", "160"]},
-        "CW_eta_V_nu": {"tpl123": ["module", "CW_eta_V_nu", "160"]},
-        "CW_nu_V_sigma": {"tpl123": ["module", "CW_nu_V_sigma", "160"]},
-        "CW_2_A_eta": {"tpl123": ["module", "CW_2_A_eta", "160"]},
-        "CW_eta_A_nu": {"tpl123": ["module", "CW_eta_A_nu", "160"]},
-        "CW_nu_A_sigma": {"tpl123": ["module", "CW_nu_A_sigma", "160"]},
 
         "C2_Ceta_Cnu": {"tpl123": ["module", "C2_Ceta_Cnu", "160"]},
         "C2_Ceta__C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta", "C2_Ceta_Cnu", "160"]},

@@ -762,7 +762,7 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     Mod2d f, fd;
     int3d fh;
     int1d arr_i;
-    int t = 0;
+    int t = sus - fil; /* t should start early enoght so that degs are all in the same t */
     std::mutex print_mutex = {};
 
     for (; t <= t_trunc; ++t) {

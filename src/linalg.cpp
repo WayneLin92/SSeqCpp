@@ -197,11 +197,11 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int1d
             v = add(v, *p_Vi);
             result = add(result, *p_fi);
         }
-//#ifdef MYDEBUG
+#ifdef MYDEBUG
     if (!v.empty()) {
         throw MyException(0x6a4fe8a1U, "v is not in spaceV");
     }
-//#endif
+#endif
     return result;
 }
 
