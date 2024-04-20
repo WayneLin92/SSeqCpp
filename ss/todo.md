@@ -10,6 +10,8 @@
 - [ ] plot extensions
 - [ ] check bottom cell status
 - [ ] fix CW_2_eta_thetasq
+- [ ] CW_2_sigmasq_2
+- [ ] Leibniz rule X\smash Y
 
 # Adams
 - [ ] E3乘法

@@ -35,15 +35,10 @@ ss add_diff S0 56 9 5 0 0
 ss add_diff tmf 96 16 3 0 0
 
 //j
-ss add_diff j 16 8 2 0 0
 ss add_diff j 32 16 3 0 0
-ss add_diff j 48 24 2 0 0
 ss add_diff j 64 32 4 0 0
-ss add_diff j 80 40 2 0 0
 ss add_diff j 96 48 3 0 0
-ss add_diff j 112 56 2 0 0
 ss add_diff j 128 64 5 0 0
-ss add_diff j 144 72 2 0 0
 ss add_diff j 160 80 3 0 0
 
 ss add_diff j 37 8 2 0 0

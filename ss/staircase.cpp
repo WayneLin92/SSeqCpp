@@ -60,7 +60,7 @@ size_t GetFirstIndexOnLevel(const Staircase& sc, int level)
     return std::lower_bound(sc.levels.begin(), sc.levels.end(), level) - sc.levels.begin();
 }
 
-size_t Diagram::GetFirstIndexOfNullOnLevel(const Staircase& sc, int level)
+size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level)
 {
     int1d::const_iterator first = std::lower_bound(sc.levels.begin(), sc.levels.end(), level);
     int1d::const_iterator last = std::lower_bound(first, sc.levels.end(), level + 1);
@@ -83,7 +83,7 @@ size_t Diagram::GetFirstIndexOfNullOnLevel(const Staircase& sc, int level)
 }
 
 /* Return -1 if not found */
-int Diagram::GetMaxLevelWithND(const Staircase& sc)
+int GetMaxLevelWithND(const Staircase& sc)
 {
     size_t i = sc.levels.size();
     while (i-- > 0) {
@@ -94,7 +94,7 @@ int Diagram::GetMaxLevelWithND(const Staircase& sc)
 }
 
 /* Return if x is in the vector space <level */
-bool Diagram::IsZeroOnLevel(const Staircase& sc, const int1d& x, int level)
+bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level)
 {
     size_t first_l = GetFirstIndexOnLevel(sc, level);
     return lina::Residue(sc.basis.begin(), sc.basis.begin() + first_l, x).empty();

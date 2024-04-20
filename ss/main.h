@@ -44,7 +44,7 @@ enum class SSFlag : uint32_t
 enum class CrossType
 {
     no_cross,
-	no_strict_cross,
+    no_strict_cross,
     all_cases
 };
 
@@ -65,7 +65,7 @@ enum class EnumDef : int
     constraints = 2, /* The indeterminancies have some constraints */
 };
 
-/*
+/* TODO: change [?] to empty.
  * [0]=d2[0]
  * [1]=d2[?]
  * [2]=d3[1]
@@ -550,25 +550,7 @@ public: /* Getters */
 public:
     void SetDeduceList(const std::vector<std::string>& cws);
 
-private: /* Staircase */
-    static size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level);
-    static int GetMaxLevelWithND(const Staircase& sc);
-    static bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
-
-private: /* ss */
-    /* Warning: The following IsPoss functions do not check if ss[deg] exists */
-    /* Check if deg can be hit by dr for r<=r_max */
-    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
-    static bool IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r_max);
-    static bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
-    {
-        return IsPossTgt(nodes_ss, deg, R_PERM);
-    }
-
-    /* Return the first index with level >=`level_min` such that all levels above are already fixed */
-    static size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
-    static size_t GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int level_min);
-
+private:
     /* Count the number of all possible d_r targets. Return (index, count). */
     auto CountPossDrTgt(const Staircases1d& nodes_ss, int t_max, const AdamsDeg& deg_tgt, int r) const -> std::pair<int, int>;
     /* Warning: this assumes that there shall not be more Einf elements */
@@ -602,11 +584,6 @@ private: /* ss */
     int NextRSrcCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r) const;
 
     int1d GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d& x, int r) const;
-    /* Return the level of x or d^{-1}x */
-    int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const;
-    /* Return the minimal length of the crossing differentials */
-    int GetCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max) const;
-    int GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min) const;
 
 private:
     /* Add d_r(x)=dx and d_r^{-1}(dx)=x. */
@@ -659,7 +636,7 @@ public:
     int SetModuleDiffGlobal(size_t iMod, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
     int SetCwDiffGlobal(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool newCertain, SSFlag flag);
 
-    [[nodiscard]] int GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_dinv_x, bool maximal);
+    [[nodiscard]] int GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_dinv_x, int cross_min);
     int SetCwDiffSynthetic(IndexCw iCw, AdamsDeg deg_x, const int1d& x, const int1d& dx, int r, bool hasCross, SSFlag flag);
 
     /* Add d_r(?)=x;
@@ -691,12 +668,13 @@ public: /* Differentials */
     int DeduceDiffsCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg, int depth, SSFlag flag);
     int DeduceDiffsCofseq(int stem_min, int stem_max, int depth, SSFlag flag);
     int DeduceDiffsNbhdCofseq(CofSeq& cofseq, size_t iCs, int stem, int depth, SSFlag flag);
+
+    int CommuteCofseq(size_t iComm, SSFlag flag);
     int CommuteCofseq(SSFlag flag);
     void SyncCofseq(SSFlag flag);
 
 public:
     /* Return if Einf at deg is possibly nontrivial */
-    static int PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
     static void UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf);
     void UpdateAllPossEinf()
     {
@@ -705,8 +683,6 @@ public:
         for (auto& mod : modules_)
             UpdatePossEinf(mod.nodes_ss, mod.basis_ss_possEinf);
     }
-    /* Return if Einf at deg could have more nontrivial elements */
-    static int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
     void PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1d& isSingle) const;
     void PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d& isSingle) const;
 
@@ -875,7 +851,57 @@ inline bool BelowCokerJ(AdamsDeg deg)
     return 5 * deg.s <= deg.stem() && deg.stem() >= 10;
 }
 
+/*--------------------------------------------------------------------------------------------
+----------------------------------------   Staircase  ----------------------------------------
+---------------------------------------------------------------------------------------------*/
+
 size_t GetFirstIndexOnLevel(const Staircase& sc, int level);
+size_t GetFirstIndexOfNullOnLevel(const Staircase& sc, int level);
+int GetMaxLevelWithND(const Staircase& sc);
+bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level);
+
+/*--------------------------------------------------------------------------------------------
+------------------------------------------    ss    ------------------------------------------
+---------------------------------------------------------------------------------------------*/
+
+/* Warning: The following IsPoss functions do not check if ss[deg] exists */
+/* Check if deg can be hit by dr for r<=r_max */
+bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max);
+inline bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg)
+{
+    return IsPossTgt(nodes_ss, deg, R_PERM);
+}
+
+/* Return if Einf at deg could have nontrivial elements */
+int PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
+/* Return if Einf at deg could have more nontrivial elements */
+int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg);
+
+/* Return the level of x or d^{-1}x */
+int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level);
+/* When level of x is smaller than 5000 we set r=R_PERM and diff={} */
+void GetRAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& r, int1d& diff);
+
+/* Return the minimal length of the crossing differentials */
+int GetCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int Er);
+
+/* Return the first index with level >=`level_min` such that all levels above are already fixed 
+ * We do not support level_min < LEVEL_PERM yet
+ */
+size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min);
+
+/*--------------------------------------------------------------------------------------------
+------------------------------------------    cofseq    --------------------------------------
+---------------------------------------------------------------------------------------------*/
+
+bool IsPossTgtCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int r_max);
+size_t GetFirstIndexOfFixedLevelsCofseq(const CofSeq& cofseq, size_t iCs, AdamsDeg deg, int level_min);
+int GetCofseqCrossR(const Staircases1d& nodes_cofseq, const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int r_min, int result_min);
+
+
+/*--------------------------------------------------------------------------------------------
+------------------------------------------    Utilities    -----------------------------------
+---------------------------------------------------------------------------------------------*/
 
 /* Compute x mod (level-1) */
 inline int1d& ResidueInplace(int1d& x, const Staircase& sc, int level)

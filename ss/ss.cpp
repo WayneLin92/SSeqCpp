@@ -10,7 +10,7 @@ void pop_front(Staircase& sc)
     sc.levels.erase(sc.levels.begin());
 }
 
-bool Diagram::IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
+bool IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
 {
     r_max = std::min(r_max, deg.s);
     for (int r1 = LEVEL_MIN; r1 <= r_max; ++r1) {
@@ -21,7 +21,7 @@ bool Diagram::IsPossTgt(const Staircases1d& nodes_ss, AdamsDeg deg, int r_max)
     return false;
 }
 
-size_t Diagram::GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min)
+size_t GetFirstIndexOfFixedLevels(const Staircases1d& nodes_ss, AdamsDeg deg, int level_min)
 {
     const auto& sc = ut::GetRecentValue(nodes_ss, deg);
     size_t result = sc.levels.size();
@@ -188,7 +188,7 @@ int1d Diagram::GetDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1d
     return result;
 }
 
-int1d Diagram::GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level) const
+int1d GetLevelAndDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, int1d x, int& level)
 {
     int1d dx;
     level = -1;
@@ -234,10 +234,10 @@ bool Diagram::IsNewDiff(const Staircases1d& nodes_ss, AdamsDeg deg_x, const int1
 }
 
 /* Return the minimal length of the crossing differentials */
-int Diagram::GetCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max) const
+int GetCrossR(const Staircases1d& nodes_ss, AdamsDeg deg, int t_max, int Er)
 {
     int result = R_PERM;
-    for (int r = 1; r <= R_PERM; ++r) {
+    for (int r = 1; r <= Er - 2; ++r) {
         auto deg_x = deg + AdamsDeg{r, r};
         if (r + LEVEL_MIN > result)
             return result;
@@ -1155,7 +1155,7 @@ int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, co
     size_t iCs_next = (iCs + 1) % 3;
     auto iCw = cofseq.indexCw[iCs];
     auto iCw_next = cofseq.indexCw[iCs_next];
-    auto& ring = iCw.isRing ? rings_[iCw.index] : rings_[modules_[iCw.index].iRing]; //// Assuming that the rings are the same
+    auto& ring = iCw.isRing ? rings_[iCw.index] : rings_[modules_[iCw.index].iRing];  //// Assuming that the rings are the same
     using BasisVariant = std::variant<std::map<AdamsDeg, Mon1d>*, std::map<AdamsDeg, MMod1d>*>;
     BasisVariant basis1 = iCw.isRing ? BasisVariant(&ring.basis) : BasisVariant(&modules_[iCw.index].basis);
     BasisVariant basis2 = iCw_next.isRing ? BasisVariant(&ring.basis) : BasisVariant(&modules_[iCw_next.index].basis);
@@ -1231,3 +1231,4 @@ int Diagram::SetDiffLeibnizCofseq(CofSeq& cofseq, size_t iCs, AdamsDeg deg_x, co
     }
     return count;
 }
+

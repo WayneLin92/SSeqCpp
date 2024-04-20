@@ -83,10 +83,10 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
 {
     int lineNum = 0;
     std::string filenameLog;
-    std::string diagram_name = "mix-hopf";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {{"filenameLog", &filenameLog}, {"lineNum", &lineNum}};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d args = {{"filenameLog", &filenameLog}, {"lineNum", &lineNum}, {"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
     if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -96,7 +96,7 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
     std::ifstream fileLog(filenameLog);
     std::string line;
     int count_lines = 0, count_diffs = 0;
-    std::regex is_duduce_regex("^(?:deduce - |)(\\w+) \\((\\d+), (\\d+)\\) d_(\\d+)\\[((?:\\d|\\s|,)*)\\]=\\[((?:\\d|\\s|,)*)\\]"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
+    std::regex is_duduce_regex("^(?:deduce - |)((?:\\w|_|)+) \\((\\d+),(?:\\s|)(\\d+)\\) d_(\\d+)\\[((?:\\d|\\s|,)*)\\]=\\[((?:\\d|\\s|,)*)\\]"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
     std::smatch match;
 
     std::string cw;
@@ -104,29 +104,27 @@ int main_add_diff_from_file(int argc, char** argv, int& index, const char* desc)
     int1d x, dx;
     Diagram diagram(diagram_name, flag);
 
-    try {
-        while (std::getline(fileLog, line) && count_lines++ < lineNum) {
-            if (std::regex_search(line, match, is_duduce_regex); match[0].matched) {
-                cw = match[1].str();
-                stem = std::stoi(match[2].str());
-                s = std::stoi(match[3].str());
-                r = std::stoi(match[4].str());
+    while (std::getline(fileLog, line) && count_lines++ < lineNum) {
+        if (std::regex_search(line, match, is_duduce_regex); match[0].matched) {
+            cw = match[1].str();
+            stem = std::stoi(match[2].str());
+            s = std::stoi(match[3].str());
+            r = std::stoi(match[4].str());
 
-                AdamsDeg deg_x(s, stem + s);
-                x = myio::Deserialize<int1d>(match[5].str());
-                dx = myio::Deserialize<int1d>(match[6].str());
+            AdamsDeg deg_x(s, stem + s);
+            x = myio::Deserialize<int1d>(match[5].str());
+            dx = myio::Deserialize<int1d>(match[6].str());
 
-                auto iCw = diagram.GetIndexCwByName(cw);
+            auto iCw = diagram.GetIndexCwByName(cw);
+            if (diagram.IsNewDiff(diagram.GetSS(iCw), deg_x, x, dx, r)) {
                 Logger::LogDiff(0, EnumReason::manual, diagram.GetCwName(iCw), deg_x, x, dx, r);
                 count_diffs += diagram.SetCwDiffGlobal(iCw, deg_x, x, dx, r, false, flag);
-            }
-            if (count_lines % 10000 == 0) {
-                fmt::print("Deduce trivial diffs\n\n");
-                diagram.DeduceTrivialDiffs(flag);
-            }
+			}
         }
-    }
-    catch (SSException&) {
+        if (count_lines % 10000 == 0) {
+            fmt::print("Deduce trivial diffs\n\n");
+            diagram.DeduceTrivialDiffs(flag);
+        }
     }
 
     diagram.save(diagram_name, flag);

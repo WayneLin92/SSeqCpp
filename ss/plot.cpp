@@ -167,7 +167,7 @@ void plotBullets(const CofSeq& cofseq, size_t iCs, const Diagram& diagram, const
             n = (int)nodes_cofseq.front().at(deg).levels.size();
         int extra_b = 0;
 
-        if (Diagram::PossMoreEinf(nodes_ss, deg)) {
+        if (PossMoreEinf(nodes_ss, deg)) {
             extra_b = 1;
             js["bullets_p"].push_back(nlohmann::json::object());
             auto& bullet = js["bullets_p"].back();
@@ -333,6 +333,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
       "prods": {"0": [{"p": [0, 1], "l"(is structure line): 0}]},
       "diffs": [{"i": 0, "j": [0, 1], "r": 2}],
       "nds": [{"i": 0, "r": 2}],
+      "time": "2021-09-01 12:00:00"
     }
     */
 
@@ -471,6 +472,8 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
             }
         }
 
+        js["time"] = ut::get_time();
+
         auto out = fmt::output_file(plot_dir + "/" + name + ".js");
         out.print("globalThis.DATA_JSON_{} = {};\n", name, js.dump(1));
     }
@@ -607,7 +610,8 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
           "nds": {"i": 0, "r": 2}
         },
         {}, {}
-      ]
+      ],
+      "time": "2021-09-01 12:00:00"
     }
     */
 
@@ -697,6 +701,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
             }
         }
 
+        js["time"] = ut::get_time();
         auto out = fmt::output_file(plot_dir + "/" + cofseq.name + ".js");
         out.print("globalThis.DATA_JSON_{} = {};\n", cofseq.name, js.dump(1));
     }

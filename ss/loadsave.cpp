@@ -206,7 +206,9 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
         maps_.reserve(json_maps.size());
         for (auto& json_map : json_maps) {
             auto name = json_map.at("name").get<std::string>();
-            auto display = json_map.contains("display") ? json_map["display"].get<std::string>() : name;
+            auto display = name;
+            auto str_pos = display.find("__", 0, 2);
+            display.replace(str_pos, 2, " -> ");
             std::string from = json_map.at("from").get<std::string>(), to = json_map.at("to").get<std::string>();
             std::unique_ptr<Map> map;
 
@@ -429,16 +431,20 @@ Diagram::Diagram(std::string diagram_name, SSFlag flag, bool log, bool loadD2)
                 MyException::Assert(if0 >= 0, "if0 >= 0");
                 MyException::Assert(if1 >= 0, "if1 >= 0");
                 MyException::Assert(maps_[if0]->to == maps_[if1]->from, "f0->to == f1->from");
+                MyException::Assert(maps_[if0]->ind_cof.iCof != -1, fmt::format("{}->ind_cof.iCof != -1", maps_[if0]->name));
+                MyException::Assert(maps_[if1]->ind_cof.iCof != -1, fmt::format("{}->ind_cof.iCof != -1", maps_[if1]->name));
                 int ig0 = -1, ig1 = -1;
                 if (json_comm.at("g").size() >= 1) {
                     auto g0 = json_comm.at("g")[0].get<std::string>();
                     ig0 = GetMapIndexByName(g0);
                     MyException::Assert(ig0 >= 0, "ig0 >= 0");
+                    MyException::Assert(maps_[ig0]->ind_cof.iCof != -1, fmt::format("{}->ind_cof.iCof != -1", maps_[ig0]->name));
                 }
                 if (json_comm.at("g").size() >= 2) {
                     auto g1 = json_comm.at("g")[1].get<std::string>();
                     ig1 = GetMapIndexByName(g1);
                     MyException::Assert(ig1 >= 0, "ig1 >= 0");
+                    MyException::Assert(maps_[ig1]->ind_cof.iCof != -1, fmt::format("{}->ind_cof.iCof != -1", maps_[ig1]->name));
                 }
                 auto name = json_comm.at("name").get<std::string>();
                 comms_.push_back(Commutativity{name, if0, if1, ig0, ig1});

@@ -173,7 +173,7 @@ int Diagram::DeduceDiffBySynthetic(SSFlag flag)
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     if (sc.levels[i] > LEVEL_PERM && sc.diffs[i] != NULL_DIFF) {
                         const int r = LEVEL_MAX - sc.levels[i];
-                        bool hasCross = GetCrossR(nodes_ss, d, GetTMax(iCw)) <= r;
+                        bool hasCross = GetCrossR(nodes_ss, d, GetTMax(iCw), r) <= r;
                         count += SetCwDiffSynthetic(iCw, d, sc.basis[i], sc.diffs[i], r, hasCross, flag);
                     }
                 }
@@ -187,7 +187,7 @@ int Diagram::DeduceDiffBySynthetic(SSFlag flag)
     return count;
 }
 
-/* Deduce zero differentials for degree reason */
+/* Deduce differentials by synthetic method */
 int Diagram::DeduceDiffBySyntheticCofseq(SSFlag flag)
 {
     int old_count = 0, count = 0;
@@ -205,13 +205,13 @@ int Diagram::DeduceDiffBySyntheticCofseq(SSFlag flag)
                         if (sc.diffs[i] == NULL_DIFF && sc.levels[i] > LEVEL_MAX / 2) {
                             AdamsDeg deg_fx;
                             int1d fx;
-                            if (GetSynImage(IndexCof{iCof, iCs}, deg, sc.basis[i], LEVEL_PERM, deg_fx, fx, -1, true) == 0) {
+                            if (GetSynImage(IndexCof{iCof, iCs}, deg, sc.basis[i], LEVEL_PERM, deg_fx, fx, -1, 0) == 0) { ////
                                 int r = deg_fx.s - deg.s;
                                 if (r == maps_[cofseq.indexMap[iCs]]->deg.s)
                                     continue;
                                 fx = Residue(fx, *cofseq.nodes_ss[iCs_next], deg_fx, LEVEL_PERM);
                                 if (fx.size() && IsNewDiff(*cofseq.nodes_ss[iCs_next], deg_fx, fx, int1d{}, R_PERM - 1)) {
-                                    Logger::LogDiff(depth_, EnumReason::synext, cofseq.nameCw[iCs_next], deg_fx, fx, int1d{}, R_PERM - 1);
+                                    Logger::LogDiff(depth_, EnumReason::synext_p, cofseq.nameCw[iCs_next], deg_fx, fx, int1d{}, R_PERM - 1);
                                     SetCwDiffGlobal(cofseq.indexCw[iCs_next], deg_fx, fx, int1d{}, R_PERM - 1, true, flag);
                                 }
                                 if (IsNewDiffCofseq(cofseq, iCs, deg, sc.basis[i], fx, r)) {
@@ -649,10 +649,15 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
 
     SSFlag flag = SSFlag::synthetic | SSFlag::cofseq;
     Diagram diagram(diagram_name, flag, true);
-    int count = diagram.DeduceDiffBySynthetic(flag);
+    int count = 0;
+    //count += diagram.CommuteCofseq(flag);
+    //count += diagram.DeduceTrivialDiffsCofseq(flag);
+
+    //count += diagram.DeduceDiffsCofseq(0, 300, 0, flag);
+    count += diagram.DeduceDiffBySynthetic(flag);
     count += diagram.DeduceDiffBySyntheticCofseq(flag);
     Logger::LogSummary("Changed differentials", count);
-
+    //diagram.save(diagram_name, flag);
     return 0;
 }
 
