@@ -1194,7 +1194,7 @@ int main_cellstructure(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     int1d v_degs;

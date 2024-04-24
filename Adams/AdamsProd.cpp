@@ -907,7 +907,7 @@ int main_prod_hi(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}};
     myio::CmdArg1d op_args = {{"db_S0", &db_S0}, {"db_mod", &db_mod}, {"db_out", &db_out}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     if (db_mod == "<cw>_Adams_res.db")
@@ -928,7 +928,7 @@ int main_prod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
 /* Prevent double run on linux */
@@ -951,7 +951,7 @@ int main_prod_mod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
 /* Prevent double run on linux */
@@ -976,7 +976,7 @@ int main_map_res(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
 /* Prevent double run on linux */

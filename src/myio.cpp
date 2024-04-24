@@ -211,7 +211,7 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
     return 0;
 }
 
-int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args)
+int ParseArguments(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args)
 {
     if (index < argc && strcmp(argv[index], "-h") == 0) {
         auto cmd = fmt::format("{} {}", program, fmt::join(argv + 1, argv + index, " "));
@@ -234,7 +234,7 @@ void PrintHelp(const std::string& cmd, const char* description, const char* vers
     fmt::print("\n{} {}\n", version, COMPILE_MODE);
 }
 
-int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds)
+int ParseSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds)
 {
     if (index < argc && strcmp(argv[index], "-h") == 0) {
         std::string cmd = program;

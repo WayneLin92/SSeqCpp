@@ -444,7 +444,7 @@ int main_2cell_prod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     compute_2cell_products_by_t(t_max, mod, ring);
@@ -459,7 +459,7 @@ int main_2cell(int argc, char** argv, int& index, const char* desc)
         {"prod", "Compute the multiplications", main_2cell_prod},
         {"export", "Export the Adams E2 page.", main_2cell_export},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }

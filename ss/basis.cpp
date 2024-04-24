@@ -93,7 +93,7 @@ int main_add_basis(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram}, {"name", &name}, {"r", &r}, {"t_max", &t_max}};  // TODO: with diagram only
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     generate_db(diagram, name, t_max, r);

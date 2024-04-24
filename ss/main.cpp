@@ -56,7 +56,7 @@ int main(int argc, char** argv)
         {"mul", "Display the product", main_mul},
     };
     int index = 1;
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Manage spectral sequences and homotopy groups", VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, "Manage spectral sequences and homotopy groups", VERSION, subcmds))
         return error;
 
     Logger::LogTime(timer.print2str());

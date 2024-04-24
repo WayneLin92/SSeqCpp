@@ -599,7 +599,7 @@ int main_scheduler_status(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SchedulerStatus();
@@ -610,7 +610,7 @@ int main_scheduler_killall(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SchedulerKillAll();
@@ -621,7 +621,7 @@ int main_scheduler_killsch(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SchedulerKillScheduler();
@@ -632,7 +632,7 @@ int main_scheduler_run_once(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     if (!myio::FileExists("tasks.json")) {
@@ -652,7 +652,7 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
 {
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
         
 /* Prevent double run on linux */
@@ -692,7 +692,7 @@ int main_scheduler(int argc, char** argv, int& index, const char* desc)
         {"killall", "Kill all running Adams tasks", main_scheduler_killall},
         {"killsch", "Kill scheduler loop", main_scheduler_killsch}
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }
@@ -702,7 +702,7 @@ int main_test(int argc, char** argv, int& index, const char* desc)
     std::string cmd_prefix;
     myio::CmdArg1d args = {{"cmd_prefix", &cmd_prefix}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("IsAdamsRunning({}) = {}\n", cmd_prefix, IsAdamsRunning(cmd_prefix));

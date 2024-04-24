@@ -497,7 +497,7 @@ int main_deduce_diff(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {{"deduce/flags...", &options}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::no_op;
@@ -553,7 +553,7 @@ int main_deduce_diff_v2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::no_op;
@@ -573,7 +573,7 @@ int main_deduce_cofseq(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {{"flags...", &strFlags}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::cofseq;
@@ -607,7 +607,7 @@ int main_deduce_synthetic(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::synthetic | SSFlag::cofseq;
@@ -625,7 +625,7 @@ int main_deduce_manual(int argc, char** argv, int& index, const char* desc)
     std::string diagram_name;
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::cofseq;
@@ -644,7 +644,7 @@ int main_deduce_test(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::synthetic | SSFlag::cofseq;
@@ -681,7 +681,7 @@ int main_deduce(int argc, char** argv, int& index, const char* desc)
         {"manual", "Deduce by hard-coded human knowledge", main_deduce_manual},
         {"test", "For debugging", main_deduce_test},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
 
     return 0;

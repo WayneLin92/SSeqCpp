@@ -164,7 +164,7 @@ struct CmdArg
 };
 using CmdArg1d = std::vector<CmdArg>;
 
-int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args);
+int ParseArguments(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args);
 
 /* Return true if user inputs Y; Return false if user inputs N */
 bool UserConfirm();
@@ -179,7 +179,7 @@ struct SubCmdArg
 };
 using SubCmdArg1d = std::vector<SubCmdArg>;
 
-int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
+int ParseSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
 
 /*********************************************************
                      json

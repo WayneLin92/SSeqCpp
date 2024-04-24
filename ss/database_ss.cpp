@@ -257,7 +257,7 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_ss {}\n", diagram_name);
@@ -285,7 +285,7 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_cofseq {}\n", diagram_name);
@@ -305,7 +305,7 @@ int main_reset_pi(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_pi {}\n", diagram_name);

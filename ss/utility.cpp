@@ -12,7 +12,7 @@ int main_mul(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}, {"stem1", &stem1}, {"s1", &s1}, {"x1", &str_x1}, {"stem2", &stem2}, {"s2", &s2}, {"x2", &str_x2}};
     myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     AdamsDeg d1(s1, stem1 + s1), d2(s2, stem2 + s2), d3(d1 + d2);

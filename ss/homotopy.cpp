@@ -1896,7 +1896,7 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi;
@@ -1944,7 +1944,7 @@ int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi;

@@ -848,7 +848,7 @@ int main_res_csv(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"db", &db_filename}, {"table", &table_name}, {"out_csv", &out_csv}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     DbAdamsRes db(db_filename);

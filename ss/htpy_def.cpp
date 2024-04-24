@@ -508,7 +508,7 @@ int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi | SSFlag::pi_def;
@@ -548,7 +548,7 @@ int main_deduce_ext_def2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"stem_max_mult", &stem_max_mult}, {"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi | SSFlag::pi_def;

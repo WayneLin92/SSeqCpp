@@ -308,7 +308,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -581,7 +581,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -749,7 +749,7 @@ int main_plot_pi(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     Diagram diagram(diagram_name, SSFlag::pi);
@@ -925,7 +925,7 @@ int main_name_reset(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -964,7 +964,7 @@ int main_name_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"gen_names_json", &gen_names_json}, {"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1022,7 +1022,7 @@ int main_name_import(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"gen_names_json", &gen_names_json}, {"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1118,7 +1118,7 @@ int main_name_defaultS0(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1160,7 +1160,7 @@ int main_name_cell(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1313,7 +1313,7 @@ int main_name_pullback(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1397,7 +1397,7 @@ int main_name_pushforward(int argc, char** argv, int& index, const char* desc)
     std::string diagram_name;
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     using json = nlohmann::json;
@@ -1570,7 +1570,7 @@ int main_name(int argc, char** argv, int& index, const char* desc)
         {"pullback", "Pull-back names along maps", main_name_pullback},
         {"pushforward", "push-forward names along maps", main_name_pushforward},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
 
     return 0;

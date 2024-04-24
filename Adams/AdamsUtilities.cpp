@@ -560,7 +560,7 @@ int main_status(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"options", &options}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     std::string dir = ".";
@@ -582,7 +582,7 @@ int main_verify_status(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}, {"options", &options}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
     bool sorted = false;
     for (auto& op : options) {
@@ -601,7 +601,7 @@ int main_ut_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtExport(dir);
@@ -614,7 +614,7 @@ int main_ut_rename(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"old", &old}, {"new", &new_}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtRename(old, new_);
@@ -627,7 +627,7 @@ int main_ut_app_t_max(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAppendTmaxToFilename(dir);
@@ -640,7 +640,7 @@ int main_ut_ss_json(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtPrintSSJson(dir);
@@ -653,7 +653,7 @@ int main_ut_add_from_to(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAddFromTo(dir);
@@ -667,7 +667,7 @@ int main_ut_add_t_max(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"db", &db_filename}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAddTMax(db_filename, t_max);
@@ -684,7 +684,7 @@ int main_ut(int argc, char** argv, int& index, const char* desc)
         {"add_from_to", "For compatibility: add from to info to databases of maps", main_ut_add_from_to},
         {"add_t_max", "For compatibility: add t_max info to the database", main_ut_add_t_max},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }

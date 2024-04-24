@@ -114,6 +114,19 @@
       "cells_gen": [0, 125],
       "free": true
     },
+    "CW_eta_theta5sq": {
+      "summands": [["Ceta", 0], ["S0", 127]]
+    },
+    "CW_2_sigmasq_2": {
+      "cells_gen": [0],
+      "cells": [0, 1, 16, 17],
+      "operations": [
+        [0, 1],
+        [0, 16],
+        [1, 17],
+        [16, 17]
+      ]
+    },
     "CW_sigmasq_2_sigmasq": {
       "cells_gen": [0, 15],
       "cells": [0, 15, 16, 31],

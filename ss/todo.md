@@ -12,6 +12,7 @@
 - [ ] fix CW_2_eta_thetasq
 - [ ] CW_2_sigmasq_2
 - [ ] Leibniz rule X\smash Y
+- [ ] C2h4 d2 data
 
 # Adams
 - [ ] E3乘法

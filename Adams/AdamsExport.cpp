@@ -1070,7 +1070,7 @@ int main_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     ExportRingAdamsE2(ring, t_max, stem_max);
@@ -1084,7 +1084,7 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
 
@@ -1100,6 +1100,10 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
                 ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
                 return 0;
             }
+            else if (cw_json.contains("summands")) {
+				Export2Cell(mod, ring, t_max, stem_max);
+				return 0;
+            }
         }
     }
     
@@ -1113,7 +1117,7 @@ int main_export_d2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
     ExportAdamsD2(cw);
     return 0;
@@ -1126,7 +1130,7 @@ int main_export_map(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
     
     {
@@ -1159,7 +1163,7 @@ int main_2cell_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     Export2Cell(mod, ring, t_max, stem_max);

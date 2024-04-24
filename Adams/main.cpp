@@ -54,7 +54,7 @@ int main(int argc, char** argv)
         {"test", "test", main_test}
     };
     int index = 1;
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))
         return error;
     return 0;
 }

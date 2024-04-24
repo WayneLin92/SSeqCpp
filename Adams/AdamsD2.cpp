@@ -528,7 +528,7 @@ int main_d2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"nTry", &nTry}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
 /* Prevent double run on linux */

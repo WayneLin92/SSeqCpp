@@ -261,7 +261,7 @@ int main_import_chua_d2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     auto flag_no_op = SSFlag::no_op;
@@ -290,7 +290,7 @@ int main_migrate_ss(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram1", &diagram_name1}, {"diagram2", &diagram_name2}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     auto flag_no_op = SSFlag::no_op;
@@ -320,7 +320,7 @@ int main_migrate_pi(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram1", &diagram_name1}, {"diagram2", &diagram_name2}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi | SSFlag::pi_def;
@@ -351,7 +351,7 @@ int main_resetfrom(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}, {"diagram_from", &diagram_name_from}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     std::vector<std::string> names, paths;
@@ -376,7 +376,7 @@ int main_truncate(int argc, char** argv, int index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     std::vector<std::string> names, paths;
