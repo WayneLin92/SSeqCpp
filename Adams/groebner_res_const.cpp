@@ -41,9 +41,7 @@ AdamsResConst::AdamsResConst(DataMResConst2d data, int2d basis_degrees) : gb_(st
 
 Mod AdamsResConst::DiffInv(Mod x, size_t s) const
 {
-    Milnor tmp_a;
     Mod result, tmp_x1, tmp_x2;
-    tmp_a.data.reserve(50);
     tmp_x1.data.reserve(100);
     tmp_x2.data.reserve(100);
 
@@ -53,8 +51,8 @@ Mod AdamsResConst::DiffInv(Mod x, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
-            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
-            result.iaddmulP(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
+            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_x1, tmp_x2);
+            result.iaddmulP(m, gb_[s][gb_index].x2, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -69,7 +67,7 @@ Mod AdamsResConst::DiffInv(Mod x, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.data[index], gb_[sp1][gb_index].x1.data[0]);
-            result.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -92,11 +90,9 @@ using IndexMMod1d = std::vector<IndexMMod>;
 void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
 {
     Mod tmp_x, prod_x1, prod_x2;
-    Milnor tmp_a;
     tmp_x.data.reserve(64);
     prod_x1.data.reserve(64);
     prod_x2.data.reserve(64);
-    tmp_a.data.reserve(64);
 
     IndexMMod1d heap;
     heap.reserve(64);
@@ -110,8 +106,8 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
         int gb_index = s < leads_.size() ? IndexOfDivisibleLeading(leads_[s], indices_[s], term) : -1;
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[s][gb_index].x1.data[0]);
-            mulP(m, gb_[s][gb_index].x1, prod_x1, tmp_a);
-            mulP(m, gb_[s][gb_index].x2, prod_x2, tmp_a);
+            mulP(m, gb_[s][gb_index].x1, prod_x1);
+            mulP(m, gb_[s][gb_index].x2, prod_x2);
 
             while (!heap.empty() && heap.front().m == term) {
                 unsigned i = heap.front().i, index = heap.front().index;
@@ -160,7 +156,7 @@ void AdamsResConst::DiffInvBatch(Mod1d xs, Mod1d& result, size_t s) const
         int gb_index = sp1 < leads_.size() ? IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], term) : -1;
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[sp1][gb_index].x1.data[0]);
-            mulP(m, gb_[sp1][gb_index].x1, prod_x1, tmp_a);
+            mulP(m, gb_[sp1][gb_index].x1, prod_x1);
 
             while (!heap.empty() && heap.front().m == term) {
                 unsigned i = heap.front().i, index = heap.front().index;
