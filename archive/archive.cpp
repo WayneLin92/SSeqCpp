@@ -1072,3 +1072,135 @@ int Diagram::GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int leve
     fx = lina::GetImage(image, g, dxtop);
     return 0;
 }
+
+/************************************* MilnorX ***********************************************/
+
+
+struct MilnorXij
+{
+    uint8_t x, r, s, t;
+};
+
+ class MilnorX
+{
+private:
+    size_t i = XI_MAX - 1, j = 1;
+    bool decrease = false, move_right = false;
+
+public:
+    std::array<MilnorXij, DIMX * DIMX> X;
+    bool valid = true;
+
+    std::string Str() const
+    {
+        std::string result;
+        for (size_t i = 0; i < DIMX; ++i) {
+            for (size_t j = 0; j < DIMX; ++j) {
+                size_t index = i * DIMX + j;
+                fmt::format_to(std::back_inserter(result), "({},{},{},{}) ", ToStr(X[index].x), ToStr(X[index].r), ToStr(X[index].s), ToStr(X[index].t));
+            }
+            result += '\n';
+        }
+        return result;
+    }
+    MilnorX(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S)
+    {
+        constexpr size_t N = XI_MAX;
+
+        if (R[N - 1] & S[N - 1]) {
+            valid = false;
+            return;
+        }
+        X[N].x = R[N - 1];
+        for (size_t i = 1; i < N; ++i) {
+            X[i * DIMX].t = 0;
+            X[i * DIMX + (N - i)].r = R[N - i - 1];
+            X[i * DIMX + (N - i)].s = S[i - 1];
+        }
+        X[(N - 1) * DIMX + 1].t = R[N - 1] | S[N - 1];
+        ++(*this);
+    }
+    MilnorX& operator++()
+    {
+        constexpr size_t N = XI_MAX;
+        while (true) {
+            if (move_right) { /* Seek the next position of nontrivial X[i * DIMX + j].x */
+                do {
+                    if (i + j < N)
+                        ++j;
+                    else {
+                        ++i;
+                        j = 1;
+                    }
+                } while (i < N && X[i * DIMX + j].x == 0);
+                if (i >= N)
+                    break;
+                decrease = true;
+                move_right = false;
+            }
+            if (j) {
+                const size_t index = i * DIMX + j;
+                const size_t index_up = index - DIMX;
+                const size_t index_up_right = index_up + 1;
+                const size_t index_left = index - 1;
+                if (i == 1) {
+                    /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
+                    if (decrease) {
+                        (--X[index].x) &= ~(X[index].t | X[index_up_right].x);
+                        decrease = false;
+                    }
+                    else
+                        X[index].x = max_mask(std::min(uint8_t(X[index].r >> i), X[index].s), X[index].t | X[index_up_right].x);
+                    X[index_up].x = X[index].r - (X[index].x << 1);
+                    if (X[index_up].x & X[index_left].t) {
+                        if (X[index].x)
+                            decrease = true;
+                        else
+                            move_right = true;
+                    }
+                    else {
+                        X[index_left].s = X[index].s - X[index].x;
+                        X[index_up_right].t = X[index].t | X[index].x | X[index_up_right].x;
+                        --j;
+                    }
+                }
+                else {
+                    if (decrease) {
+                        (--X[index].x) &= ~X[index].t;
+                        decrease = false;
+                    }
+                    else
+                        X[index].x = max_mask(std::min(uint8_t(X[index].r >> i), X[index].s), X[index].t);
+                    X[index_left].s = X[index].s - X[index].x;
+                    X[index_up].r = X[index].r - (X[index].x << i);
+                    X[index_up_right].t = X[index].t | X[index].x;
+                    --j;
+                }
+            }
+            else {
+                if (i == 1) {
+                    if (!(X[DIMX].s & X[1].x)) {
+                        X[1].t = X[DIMX].s | X[1].x;
+                        // fmt::print("{}\n", Str());
+                        move_right = true;
+                        return *this;
+                    }
+                    move_right = true;
+                }
+                else {
+                    X[(i - 1) * DIMX + 1].t = X[i * DIMX].s;
+                    j = N - (--i);
+                }
+            }
+        }
+        valid = false;
+        return *this;
+    }
+};
+
+void MulMilnorV3(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result_app)
+{
+    for (MilnorX X(R, S); X.valid; ++X) {
+        result_app.push_back(MMilnor::Xi(X.X.data() + 1));
+    }
+}

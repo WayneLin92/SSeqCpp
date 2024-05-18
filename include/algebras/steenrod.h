@@ -19,6 +19,7 @@ using int1d = std::vector<int>;
 using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 using int4d = std::vector<int3d>;
+using size1d = std::vector<size_t>;
 
 /********************************************************
  *                  class Milnor
@@ -599,7 +600,7 @@ struct Mod
         return iaddP(rhs, tmp);
     }
     /* `*this += m * x` */
-    Mod& iaddmulP(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2);
+    Mod& iaddmulP(MMilnor m, const Mod& x, Mod& tmp_x1, Mod& tmp_x2);
     Mod& iaddmulMay(MMilnor m, const Mod& x, Mod& tmp);
     bool operator==(const Mod& rhs) const
     {
@@ -613,15 +614,14 @@ using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
-void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
+void mulP(MMilnor m, const Mod& x, Mod& result);
 inline Mod operator*(MMilnor m, const Mod& x)
 {
     Mod result;
-    Milnor tmp;
-    mulP(m, x, result, tmp);
+    mulP(m, x, result);
     return result;
 }
-void MulMayP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
+void MulMayP(MMilnor m, const Mod& x, Mod& result);
 Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
@@ -642,10 +642,10 @@ Mod mulLF(MMilnor m, const Mod& x);
 /**
  * Replace v_i with `map[i]`.
  */
-inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
+inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Mod& tmp_x1, Mod& tmp_x2)
 {
     for (const MMod& mv : x.data)
-        result.iaddmulP(mv.m(), map[mv.v()], tmp_a, tmp_x1, tmp_x2);
+        result.iaddmulP(mv.m(), map[mv.v()], tmp_x1, tmp_x2);
 }
 
 /**
@@ -654,8 +654,7 @@ inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mo
 inline Mod subs(const Mod& x, const Mod1d& map)
 {
     Mod result, tmp_x1, tmp_x2;
-    Milnor tmp_a;
-    subsP(x, map, result, tmp_a, tmp_x1, tmp_x2);
+    subsP(x, map, result, tmp_x1, tmp_x2);
     return result;
 }
 

@@ -38,7 +38,7 @@ struct CriMilnor
         result.i2 = j;
         return result;
     }
-    void Sij(const Groebner& gb, Mod& result, Milnor& tmp_a, Mod& tmp1, Mod& tmp2) const;
+    void Sij(const Groebner& gb, Mod& result, Mod& tmp1, Mod& tmp2) const;
 };
 using CriMilnor1d = std::vector<CriMilnor>;
 using CriMilnor2d = std::vector<CriMilnor1d>;
