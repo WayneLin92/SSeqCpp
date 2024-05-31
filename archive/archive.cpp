@@ -874,3 +874,333 @@ void benchmark_B9_Lex()
     size_t answer = 402;
     std::cout << "new: " << gb.size() << "==" << answer << '\n';
 }
+
+namespace mydetail {
+template <typename T, std::size_t N>
+constexpr void QuickSort(std::array<T, N>& array, std::size_t low, std::size_t high)
+{
+    if (high <= low)
+        return;
+    auto i = low, j = high + 1;
+    auto key = array[low];
+    for (;;) {
+        while (array[++i] < key && i < high)
+            ;
+        while (key < array[--j] && j > low)
+            ;
+        if (i >= j)
+            break;
+        auto tmp = array[i];
+        array[i] = array[j];
+        array[j] = tmp;
+    }
+
+    auto tmp = array[low];
+    array[low] = array[j];
+    array[j] = tmp;
+
+    if (j > 0)
+        QuickSort(array, low, j - 1);
+    QuickSort(array, j + 1, high);
+}
+
+template <typename T, std::size_t N>
+constexpr std::array<T, N> QuickSort(std::array<T, N> array)
+{
+    QuickSort(array, 0, N - 1);
+    return array;
+}
+}  // namespace mydetail
+
+int Diagram::GetSynImage(IndexCof iCof, AdamsDeg deg_x, const int1d& x, int level_x, AdamsDeg& deg_fx, int1d& fx, int s_f_dinv_x, bool maximal)
+{
+    auto& cof = cofseqs_[iCof.iCof];
+    auto iCs = size_t(iCof.iCs);
+    auto iCs_next = (iCs + 1) % 3;
+    auto iCs_prev = (iCs + 2) % 3;
+    auto& f = maps_[cof.indexMap[iCs]];
+    auto& f_next = maps_[cof.indexMap[iCs_next]];
+    auto& f_prev = maps_[cof.indexMap[iCs_prev]];
+
+    if (deg_x.t > f->t_max)
+        return -1;
+    fx = f->map(x, deg_x, *this);
+
+    AdamsDeg deg_xtop, deg_dxtop;
+    int1d xtop, dxtop;
+    int level_xtop = -1, r_xtop = -1;
+    auto& nodes_ss_prev = *cof.nodes_ss[iCs_prev];
+    if (fx.size()) {
+        deg_fx = deg_x + f->deg;
+        int level_fx;
+        auto dinv_fx = GetLevelAndDiff(*cof.nodes_ss[iCs_next], deg_fx, fx, level_fx);
+        int r_new = deg_fx.s - s_f_dinv_x;
+        if (level_fx >= r_new)
+			return 0;
+
+        /* compute xtop 
+         * dinv_fx --f_next--> xtop
+         */
+        if (dinv_fx == NULL_DIFF)
+			return -2;
+        if (deg_fx.t > f_next->t_max)
+            return -3;
+        auto deg_dinv_fx = deg_fx - AdamsDeg(level_fx, level_fx - 1);
+        xtop = f_next->map(dinv_fx, deg_dinv_fx, *this);
+        if (xtop.empty())
+            return -4;
+        deg_xtop = deg_dinv_fx + f_next->deg;
+        dxtop = GetLevelAndDiff(nodes_ss_prev, deg_xtop, xtop, level_xtop);
+        if (dxtop == NULL_DIFF)
+            return -5;
+        if (level_xtop <= level_x - (deg_x.s - deg_xtop.s))
+            return -6;
+
+        AdamsDeg deg_x1;
+        int1d x1;
+        if (GetSynImage(IndexCof{iCof.iCof, iCs_prev}, deg_xtop, xtop, level_xtop, deg_x1, x1, -1, true) != 0)
+            return -7;
+        if (deg_x1 != deg_x)
+            return -8;
+        auto& nodes_ss = *cof.nodes_ss[iCs];
+        auto& sc_x = ut::GetRecentValue(nodes_ss, deg_x);
+        size_t iFirst_level_x = GetFirstIndexOnLevel(sc_x, level_x);
+        if (lina::Residue(sc_x.basis.begin(), sc_x.basis.begin() + iFirst_level_x, lina::add(x, x1)).size())
+            return -9;
+        r_xtop = LEVEL_MAX - level_xtop;
+    }
+
+    if (xtop.empty())
+    {
+        /* compute xtop
+         * xtop --f_prev--> x
+         */
+        deg_xtop = deg_x - f_prev->deg;
+        if (deg_xtop.t > f_prev->t_max)
+            return -10;
+        auto& sc_xtop = ut::GetRecentValue(nodes_ss_prev, deg_xtop);
+        int2d l_fx, image, kernel, g;
+        for (size_t i = 0; i < sc_xtop.basis.size(); ++i) {
+            l_fx.push_back(f_prev->map({(int)i}, deg_xtop, *this));
+        }
+        lina::SetLinearMap(l_fx, image, kernel, g);
+        xtop = lina::GetImage(image, g, x);
+
+        /* compute dxtop
+         * xtop --d--> dxtop
+         */
+        dxtop = GetLevelAndDiff(nodes_ss_prev, deg_xtop, xtop, level_xtop);
+        r_xtop = LEVEL_MAX - level_xtop;
+        if (dxtop == NULL_DIFF)
+            return -11;
+        if (level_xtop <= level_x)
+            return -12;
+    }
+    deg_dxtop = deg_xtop + AdamsDeg(r_xtop, r_xtop - 1);
+    if (deg_dxtop.t > f_prev->t_max)
+        return -13;
+
+    /* compute fx
+     * fx --f_next--> dxtop
+     */
+    int2d l_fx, image, kernel, g;
+    deg_fx = deg_dxtop - f_next->deg;
+    if (deg_fx.t > f_next->t_max)
+        return -9;
+    Staircase sc_empty;
+    auto& nodes_ss_next = *cof.nodes_ss[iCs_next];
+    auto& sc_fx = ut::has(nodes_ss_next.front(), deg_fx) ? ut::GetRecentValue(nodes_ss_next, deg_fx) : sc_empty;
+    auto& sc_dxtop = dxtop.size() ? ut::GetRecentValue(nodes_ss_prev, deg_dxtop) : sc_empty;
+    size_t iFirst_level_dxtop = GetFirstIndexOnLevel(sc_dxtop, r_xtop);
+    if (level_x <= LEVEL_PERM) {
+        int2d l_x, l_domain, l_f;
+        size_t iLast = sc_fx.basis.size() ? GetFirstIndexOfFixedLevels(nodes_ss_next, deg_fx, LEVEL_PERM + 1) : 0;
+        for (size_t i = 0; i < iLast; ++i) {
+            l_x.push_back(sc_fx.basis[i]);
+            auto l_fxi = f_next->map(sc_fx.basis[i], deg_fx, *this);
+            l_fxi = lina::Residue(sc_dxtop.basis.begin(), sc_dxtop.basis.begin() + iFirst_level_dxtop, l_fxi);
+            l_fx.push_back(std::move(l_fxi));
+        }
+        lina::SetLinearMapV3(l_x, l_fx, l_domain, l_f, image, g, kernel);
+        int r_new = deg_fx.s - s_f_dinv_x;
+        size_t iFirst = GetFirstIndexOnLevel(sc_fx, r_new);
+        for (auto& k : kernel) {
+            if (lina::Residue(sc_fx.basis.begin(), sc_fx.basis.begin() + iFirst, k).size())
+                return -14; /* For permanent or boundary elements the hidden extension must be determined uniquely modulo d_1,...,d_{r_new} */
+        }
+        if (lina::Residue(image, dxtop).size())  //// cound let fx = {} or this case never happens
+            return -15;
+    }
+    else {
+        for (size_t i = 0; i < sc_fx.basis.size(); ++i) {
+            auto l_fxi = f_next->map({(int)i}, deg_fx, *this);
+            l_fxi = lina::Residue(sc_dxtop.basis.begin(), sc_dxtop.basis.begin() + iFirst_level_dxtop, l_fxi);
+            l_fx.push_back(std::move(l_fxi));
+        }
+        lina::SetLinearMap(l_fx, image, kernel, g);
+
+        if (maximal && kernel.size())
+            return -16;
+    }
+
+    if (lina::Residue(image, dxtop).size())
+        return -17; /* dxtop does not come from bottom */
+
+    if (maximal) { /* Make sure that there is no crossing extensions */
+        auto& nodes_ss = *cof.nodes_ss[iCs];
+        AdamsDeg deg_fx1;
+        int1d fx1;
+        for (int s1 = deg_x.s + 1; s1 < deg_fx.s - f->deg.s; ++s1) {
+            auto deg_x1 = AdamsDeg(s1, deg_x.stem() + s1);
+            if (!ut::has(nodes_ss.front(), deg_x1))
+                continue;
+            auto& sc_x1 = ut::GetRecentValue(nodes_ss, deg_x1);
+            for (size_t i = 0; i < sc_x1.basis.size(); ++i) {
+                if (sc_x1.levels[i] < level_x)
+                    continue;
+                if (GetSynImage(iCof, deg_x1, sc_x1.basis[i], sc_x1.levels[i], deg_fx1, fx1, s_f_dinv_x, false) == 0) {
+                    if (deg_fx1.s <= deg_fx.s) {
+                        return -18;
+                    }
+                }
+                else {
+                    return -19;
+                }
+            }
+        }
+    }
+    fx = lina::GetImage(image, g, dxtop);
+    return 0;
+}
+
+/************************************* MilnorX ***********************************************/
+
+
+struct MilnorXij
+{
+    uint8_t x, r, s, t;
+};
+
+ class MilnorX
+{
+private:
+    size_t i = XI_MAX - 1, j = 1;
+    bool decrease = false, move_right = false;
+
+public:
+    std::array<MilnorXij, DIMX * DIMX> X;
+    bool valid = true;
+
+    std::string Str() const
+    {
+        std::string result;
+        for (size_t i = 0; i < DIMX; ++i) {
+            for (size_t j = 0; j < DIMX; ++j) {
+                size_t index = i * DIMX + j;
+                fmt::format_to(std::back_inserter(result), "({},{},{},{}) ", ToStr(X[index].x), ToStr(X[index].r), ToStr(X[index].s), ToStr(X[index].t));
+            }
+            result += '\n';
+        }
+        return result;
+    }
+    MilnorX(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S)
+    {
+        constexpr size_t N = XI_MAX;
+
+        if (R[N - 1] & S[N - 1]) {
+            valid = false;
+            return;
+        }
+        X[N].x = R[N - 1];
+        for (size_t i = 1; i < N; ++i) {
+            X[i * DIMX].t = 0;
+            X[i * DIMX + (N - i)].r = R[N - i - 1];
+            X[i * DIMX + (N - i)].s = S[i - 1];
+        }
+        X[(N - 1) * DIMX + 1].t = R[N - 1] | S[N - 1];
+        ++(*this);
+    }
+    MilnorX& operator++()
+    {
+        constexpr size_t N = XI_MAX;
+        while (true) {
+            if (move_right) { /* Seek the next position of nontrivial X[i * DIMX + j].x */
+                do {
+                    if (i + j < N)
+                        ++j;
+                    else {
+                        ++i;
+                        j = 1;
+                    }
+                } while (i < N && X[i * DIMX + j].x == 0);
+                if (i >= N)
+                    break;
+                decrease = true;
+                move_right = false;
+            }
+            if (j) {
+                const size_t index = i * DIMX + j;
+                const size_t index_up = index - DIMX;
+                const size_t index_up_right = index_up + 1;
+                const size_t index_left = index - 1;
+                if (i == 1) {
+                    /* Row 1 is special because X[index_up_right] is determined before X[index] is determined */
+                    if (decrease) {
+                        (--X[index].x) &= ~(X[index].t | X[index_up_right].x);
+                        decrease = false;
+                    }
+                    else
+                        X[index].x = max_mask(std::min(uint8_t(X[index].r >> i), X[index].s), X[index].t | X[index_up_right].x);
+                    X[index_up].x = X[index].r - (X[index].x << 1);
+                    if (X[index_up].x & X[index_left].t) {
+                        if (X[index].x)
+                            decrease = true;
+                        else
+                            move_right = true;
+                    }
+                    else {
+                        X[index_left].s = X[index].s - X[index].x;
+                        X[index_up_right].t = X[index].t | X[index].x | X[index_up_right].x;
+                        --j;
+                    }
+                }
+                else {
+                    if (decrease) {
+                        (--X[index].x) &= ~X[index].t;
+                        decrease = false;
+                    }
+                    else
+                        X[index].x = max_mask(std::min(uint8_t(X[index].r >> i), X[index].s), X[index].t);
+                    X[index_left].s = X[index].s - X[index].x;
+                    X[index_up].r = X[index].r - (X[index].x << i);
+                    X[index_up_right].t = X[index].t | X[index].x;
+                    --j;
+                }
+            }
+            else {
+                if (i == 1) {
+                    if (!(X[DIMX].s & X[1].x)) {
+                        X[1].t = X[DIMX].s | X[1].x;
+                        // fmt::print("{}\n", Str());
+                        move_right = true;
+                        return *this;
+                    }
+                    move_right = true;
+                }
+                else {
+                    X[(i - 1) * DIMX + 1].t = X[i * DIMX].s;
+                    j = N - (--i);
+                }
+            }
+        }
+        valid = false;
+        return *this;
+    }
+};
+
+void MulMilnorV3(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_t, XI_MAX>& S, MMilnor1d& result_app)
+{
+    for (MilnorX X(R, S); X.valid; ++X) {
+        result_app.push_back(MMilnor::Xi(X.X.data() + 1));
+    }
+}

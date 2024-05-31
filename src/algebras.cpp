@@ -237,6 +237,20 @@ void SortMod2(Mon1d& data)
     ut::RemoveIf(data, [](const Mon& m) { return m.IsNull(); });
 }
 
+/**
+ * Sort the sequence and each time remove a pair of identical elements
+ */
+void SortMod2(MMod1d& data)
+{
+    std::sort(data.begin(), data.end());
+    for (size_t i = 0; i + 1 < data.size(); ++i)
+        if (data[i] == data[i + 1]) {
+            data[i] = MMod::Null();
+            data[++i] = MMod::Null();
+        }
+    ut::RemoveIf(data, [](const MMod& m) { return m.IsNull(); });
+}
+
 void mulP(const Poly& poly, const Mon& mon, Poly& result)
 {
     result.data.clear();
@@ -304,12 +318,12 @@ int1d Poly2Indices(const Poly& poly, const Mon1d& basis)
     int1d result;
     for (const Mon& mon : poly.data) {
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
-#ifndef NDEBUG
+#ifdef MYDEBUG
         if (p == basis.end() || mon < (*p)) {
             throw MyException(0x57f14e21U, "Index not found");
         }
 #endif
-        result.push_back(uint32_t(p - basis.begin()));
+        result.push_back(int(p - basis.begin()));
     }
     return result;
 }
@@ -354,6 +368,16 @@ void mulP(const Mon& mon, const Mod& poly, Mod& result)
         result.data.emplace_back(m.m * mon, m.v);
 }
 
+void mulP(const Poly& poly, const Mod& mod, Mod& result)
+{
+    result.data.clear();
+    result.data.reserve(poly.data.size());
+    for (size_t i = 0; i < poly.data.size(); ++i)
+        for (size_t j = 0; j < mod.data.size(); ++j)
+            result.data.push_back(poly.data[i] * mod.data[j]);
+    SortMod2(result.data);
+}
+
 int1d Mod2Indices(const Mod& x, const MMod1d& basis)
 {
     int1d result;
@@ -365,7 +389,7 @@ int1d Mod2Indices(const Mod& x, const MMod1d& basis)
             throw MyException(0xc3389529U, "Index not found");
         }
 #endif
-        result.push_back(uint32_t(p - basis.begin()));
+        result.push_back(int(p - basis.begin()));
     }
     return result;
 }

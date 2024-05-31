@@ -110,6 +110,20 @@ public:
         return result;
     }
 
+    std::map<int, alg2::int1d> load_d2(const std::string& table) const
+    {
+        std::map<int, alg2::int1d> result;
+        Statement stmt(*this, fmt::format("SELECT id, d2_h FROM {}", table));
+        while (stmt.step() == MYSQLITE_ROW) {
+            int id = stmt.column_int(0);
+            auto d2_dual = myio::Deserialize<alg2::int1d>(stmt.column_str(1));
+            int s = LocId(id).s - 2;
+            for (auto& id1 : d2_dual)
+                result[LocId(s, id1).id()].push_back(id);
+        }
+        return result;
+    }
+
     /** id_ind * id = prod */
     std::map<std::pair<int, int>, alg2::int1d> load_cell_products_h(const std::string& table_prefix, int t_trunc) const
     {
@@ -460,6 +474,83 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     dbE2.save_basis_mod(table_out, basis, repr);
     set_db_t_max(dbE2, t_trunc);
     set_db_time(dbE2);
+    set_db_over(dbE2, std::string(ring));
+
+    dbE2.end_transaction();
+}
+
+void ExportAdamsD2(std::string_view cw)
+{
+    using namespace alg2;
+
+    std::string db_E2 = fmt::format("{}_AdamsSS.db", cw);
+    std::string table_E2 = fmt::format("{}_AdamsE2", cw);
+    std::string db_d2 = fmt::format("{}_Adams_d2.db", cw);
+    std::string table_d2 = fmt::format("{}_Adams_d2", cw);
+    myio::AssertFileExists(db_E2);
+    myio::AssertFileExists(db_d2);
+
+    MyDB dbE2(db_E2);
+    int t_max_cw = get_db_t_max(dbE2);
+    MyDB dbD2(db_d2);
+    int t_max_d2 = get_db_t_max(dbD2);
+    int t_max_out = std::min(t_max_cw, t_max_d2);
+
+    auto d2E2 = dbD2.load_d2(table_d2);
+
+    std::map<AdamsDeg, int2d> basis_to_res_id;
+    {
+        myio::Statement stmt(dbE2, fmt::format("select s, t, repr from {}_basis order by id;", table_E2));
+        while (stmt.step() == MYSQLITE_ROW) {
+            int s = stmt.column_int(0), t = stmt.column_int(1);
+            AdamsDeg deg = {s, t};
+            int1d repr = myio::Deserialize<int1d>(stmt.column_str(2));
+            basis_to_res_id[deg].push_back(std::move(repr));
+        }
+    }
+    std::map<AdamsDeg, int> min_res_id;
+    for (auto& [deg, map] : basis_to_res_id) {
+        int1d min_res_id1d;
+        for (auto& map_i : map)
+            if (!map_i.empty())
+                min_res_id1d.push_back(*std::min_element(map_i.begin(), map_i.end()));
+        min_res_id[deg] = *std::min_element(min_res_id1d.begin(), min_res_id1d.end());
+    }
+    std::map<int, int1d> res_id_to_basis;
+    for (auto& [deg, map] : basis_to_res_id) {
+        for (int i = 0; i < map.size(); ++i) {
+            int2d image, kernel, g;
+            lina::SetLinearMap(map, image, kernel, g);
+            int res_id = min_res_id[deg] + i;
+            res_id_to_basis[res_id] = lina::GetImage(image, g, {res_id});
+        }
+    }
+
+    dbE2.begin_transaction();
+    if (!dbE2.has_column(table_E2 + "_basis", "d2"))
+        dbE2.add_column(table_E2 + "_basis", "d2 TEXT");
+
+    std::vector<std::pair<int, int1d>> monid_repr;
+    {
+        myio::Statement stmt(dbE2, fmt::format("select id, repr from {}_AdamsE2_basis WHERE t<={} order by id", cw, t_max_out - 1));
+        while (stmt.step() == MYSQLITE_ROW) {
+            monid_repr.push_back(std::make_pair(stmt.column_int(0), myio::Deserialize<int1d>(stmt.column_str(1))));
+        }
+    }
+    {
+        myio::Statement stmt(dbE2, fmt::format("UPDATE {}_AdamsE2_basis SET d2=?1 WHERE id=?2;", cw));
+        for (auto& [id, repr] : monid_repr) {
+            int1d d2;
+            for (int i : repr)
+                if (ut::has(d2E2, i))
+                    for (int id_d2 : d2E2.at(i))
+                        d2 = lina::add(d2, res_id_to_basis.at(id_d2));
+            stmt.bind_and_step(myio::Serialize(d2), id);
+        }
+    }
+
+    set_db_d2_t_max(dbE2, t_max_out);
+    set_db_time(dbE2);
 
     dbE2.end_transaction();
 }
@@ -546,15 +637,15 @@ void load_map(const myio::Database& db, std::string_view table_prefix, std::map<
     }
 }
 
-void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, int stem_trunc)
+void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
 {
     using namespace alg2;
     /* A sorted list of ring spectra */
     std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2", "A_A3", "A_A4", "A_A5"};
     std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
 
-    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    std::string db_map = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     myio::Database dbResMap(db_map);
     int t_max_map = get_db_t_max(dbResMap);
@@ -590,14 +681,14 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     auto gen_reprs1 = dbCw1.get_column_int(table_cw1 + "_generators", "repr", "");
     int1d out_of_region;
     for (size_t i = 0; i < gen_degs.size(); ++i)
-        if (gen_degs[i].t > t_trunc || gen_degs[i].stem() > stem_trunc)
+        if (gen_degs[i].t > t_trunc /*|| gen_degs[i].stem()*/)
             out_of_region.push_back((int)i);
 
     std::map<int, int1d> map_h;
     load_map(dbResMap, table_map, map_h, fil);
 
-    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
-    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+    std::string db_out = fmt::format("map_AdamsSS_{}__{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}__{}", cw1, cw2);
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
@@ -608,7 +699,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
         Poly1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
-                images.push_back(Poly::Gen(-1));
+                images.push_back(Poly::Gen(uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
@@ -630,7 +721,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
         Mod1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
-                images.push_back(MMod(Mon(), -1));
+                images.push_back(MMod(Mon(), uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
                 if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
@@ -658,13 +749,13 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc, i
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int d1, int t_trunc, int stem_trunc)
+void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& db_map1, const std::string& db_map2, int v0, int v1, int sus, int fil, int t_trunc)
 {
     using namespace alg2;
-    std::regex is_map_regex("^map_AdamsSS_(\\w+?_to_\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4_to_RP3_4_t169.db */
+    std::regex is_map_regex("^map_AdamsSS_(\\w+?__\\w+?)(?:_t\\d+|).db$"); /* match example: map_AdamsSS_RP1_4__RP3_4_t169.db */
     std::smatch match;
 
-    int t_max_map1 = 500, t_max_map2 = 500, sus, fil;
+    int t_max_map1 = 500, t_max_map2 = 500;
     Poly1d images1, images2;
 
     if (!db_map1.empty()) {
@@ -680,8 +771,6 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             throw MyException(0x248b04b, "File name is not supported.");
         }
         images1 = dbMap1.get_column_from_str<Poly>(table1, "map", "ORDER BY id", myio::Deserialize<Poly>);
-        sus = dbMap1.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
-        fil = dbMap1.get_int("select value from version where id=651971502");
     }
 
     if (!db_map2.empty()) {
@@ -697,8 +786,6 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             throw MyException(0xa833c7c4, "File name is not supported.");
         }
         images2 = dbMap2.get_column_from_str<Poly>(table2, "map", "ORDER BY id", myio::Deserialize<Poly>);
-        sus = dbMap2.get_int("select value from version where id=1585932889") - d1; /* cw1->Sigma^sus cw2 */
-        fil = dbMap2.get_int("select value from version where id=651971502");
     }
 
     if (images1.empty())
@@ -709,8 +796,8 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
     for (size_t i = 0; i < images1.size(); ++i)
         images3.push_back(Mod(images1[i], v0) + Mod(images2[i], v1));
 
-    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
-    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+    std::string db_out = fmt::format("map_AdamsSS_{}__{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}__{}", cw1, cw2);
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
@@ -733,17 +820,34 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
     dbMapAdamsE2.end_transaction();
 }
 
-void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, const std::string& to, const alg::AdamsDeg1d& degs, int sus, int fil, int t_trunc, int stem_trunc)
+void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2, const nlohmann::json& map_json, int t_trunc)
 {
     using namespace alg2;
     std::vector<std::string> RING_SPECTRA = {"S0", "tmf", "ko", "X2"};
     std::sort(RING_SPECTRA.begin(), RING_SPECTRA.end());
 
-    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
-    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", to);
-    const std::string table_cw2 = fmt::format("{}_AdamsE2", to);
+    const auto to = map_json.at("to").get<std::string>();
+    const auto db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
+    const auto db_cw2 = fmt::format("{}_AdamsSS.db", to);
+    const auto table_cw2 = fmt::format("{}_AdamsE2", to);
     myio::AssertFileExists(db_cw1);
     myio::AssertFileExists(db_cw2);
+
+    AdamsDeg1d degs;
+    int1d indices;
+    for (auto& v : map_json.at("free_images")) {
+        if (v.empty()) {
+            degs.push_back(AdamsDeg(-1, -1));
+            indices.push_back(-1);
+        }
+        else {
+            int stem = v[0].get<int>();
+            int s = v[1].get<int>();
+            int i = v[2].get<int>();
+            degs.push_back(AdamsDeg(s, stem + s));
+            indices.push_back(i);
+        }
+    }
 
     MyDB dbCw1(db_cw1);
     MyDB dbCw2(db_cw2);
@@ -759,35 +863,25 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
     Mod1d images_mod;
     if (ut::has(RING_SPECTRA, to)) {
         auto basis2 = dbCw2.load_basis(table_cw2);
-        for (auto& deg : degs) {
-            if (deg != AdamsDeg(-1, -1)) {
-                if (basis2[deg].size() != 1) {
-                    fmt::print("basis size must be 1");
-                    throw MyException(0x3eaaea36, "basis size must be 1");
-                }
-                images.push_back(basis2[deg].front());
-            }
+        for (size_t i = 0; i < degs.size(); ++i) {
+            if (degs[i] != AdamsDeg(-1, -1))
+                images.push_back(basis2[degs[i]][indices[i]]);
             else
                 images.push_back({});
         }
     }
     else {
         auto basis2 = dbCw2.load_basis_mod(table_cw2);
-        for (auto& deg : degs) {
-            if (deg != AdamsDeg(-1, -1)) {
-                if (basis2[deg].size() != 1) {
-                    fmt::print("basis size must be 1");
-                    throw MyException(0x3eaaea36, "basis size must be 1");
-                }
-                images_mod.push_back(basis2[deg].front());
-            }
+        for (size_t i = 0; i < degs.size(); ++i) {
+            if (degs[i] != AdamsDeg(-1, -1))
+                images_mod.push_back(basis2[degs[i]][indices[i]]);
             else
                 images_mod.push_back({});
         }
     }
 
-    std::string db_out = fmt::format("map_AdamsSS_{}_to_{}.db", cw1, cw2);
-    std::string table_out = fmt::format("map_AdamsE2_{}_to_{}", cw1, cw2);
+    std::string db_out = fmt::format("map_AdamsSS_{}__{}.db", cw1, cw2);
+    std::string table_out = fmt::format("map_AdamsE2_{}__{}", cw1, cw2);
     DbMapAdamsE2 dbMapAdamsE2(db_out);
     dbMapAdamsE2.recreate_tables(table_out);
     dbMapAdamsE2.begin_transaction();
@@ -797,6 +891,8 @@ void ExportMapFromFreeModAdamsE2(const std::string& cw1, const std::string& cw2,
         dbMapAdamsE2.save_map(table_out, images_mod);
     {
         myio::Statement stmt(dbMapAdamsE2, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
+        int sus = myio::get(map_json, "sus", 0);
+        int fil = myio::get(map_json, "fil", 0);
         stmt.bind_and_step(1585932889, std::string("suspension"), sus);
         stmt.bind_and_step(651971502, std::string("filtration"), fil);
         stmt.bind_and_step(446174262, std::string("from"), cw1);
@@ -974,7 +1070,7 @@ int main_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     ExportRingAdamsE2(ring, t_max, stem_max);
@@ -988,76 +1084,74 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    alg::int1d cells;
-    if (mod == "Csigmasq")
-        cells = alg::int1d{0, 15};
-    else if (mod == "Ctheta4")
-        cells = alg::int1d{0, 31};
-    else if (mod == "Ctheta5")
-        cells = alg::int1d{0, 63};
 
-    if (!cells.empty())
-        ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
-    else
-        ExportModAdamsE2(mod, ring, t_max, stem_max);
+    {
+        auto js = myio::load_json("Adams.json");
+        auto& cws = js.at("CW_complexes");
+        if (cws.contains(mod)) {
+            auto& cw_json = cws.at(mod);
+            if (cw_json.contains("free")) {
+                alg::int1d cells;
+                for (auto& c : cw_json.at("cells_gen"))
+                    cells.push_back(c.get<int>());
+                ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
+                return 0;
+            }
+            else if (cw_json.contains("summands")) {
+				Export2Cell(mod, ring, t_max, stem_max);
+				return 0;
+            }
+        }
+    }
+    
+    ExportModAdamsE2(mod, ring, t_max, stem_max);
+    return 0;
+}
+
+int main_export_d2(int argc, char** argv, int& index, const char* desc)
+{
+    std::string cw;
+
+    myio::CmdArg1d args = {{"cw", &cw}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+    ExportAdamsD2(cw);
     return 0;
 }
 
 int main_export_map(int argc, char** argv, int& index, const char* desc)
 {
     std::string cw1, cw2;
-    int t_max = -1, stem_max = 383;
+    int t_max = -1;
 
     myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
-    myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
-
-    if (cw1 == "C2h4" && cw2 == "Csigmasq")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h4_to_Csigmasq_0.db", "map_AdamsSS_C2h4_to_S0.db", 0, 1, 15, t_max, stem_max);
-    else if (cw1 == "C2h5" && cw2 == "Ctheta4")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h5_to_Ctheta4_0.db", "map_AdamsSS_C2h5_to_S0.db", 0, 1, 31, t_max, stem_max);
-    else if (cw1 == "C2h6" && cw2 == "Ctheta5")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_C2h6_to_Ctheta5_0.db", "map_AdamsSS_C2h6_to_S0.db", 0, 1, 63, t_max, stem_max);
-    else if (cw1 == "CW_2_theta5_2_Eq_eta_theta5" && cw2 == "Ctheta5")
-        ExportMapSumAdamsE2(cw1, cw2, "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_Ctheta5_0.db", "map_AdamsSS_CW_2_theta5_2_Eq_eta_theta5_to_S0.db", 0, 1, 63, t_max, stem_max);
-    else if (cw1 == "Csigma" && cw2 == "Csigmasq")
-        ExportMapSumAdamsE2(cw1, cw2, "", "map_AdamsSS_Csigma_to_S0.db", 0, 1, 15, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "DC2h4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 15}}, 0, 0, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "Q_C2h4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 16}}, 0, 1, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "S0_by_sigmasq")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 14 + 2}, {-1, -1}}, -14, 2, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "C2_by_sigmasq")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 15 + 1}, {-1, -1}}, -15, 1, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 15, 0, t_max, stem_max);
-    else if (cw1 == "Csigmasq" && cw2 == "Csigma")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "Csigma", {{0, 0}, {-1, -1}}, 0, 0, t_max, stem_max);
-    else if (cw1 == "Ctheta4" && cw2 == "DC2h5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 31}}, 0, 0, t_max, stem_max);
-    else if (cw1 == "Ctheta4" && cw2 == "Q_C2h5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 32}}, 0, 1, t_max, stem_max);
-    else if (cw1 == "Ctheta4" && cw2 == "S0_by_theta4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{2, 30 + 2}, {-1, -1}}, -30, 2, t_max, stem_max);
-    else if (cw1 == "Ctheta4" && cw2 == "C2_by_theta4")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2", {{1, 31 + 1}, {-1, -1}}, -31, 1, t_max, stem_max);
-    else if (cw1 == "Ctheta4" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 31, 0, t_max, stem_max);
-    else if (cw1 == "Ctheta5" && cw2 == "DC2h6")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, cw2, {{0, 0}, {0, 63}}, 0, 0, t_max, stem_max);
-    else if (cw1 == "Ctheta5" && cw2 == "Q_C2h6")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{1, 1}, {1, 64}}, 0, 1, t_max, stem_max);
-    else if (cw1 == "Ctheta5" && cw2 == "Q_CW_2_theta5_2_Eq_eta_theta5")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "C2h6", {{1, 2}, {1, 65}}, -1, 1, t_max, stem_max);
-    else if (cw1 == "Ctheta5" && cw2 == "S0")
-        ExportMapFromFreeModAdamsE2(cw1, cw2, "S0", {{-1, -1}, {0, 0}}, 63, 0, t_max, stem_max);
-    else
-        ExportMapAdamsE2(cw1, cw2, t_max, stem_max);
+    
+    {
+        auto js = myio::load_json("Adams.json");
+        auto& maps = js.at("maps");
+        auto name = fmt::format("{}__{}", cw1, cw2);
+        if (maps.contains(name)) {
+            auto& map_json = maps.at(name);
+            if (map_json.contains("summands")) {
+                auto summand0 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[0].get<std::string>());
+                auto summand1 = fmt::format("map_AdamsSS_{}.db", map_json.at("summands")[1].get<std::string>());
+                ExportMapSumAdamsE2(cw1, cw2, summand0, summand1, 0, 1, myio::get(map_json, "sus", 0), myio::get(map_json, "fil", 0), t_max);
+                return 0;
+            }
+            else if (map_json.contains("free_images")) {
+                ExportMapFromFreeModAdamsE2(cw1, cw2, map_json, t_max);
+				return 0;
+            }
+        }
+    }
+    ExportMapAdamsE2(cw1, cw2, t_max);
     return 0;
 }
 
@@ -1069,7 +1163,7 @@ int main_2cell_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     Export2Cell(mod, ring, t_max, stem_max);

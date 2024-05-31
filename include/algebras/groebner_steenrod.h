@@ -38,7 +38,7 @@ struct CriMilnor
         result.i2 = j;
         return result;
     }
-    void Sij(const Groebner& gb, Mod& result, Milnor& tmp_a, Mod& tmp1, Mod& tmp2) const;
+    void Sij(const Groebner& gb, Mod& result, Mod& tmp1, Mod& tmp2) const;
 };
 using CriMilnor1d = std::vector<CriMilnor>;
 using CriMilnor2d = std::vector<CriMilnor1d>;
@@ -158,6 +158,8 @@ public:
         return gb_;
     }
 
+    bool IsBasis(MMod m) const;
+
     CriMilnor1d Criticals(int t);
     Mod Reduce(const CriMilnor& cp) const;
     Mod Reduce(Mod x) const;
@@ -167,10 +169,10 @@ public:
 
     /* Assume that the v_degs is in increasing order.
      * Simplify generators and relations.
-     * output: cell_reduced[i] is the new presentation of the old v_i.
+     * output: cells[i] is the new presentation of the old v_i.
      * min_rels: set of indices of indecomposable relations
      */
-    void MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels);
+    void MinimizeOrderedGensRels(Mod1d& cells, int1d& min_rels);
 };
 
 }  // namespace steenrod

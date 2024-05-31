@@ -214,7 +214,7 @@ void RemoveZeroElements(Container& cont)
 template <typename T>
 void copy(std::vector<T>& tmp, std::vector<T>& dest)
 {
-    if (tmp.capacity() <= tmp.size() + tmp.size() / 2)
+    if (tmp.capacity() * 2 <= tmp.size() + tmp.size())
         std::swap(dest, tmp);
     else {
         dest.clear();
@@ -224,29 +224,10 @@ void copy(std::vector<T>& tmp, std::vector<T>& dest)
 
 /* The container `map` maps a key to a collection of type T */
 template <typename T>
-T& get(std::vector<T>& map, size_t k)
+void extend(std::vector<T>& vec, size_t sz)
 {
-    if (map.size() <= k)
-        map.resize(k + 1);
-    return map[k];
-}
-
-template <typename T>
-const T get(std::vector<T>& map, size_t k, T default_)
-{
-    if (map.size() <= k)
-        return default_;
-    return map[k];
-}
-
-/* Obtain a vector of keys */
-template <typename Map>
-auto get_keys(const Map& map)
-{
-    std::vector<std::remove_cv_t<decltype(map.begin()->first)>> result;
-    for (auto p = map.begin(); p != map.end(); ++p)
-        result.push_back(p->first);
-    return result;
+    if (vec.size() < sz)
+        vec.resize(sz);
 }
 
 template <typename T>
@@ -268,7 +249,7 @@ bool has(const T& map, const K& key)
 }
 
 template <typename Maps, typename K>
-auto& GetRecentValue(Maps& maps, const K& key)
+const auto& GetRecentValue(Maps& maps, const K& key)
 {
     for (auto p = maps.rbegin(); p != maps.rend(); ++p)
         if (auto result = p->find(key); result != p->end())
@@ -288,6 +269,34 @@ int IndexOf(const std::vector<T>& vec, FnEq fnEq)
 {
     auto it = std::find_if(vec.begin(), vec.end(), fnEq);
     return it != vec.end() ? int(it - vec.begin()) : -1;
+}
+
+/* The container `map` maps a key to a collection of type T */
+template <typename T>
+T& get(std::vector<T>& map, size_t k)
+{
+    if (map.size() <= k)
+        map.resize(k + 1);
+    return map[k];
+}
+
+/* T should be a small type */
+template <typename T>
+const T get(const std::vector<T>& map, size_t k, T default_)
+{
+    if (map.size() <= k)
+        return default_;
+    return map[k];
+}
+
+/* Obtain a vector of keys */
+template <typename Map>
+auto get_keys(const Map& map)
+{
+    std::vector<std::remove_cv_t<decltype(map.begin()->first)>> result;
+    for (auto p = map.begin(); p != map.end(); ++p)
+        result.push_back(p->first);
+    return result;
 }
 
 namespace detail {
@@ -314,6 +323,21 @@ inline std::string get_time(const std::string& fmt = "%F %T")
     auto bt = detail::localtime_xp(std::time(0));
     char buf[64];
     return std::string{buf, std::strftime(buf, sizeof(buf), fmt.c_str(), &bt)};
+}
+
+/* If n = 2^k1 + ... + 2^kn,
+ * return the array k1, ..., kn. */
+inline std::vector<int> two_exp(unsigned n)
+{
+    std::vector<int> result;
+    int k = 0;
+    while (n > 0) {
+        if (n & 1)
+            result.push_back(k);
+        n >>= 1;
+        ++k;
+    }
+    return result;
 }
 
 /**
@@ -389,8 +413,29 @@ void for_each_par128(size_t n, Fn f)
             for (size_t i = t; i < n; i += THREADS_MAX)
                 f(i);
         }));
-    for (auto& f : futures)
-        f.wait();
+    for (auto& fu : futures)
+        fu.wait();
+}
+
+/**
+ * For i=0,...,n-1, execute f(i) in parallel.
+ */
+template <typename Fn>
+void for_each_par32(size_t n, Fn f)
+{
+    if (n == 0)
+        return;
+
+    static constexpr size_t THREADS_MAX = 32;
+    std::vector<std::future<void>> futures;
+    size_t nThreads = std::min(THREADS_MAX, n);
+    for (size_t t = 0; t < nThreads; ++t)
+        futures.push_back(std::async(std::launch::async, [&f, t, n]() {
+            for (size_t i = t; i < n; i += THREADS_MAX)
+                f(i);
+        }));
+    for (auto& fu : futures)
+        fu.wait();
 }
 
 /**

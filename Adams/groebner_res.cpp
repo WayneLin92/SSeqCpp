@@ -181,20 +181,18 @@ DataMRes AdamsRes::Reduce(const CriMilnor& cp, size_t s) const
 {
     DataMRes result;
 
-    Milnor tmp_a;
     Mod tmp_x1, tmp_x2;
-    tmp_a.data.reserve(32);
     tmp_x1.data.reserve(64);
     tmp_x2.data.reserve(64);
 
     if (cp.i1 >= 0) {
-        result.x1.iaddmulP(cp.m1, gb_[s][cp.i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
-        result.x2.iaddmulP(cp.m1, gb_[s][cp.i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
+        result.x1.iaddmulP(cp.m1, gb_[s][cp.i1].x1, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_x1, tmp_x2);
+        result.x2.iaddmulP(cp.m1, gb_[s][cp.i1].x2, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_x1, tmp_x2);
         result.x2m.iaddmulMay(cp.m1, gb_[s][cp.i1].x2m, tmp_x1).iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_x1);
     }
     else {
-        result.x1.iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_a, tmp_x1, tmp_x2);
-        result.x2.iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_a, tmp_x1, tmp_x2);
+        result.x1.iaddmulP(cp.m2, gb_[s][cp.i2].x1, tmp_x1, tmp_x2);
+        result.x2.iaddmulP(cp.m2, gb_[s][cp.i2].x2, tmp_x1, tmp_x2);
         result.x2m.iaddmulMay(cp.m2, gb_[s][cp.i2].x2m, tmp_x1);
     }
     result.fil = gb_[s][cp.i2].fil + cp.m2.w_may();
@@ -207,8 +205,8 @@ DataMRes AdamsRes::Reduce(const CriMilnor& cp, size_t s) const
             MMilnor m = divLF(result.x1.data[index], gb_[s][gb_index].x1.data[0]);
             if (result.valid_x2m() && result.fil == Filtr(result.x1.data[index]))
                 result.x2m.iaddmulMay(m, gb_[s][gb_index].x2m, tmp_x1);
-            result.x1.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
-            result.x2.iaddmulP(m, gb_[s][gb_index].x2, tmp_a, tmp_x1, tmp_x2);
+            result.x1.iaddmulP(m, gb_[s][gb_index].x1, tmp_x1, tmp_x2);
+            result.x2.iaddmulP(m, gb_[s][gb_index].x2, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -219,7 +217,7 @@ DataMRes AdamsRes::Reduce(const CriMilnor& cp, size_t s) const
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], result.x2.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.x2.data[index], gb_[sp1][gb_index].x1.data[0]);
-            result.x2.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            result.x2.iaddmulP(m, gb_[sp1][gb_index].x1, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -246,22 +244,20 @@ using IndexMMod1d = std::vector<IndexMMod>;
 void AdamsRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size_t s) const
 {
     Mod tmp_x, tmp_x1, tmp_x2, tmp_x3;
-    Milnor tmp_a;
     tmp_x.data.reserve(64);
     tmp_x1.data.reserve(64);
     tmp_x2.data.reserve(64);
     tmp_x3.data.reserve(32);
-    tmp_a.data.reserve(64);
 
     for (size_t i = 0; i < cps.size(); ++i) {
         if (cps[i].i1 >= 0) {
-            results[i].x1.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x1, tmp_a, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
-            results[i].x2.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x2, tmp_a, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
+            results[i].x1.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x1, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_x1, tmp_x2);
+            results[i].x2.iaddmulP(cps[i].m1, gb_[s][cps[i].i1].x2, tmp_x1, tmp_x2).iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_x1, tmp_x2);
             results[i].x2m.iaddmulMay(cps[i].m1, gb_[s][cps[i].i1].x2m, tmp_x1).iaddmulMay(cps[i].m2, gb_[s][cps[i].i2].x2m, tmp_x1);
         }
         else {
-            results[i].x1.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_a, tmp_x1, tmp_x2);
-            results[i].x2.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_a, tmp_x1, tmp_x2);
+            results[i].x1.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x1, tmp_x1, tmp_x2);
+            results[i].x2.iaddmulP(cps[i].m2, gb_[s][cps[i].i2].x2, tmp_x1, tmp_x2);
             results[i].x2m.iaddmulMay(cps[i].m2, gb_[s][cps[i].i2].x2m, tmp_x1);
         }
         results[i].fil = gb_[s][cps[i].i2].fil + cps[i].m2.w_may();
@@ -278,9 +274,9 @@ void AdamsRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size_t s
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[s][gb_index].x1.data[0]);
-            mulP(m, gb_[s][gb_index].x1, tmp_x1, tmp_a);
-            mulP(m, gb_[s][gb_index].x2, tmp_x2, tmp_a);
-            MulMayP(m, gb_[s][gb_index].x2m, tmp_x3, tmp_a);
+            mulP(m, gb_[s][gb_index].x1, tmp_x1);
+            mulP(m, gb_[s][gb_index].x2, tmp_x2);
+            MulMayP(m, gb_[s][gb_index].x2m, tmp_x3);
 
             while (!heap.empty() && heap.front().m == term) {
 
@@ -326,7 +322,7 @@ void AdamsRes::ReduceBatch(const CriMilnor1d& cps, DataMRes1d& results, size_t s
         int gb_index = IndexOfDivisibleLeading(leads_[sp1], indices_[sp1], term);
         if (gb_index != -1) {
             MMilnor m = divLF(term, gb_[sp1][gb_index].x1.data[0]);
-            mulP(m, gb_[sp1][gb_index].x1, tmp_x1, tmp_a);
+            mulP(m, gb_[sp1][gb_index].x1, tmp_x1);
 
             while (!heap.empty() && heap.front().m == term) {
                 unsigned i = heap.front().i, index = heap.front().index;
@@ -364,13 +360,12 @@ Mod AdamsRes::Reduce(Mod x, size_t s) const
 {
     size_t index;
     index = 0;
-    Milnor tmp_a;
     Mod tmp_x1, tmp_x2;
     while (index < x.data.size()) {
         int gb_index = IndexOfDivisibleLeading(leads_[s], indices_[s], x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[s][gb_index].x1.data[0]);
-            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_a, tmp_x1, tmp_x2);
+            x.iaddmulP(m, gb_[s][gb_index].x1, tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -471,7 +466,8 @@ public:
 
                 SetVersion();
                 end_transaction();
-                fmt::print("DbRes Converted to version=1\n{}", myio::COUT_FLUSH());
+                fmt::print("DbRes Converted to version=1\n");
+                std::fflush(stdout);
             }
             catch (MyException&) {
                 return false;
@@ -711,6 +707,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
 
     int t_start_fil_0 = db.get_int("SELECT COALESCE(MAX(t), -1)+1 FROM " + tablename + "_generators WHERE s=0;");
     db.save_fil_0(tablename, 0, t_start_fil_0, v_degs);
+    std::mutex print_mutex = {};
     for (int t = 1; t <= t_max; ++t) {
         size_t tt = (size_t)t;
         size_t s_min = (size_t)std::max(0, t - stem_max - 2);
@@ -740,7 +737,6 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
         }
 
         std::atomic<int> threadsLeft = (int)arr_s.size();
-        std::mutex print_mutex = {};
         ut::for_each_par128(arr_s.size(), [&arr_s, &gb, &cris, &data_tmps, &print_mutex, &threadsLeft, t](size_t i) {
             size_t s = arr_s[i];
             gb.ReduceBatch(cris[s], data_tmps[s], s);
@@ -748,7 +744,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             {
                 std::scoped_lock lock(print_mutex);
                 --threadsLeft;
-                fmt::print("t={} s={} threadsLeft={}\n{}", t, s, threadsLeft, myio::COUT_FLUSH());
+                fmt::print("t={} s={} threadsLeft={}\n", t, s, threadsLeft.load());
+                std::fflush(stdout);
             }
         });
 
@@ -807,7 +804,8 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
             num_x2m.push_back((unsigned)gb.basis_degrees_x2m(s).size() - old_size_x2m[s]);
         db.save(tablename, data, rels_x2m_cri, rels_x2m, num_x2m, time, t);
         db.save_fil_0(tablename, t, t_start_fil_0, v_degs);
-        fmt::print("    time={}\n{}", time, myio::COUT_FLUSH());
+        fmt::print("  t={}, time={}\n", t, time);
+        std::fflush(stdout);
         timer.Reset();
 
         for (size_t s = tt; s-- > s_min;)
@@ -843,11 +841,9 @@ int main_res_csv(int argc, char** argv, int& index, const char* desc)
 {
     std::string db_filename, table_name, out_csv;
 
-    const char* description = "Export the resolution to csv file.";
-    const char* cmd = "Adams export_map";
     myio::CmdArg1d args = {{"db", &db_filename}, {"table", &table_name}, {"out_csv", &out_csv}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     DbAdamsRes db(db_filename);

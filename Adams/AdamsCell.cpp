@@ -159,7 +159,7 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
     std::vector<std::pair<int, AdamsDegV2>> id_deg;
     int2d vid_num;
     std::map<AdamsDegV2, Mod1d> diffs;
-    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc, t_trunc);  ////
+    dbRes.load_generators(table_in, id_deg, vid_num, diffs, t_trunc);  ////
 
     DbAdamsResCell dbProd(db_out);
     dbProd.create_products(table_out);
@@ -319,8 +319,8 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                         int index = kernel_ht_dual[i].front() - id_d1;
                         if (!fh_id_ind[index].empty()) {
                             int1d prod_h_g;
-                            for (int i : fh_id_ind[index])
-                                prod_h_g.push_back(LocId(deg1.s - id_ind_to_s.at(id_ind), i).id());
+                            for (int j : fh_id_ind[index])
+                                prod_h_g.push_back(LocId(deg1.s - id_ind_to_s.at(id_ind), j).id());
                             stmt_prod.bind_and_step(gen_id_cell1_start + (int)i, id_ind, myio::Serialize(prod_h_g));
 
                             for (int k : fh_id_ind[index]) {
@@ -409,8 +409,8 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
                         int1d prod_h, prod_h_g;
                         for (int j : kernel_ht[i])
                             add_prod_h(prod_h, fh.at(id_ind)[j], tmp_prod_h);
-                        for (int i : prod_h)
-                            prod_h_g.push_back(LocId(deg.s - id_ind_to_s.at(id_ind), i).id());
+                        for (int j : prod_h)
+                            prod_h_g.push_back(LocId(deg.s - id_ind_to_s.at(id_ind), j).id());
                         if (!prod_h.empty()) {
                             stmt_prod.bind_and_step(gen_id_cell0_start + (int)i, id_ind, myio::Serialize(prod_h_g));
                         }
@@ -427,7 +427,8 @@ void compute_2cell_products_by_t(int t_trunc, std::string_view cw, std::string_v
 
         double time = timer.Elapsed();
         timer.Reset();
-        fmt::print("t={} s={} time={}\n{}", deg.t, deg.s, time, myio::COUT_FLUSH());
+        fmt::print("t={} s={} time={}\n", deg.t, deg.s, time);
+        std::fflush(stdout);
         dbProd.save_time(table_out, deg.s, deg.t, time);
 
         dbProd.end_transaction(2000);
@@ -443,7 +444,7 @@ int main_2cell_prod(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"mod:C2/Ceta/Cnu/Csigma", &mod}, {"ring", &ring}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     compute_2cell_products_by_t(t_max, mod, ring);
@@ -458,7 +459,7 @@ int main_2cell(int argc, char** argv, int& index, const char* desc)
         {"prod", "Compute the multiplications", main_2cell_prod},
         {"export", "Export the Adams E2 page.", main_2cell_export},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, "Build A-resolutions and chain maps.", VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }

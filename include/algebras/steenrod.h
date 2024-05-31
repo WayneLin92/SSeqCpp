@@ -19,6 +19,7 @@ using int1d = std::vector<int>;
 using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 using int4d = std::vector<int3d>;
+using size1d = std::vector<size_t>;
 
 /********************************************************
  *                  class Milnor
@@ -130,7 +131,7 @@ private:
     uint64_t data_;
 
 public:
-    MMilnor() : data_(0) {}
+    constexpr MMilnor() : data_(0) {}
     constexpr explicit MMilnor(uint64_t data) : data_(data) {}
 
     static MMilnor FromIndex(size_t i)
@@ -144,6 +145,7 @@ public:
         return (MMILNOR_ONE >> index) | MMILNOR_GEN_WEIGHT[index];
     }
 
+    /* P(i, j) is dual to xi_{j-i}^{2^i} */
     static MMilnor P(int i, int j)
     {
         return MMilnor(MMilnor::dataP(i, j));
@@ -162,6 +164,11 @@ public:
     {
         uint32_t xi[XI_MAX] = {n};
         return Xi(xi);
+    }
+
+    static MMilnor Sqm(std::array<uint32_t, XI_MAX> xi)
+    {
+        return Xi(xi.data());
     }
 
     static MMilnor FromE(uint64_t e)
@@ -192,7 +199,7 @@ public:
     {
         return data_ < rhs.data_;
     };
-    
+
     bool operator==(MMilnor rhs) const
     {
         return data_ == rhs.data_;
@@ -266,8 +273,8 @@ public:
         return result;
     }
 
-    std::string StrXi() const;
     std::string Str() const;
+    std::string StrP() const;
 
 public:
     class iterator
@@ -363,7 +370,7 @@ inline MMilnor lcmLF(MMilnor m1, MMilnor m2)
 
 inline std::ostream& operator<<(std::ostream& sout, MMilnor m)
 {
-    return std::cout << m.Str();
+    return sout << m.StrP();
 }
 
 /* Elements of A as linear combinations of Milnor basis
@@ -385,24 +392,31 @@ struct Milnor
         std::set_symmetric_difference(data.begin(), data.end(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(result.data));
         return result;
     }
-    Milnor& operator+=(const Milnor& rhs)
+    Milnor& iaddP(const Milnor& rhs, Milnor& tmp)
     {
-        Milnor tmp;
+        tmp.data.clear();
         std::swap(data, tmp.data);
         std::set_symmetric_difference(tmp.data.cbegin(), tmp.data.cend(), rhs.data.cbegin(), rhs.data.cend(), std::back_inserter(data));
         return *this;
     }
+    Milnor& operator+=(const Milnor& rhs)
+    {
+        Milnor tmp;
+        return iaddP(rhs, tmp);
+    }
     Milnor operator*(const Milnor& rhs) const;
 
-    std::string StrXi() const;
     std::string Str() const;
+    std::string StrP() const;
 };
 using Milnor1d = std::vector<Milnor>;
 
 inline std::ostream& operator<<(std::ostream& sout, const Milnor& x)
 {
-    return std::cout << x.Str();
+    return sout << x.StrP();
 }
+
+void mulP(const Milnor& lhs, const Milnor& rhs, Milnor& result);
 inline Milnor operator*(MMilnor m1, MMilnor m2)  ////
 {
     return Milnor(m1) * Milnor(m2);
@@ -500,7 +514,7 @@ public:
     }
 
     std::string Str() const;
-    std::string StrXi() const;
+    std::string StrP() const;
 };
 using MMod1d = std::vector<MMod>;
 using MMod2d = std::vector<MMod1d>;
@@ -525,6 +539,10 @@ struct Mod
     MMod1d data;
     Mod() {}
     Mod(MMod mv) : data({mv}) {}
+    Mod(const Milnor& a, uint64_t v) {
+        for (MMilnor m : a.data)
+			data.push_back(MMod(m, v));
+    }
 
     MMod GetLead() const
     {
@@ -582,34 +600,33 @@ struct Mod
         return iaddP(rhs, tmp);
     }
     /* `*this += m * x` */
-    Mod& iaddmulP(MMilnor m, const Mod& x, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2);
+    Mod& iaddmulP(MMilnor m, const Mod& x, Mod& tmp_x1, Mod& tmp_x2);
     Mod& iaddmulMay(MMilnor m, const Mod& x, Mod& tmp);
     bool operator==(const Mod& rhs) const
     {
         return data == rhs.data;
     };
 
-    std::string StrXi() const;
     std::string Str() const;
+    std::string StrP() const;
 };
 using Mod1d = std::vector<Mod>;
 using Mod2d = std::vector<Mod1d>;
 using Mod3d = std::vector<Mod2d>;
 
-void mulP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
+void mulP(MMilnor m, const Mod& x, Mod& result);
 inline Mod operator*(MMilnor m, const Mod& x)
 {
     Mod result;
-    Milnor tmp;
-    mulP(m, x, result, tmp);
+    mulP(m, x, result);
     return result;
 }
-void MulMayP(MMilnor m, const Mod& x, Mod& result, Milnor& tmp);
+void MulMayP(MMilnor m, const Mod& x, Mod& result);
 Mod MulMay(MMilnor m, const Mod& x);
 
 inline std::ostream& operator<<(std::ostream& sout, const Mod& x)
 {
-    return sout << x.Str();
+    return sout << x.StrP();
 }
 
 inline void Reduce(Mod& x, const Mod1d& y, Mod& tmp)
@@ -625,10 +642,10 @@ Mod mulLF(MMilnor m, const Mod& x);
 /**
  * Replace v_i with `map[i]`.
  */
-inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mod& tmp_x1, Mod& tmp_x2)
+inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Mod& tmp_x1, Mod& tmp_x2)
 {
     for (const MMod& mv : x.data)
-        result.iaddmulP(mv.m(), map[mv.v()], tmp_a, tmp_x1, tmp_x2);
+        result.iaddmulP(mv.m(), map[mv.v()], tmp_x1, tmp_x2);
 }
 
 /**
@@ -637,8 +654,7 @@ inline void subsP(const Mod& x, const Mod1d& map, Mod& result, Milnor& tmp_a, Mo
 inline Mod subs(const Mod& x, const Mod1d& map)
 {
     Mod result, tmp_x1, tmp_x2;
-    Milnor tmp_a;
-    subsP(x, map, result, tmp_a, tmp_x1, tmp_x2);
+    subsP(x, map, result, tmp_x1, tmp_x2);
     return result;
 }
 

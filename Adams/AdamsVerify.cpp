@@ -84,8 +84,8 @@ public:
  */
 void verify_map(const std::string& cw1, const std::string& cw2)
 {
-    std::string db_map = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string table_map = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
+    std::string db_map = fmt::format("map_Adams_res_{}__{}.db", cw1, cw2);
+    std::string table_map = fmt::format("map_Adams_res_{}__{}", cw1, cw2);
     myio::AssertFileExists(db_map);
     DbAdamsVerifyLoader dbMap(db_map);
     int t_max_map = get_db_t_max(dbMap);
@@ -111,12 +111,12 @@ void verify_map(const std::string& cw1, const std::string& cw2)
 
     std::vector<std::pair<int, AdamsDegV2>> id_deg; /* pairs (id, deg) where `id` is the first id in deg */
     int2d vid_num;                                  /* vid_num[s][stem] is the number of generators in (<=stem, s) */
-    std::map<AdamsDegV2, Mod1d> diffs_cw2;              /* diffs[deg] is the list of differentials of v in deg */
+    std::map<AdamsDegV2, Mod1d> diffs_cw2;          /* diffs[deg] is the list of differentials of v in deg */
     int t_max_cw2;
     {
         DbAdamsResLoader dbResCw2(db_cw2);
         t_max_cw2 = get_db_t_max(dbResCw2);
-        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs_cw2, std::max(t_max_map + fil - sus, 0), 10000);
+        dbResCw2.load_generators(table_cw2, id_deg, vid_num, diffs_cw2, std::max(t_max_map + fil - sus, 0));
     }
 
     DbAdamsVerifyLoader dbResCw1(db_cw1);
@@ -166,7 +166,8 @@ void verify_map(const std::string& cw1, const std::string& cw2)
             dbMap.end_transaction();
             return;
         }
-        fmt::print("t={} s={}\n{}", deg.t - fil + sus, deg.s - fil, myio::COUT_FLUSH());
+        fmt::print("t={} s={}\n", deg.t - fil + sus, deg.s - fil);
+        std::fflush(stdout);
         if (t_prev_cw2 != deg.t) {
             if (t_prev_cw2 != -1 && t_prev_cw2 - fil + sus >= 0) {
                 dbMap.begin_transaction();
@@ -187,7 +188,7 @@ int main_verify_map(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     verify_map(cw1, cw2);

@@ -288,14 +288,13 @@ void GbCriPairs::AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, cons
     }
 }
 
-void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, const MMod1d& leads, const MonTrace1d& traces, const MMod& mon, const int1d& gen_degs, const int1d& v_degs)
+void GbCriPairs::AddToBuffers(const Mon1d& leadsx, const MMod1d& leads, const MMod& mon, const int1d& gen_degs, const int1d& v_degs)
 {
     size_t leadsx_size = leadsx.size();
     size_t leads_size = leads.size();
     if (gb_.size() < leads_size + 1)
         gb_.resize(leads_size + 1);
     std::vector<std::pair<int, CriPair>> new_pairs(leadsx_size + leads_size);
-    MonTrace t = mon.m.Trace();
 
     /* Populate `new_pairs` */
     for (size_t i = 0; i < leadsx_size; ++i) {
@@ -371,11 +370,11 @@ void GbCriPairs::init(const Mon1d& leads, const MonTrace1d& traces, const int1d&
     RemoveSmallKey(buffer_redundent_pairs_, t_min_buffer);
 }
 
-void GbCriPairs::init(const Mon1d& leadsx, const MonTrace1d& tracesx, const MMod1d& leads, const MonTrace1d& traces, const int1d& gen_degs, const int1d& v_degs, int t_min_buffer)
+void GbCriPairs::init(const Mon1d& leadsx, const MMod1d& leads, const int1d& gen_degs, const int1d& v_degs, int t_min_buffer)
 {
     MMod1d tmp_leads;
     for (auto& mon : leads) {
-        AddToBuffers(leadsx, tracesx, tmp_leads, traces, mon, gen_degs, v_degs);
+        AddToBuffers(leadsx, tmp_leads, mon, gen_degs, v_degs);
         tmp_leads.push_back(mon);
     }
     RemoveSmallKey(buffer_min_pairs_, t_min_buffer);
@@ -411,9 +410,8 @@ int Groebner::IndexOfDivisibleLeading(const Mon& mon) const
     return -1;
 }
 
-Poly Groebner::Reduce(Poly poly) const
+void Groebner::ReduceP(Poly& poly, Poly& tmp_prod, Poly& tmp) const
 {
-    Poly tmp_prod, tmp;
     size_t index = 0;
     while (index < poly.data.size()) {
         int gb_index = IndexOfDivisibleLeading(poly.data[index]);
@@ -425,6 +423,13 @@ Poly Groebner::Reduce(Poly poly) const
         else
             ++index;
     }
+}
+
+Poly Groebner::Reduce(Poly poly) const
+{
+    Poly tmp_prod, tmp;
+    tmp_prod.data.reserve(16);
+    ReduceP(poly, tmp_prod, tmp);
     return poly;
 }
 
@@ -525,7 +530,7 @@ GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d
         indices_[Key(data_[i].GetLead())].push_back(i);
     }
     if (bDynamic)
-        criticals_.init(pGb_->leads_, pGb_->traces_, leads_, traces_, pGb_->gen_degs(), v_degs_, deg_trunc + 1);
+        criticals_.init(pGb_->leads_, leads_, pGb_->gen_degs(), v_degs_, deg_trunc + 1);
 }
 
 int GroebnerMod::IndexOfDivisibleLeading(const MMod& mon) const
@@ -544,30 +549,38 @@ int GroebnerMod::IndexOfDivisibleLeading(const MMod& mon) const
     return -1;
 }
 
-Mod GroebnerMod::Reduce(Mod poly) const
+void GroebnerMod::ReduceP(Mod& poly, Poly& poly_tmp, Mod& mod_tmp1, Mod& mod_tmp2) const
 {
-    Mod tmp_prod, tmp;
-    Poly tmp_prod1;
     size_t index = 0;
     while (index < poly.data.size()) {
         int gbmod_index = IndexOfDivisibleLeading(poly.data[index]);
         if (gbmod_index != -1) {
             Mon q = poly.data[index].m / data_[gbmod_index].GetLead().m;
-            mulP(q, data_[gbmod_index], tmp_prod);
-            poly.iaddP(tmp_prod, tmp);
+            mulP(q, data_[gbmod_index], mod_tmp1);
+            poly.iaddP(mod_tmp1, mod_tmp2);
         }
         else {
             int gb_index = pGb_->IndexOfDivisibleLeading(poly.data[index].m);
             if (gb_index != -1) {
                 Mon q = poly.data[index].m / pGb_->data()[gb_index].GetLead();
-                mulP(pGb_->data()[gb_index], q, tmp_prod1);
-                tmp_prod = Mod(tmp_prod1, poly.data[index].v);
-                poly.iaddP(tmp_prod, tmp);
+                mulP(pGb_->data()[gb_index], q, poly_tmp);
+                mod_tmp1.data.clear();
+                for (const Mon& m : poly_tmp.data)
+                    mod_tmp1.data.emplace_back(m, poly.data[index].v); 
+                poly.iaddP(mod_tmp1, mod_tmp2);
             }
             else
                 ++index;
         }
     }
+}
+
+Mod GroebnerMod::Reduce(Mod poly) const
+{
+    Mod tmp_prod, tmp;
+    Poly tmp_prod1;
+    tmp_prod.data.reserve(16);
+    ReduceP(poly, tmp_prod1, tmp_prod, tmp);
     return poly;
 }
 
@@ -618,7 +631,7 @@ void GroebnerMod::AddRels(const Mod1d& rels, int deg_max)
     }
 }
 
-void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max, int1d& index_ind)
+void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max)
 {
     int d_trunc = deg_trunc();
     if (deg_max > d_trunc)

@@ -11,13 +11,13 @@
 
 namespace steenrod {
 
-void CriMilnor::Sij(const Groebner& gb, Mod& result, Milnor& tmp_a, Mod& tmp1, Mod& tmp2) const
+void CriMilnor::Sij(const Groebner& gb, Mod& result, Mod& tmp1, Mod& tmp2) const
 {
     if (i1 >= 0) {
-        result.iaddmulP(m1, gb.data()[i1], tmp_a, tmp1, tmp2).iaddmulP(m2, gb.data()[i2], tmp_a, tmp1, tmp2);
+        result.iaddmulP(m1, gb.data()[i1], tmp1, tmp2).iaddmulP(m2, gb.data()[i2], tmp1, tmp2);
     }
     else {
-        result.iaddmulP(m2, gb.data()[i2], tmp_a, tmp1, tmp2);
+        result.iaddmulP(m2, gb.data()[i2], tmp1, tmp2);
     }
 }
 
@@ -213,21 +213,24 @@ inline int IndexOfDivisibleLeading(const MMod1d& leads, const std::unordered_map
     return -1;
 }
 
+bool Groebner::IsBasis(MMod m) const
+{
+    return IndexOfDivisibleLeading(leads_, indices_, m) == -1;
+}
+
 Mod Groebner::Reduce(const CriMilnor& cp) const
 {
     Mod result;
 
-    Milnor tmp_a;
     Mod tmp_x1, tmp_x2;
-    tmp_a.data.reserve(32);
     tmp_x1.data.reserve(64);
     tmp_x2.data.reserve(64);
 
     if (cp.i1 >= 0) {
-        result.iaddmulP(cp.m1, gb_[cp.i1], tmp_a, tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[cp.i2], tmp_a, tmp_x1, tmp_x2);
+        result.iaddmulP(cp.m1, gb_[cp.i1], tmp_x1, tmp_x2).iaddmulP(cp.m2, gb_[cp.i2], tmp_x1, tmp_x2);
     }
     else {
-        result.iaddmulP(cp.m2, gb_[cp.i2], tmp_a, tmp_x1, tmp_x2);
+        result.iaddmulP(cp.m2, gb_[cp.i2], tmp_x1, tmp_x2);
     }
 
     size_t index;
@@ -236,7 +239,7 @@ Mod Groebner::Reduce(const CriMilnor& cp) const
         int gb_index = IndexOfDivisibleLeading(leads_, indices_, result.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(result.data[index], gb_[gb_index].data[0]);
-            result.iaddmulP(m, gb_[gb_index], tmp_a, tmp_x1, tmp_x2);
+            result.iaddmulP(m, gb_[gb_index], tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -248,13 +251,12 @@ Mod Groebner::Reduce(Mod x) const
 {
     size_t index;
     index = 0;
-    Milnor tmp_a;
     Mod tmp_x1, tmp_x2;
     while (index < x.data.size()) {
         int gb_index = IndexOfDivisibleLeading(leads_, indices_, x.data[index]);
         if (gb_index != -1) {
             MMilnor m = divLF(x.data[index], gb_[gb_index].data[0]);
-            x.iaddmulP(m, gb_[gb_index], tmp_a, tmp_x1, tmp_x2);
+            x.iaddmulP(m, gb_[gb_index], tmp_x1, tmp_x2);
         }
         else
             ++index;
@@ -266,7 +268,6 @@ Mod Groebner::Reduce(Mod x) const
 void Groebner::AddRels(const Mod1d& rels, int deg_max, int1d& min_rels)
 {
     using PMod1d = std::vector<const Mod*>;
-    Milnor tmp_a;
     Mod tmp1, tmp2;
 
     if (deg_max > d_trunc_)
@@ -290,7 +291,7 @@ void Groebner::AddRels(const Mod1d& rels, int deg_max, int1d& min_rels)
         Mod1d rels_tmp(pairs_d.size() + rels_d.size());
 
         for (size_t i = 0; i < pairs_d.size(); ++i)
-            pairs_d[i].Sij(*this, rels_tmp[i], tmp_a, tmp1, tmp2);
+            pairs_d[i].Sij(*this, rels_tmp[i], tmp1, tmp2);
         size_t pairs_d_size = pairs_d.size();
         ut::for_each_seq(pairs_d.size(), [this, &pairs_d, &rels_tmp](size_t i) { rels_tmp[i] = Reduce(std::move(rels_tmp[i])); });
         ut::for_each_seq(rels_d.size(), [this, &rels_d, &rels_tmp, pairs_d_size](size_t i) { rels_tmp[pairs_d_size + i] = Reduce(*rels_d[i]); });
@@ -329,16 +330,16 @@ Mod subV(const Mod& x, const int1d& v_map)
     return result;
 }
 
-void Groebner::MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels)
+void Groebner::MinimizeOrderedGensRels(Mod1d& cells, int1d& min_rels)
 {
     std::vector<size_t> redundant_vs;
     Mod1d data;
     std::map<int, int> map_rel_ind;
-    cell_reduced.clear();
+    cells.clear();
     for (size_t i = 0; i < gb_.size(); ++i) {
         if (!gb_[i].GetLead().m()) {
             redundant_vs.push_back(gb_[i].GetLead().v());
-            ut::get(cell_reduced, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
+            ut::get(cells, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
         }
         else {
             map_rel_ind[(int)i] = (int)data.size();
@@ -360,12 +361,12 @@ void Groebner::MinimizeOrderedGensRels(Mod1d& cell_reduced, int1d& min_rels)
     int1d v_map(v_degs_.size(), -1);
     for (size_t i = 0; i < remaining_v.size(); ++i) {
         v_map[remaining_v[i]] = (int)i;
-        ut::get(cell_reduced, remaining_v[i]) = MMod(MMilnor(), remaining_v[i]);
+        ut::get(cells, remaining_v[i]) = MMod(MMilnor(), remaining_v[i]);
     }
 
     for (auto& rel : data)
         rel = subV(rel, v_map);
-    for (auto& rel : cell_reduced)
+    for (auto& rel : cells)
         rel = subV(rel, v_map);
 
     int1d new_v_degs;

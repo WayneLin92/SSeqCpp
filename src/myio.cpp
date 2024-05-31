@@ -2,10 +2,11 @@
 #include "myexception.h"
 #include "utility.h"
 #include <fmt/ranges.h>
+#include <fmt/format.h>
 #include <fstream>
 #include <iostream>
-#include <sys/stat.h>
 #include <regex>
+#include <sys/stat.h>
 
 /*********** FUNCTIONS **********/
 
@@ -17,7 +18,7 @@ std::string join(const std::string& sep, const string1d& strs)
 }
 
 /* split comma-delimited string */
-std::vector<std::string> split(const std::string& str)
+std::vector<std::string> split(const std::string& str, char delim)
 {
     std::vector<std::string> result;
     if (str.empty())
@@ -25,7 +26,7 @@ std::vector<std::string> split(const std::string& str)
     std::stringstream ss(str);
     while (ss.good()) {
         std::string substr;
-        std::getline(ss, substr, ',');
+        std::getline(ss, substr, delim);
         result.push_back(substr);
     }
     return result;
@@ -93,13 +94,15 @@ int TplLoadArg(int argc, char** argv, int& index, const char* name, T* x, bool o
             ++index;
             return 0;
         }
-        std::istringstream ss(argv[index]);
-        if (!(ss >> *x)) {
-            fmt::print("Invalid: {}={}\n", name, argv[index]);
-            return -index;
+        else {
+            std::istringstream ss(argv[index]);
+            if (!(ss >> *x)) {
+                fmt::print("Invalid: {}={}\n", name, argv[index]);
+                return -index;
+            }
+            ++index;
+            return 0;
         }
-        ++index;
-        return 0;
     }
     else if (!optional) {
         fmt::print("Mising argument <{}>\n", name);
@@ -136,6 +139,22 @@ void PrintHelp(const std::string& cmd, const char* description, const char* vers
     fmt::print("\n{}\n", version);
 }
 
+int1d Deserialize(const std::string& str) ////
+{
+    int1d result;
+    if (str.empty())
+        return result;
+    std::stringstream ss(str);
+    while (ss.good()) {
+        int i;
+        ss >> i;
+        result.push_back(i);
+        if (ss.peek() == ',')
+            ss.ignore();
+    }
+    return result;
+}
+
 int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optional)
 {
     for (size_t i = 0; i < args.size(); ++i) {
@@ -151,6 +170,12 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
             if (int error = TplLoadArg(argc, argv, index, args[i].name, std::get<std::string*>(args[i].value), optional))
                 return error;
         }
+        else if (std::holds_alternative<std::vector<int>*>(args[i].value)) {
+            std::string nums;
+            if (int error = TplLoadArg(argc, argv, index, args[i].name, &nums, optional))
+                return error;
+            *std::get<std::vector<int>*>(args[i].value) = Deserialize(nums);
+        }
         else if (std::holds_alternative<std::vector<std::string>*>(args[i].value)) {
             if (i == args.size() - 1) {
                 auto& strs = *std::get<std::vector<std::string>*>(args[i].value);
@@ -163,7 +188,7 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
         else if (std::holds_alternative<std::map<std::string, std::vector<std::string>>*>(args[i].value)) {
             if (i == args.size() - 1) {
                 auto& strs = *std::get<std::map<std::string, std::vector<std::string>>*>(args[i].value);
-                std::regex key_value("(\\w+)=((?:\\w|,)+)"); /* match example: deduce - S0 (66, 6) d_5[0]=[] */
+                std::regex key_value("(\\w+)=((?:\\w|,|/|\\\\)+)");
                 std::smatch match;
                 while (index < argc) {
                     std::string arg(argv[index++]);
@@ -186,7 +211,7 @@ int LoadCmdArgs_(int argc, char** argv, int& index, CmdArg1d& args, bool optiona
     return 0;
 }
 
-int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args)
+int ParseArguments(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args)
 {
     if (index < argc && strcmp(argv[index], "-h") == 0) {
         auto cmd = fmt::format("{} {}", program, fmt::join(argv + 1, argv + index, " "));
@@ -204,12 +229,12 @@ int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const ch
 void PrintHelp(const std::string& cmd, const char* description, const char* version, SubCmdArg1d& cmds)
 {
     fmt::print("{}\nUsage:\n  {} <cmd> ...\n\ncmd can be one of the following:\n", description, cmd);
-    for (auto& cmd : cmds)
-        fmt::print("  {}: {}\n", cmd.name, cmd.description);
-    fmt::print("\n{}\n", version);
+    for (auto& c : cmds)
+        fmt::print("  {}: {}\n", c.name, c.description);
+    fmt::print("\n{} {}\n", version, COMPILE_MODE);
 }
 
-int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds)
+int ParseSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds)
 {
     if (index < argc && strcmp(argv[index], "-h") == 0) {
         std::string cmd = program;
@@ -235,7 +260,13 @@ nlohmann::json load_json(const std::string& file_name)
 {
     AssertFileExists(file_name);
     std::ifstream ifs(file_name);
-    return nlohmann::json::parse(ifs, nullptr, true, true);
+    try {
+        return nlohmann::json::parse(ifs, nullptr, true, true);
+    }
+    catch (nlohmann::detail::parse_error& e) {
+        fmt::print("json error: {}: {:#x} - {}\n", file_name, e.id, e.what());
+        throw e;
+    }
 }
 
 }  // namespace myio

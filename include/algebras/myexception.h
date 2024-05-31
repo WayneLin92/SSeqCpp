@@ -1,6 +1,14 @@
 #ifndef MYEXCEPTION_H
 #define MYEXCEPTION_H
 
+#ifndef NDEBUG
+#define MYDEBUG
+#define COMPILE_MODE "debug"
+#else
+//#define MYDEBUG
+#define COMPILE_MODE "release"
+#endif
+
 #include <string>
 
 /* A custom Exception class */

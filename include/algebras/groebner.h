@@ -96,9 +96,9 @@ public:
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
     */
     void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const Mon& mon, const int1d& gen_degs);
-    void AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, const MMod1d& leads, const MonTrace1d& traces, const MMod& mon, const int1d& gen_degs, const int1d& v_degs);
+    void AddToBuffers(const Mon1d& leadsx, const MMod1d& leads, const MMod& mon, const int1d& gen_degs, const int1d& v_degs);
     void init(const Mon1d& leads, const MonTrace1d& traces, const int1d& gen_degs, int t_min_buffer);
-    void init(const Mon1d& leadsx, const MonTrace1d& tracesx, const MMod1d& leads, const MonTrace1d& traces, const int1d& gen_degs, const int1d& v_degs, int t_min_buffer);
+    void init(const Mon1d& leadsx, const MMod1d& leads, const int1d& gen_degs, const int1d& v_degs, int t_min_buffer);
 };
 
 class Groebner
@@ -202,6 +202,8 @@ public:
     /* Return -1 if not found */
     int IndexOfDivisibleLeading(const Mon& mon) const;
 
+    /* Inplace reduction */
+    void ReduceP(Poly& poly, Poly& tmp1, Poly& tmp2) const;
     Poly Reduce(Poly poly) const;
 
     /**
@@ -299,7 +301,7 @@ public:  ////
      *
      * `rels` should be ordered by degree.
      */
-    void ToSubMod(const Mod1d& rels, int deg, int1d& index_ind);
+    void ToSubMod(const Mod1d& rels, int deg);
 
 public: /* Getters and Setters */
     const auto& gb_pairs() const
@@ -327,7 +329,7 @@ public: /* Getters and Setters */
     void push_back(Mod g)
     {
         const MMod& m = g.GetLead();
-        criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, leads_, traces_, m, pGb_->gen_degs(), v_degs_);
+        criticals_.AddToBuffers(pGb_->leads_, leads_, m, pGb_->gen_degs(), v_degs_);
 
         leads_.push_back(m);
         traces_.push_back(m.m.Trace());
@@ -366,6 +368,7 @@ public:
     /* Return -1 if not found */
     int IndexOfDivisibleLeading(const MMod& mon) const;
 
+    void ReduceP(Mod& poly, Poly& tmp1, Mod& tmp2, Mod& tmp3) const;
     Mod Reduce(Mod poly) const;
 
     /**

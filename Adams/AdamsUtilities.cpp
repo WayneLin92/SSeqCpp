@@ -15,22 +15,79 @@ void create_db_version(const myio::Database& db)
     db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
 }
 
-int get_db_t_max(const myio::Database& db)
+int get_db_metadata_int(const myio::Database& db, std::string_view key)
 {
     try {
         if (db.has_table("version")) {
-            try {
-                return db.get_int("select value from version where id=817812698");
-            }
-            catch (MyException&) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
+                return db.get_int(fmt::format("select value from version where name=\"{}\"", key));
+            else
                 return -1;
-            }
         }
     }
-    catch (MyException&) {
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
         return -3;
     }
     return -2;
+}
+
+int get_db_metadata_int_v2(const myio::Database& db, std::string_view key, int& result)
+{
+    try {
+        if (db.has_table("version")) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0) {
+                result = db.get_int(fmt::format("select value from version where name=\"{}\"", key));
+                return 0;
+            }
+            else
+                return -1;
+        }
+    }
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
+        return -3;
+    }
+    return -2;
+}
+
+std::string get_db_metadata_str(const myio::Database& db, std::string_view key)
+{
+    try {
+        if (db.has_table("version")) {
+            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
+                return db.get_str(fmt::format("select value from version where name=\"{}\"", key));
+            else
+                return "Error: key not found";
+        }
+    }
+    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
+        return "Error: database is locked or corrupted";
+    }
+    return "Error: database has no version table";
+}
+
+int get_db_t_max(const myio::Database& db)
+{
+    return get_db_metadata_int(db, "t_max");
+}
+
+int get_db_fil(const myio::Database& db, int& result)
+{
+    return get_db_metadata_int_v2(db, "filtration", result);
+}
+
+int get_db_sus(const myio::Database& db, int& result)
+{
+    return get_db_metadata_int_v2(db, "suspension", result);
+}
+
+int get_db_d2_t_max(const myio::Database& db)
+{
+    return get_db_metadata_int(db, "d2_t_max");
+}
+
+int get_db_timestamp(const myio::Database& db)
+{
+    return get_db_metadata_int(db, "timestamp");
 }
 
 void set_db_t_max(const myio::Database& db, int t_max)
@@ -39,57 +96,44 @@ void set_db_t_max(const myio::Database& db, int t_max)
     stmt.bind_and_step(t_max);
 }
 
+void set_db_d2_t_max(const myio::Database& db, int t_max)
+{
+    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (964058258, \"d2_t_max\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;"); /* db_key: d2_t_max */
+    stmt.bind_and_step(t_max);
+}
+
+void set_db_over(const myio::Database& db, const std::string& over)
+{
+    myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (1006379538, \"over\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;"); /* db_key: over */
+    stmt.bind_and_step(over);
+}
+
 void set_db_time(const myio::Database& db)
 {
     myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (1954841564, \"timestamp\", unixepoch()) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
     stmt.step_and_reset();
 }
 
-class DbAdamsUt : public myio::Database
+void UtStatus(const std::string& dir, int num)
 {
-    using Statement = myio::Statement;
-
-public:
-    explicit DbAdamsUt(const std::string& filename) : Database(filename) {}
-
-    int get_timestamp()
-    {
-        try {
-            if (has_table("version")) {
-                try {
-                    return get_int("select value from version where id=1954841564");
-                }
-                catch (MyException&) {
-                    return -1;
-                }
-            }
-        }
-        catch (MyException&) {
-            return -3;
-        }
-        return -2;
-    }
-};
-
-void UtStatus(const std::string& dir, bool sorted)
-{
-    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                     /* match example: C2h4_Adams_res.db */
-    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_Adams_res_regex("^(\\w+)_Adams_res.db$");                          /* match example: C2h4_Adams_res.db */
+    std::regex is_Adams_d2_regex("^(\\w+)_Adams_d2.db$");                            /* match example: C2h4_Adams_res.db */
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");                /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                              /* match example: C2h4_AdamsSS.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_(?:to|)_\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_(?:to|)_\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, int> timestamps_spectra;
-    std::map<std::string, std::array<std::string, 3>> table_spectra;
-    std::map<std::string, std::array<std::string, 3>> table_color_spectra;
+    std::map<std::string, std::array<std::string, 5>> table_spectra;
+    std::map<std::string, std::array<std::string, 5>> table_color_spectra;
     std::map<std::string, int> timestamps_maps;
     std::map<std::string, std::array<std::string, 2>> table_maps;
     std::map<std::string, std::array<std::string, 2>> table_color_maps;
 
     int current_timestamp;
     {
-        DbAdamsUt db("");
+        myio::Database db("");
         current_timestamp = db.get_int("SELECT unixepoch();");
     }
 
@@ -103,7 +147,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_Adams_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -116,21 +160,34 @@ void UtStatus(const std::string& dir, bool sorted)
                 name = match[1].str();
                 index = 2;
             }
+            else if (std::regex_search(filename, match, is_Adams_d2_regex); match[0].matched) {
+                name = match[1].str();
+                index = 3;
+            }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_spectra[name][index] = fmt::format("{}", get_db_t_max(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_spectra[name] = std::max(timestamps_spectra[name], timestamp);
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_spectra[name][index] = green;
                 else if (current_timestamp - timestamp < (3600 * 24))
                     table_color_spectra[name][index] = blue;
+                if (index == 2) {
+                    int d2_t_max = get_db_d2_t_max(db);
+                    if (d2_t_max >= 0)
+                        table_spectra[name][4] = fmt::format("{}", d2_t_max);
+                    if (current_timestamp - timestamp < (3600 * 6))
+                        table_color_spectra[name][4] = green;
+                    else if (current_timestamp - timestamp < (3600 * 24))
+                        table_color_spectra[name][4] = blue;
+                }
             }
         }
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -140,9 +197,9 @@ void UtStatus(const std::string& dir, bool sorted)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][index] = fmt::format("{}", get_db_t_max(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_maps[name] = std::max(timestamps_maps[name], timestamp);
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_maps[name][index] = green;
@@ -153,31 +210,39 @@ void UtStatus(const std::string& dir, bool sorted)
     }
     auto names_spectra = ut::get_keys(table_spectra);
     auto names_maps = ut::get_keys(table_maps);
-    if (sorted) {
+    if (num > 0) {
         std::sort(names_spectra.begin(), names_spectra.end(), [&timestamps_spectra](const std::string& name1, const std::string& name2) { return timestamps_spectra.at(name1) > timestamps_spectra.at(name2); });
         std::sort(names_maps.begin(), names_maps.end(), [&timestamps_maps](const std::string& name1, const std::string& name2) { return timestamps_maps.at(name1) > timestamps_maps.at(name2); });
     }
 
-    std::array<size_t, 4> spectra_widths = {7, 3, 4, 6};
-    for (auto& cw : names_spectra) {
+    std::array<size_t, 6> spectra_widths = {7, 3, 4, 3, 2, 5};
+    size_t i_max = num < 0 ? names_spectra.size() : std::min((size_t)num, names_spectra.size());
+    for (size_t i = 0; i < i_max; ++i) {
+        auto& cw = names_spectra[i];
         auto& t_maxes = table_spectra.at(cw);
         spectra_widths[0] = std::max(spectra_widths[0], cw.size());
         spectra_widths[1] = std::max(spectra_widths[1], t_maxes[0].size());
         spectra_widths[2] = std::max(spectra_widths[2], t_maxes[1].size());
         spectra_widths[3] = std::max(spectra_widths[3], t_maxes[2].size());
+        spectra_widths[4] = std::max(spectra_widths[4], t_maxes[3].size());
+        spectra_widths[5] = std::max(spectra_widths[5], t_maxes[4].size());
     }
-    auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3]);
-    fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "export");
-    fmt::print(fs, white, "-------", white, "---", white, "----", white, "------");
-    for (auto& cw : names_spectra) {
+    auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3],
+                          spectra_widths[4], spectra_widths[5]);
+    fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "exp", light_red, "d2", light_red, "expd2");
+    fmt::print(fs, white, "-------", white, "---", white, "----", white, "---", white, "--", white, "-----");
+    for (size_t i = 0; i < i_max; ++i) {
+        auto& cw = names_spectra[i];
         auto& t_maxes = table_spectra.at(cw);
         const auto& colors = table_color_spectra[cw];
-        fmt::print(fs, white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2]);
+        fmt::print(fs, white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2], colors[3], t_maxes[3], colors[4], t_maxes[4]);
     }
-    fmt::print("----------------------------------------------\n");
+    fmt::print("------------------------------------------------------------\n");
 
     std::array<size_t, 3> maps_widths = {3, 3, 6};
-    for (auto& name : names_maps) {
+    i_max = num < 0 ? names_maps.size() : std::min((size_t)num, names_maps.size());
+    for (size_t i = 0; i < i_max; ++i) {
+        auto& name = names_maps[i];
         auto& t_maxes = table_maps.at(name);
         maps_widths[0] = std::max(maps_widths[0], name.size());
         maps_widths[1] = std::max(maps_widths[1], t_maxes[0].size());
@@ -186,7 +251,8 @@ void UtStatus(const std::string& dir, bool sorted)
     auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
     fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "export");
     fmt::print(fs_map, white, "---", white, "---", white, "------");
-    for (auto& name : names_maps) {
+    for (size_t i = 0; i < i_max; ++i) {
+        auto& name = names_maps[i];
         auto& t_maxes = table_maps.at(name);
         const auto& colors = table_color_maps[name];
         fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
@@ -196,7 +262,7 @@ void UtStatus(const std::string& dir, bool sorted)
 
 void UtVerifyStatus(const std::string& dir, bool sorted)
 {
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, int> timestamps_maps;
@@ -205,7 +271,7 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
 
     int current_timestamp;
     {
-        DbAdamsUt db("");
+        myio::Database db("");
         current_timestamp = db.get_int("SELECT unixepoch();");
     }
 
@@ -223,10 +289,10 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
                 name = match[1].str();
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][0] = fmt::format("{}", get_db_t_max(db));
                 table_maps[name][1] = fmt::format("{}", get_db_t_verified(db));
-                int timestamp = db.get_timestamp();
+                int timestamp = get_db_timestamp(db);
                 timestamps_maps[name] = timestamp;
                 if (current_timestamp - timestamp < (3600 * 6))
                     table_color_maps[name][1] = green;
@@ -260,10 +326,10 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
 
 void UtExport(const std::string& dir)
 {
-    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");           /* match example: C2h4_Adams_res_prod.db */
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                         /* match example: C2h4_AdamsSS.db */
-    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+_to_\\w+).db$"); /* match example: map_Adams_res_C2_to_S0.db */
-    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+_to_\\w+).db$");    /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_Adams_res_prod_regex("^(\\w+)_Adams_res_prod.db$");         /* match example: C2h4_Adams_res_prod.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS.db$");                       /* match example: C2h4_AdamsSS.db */
+    std::regex is_map_res_regex("^map(?:_\\w+|)_Adams_res_(\\w+__\\w+).db$"); /* match example: map_Adams_res_C2__S0.db */
+    std::regex is_map_SS_regex("^map(?:_\\w+|)_AdamsSS_(\\w+__\\w+).db$");    /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match;
 
     std::map<std::string, std::array<int, 2>> table_spectra, table_maps;
@@ -274,7 +340,7 @@ void UtExport(const std::string& dir)
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_Adams_res_prod_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -284,14 +350,14 @@ void UtExport(const std::string& dir)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_spectra[name][index] = get_db_t_max(db);
             }
         }
 
         {
             std::string name;
-            int index;
+            int index = 0;
             if (std::regex_search(filename, match, is_map_res_regex); match[0].matched) {
                 name = match[1].str();
                 index = 0;
@@ -301,7 +367,7 @@ void UtExport(const std::string& dir)
                 index = 1;
             }
             if (!name.empty()) {
-                DbAdamsUt db(filepath);
+                myio::Database db(filepath);
                 table_maps[name][index] = get_db_t_max(db);
             }
         }
@@ -314,7 +380,7 @@ void UtExport(const std::string& dir)
     for (auto& cw : names_spectra)
         fmt::print("./Adams export_mod {} S0 200\n", cw);
     for (auto& map : names_maps)
-        fmt::print("./Adams export_map {} 200\n", std::regex_replace(map, std::regex("_to_"), " "));
+        fmt::print("./Adams export_map {} 200\n", std::regex_replace(map, std::regex("__"), " "));
     fmt::print("\nrm -r download\nmkdir download\n");
     fmt::print("cp ");
     for (auto& cw : names_spectra)
@@ -342,10 +408,16 @@ void UtRename(const std::string& old, const std::string& new_)
     for (const auto& fn : matched_filenames) {
         fmt::print("{}\n", fn);
         if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
-            DbAdamsUt db(fn);
+            myio::Database db(fn);
             auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
             for (const auto& table : tables)
                 fmt::print("  {}\n", table);
+            if (db.has_table("version")) {
+                auto names = db.get_column_str("version", "name", fmt::format("WHERE INSTR(value,\"{}\")", old));
+                auto values = db.get_column_str("version", "value", fmt::format("WHERE INSTR(value,\"{}\")", old));
+                for (size_t i = 0; i < names.size(); ++i)
+                    fmt::print("  version: {}={}\n", names[i], values[i]);
+            }
         }
     }
     if (myio::UserConfirm()) {
@@ -358,7 +430,7 @@ void UtRename(const std::string& old, const std::string& new_)
             fmt::print("{} --> {}\n", fn, fn_new);
 
             if (std::regex_search(fn, match, is_db_regex); match[0].matched) {
-                DbAdamsUt db(fn_new);
+                myio::Database db(fn_new);
                 auto tables = db.get_column_str("sqlite_master", "name", fmt::format("WHERE INSTR(name,\"{}\") AND NOT INSTR(name,\"sqlite\")", old));
                 for (const auto& table : tables) {
                     std::string table_new = std::regex_replace(table, std::regex(old), new_);
@@ -380,7 +452,7 @@ void UtAppendTmaxToFilename(const std::string& dir)
         std::string filename = entry.path().filename().string();
         if (std::regex_search(filename, match, is_AdamsSS_db_regex); match[0].matched) {
             old.push_back(dir + "/" + filename);
-            DbAdamsUt db(dir + "/" + filename);
+            myio::Database db(dir + "/" + filename);
             int t_max = get_db_t_max(db);
             new_.push_back(dir + "/" + fmt::format("{}_t{}.db", match[1].str(), t_max));
         }
@@ -394,8 +466,8 @@ void UtAppendTmaxToFilename(const std::string& dir)
 
 void UtPrintSSJson(const std::string& dir)
 {
-    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");              /* match example: C2h4_AdamsSS_t100.db */
-    std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)_to_(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2_to_S0.db */
+    std::regex is_AdamsSS_regex("^(\\w+)_AdamsSS_t\\d+.db$");            /* match example: C2h4_AdamsSS_t100.db */
+    std::regex is_map_SS_regex("^map_AdamsSS_(\\w+)__(\\w+)_t\\d+.db$"); /* match example: map_AdamsSS_C2__S0.db */
     std::smatch match, match1;
 
     std::map<std::string, std::array<int, 2>> table_maps; /* name -> [t_max, index] */
@@ -412,7 +484,7 @@ void UtPrintSSJson(const std::string& dir)
         }
         else if (std::regex_search(filename, match, is_map_SS_regex); match[0].matched) {
             try {
-                DbAdamsUt db(dir + "/" + filename);
+                myio::Database db(dir + "/" + filename);
                 int t_max = db.get_int("select value from version where id=817812698");
                 auto from = db.get_str("select value from version where id=446174262");
                 auto to = db.get_str("select value from version where id=1713085477");
@@ -449,7 +521,7 @@ void UtPrintSSJson(const std::string& dir)
 
 void UtAddFromTo(const std::string& dir)
 {
-    std::regex is_map_regex("^map_Adams(?:_res|SS)_(\\w+)_to_(\\w+?)(?:_t\\d+|).db$"); /* match example: map_Adams_res_C2_to_S0.db */
+    std::regex is_map_regex("^map_Adams(?:_res|SS)_(\\w+)__(\\w+?)(?:_t\\d+|).db$"); /* match example: map_Adams_res_C2__S0.db */
 
     std::vector<std::string> matched_filenames;
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -457,7 +529,7 @@ void UtAddFromTo(const std::string& dir)
         std::smatch match;
 
         if (std::regex_search(filename, match, is_map_regex); match[0].matched) {
-            DbAdamsUt db(dir + "/" + filename);
+            myio::Database db(dir + "/" + filename);
             if (db.has_table("version")) {
                 try {
                     db.get_str("select value from version where id=446174262"); /* from */
@@ -476,7 +548,7 @@ void UtAddFromTo(const std::string& dir)
 void UtAddTMax(const std::string& db_filename, int t_max)
 {
     myio::AssertFileExists(db_filename);
-    DbAdamsUt db(db_filename);
+    myio::Database db(db_filename);
     if (!db.has_table("version"))
         create_db_version(db);
     set_db_t_max(db, t_max);
@@ -484,20 +556,22 @@ void UtAddTMax(const std::string& db_filename, int t_max)
 
 int main_status(int argc, char** argv, int& index, const char* desc)
 {
-    std::string dir = ".";
-    myio::string1d options;
+    std::map<std::string, std::vector<std::string>> options;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"dir", &dir}, {"options", &options}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    myio::CmdArg1d op_args = {{"options", &options}};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
-    bool sorted = false;
-    for (auto& op : options) {
-        if (op == "sorted")
-            sorted = true;
-    }
 
-    UtStatus(dir, sorted);
+    std::string dir = ".";
+    if (ut::has(options, "dir"))
+		dir = options.at("dir")[0];
+
+    int num = -1;
+    if (ut::has(options, "n"))
+        num = std::stoi(options.at("n")[0]);
+
+    UtStatus(dir, num);
     return 0;
 }
 
@@ -508,7 +582,7 @@ int main_verify_status(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}, {"options", &options}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
     bool sorted = false;
     for (auto& op : options) {
@@ -527,7 +601,7 @@ int main_ut_export(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtExport(dir);
@@ -540,7 +614,7 @@ int main_ut_rename(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"old", &old}, {"new", &new_}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtRename(old, new_);
@@ -553,7 +627,7 @@ int main_ut_app_t_max(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAppendTmaxToFilename(dir);
@@ -566,7 +640,7 @@ int main_ut_ss_json(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtPrintSSJson(dir);
@@ -579,7 +653,7 @@ int main_ut_add_from_to(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"dir", &dir}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAddFromTo(dir);
@@ -593,7 +667,7 @@ int main_ut_add_t_max(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"db", &db_filename}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     UtAddTMax(db_filename, t_max);
@@ -610,7 +684,7 @@ int main_ut(int argc, char** argv, int& index, const char* desc)
         {"add_from_to", "For compatibility: add from to info to databases of maps", main_ut_add_from_to},
         {"add_t_max", "For compatibility: add t_max info to the database", main_ut_add_t_max},
     };
-    if (int error = myio::LoadSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
+    if (int error = myio::ParseSubCmd(argc, argv, index, PROGRAM, desc, VERSION, subcmds))
         return error;
     return 0;
 }

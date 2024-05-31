@@ -88,8 +88,8 @@ public:
     ** `buffer_min_pairs_` will become a Groebner basis at this stage.
     */
     void AddToBuffers(const Mon1d& leads, const MonTrace1d& traces, const int1d& leads_O, const Mon& mon, int O, const AdamsDeg1d& gen_degs);
-    void AddToBuffers(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const MMod& mon, int O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs);
-    void AddToBuffersX(const Mon1d& leadsx, const MonTrace1d& tracesx, const int1d& leadsx_O, const MMod1d& leads, const MonTrace1d& traces, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, size_t i_start);
+    void AddToBuffers(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, const MMod& mon, int O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs);
+    void AddToBuffersX(const Mon1d& leadsx, const int1d& leadsx_O, const MMod1d& leads, const int1d& leads_O, const AdamsDeg1d& gen_degs, const AdamsDeg1d& v_degs, size_t i_start);
 };
 
 int NextO(const ut::map_seq2d<int, 0>& possEinf, int t_max, int stem, int O_min);
@@ -131,7 +131,7 @@ public:
     }
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    Groebner(int t_trunc, AdamsDeg1d gen_degs, Poly1d polys, bool bDynamic = false);
+    Groebner(int t_trunc, AdamsDeg1d gen_degs, Poly1d polys);
 
 private:
     static TypeIndexKey Key(const Mon& lead)
@@ -180,8 +180,8 @@ public: /* Getters and Setters */
 
         if (g.data.size() == 1) {
             if (m.frontg() == backg && backg > 0 && m.m().begin()->e_masked() == 1) {
-                size_t index = backg;
-                nodes_gen_2tor_degs_.back()[index] = std::min(m.c(), nodes_gen_2tor_degs_.back()[index]);
+                size_t i = backg;
+                nodes_gen_2tor_degs_.back()[i] = std::min(m.c(), nodes_gen_2tor_degs_.back()[i]);
             }
         }
 
@@ -304,7 +304,7 @@ public:
      */
     void AddRels(Poly1d rels, int deg, const ut::map_seq2d<int, 0>& possEinf);
 
-    void SimplifyRels(const ut::map_seq2d<int, 0>& possEinf);
+    void SimplifyRels();
     /* Apply differential monommial orderings to old database */
     void SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf);
 };
@@ -380,7 +380,7 @@ public:
     GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs) : pGb_(pGb), criticals_(deg_trunc), v_degs_(std::move(v_degs)), old_pGb_size_(pGb->leads_.size()) {}
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
-    GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys, bool bDynamic = false);
+    GroebnerMod(const Groebner* pGb, int deg_trunc, AdamsDeg1d v_degs, Mod1d polys);
 
 private:
     static TypeIndexKey Key(const MMod& lead)
@@ -427,7 +427,7 @@ public: /* Getters and Setters */
     /* This is used for initialization */
     void push_back_data_buffer(Mod g, AdamsDeg deg)
     {
-        criticals_.AddToBuffers(pGb_->leads_, pGb_->traces_, pGb_->data_O_, leads_, traces_, data_O_, g.GetLead(), g.UnknownFil(), pGb_->gen_degs(), v_degs_);
+        criticals_.AddToBuffers(pGb_->leads_, pGb_->data_O_, leads_, data_O_, g.GetLead(), g.UnknownFil(), pGb_->gen_degs(), v_degs_);
         push_back_data(std::move(g), deg);
     }
 
@@ -535,7 +535,7 @@ public:
      */
     void AddRels(Mod1d rels, int deg, const ut::map_seq2d<int, 0>& possEinf);
 
-    void SimplifyRels(const ut::map_seq2d<int, 0>& possEinf);
+    void SimplifyRels();
     void SimplifyRelsReorder(const ut::map_seq2d<int, 0>& possEinf);
 };
 

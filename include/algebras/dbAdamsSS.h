@@ -165,6 +165,7 @@ public:
     Poly1d load_gb(const std::string& table_prefix, int t_max) const;
     Mod1d load_gb_mod(const std::string& table_prefix, int t_max) const;
     std::map<AdamsDeg, Mon1d> load_basis(const std::string& table_prefix) const;
+    std::map<AdamsDeg, int2d> load_basis_d2(const std::string& table_prefix) const;
     std::map<AdamsDeg, MMod1d> load_basis_mod(const std::string& table_prefix) const;
 
 public:

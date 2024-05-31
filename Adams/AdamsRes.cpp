@@ -19,9 +19,7 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }
 
-int res_P(const std::string& cw, int t_max, int stem_max);
-int CohFromJson(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
-int Coh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
+int GetCoh(int1d& v_degs, Mod1d& rels, int t_max, const std::string& name);
 
 int main_res(int argc, char** argv, int& index, const char* desc)
 {
@@ -30,105 +28,30 @@ int main_res(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"cw", &cw}, {"t_max", &t_max}};
     myio::CmdArg1d op_args = {{"stem_max", &stem_max}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+        
+/* Prevent double run on linux */
+#ifdef __linux__
+    if (IsAdamsRunning(fmt::format("./Adams res {} ", cw))) {
+        fmt::print("Error: ./Adams res {} is already running.\n", cw);
+        return -1;
+    }
+#endif
 
     if (stem_max > DEG_MAX) {
         stem_max = DEG_MAX;
         fmt::print("stem_max is truncated to {}.", stem_max);
     }
 
-    std::regex is_P_regex("^(?:tmf_|X2_|)(?:R|C|H)P(?:m|)\\d+_(?:m|)\\d+$"); /* match example: RP1_4, CPm1_10 */
-    std::smatch match;
-    if (std::regex_search(cw, match, is_P_regex); match[0].matched) ////
-        return res_P(cw, t_max, stem_max);
-
     int1d v_degs;
     Mod1d rels;
     int d_max = std::min(t_max, stem_max);
-    if (int error = Coh(v_degs, rels, d_max, cw))
-        return -1;
+    if (int error = GetCoh(v_degs, rels, d_max, cw))
+        return -2;
 
     std::string db_filename = cw + "_Adams_res.db";
     std::string tablename = cw + "_Adams_res";
     ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
-    return 0;
-}
-
-void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2);
-void normalize_RP(int n1, int n2, int& n1_, int& n2_);
-void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max, const std::string& over, int hopf);
-void Coh_X2_RP(int1d& v_degs, Mod1d& rels, Mod1d& cell_reduced, int1d& min_rels, int n1, int n2, int t_max);
-
-int res_P(const std::string& cw, int t_max, int stem_max)
-{
-    std::regex is_P_regex("^(tmf_|X2_|)((R|C|H)P(?:m|)\\d+_(?:m|)\\d+)$"); /* match example: RP1_4, CPm1_10 */
-    std::smatch match;
-    std::regex_search(cw, match, is_P_regex);
-
-    std::string ring = match[1].str();
-    int hopf, n1, n2;
-    ParseFP(match[2].str(), hopf, n1, n2);
-    std::string field = match[3].str();
-
-    if (!(n1 + 1 < n2)) {
-        fmt::print("We need n1 + 1 < n2");
-        return -1;
-    }
-    int n1_ = n1, n2_ = n2;
-
-    if (field == "R") {
-        normalize_RP(n1, n2, n1_, n2_);
-        if (n1 != n1_)
-            fmt::print("We use n1={} n2={} because of James periodicity\n", n1_, n2_);
-    }
-
-    int1d v_degs;
-    Mod1d rels, tmp_Mod1d;
-    int1d tmp_ind1d;
-    if (ring == "")
-        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "S0", hopf);
-    else if (ring == "tmf_")
-        Coh_P(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max, "tmf", hopf);
-    else if (ring == "X2_")
-        Coh_X2_RP(v_degs, rels, tmp_Mod1d, tmp_ind1d, n1_, n2_, t_max);  ////
-    else {
-        fmt::print("ring={} not supported\n", ring);
-        return 1;
-    }
-    std::string db_filename, tablename;
-    std::string str_n1 = std::to_string(abs(n1_));
-    std::string str_n2 = std::to_string(abs(n2_));
-    if (n1_ < 0)
-        str_n1 = "m" + str_n1;
-    if (n2_ < 0)
-        str_n2 = "m" + str_n2;
-    db_filename = fmt::format("{}{}P{}_{}_Adams_res.db", ring, field, str_n1, str_n2);
-    tablename = fmt::format("{}{}P{}_{}_Adams_res", ring, field, str_n1, str_n2);
-
-    ResolveV2(rels, v_degs, t_max, stem_max, db_filename, tablename);
-    return 0;
-}
-
-void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from, std::string& to, Mod1d& images, int& sus, int& fil);
-void SetDbCohMap(const std::string& db_map, const std::string& table_map, const std::string& from, const std::string& to, const Mod1d& images, int sus, int fil);
-
-int main_map_coh(int argc, char** argv, int& index, const char* desc)
-{
-    std::string cw1, cw2;
-
-    myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}};
-    myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
-        return error;
-
-    Mod1d images;
-    int sus = 0, fil = 0;
-    std::string from, to;
-    SetCohMap(cw1, cw2, from, to, images, sus, fil);
-    std::string db_filename = fmt::format("map_Adams_res_{}_to_{}.db", cw1, cw2);
-    std::string tablename = fmt::format("map_Adams_res_{}_to_{}", cw1, cw2);
-    SetDbCohMap(db_filename, tablename, from, to, images, sus, fil);
-
     return 0;
 }

@@ -38,5 +38,63 @@ $P_k^{k+m}$ is the Thom space of $k\lambda_m$ over $RP^m$.
 ## Massey products
 $g=\langle h_0h_3^2,h_0,h_1,h_2\rangle$
 
-## Programming
-Search for S0 nontrivial differentials. `^[^\s].*S0 \(.*=\[\d.*\]`
+
+## First connecting homomorphism
+Consider the cofiber sequence $X\to Y\to Z$ where $X$ is a subcomplex of $Y$.
+Assume that
+$$A^{n_1}\longleftarrow A^{m_1}\longleftarrow A^{l_1}$$
+$$A^{n_0}\longleftarrow A^{m_0}\longleftarrow A^{l_0}$$
+$$H^*(X)\longleftarrow H^*(Y)\longleftarrow H^*(Z)$$
+and $f\in I$.
+
+## Secondary Steenrod algebra
+The "basis" of $B_0$ is given by $Y_{k,l}Sq(R)$ ($0\le k < l$), $Sq(R)$ and $2Sq(R)$.
+
+$|Y_{k,l}|=2^k+2^l-1$.
+
+$$Sq(R)Sq(S)=\sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}C(\xi_{m}^{2^k}\xi_n^{2^k}, Sq(R))C(\xi_{k+1}, Sq(S))+\sum_{\substack{R(X)=R\\S(X)=S}}b(X)Sq(T(X))$$
+
+$$aY_{k,l}=\sum_{i,j\ge 0} Y_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$$
+where
+$$Y_{k,l}=\begin{cases}
+Y_{k,l} & k>l\\
+2Sq(\Delta_{k+1}) &k=l\\
+\end{cases}$$
+
+We define $A: A\otimes \mathrm{ker}~ d^B\to A\{\tau\}$ by
+* $A(a, 2)=C(\xi_1, a)$
+* $A(a, Y_{k,l})=\sum_{i,j\ge 0} Z_{k+i,l+j}C(\xi_i^{2^k}\xi_j^{2^l}, a)$
+* $A(a, rSq(R))=A(a, r)Sq(R)$
+where 
+$$Z_{k,l}=\begin{cases}
+0 & k < l\\
+Sq(\Delta_k+\Delta_l) & k\ge l\\
+\end{cases}$$
+
+$k+i\ge l+j\implies j \le k+i-l$
+
+$$\begin{align*}
+&A\left(Sq(Q), \sum_{k\ge 0}\sum_{0\le m<n} Y_{m+k,n+k}Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\right)\\
+=& \sum_{k\ge 0}\sum_{0\le m<n} A(Sq(Q), Y_{m+k,n+k})Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{\substack{k,i,j,m,n\\m<n}} Z_{m+k+i,n+k+j}Sq(Q-2^{m+k}\Delta_i-2^{n+k}\Delta_j)Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{\substack{k,i,j,m,n\\m<n\\m+i\ge n+j}} Sq(\Delta_{m+k+i}+\Delta_{n+k+j})Sq(Q-2^{m+k}\Delta_i-2^{n+k}\Delta_j)Sq(R-2^k(\Delta_m+\Delta_n))Sq(S-\Delta_{k+1})\\
+=& \sum_{m\ge n} Sq(\Delta_{m}+\Delta_{n}) \sum_{m_1<n_1\le n} Sq(Q-2^{m_1}\Delta_{m-m_1}-2^{n_1}\Delta_{n-n_1}) \sum_{k\le m_1} Sq(R-2^k(\Delta_{m_1-k}+\Delta_{n_1-k})) Sq(S-\Delta_{k+1})
+\end{align*}$$
+
+$$\sum_{m\ge n} Sq(\Delta_{m}+\Delta_{n}) \sum_{k\le n} Sq(Q-2^{k}(\Delta_{m-k}+\Delta_{n-k})) Sq(R-\Delta_{k+1}) Sq(S)$$
+$$Sq(Q-\Delta_1)\sum_{m,n} Sq(\Delta_{m+n}) Sq(R-2^n\Delta_{m}) Sq(S-\Delta_n)$$
+
+$Sq(n)Sq(m)=\sum_i (n-2i, m-i)Sq(n+m-3i, i)$
+
+
+
+# others
+## read d2 from db
+```sql
+ATTACH "j_Adams_res.db" as j; SELECT t-s as stem,s,d2_h FROM j_Adams_d2 LEFT JOIN j_Adams_res_generators USING (id) ORDER BY stem,s;
+```
+
+## Replace
+`(./Adams res (\w+) )180(": \{\n)(.*)`
+`$1180$3$4, "pre": ["cp $2_AdamsSS.db AdamsSS/"],`
+

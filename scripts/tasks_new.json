@@ -1,0 +1,770 @@
+{
+  "CPU_threshold": 0.8,
+  "CPU_threshold_info": "run more tasks if CPU usage is below this threshold",
+  "MEM_threshold": 0.8,
+  "MEM_threshold_info": "run more tasks if MEM usage is below this threshold",
+  "MEM_limit": 0.95,
+  "MEM_limit_info": "kill tasks if memory usage is above this limit",
+  "DISK_threshold": 100,
+  "DISK_threshold_info": "run more tasks if disk available is more than this threshold in GB",
+  "interval": 300,
+  "interval_info": "check every `interval` seconds",
+  "templates": {
+    "ring": {
+      "json": {
+        "res {ring} {t}": {
+          "cmd": "nohup ./Adams res {ring} {t} >> {ring}.out 2>&1 &"
+        },
+        "prod {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod {ring} {t} >> {ring}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}"
+          ]
+        },
+        "export {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "prod {ring} {t}"
+          ]
+        },
+        "cp {ring} {t}": {
+          "cmd": "cp {ring}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {ring} {t}"
+          ]
+        }
+      },
+      "params": ["ring", "t"]
+    },
+    "tpl_mod": {
+      "json": {
+        "res {mod} {t}": {
+          "cmd": "nohup ./Adams res {mod} {t} >> {mod}.out 2>&1 &"
+        },
+        "prod {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod_mod {mod} {ring} {t} >> {mod}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}",
+            "res {mod} {t}"
+          ]
+        },
+        "export {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export_mod {mod} {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {ring} {t}",
+            "prod {mod} {t}"
+          ]
+        },
+        "cp {mod} {t}": {
+          "cmd": "cp {mod}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {mod} {t}"
+          ]
+        }
+      },
+      "params": ["mod", "ring", "t"]
+    },
+    "module": {
+      "json": {"tpl123": ["tpl_mod", "{mod}", "S0", "{t}"]},
+      "params": ["mod", "t"]
+    },
+    "module_tmf": {
+      "json": {"tpl123": ["tpl_mod", "{mod}", "tmf", "{t}"]},
+      "params": ["mod", "t"]
+    },
+    "tpl_map": {
+      "json": {
+        "priority": 100,
+        "map_res {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
+          "pre": [
+            "res {from} {t}",
+            "res {to} {t}"
+          ]
+        },
+        "export_map {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams export_map {cw1} {cw2} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {from} {t}",
+            "export {to} {t}",
+            "map_res {cw1} {cw2} {t}"
+          ]
+        },
+        "cp_map {cw1} {cw2} {t}": {
+          "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export_map {cw1} {cw2} {t}"
+          ]
+        }
+      },
+      "params": ["cw1", "cw2", "from", "to", "t"]
+    },
+    "map": {
+      "json": {"tpl123": ["tpl_map", "{cw1}", "{cw2}", "{cw1}", "{cw2}", "{t}"]},
+      "params": ["cw1", "cw2", "t"]
+    },
+    "map_vto": {
+      "json": {"tpl123": ["tpl_map", "{cw1}", "{cw2}", "{cw1}", "{to}", "{t}"]},
+      "params": ["cw1", "cw2", "to", "t"]
+    },
+
+    "ring_cont": {
+      "json": {
+        "res {ring} {t}": {
+          "cmd": "nohup ./Adams res {ring} {t} >> {ring}.out 2>&1 &",
+          "pre": [
+            "cp {ring} {t_prev}"
+          ]
+        },
+        "prod {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod {ring} {t} >> {ring}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}"
+          ]
+        },
+        "export {ring} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "prod {ring} {t}"
+          ]
+        },
+        "cp {ring} {t}": {
+          "cmd": "cp {ring}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {ring} {t}"
+          ]
+        }
+      },
+      "params": ["ring", "t", "t_prev"]
+    },
+    "tpl_mod_cont": {
+      "json": {
+        "res {mod} {t}": {
+          "cmd": "nohup ./Adams res {mod} {t} >> {mod}.out 2>&1 &",
+          "pre": [
+            "cp {mod} {t_prev}"
+          ]
+        },
+        "prod {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams prod_mod {mod} {ring} {t} >> {mod}_prod.out 2>&1 &",
+          "pre": [
+            "res {ring} {t}",
+            "res {mod} {t}"
+          ]
+        },
+        "export {mod} {t}": {
+          "priority": 100,
+          "cmd": "nohup ./Adams export_mod {mod} {ring} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {ring} {t}",
+            "prod {mod} {t}"
+          ]
+        },
+        "cp {mod} {t}": {
+          "cmd": "cp {mod}_AdamsSS.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export {mod} {t}"
+          ]
+        }
+      },
+      "params": ["mod", "ring", "t", "t_prev"]
+    },
+    "module_cont": {
+      "json": {"tpl123": ["tpl_mod_cont", "{mod}", "S0", "{t}", "{t_prev}"]},
+      "params": ["mod", "t", "t_prev"]
+    },
+    "module_tmf_cont": {
+      "json": {"tpl123": ["tpl_mod_cont", "{mod}", "tmf", "{t}", "{t_prev}"]},
+      "params": ["mod", "t", "t_prev"]
+    },
+    "tpl_map_cont": {
+      "json": {
+        "priority": 100,
+        "map_res {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams map_res {cw1} {cw2} {t} >> map_{cw1}__{cw2}.out 2>&1 &",
+          "pre": [
+            "res {from} {t}",
+            "res {to} {t}",
+            "cp_map {cw1} {cw2} {t_prev}"
+          ]
+        },
+        "export_map {cw1} {cw2} {t}": {
+          "cmd": "nohup ./Adams export_map {cw1} {cw2} {t} >> export.out 2>&1 &",
+          "pre": [
+            "export {from} {t}",
+            "export {to} {t}",
+            "map_res {cw1} {cw2} {t}"
+          ]
+        },
+        "cp_map {cw1} {cw2} {t}": {
+          "cmd": "cp map_AdamsSS_{cw1}__{cw2}.db AdamsSS/",
+          "pre": [
+            "mkdir AdamsSS",
+            "export_map {cw1} {cw2} {t}"
+          ]
+        }
+      },
+      "params": ["cw1", "cw2", "from", "to", "t", "t_prev"]
+    },
+    "map_cont": {
+      "json": {"tpl123": ["tpl_map_cont", "{cw1}", "{cw2}", "{cw1}", "{cw2}", "{t}", "{t_prev}"]},
+      "params": ["cw1", "cw2", "t", "t_prev"]
+    },
+    "map_vto_cont": {
+      "json": {"tpl123": ["tpl_map_cont", "{cw1}", "{cw2}", "{cw1}", "{to}", "{t}", "{t_prev}"]},
+      "params": ["cw1", "cw2", "to", "t", "t_prev"]
+    }
+  },
+  "tasks": {
+    "priority": 0,
+    "mkdir AdamsSS": {
+      "priority": 100,
+      "cmd": "mkdir -p AdamsSS",
+      "info": "The exported data will be copied to this folder"
+    },
+    "160": {
+      "priority": 90,
+      "S0": {
+        "priority": 90,
+        "S0": {"tpl123": ["ring", "S0", "160"]}
+      },
+      "hopf": {
+        "priority": 99,
+        "C2": {"tpl123": ["module", "C2", "160"]},
+        "Ceta": {"tpl123": ["module", "Ceta", "160"]},
+        "Cnu": {"tpl123": ["module", "Cnu", "160"]},
+        "Csigma": {"tpl123": ["module", "Csigma", "160"]}
+      },
+      "theta": {
+        "priority": 99,
+        "CW_2_eta_theta5sq": {"tpl123": ["module", "CW_2_eta_theta5sq", "160"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module", "CW_theta5sq_eta_2", "160"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map", "CW_2_eta", "CW_2_eta_theta5sq", "160"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map", "CW_theta5sq_eta_2", "CW_eta_2", "160"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map", "CW_2_eta_theta5sq", "S0", "160"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "160"]}
+      },
+      "linear": {
+        "priority": 97,
+        "3-cell": {
+          "CW_2_eta": {"tpl123": ["module", "CW_2_eta", "160"]},
+          "CW_eta_2": {"tpl123": ["module", "CW_eta_2", "160"]},
+          "CW_sigma_2sigma": {"tpl123": ["module", "CW_sigma_2sigma", "160"]},
+          "CW_2sigma_sigma": {"tpl123": ["module", "CW_2sigma_sigma", "160"]},
+
+          "Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma", "CW_sigma_2sigma", "160"]},
+          "C2sigma__CW_2sigma_sigma": {"tpl123": ["map", "C2sigma", "CW_2sigma_sigma", "160"]},
+          "CW_sigma_2sigma__S0": {"tpl123": ["map", "CW_sigma_2sigma", "S0", "160"]},
+          "CW_sigma_2sigma__C2sigma_0": {"tpl123": ["map_vto", "CW_sigma_2sigma", "C2sigma_0", "S0", "160"]}
+        },
+        "4-cell": {
+        },
+        "5-cell": {
+          "CW_nu_eta_2_etasigma": {"tpl123": ["module", "CW_nu_eta_2_etasigma", "160"]},
+          "CW_nu_eta_2_etasigma__S0": {"tpl123": ["map", "CW_nu_eta_2_etasigma", "S0", "160"]},
+          "CW_nu_eta_2_etasigma__Cetasigma_0": {"tpl123": ["map_vto", "CW_nu_eta_2_etasigma", "Cetasigma_0", "S0", "160"]},
+          "CW_nu_eta_2__CW_nu_eta_2_etasigma": {"tpl123": ["map", "CW_nu_eta_2", "CW_nu_eta_2_etasigma", "160"]},
+
+          "CW_etasigma_2_eta_nu": {"tpl123": ["module", "CW_etasigma_2_eta_nu", "160"]},
+          "CW_etasigma_2_eta_nu__CW_2_eta_nu": {"tpl123": ["map", "CW_etasigma_2_eta_nu", "CW_2_eta_nu", "160"]}
+        },
+        "6-cell": {
+          "CW_sigma_nu_eta_2_etasigma": {"tpl123": ["module", "CW_sigma_nu_eta_2_etasigma", "160"]},
+          "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {"tpl123": ["map", "CW_sigma_nu_eta_2", "CW_sigma_nu_eta_2_etasigma", "160"]},
+          "CW_sigma_nu_eta_2_etasigma__CW_nu_eta_2_etasigma": {"tpl123": ["map", "CW_sigma_nu_eta_2_etasigma", "CW_nu_eta_2_etasigma", "160"]},
+
+          "CW_etasigma_2_eta_nu_sigma": {"tpl123": ["module", "CW_etasigma_2_eta_nu_sigma", "160"]},
+          "CW_etasigma_2_eta_nu__CW_etasigma_2_eta_nu_sigma": {"tpl123": ["map", "CW_2_eta_nu_sigma", "CW_etasigma_2_eta_nu_sigma", "160"]},
+          "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {"tpl123": ["map", "CW_etasigma_2_eta_nu_sigma", "CW_2_eta_nu_sigma", "160"]}
+        }
+      },
+      "V": {
+        "priority": 101,
+        "CW_2_V_eta": {"tpl123": ["module", "CW_2_V_eta", "160"]},
+        "CW_eta_V_nu": {"tpl123": ["module", "CW_eta_V_nu", "160"]},
+        "CW_nu_V_sigma": {"tpl123": ["module", "CW_nu_V_sigma", "160"]},
+
+        "CW_2_V_eta__S1": {"tpl123": ["map_vto", "CW_2_V_eta", "S1", "S0", "160"]},
+        "CW_2_V_eta__S2": {"tpl123": ["map_vto", "CW_2_V_eta", "S2", "S0", "160"]},
+        "CW_eta_V_nu__S2": {"tpl123": ["map_vto", "CW_eta_V_nu", "S2", "S0,", "160"]},
+        "CW_eta_V_nu__S4": {"tpl123": ["map_vto", "CW_eta_V_nu", "S4", "S0", "160"]},
+        "CW_nu_V_sigma__S4": {"tpl123": ["map_vto", "CW_nu_V_sigma", "S4", "S0", "160"]},
+        "CW_nu_V_sigma__S8": {"tpl123": ["map_vto", "CW_nu_V_sigma", "S8", "S0", "160"]}
+      },
+      "A": {
+        "priority": 102,
+        "CW_2_A_eta": {"tpl123": ["module", "CW_2_A_eta", "160"]},
+        "CW_eta_A_nu": {"tpl123": ["module", "CW_eta_A_nu", "160"]},
+        "CW_nu_A_sigma": {"tpl123": ["module", "CW_nu_A_sigma", "160"]},
+
+        "C2__Q_CW_2_A_eta": {"tpl123": ["map_vto", "C2", "Q_CW_2_A_eta", "S0", "160"]},
+        "Ceta__Q_CW_2_A_eta": {"tpl123": ["map_vto", "Ceta", "Q_CW_2_A_eta", "S0", "160"]},
+        "Ceta__Q_CW_eta_A_nu": {"tpl123": ["map_vto", "Ceta", "Q_CW_eta_A_nu", "S0", "160"]},
+        "Cnu__Q_CW_eta_A_nu": {"tpl123": ["map_vto", "Cnu", "Q_CW_eta_A_nu", "S0", "160"]},
+        "Cnu__Q_CW_nu_A_sigma": {"tpl123": ["map_vto", "Cnu", "Q_CW_nu_A_sigma", "S0", "160"]},
+        "Csigma__Q_CW_nu_A_sigma": {"tpl123": ["map_vto", "Csigma", "Q_CW_nu_A_sigma", "S0", "160"]}
+      },
+      "Smash": {
+        "priority": 101,
+        "C2_Ceta": {"tpl123": ["module", "C2_Ceta", "160"]},
+        "C2_Cnu": {"tpl123": ["module", "C2_Cnu", "160"]},
+        "C2_Csigma": {"tpl123": ["module", "C2_Csigma", "160"]},
+        "Ceta_Cnu": {"tpl123": ["module", "Ceta_Cnu", "160"]},
+        "Ceta_Csigma": {"tpl123": ["module", "Ceta_Csigma", "160"]},
+        "Cnu_Csigma": {"tpl123": ["module", "Cnu_Csigma", "160"]},
+
+        "C2_Ceta_Cnu": {"tpl123": ["module", "C2_Ceta_Cnu", "160"]},
+        "C2_Ceta__C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta", "C2_Ceta_Cnu", "160"]},
+        "C2_Cnu__C2_Ceta_Cnu": {"tpl123": ["map", "C2_Cnu", "C2_Ceta_Cnu", "160"]},
+        "Ceta_Cnu__C2_Ceta_Cnu": {"tpl123": ["map", "Ceta_Cnu", "C2_Ceta_Cnu", "160"]},
+        "C2_Ceta_Cnu__C2_Ceta": {"tpl123": ["map", "C2_Ceta_Cnu", "C2_Ceta", "160"]},
+        "C2_Ceta_Cnu__C2_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "C2_Cnu", "160"]},
+        "C2_Ceta_Cnu__Ceta_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "Ceta_Cnu", "160"]},
+
+        "C2_C2": {"tpl123": ["module", "C2_C2", "160"]},
+        "C2__C2_C2": {"tpl123": ["map", "C2", "C2_C2", "160"]},
+        "C2_C2__C2": {"tpl123": ["map", "C2_C2", "C2", "160"]},
+        "CW_2_A_eta__C2_C2": {"tpl123": ["map", "CW_2_A_eta", "C2_C2", "160"]},
+        "C2_C2__CW_2_V_eta": {"tpl123": ["map", "C2_C2", "CW_2_V_eta", "160"]},
+
+        "Ceta_Ceta": {"tpl123": ["module", "Ceta_Ceta", "160"]},
+        "Ceta__Ceta_Ceta": {"tpl123": ["map", "Ceta", "Ceta_Ceta", "160"]},
+        "Ceta_Ceta__Ceta": {"tpl123": ["map", "Ceta_Ceta", "Ceta", "160"]},
+        "CW_eta_A_nu__Ceta_Ceta": {"tpl123": ["map", "CW_eta_A_nu", "Ceta_Ceta", "160"]},
+        "Ceta_Ceta__CW_eta_V_nu": {"tpl123": ["map", "Ceta_Ceta", "CW_eta_V_nu", "160"]},
+
+        "Cnu_Cnu": {"tpl123": ["module", "Cnu_Cnu", "160"]},
+        "Cnu__Cnu_Cnu": {"tpl123": ["map", "Cnu", "Cnu_Cnu", "160"]},
+        "Cnu_Cnu__Cnu": {"tpl123": ["map", "Cnu_Cnu", "Cnu", "160"]},
+        "CW_nu_A_sigma__Cnu_Cnu": {"tpl123": ["map", "CW_nu_A_sigma", "Cnu_Cnu", "160"]},
+        "Cnu_Cnu__CW_nu_V_sigma": {"tpl123": ["map", "Cnu_Cnu", "CW_nu_V_sigma", "160"]},
+
+        "Csigma_Csigma": {"tpl123": ["module", "Csigma_Csigma", "160"]},
+        "Csigma__Csigma_Csigma": {"tpl123": ["map", "Csigma", "Csigma_Csigma", "160"]},
+        "Csigma_Csigma__Csigma": {"tpl123": ["map", "Csigma_Csigma", "Csigma", "160"]},
+        "Csigma_Csigma__CW_sigma_2sigma": {"tpl123": ["map", "Csigma_Csigma", "CW_sigma_2sigma", "160"]}
+      },
+      "RP": {
+        "priority": 90,
+        "RPinf": {
+          "RP1_256": {"tpl123": ["module", "RP1_256", "160"]},
+          "RP1_32__RP1_256": {"tpl123": ["map", "RP1_32", "RP1_256", "160"]},
+          "RP1_256__RP3_256": {"tpl123": ["map", "RP1_256", "RP3_256", "160"]}
+        },
+        "RP1n": {
+          "RP3_6": {"tpl123": ["module", "RP3_6", "160"]},
+          "RP1_4": {"tpl123": ["module", "RP1_4", "160"]},
+          "RP1_5": {"tpl123": ["module", "RP1_5", "160"]}, 
+          "RP1_6": {"tpl123": ["module", "RP1_6", "160"]}, 
+          "RP1_8": {"tpl123": ["module", "RP1_8", "160"]}, 
+          "RP1_9": {"tpl123": ["module", "RP1_9", "160"]}, 
+          "RP1_10": {"tpl123": ["module", "RP1_10", "160"]}, 
+          "RP1_11": {"tpl123": ["module", "RP1_11", "160"]}, 
+          "RP1_12": {"tpl123": ["module", "RP1_12", "160"]}, 
+          "RP1_13": {"tpl123": ["module", "RP1_13", "160"]}, 
+          "RP1_14": {"tpl123": ["module", "RP1_14", "160"]}, 
+          "RP1_16": {"tpl123": ["module", "RP1_16", "160"]}, 
+          "RP1_17": {"tpl123": ["module", "RP1_17", "160"]}, 
+          "RP1_18": {"tpl123": ["module", "RP1_18", "160"]}, 
+          "RP1_19": {"tpl123": ["module", "RP1_19", "160"]}, 
+          "RP1_20": {"tpl123": ["module", "RP1_20", "160"]}, 
+          "RP1_21": {"tpl123": ["module", "RP1_21", "160"]}, 
+          "RP1_22": {"tpl123": ["module", "RP1_22", "160"]}, 
+          "RP1_23": {"tpl123": ["module", "RP1_23", "160"]}, 
+          "RP1_24": {"tpl123": ["module", "RP1_24", "160"]}, 
+          "RP1_25": {"tpl123": ["module", "RP1_25", "160"]}, 
+          "RP1_26": {"tpl123": ["module", "RP1_26", "160"]}, 
+          "RP1_27": {"tpl123": ["module", "RP1_27", "160"]}, 
+          "RP1_28": {"tpl123": ["module", "RP1_28", "160"]}, 
+          "RP1_29": {"tpl123": ["module", "RP1_29", "160"]}, 
+          "RP1_30": {"tpl123": ["module", "RP1_30", "160"]}, 
+          "RP1_32": {"tpl123": ["module", "RP1_32", "160"]}
+        },
+        "RPn_inf": {
+          "RP3_256": {"tpl123": ["module", "RP3_256", "160"]}, 
+          "RP4_256": {"tpl123": ["module", "RP4_256", "160"]}, 
+          "RP5_256": {"tpl123": ["module", "RP5_256", "160"]}, 
+          "RP6_256": {"tpl123": ["module", "RP6_256", "160"]}, 
+          "RP7_256": {"tpl123": ["module", "RP7_256", "160"]}, 
+          "RP8_256": {"tpl123": ["module", "RP8_256", "160"]}, 
+          "RP9_256": {"tpl123": ["module", "RP9_256", "160"]}, 
+          "RP10_256": {"tpl123": ["module", "RP10_256", "160"]}, 
+          "RP11_256": {"tpl123": ["module", "RP11_256", "160"]}, 
+          "RP12_256": {"tpl123": ["module", "RP12_256", "160"]}, 
+          "RP13_256": {"tpl123": ["module", "RP13_256", "160"]}, 
+          "RP14_256": {"tpl123": ["module", "RP14_256", "160"]}, 
+          "RP15_256": {"tpl123": ["module", "RP15_256", "160"]}, 
+          "RP16_256": {"tpl123": ["module", "RP16_256", "160"]}, 
+          "RP17_256": {"tpl123": ["module", "RP17_256", "160"]}, 
+          "RP18_256": {"tpl123": ["module", "RP18_256", "160"]}, 
+          "RP19_256": {"tpl123": ["module", "RP19_256", "160"]}, 
+          "RP20_256": {"tpl123": ["module", "RP20_256", "160"]}, 
+          "RP21_256": {"tpl123": ["module", "RP21_256", "160"]}, 
+          "RP22_256": {"tpl123": ["module", "RP22_256", "160"]}, 
+          "RP23_256": {"tpl123": ["module", "RP23_256", "160"]}, 
+          "RP24_256": {"tpl123": ["module", "RP24_256", "160"]}, 
+          "RP25_256": {"tpl123": ["module", "RP25_256", "160"]}, 
+          "RP26_256": {"tpl123": ["module", "RP26_256", "160"]}, 
+          "RP27_256": {"tpl123": ["module", "RP27_256", "160"]}, 
+          "RP28_256": {"tpl123": ["module", "RP28_256", "160"]}, 
+          "RP29_256": {"tpl123": ["module", "RP29_256", "160"]}, 
+          "RP30_256": {"tpl123": ["module", "RP30_256", "160"]}, 
+          "RP31_256": {"tpl123": ["module", "RP31_256", "160"]}, 
+          "RP32_256": {"tpl123": ["module", "RP32_256", "160"]}, 
+          "RP33_256": {"tpl123": ["module", "RP33_256", "160"]}
+        },
+        "maps": {
+          "sub": {
+            "RP1_4__RP1_5": {"tpl123": ["map", "RP1_4", "RP1_5", "160"]},
+            "RP1_5__RP1_6": {"tpl123": ["map", "RP1_5", "RP1_6", "160"]},
+            "RP1_6__RP1_8": {"tpl123": ["map", "RP1_6", "RP1_8", "160"]},
+            "RP1_8__RP1_9": {"tpl123": ["map", "RP1_8", "RP1_9", "160"]},
+            "RP1_9__RP1_10": {"tpl123": ["map", "RP1_9", "RP1_10", "160"]},
+            "RP1_10__RP1_11": {"tpl123": ["map", "RP1_10", "RP1_11", "160"]},
+            "RP1_11__RP1_12": {"tpl123": ["map", "RP1_11", "RP1_12", "160"]},
+            "RP1_12__RP1_13": {"tpl123": ["map", "RP1_12", "RP1_13", "160"]},
+            "RP1_13__RP1_14": {"tpl123": ["map", "RP1_13", "RP1_14", "160"]},
+            "RP1_14__RP1_16": {"tpl123": ["map", "RP1_14", "RP1_16", "160"]},
+            "RP1_16__RP1_17": {"tpl123": ["map", "RP1_16", "RP1_17", "160"]},
+            "RP1_17__RP1_18": {"tpl123": ["map", "RP1_17", "RP1_18", "160"]},
+            "RP1_18__RP1_19": {"tpl123": ["map", "RP1_18", "RP1_19", "160"]},
+            "RP1_19__RP1_20": {"tpl123": ["map", "RP1_19", "RP1_20", "160"]},
+            "RP1_20__RP1_21": {"tpl123": ["map", "RP1_20", "RP1_21", "160"]},
+            "RP1_21__RP1_22": {"tpl123": ["map", "RP1_21", "RP1_22", "160"]},
+            "RP1_22__RP1_23": {"tpl123": ["map", "RP1_22", "RP1_23", "160"]},
+            "RP1_23__RP1_24": {"tpl123": ["map", "RP1_23", "RP1_24", "160"]},
+            "RP1_24__RP1_25": {"tpl123": ["map", "RP1_24", "RP1_25", "160"]},
+            "RP1_25__RP1_26": {"tpl123": ["map", "RP1_25", "RP1_26", "160"]},
+            "RP1_26__RP1_27": {"tpl123": ["map", "RP1_26", "RP1_27", "160"]},
+            "RP1_27__RP1_28": {"tpl123": ["map", "RP1_27", "RP1_28", "160"]},
+            "RP1_28__RP1_29": {"tpl123": ["map", "RP1_28", "RP1_29", "160"]},
+            "RP1_29__RP1_30": {"tpl123": ["map", "RP1_29", "RP1_30", "160"]},
+            "RP1_30__RP1_32": {"tpl123": ["map", "RP1_30", "RP1_32", "160"]}
+          },
+          "quo": {
+            "RP1_4__RP2_4": {"tpl123": ["map_vto", "RP1_4", "RP2_4", "CW_2_A_eta", "160"]},
+            "RP3_5__RP3_6": {"tpl123": ["tpl_map", "RP3_5", "RP3_6", "CW_2_V_eta", "RP3_6", "160"]},
+
+            "RP1_5__RP5_5": {"tpl123": ["map", "RP1_5", "RP5_5", "160"]},
+            "RP1_6__RP6_6": {"tpl123": ["map", "RP1_6", "RP6_6", "160"]},
+            "RP1_8__RP7_8": {"tpl123": ["map", "RP1_8", "RP7_8", "160"]},
+            "RP1_9__RP9_9": {"tpl123": ["map", "RP1_9", "RP9_9", "160"]},
+            "RP1_10__RP10_10": {"tpl123": ["map", "RP1_10", "RP10_10", "160"]},
+            "RP1_11__RP11_11": {"tpl123": ["map", "RP1_11", "RP11_11", "160"]},
+            "RP1_12__RP12_12": {"tpl123": ["map", "RP1_12", "RP12_12", "160"]},
+            "RP1_13__RP13_13": {"tpl123": ["map", "RP1_13", "RP13_13", "160"]},
+            "RP1_14__RP14_14": {"tpl123": ["map", "RP1_14", "RP14_14", "160"]},
+            "RP1_16__RP15_16": {"tpl123": ["map", "RP1_16", "RP15_16", "160"]},
+            "RP1_17__RP17_17": {"tpl123": ["map", "RP1_17", "RP17_17", "160"]},
+            "RP1_18__RP18_18": {"tpl123": ["map", "RP1_18", "RP18_18", "160"]},
+            "RP1_19__RP19_19": {"tpl123": ["map", "RP1_19", "RP19_19", "160"]},
+            "RP1_20__RP20_20": {"tpl123": ["map", "RP1_20", "RP20_20", "160"]},
+            "RP1_21__RP21_21": {"tpl123": ["map", "RP1_21", "RP21_21", "160"]},
+            "RP1_22__RP22_22": {"tpl123": ["map", "RP1_22", "RP22_22", "160"]},
+            "RP1_23__RP23_23": {"tpl123": ["map", "RP1_23", "RP23_23", "160"]},
+            "RP1_24__RP24_24": {"tpl123": ["map", "RP1_24", "RP24_24", "160"]},
+            "RP1_25__RP25_25": {"tpl123": ["map", "RP1_25", "RP25_25", "160"]},
+            "RP1_26__RP26_26": {"tpl123": ["map", "RP1_26", "RP26_26", "160"]},
+            "RP1_27__RP27_27": {"tpl123": ["map", "RP1_27", "RP27_27", "160"]},
+            "RP1_28__RP28_28": {"tpl123": ["map", "RP1_28", "RP28_28", "160"]},
+            "RP1_29__RP29_29": {"tpl123": ["map", "RP1_29", "RP29_29", "160"]},
+            "RP1_30__RP30_30": {"tpl123": ["map", "RP1_30", "RP30_30", "160"]},
+            "RP1_32__RP31_32": {"tpl123": ["map", "RP1_32", "RP31_32", "160"]},
+
+            "RP3_256__RP4_256": {"tpl123": ["map", "RP3_256", "RP4_256", "160"]},
+            "RP4_256__RP5_256": {"tpl123": ["map", "RP4_256", "RP5_256", "160"]},
+            "RP5_256__RP6_256": {"tpl123": ["map", "RP5_256", "RP6_256", "160"]},
+            "RP6_256__RP7_256": {"tpl123": ["map", "RP6_256", "RP7_256", "160"]},
+            "RP7_256__RP8_256": {"tpl123": ["map", "RP7_256", "RP8_256", "160"]},
+            "RP8_256__RP9_256": {"tpl123": ["map", "RP8_256", "RP9_256", "160"]},
+            "RP9_256__RP10_256": {"tpl123": ["map", "RP9_256", "RP10_256", "160"]},
+            "RP10_256__RP11_256": {"tpl123": ["map", "RP10_256", "RP11_256", "160"]},
+            "RP11_256__RP12_256": {"tpl123": ["map", "RP11_256", "RP12_256", "160"]},
+            "RP12_256__RP13_256": {"tpl123": ["map", "RP12_256", "RP13_256", "160"]},
+            "RP13_256__RP14_256": {"tpl123": ["map", "RP13_256", "RP14_256", "160"]},
+            "RP14_256__RP15_256": {"tpl123": ["map", "RP14_256", "RP15_256", "160"]},
+            "RP15_256__RP16_256": {"tpl123": ["map", "RP15_256", "RP16_256", "160"]},
+            "RP16_256__RP17_256": {"tpl123": ["map", "RP16_256", "RP17_256", "160"]},
+            "RP17_256__RP18_256": {"tpl123": ["map", "RP17_256", "RP18_256", "160"]},
+            "RP18_256__RP19_256": {"tpl123": ["map", "RP18_256", "RP19_256", "160"]},
+            "RP19_256__RP20_256": {"tpl123": ["map", "RP19_256", "RP20_256", "160"]},
+            "RP20_256__RP21_256": {"tpl123": ["map", "RP20_256", "RP21_256", "160"]},
+            "RP21_256__RP22_256": {"tpl123": ["map", "RP21_256", "RP22_256", "160"]},
+            "RP22_256__RP23_256": {"tpl123": ["map", "RP22_256", "RP23_256", "160"]},
+            "RP23_256__RP24_256": {"tpl123": ["map", "RP23_256", "RP24_256", "160"]},
+            "RP24_256__RP25_256": {"tpl123": ["map", "RP24_256", "RP25_256", "160"]},
+            "RP25_256__RP26_256": {"tpl123": ["map", "RP25_256", "RP26_256", "160"]},
+            "RP26_256__RP27_256": {"tpl123": ["map", "RP26_256", "RP27_256", "160"]},
+            "RP27_256__RP28_256": {"tpl123": ["map", "RP27_256", "RP28_256", "160"]},
+            "RP28_256__RP29_256": {"tpl123": ["map", "RP28_256", "RP29_256", "160"]},
+            "RP29_256__RP30_256": {"tpl123": ["map", "RP29_256", "RP30_256", "160"]},
+            "RP30_256__RP31_256": {"tpl123": ["map", "RP30_256", "RP31_256", "160"]},
+            "RP31_256__RP32_256": {"tpl123": ["map", "RP31_256", "RP32_256", "160"]}
+          },
+          "connecting": {
+            "CW_2_eta__Q_RP1_6": {"tpl123": ["map_vto", "CW_2_eta", "Q_RP1_6", "CW_eta_2", "160"]},
+
+            "RP3_256__RP1_2": {"tpl123": ["map_vto", "RP3_256", "RP1_2", "C2", "160"]},
+            "RP5_256__RP1_4": {"tpl123": ["map", "RP5_256", "RP1_4", "160"]},
+            "RP6_256__RP1_5": {"tpl123": ["map", "RP6_256", "RP1_5", "160"]},
+            "RP7_256__RP1_6": {"tpl123": ["map", "RP7_256", "RP1_6", "160"]},
+            "RP9_256__RP1_8": {"tpl123": ["map", "RP9_256", "RP1_8", "160"]},
+            "RP10_256__RP1_9": {"tpl123": ["map", "RP10_256", "RP1_9", "160"]},
+            "RP11_256__RP1_10": {"tpl123": ["map", "RP11_256", "RP1_10", "160"]},
+            "RP12_256__RP1_11": {"tpl123": ["map", "RP12_256", "RP1_11", "160"]},
+            "RP13_256__RP1_12": {"tpl123": ["map", "RP13_256", "RP1_12", "160"]},
+            "RP14_256__RP1_13": {"tpl123": ["map", "RP14_256", "RP1_13", "160"]},
+            "RP15_256__RP1_14": {"tpl123": ["map", "RP15_256", "RP1_14", "160"]},
+            "RP17_256__RP1_16": {"tpl123": ["map", "RP17_256", "RP1_16", "160"]},
+            "RP18_256__RP1_17": {"tpl123": ["map", "RP18_256", "RP1_17", "160"]},
+            "RP19_256__RP1_18": {"tpl123": ["map", "RP19_256", "RP1_18", "160"]},
+            "RP20_256__RP1_19": {"tpl123": ["map", "RP20_256", "RP1_19", "160"]},
+            "RP21_256__RP1_20": {"tpl123": ["map", "RP21_256", "RP1_20", "160"]},
+            "RP22_256__RP1_21": {"tpl123": ["map", "RP22_256", "RP1_21", "160"]},
+            "RP23_256__RP1_22": {"tpl123": ["map", "RP23_256", "RP1_22", "160"]},
+            "RP24_256__RP1_23": {"tpl123": ["map", "RP24_256", "RP1_23", "160"]},
+            "RP25_256__RP1_24": {"tpl123": ["map", "RP25_256", "RP1_24", "160"]},
+            "RP26_256__RP1_25": {"tpl123": ["map", "RP26_256", "RP1_25", "160"]},
+            "RP27_256__RP1_26": {"tpl123": ["map", "RP27_256", "RP1_26", "160"]},
+            "RP28_256__RP1_27": {"tpl123": ["map", "RP28_256", "RP1_27", "160"]},
+            "RP29_256__RP1_28": {"tpl123": ["map", "RP29_256", "RP1_28", "160"]},
+            "RP30_256__RP1_29": {"tpl123": ["map", "RP30_256", "RP1_29", "160"]},
+            "RP31_256__RP1_30": {"tpl123": ["map", "RP31_256", "RP1_30", "160"]},
+            "RP33_256__RP1_32": {"tpl123": ["map", "RP33_256", "RP1_32", "160"]}
+          }
+        }
+      },
+      "tmf": {
+        "priority": 90,
+        "tmf": {"tpl123": ["ring", "tmf", "160"]},
+        "tmf_C2": {"tpl123": ["module_tmf", "tmf_C2", "160"]},
+        "tmf_Ceta": {"tpl123": ["module_tmf", "tmf_Ceta", "160"]},
+        "tmf_Cnu": {"tpl123": ["module_tmf", "tmf_Cnu", "160"]},
+        "tmf_C2_Ceta": {"tpl123": ["module_tmf", "tmf_C2_Ceta", "160"]},
+        "tmf_C2_Cnu": {"tpl123": ["module_tmf", "tmf_C2_Cnu", "160"]},
+        "tmf_Ceta_Cnu": {"tpl123": ["module_tmf", "tmf_Ceta_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu": {"tpl123": ["module_tmf", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_CW_2_V_eta": {"tpl123": ["module_tmf", "tmf_CW_2_V_eta", "160"]},
+        "tmf_CW_eta_V_nu": {"tpl123": ["module_tmf", "tmf_CW_eta_V_nu", "160"]},
+
+        "C2_Ceta__tmf_C2_Ceta": {"tpl123": ["map", "C2_Ceta", "tmf_C2_Ceta", "160"]},
+        "C2_Cnu__tmf_C2_Cnu": {"tpl123": ["map", "C2_Cnu", "tmf_C2_Cnu", "160"]},
+        "Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map", "Ceta_Cnu", "tmf_Ceta_Cnu", "160"]},
+        "C2_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "C2_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+
+        "tmf_C2__tmf_CW_2_V_eta": {"tpl123": ["map", "tmf_C2", "tmf_CW_2_V_eta", "160"]},
+        "tmf_Ceta__tmf_CW_2_V_eta": {"tpl123": ["map", "tmf_Ceta", "tmf_CW_2_V_eta", "160"]},
+        "tmf_Ceta__tmf_CW_eta_V_nu": {"tpl123": ["map", "tmf_Ceta", "tmf_CW_eta_V_nu", "160"]},
+        "tmf_Cnu__tmf_CW_eta_V_nu": {"tpl123": ["map", "tmf_Cnu", "tmf_CW_eta_V_nu", "160"]},
+        "tmf_CW_2_V_eta__tmf_C2_Ceta": {"tpl123": ["map", "tmf_CW_2_V_eta", "tmf_C2_Ceta", "160"]},
+        "tmf_CW_eta_V_nu__tmf_Ceta_Cnu": {"tpl123": ["map", "tmf_CW_eta_V_nu", "tmf_Ceta_Cnu", "160"]},
+        "tmf_C2_Ceta__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Ceta", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_C2_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map", "tmf_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Ceta": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_C2_Ceta", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Cnu": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_C2_Cnu", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map", "tmf_C2_Ceta_Cnu", "tmf_Ceta_Cnu", "160"]}
+      },
+      "others": {
+        "priority": 93,
+        "Z": {"tpl123": ["module", "Z", "160"]}
+      }
+    },
+    "180": {
+      "priority": 80,
+      "S0": {
+        "priority": 90,
+        "S0": {"tpl123": ["ring_cont", "S0", "180", "160"]}
+      },
+      "hopf": {
+        "priority": 88,
+        "C2": {"tpl123": ["module_cont", "C2", "180", "160"]},
+        "Ceta": {"tpl123": ["module_cont", "Ceta", "180", "160"]},
+        "Cnu": {"tpl123": ["module_cont", "Cnu", "180", "160"]},
+        "Csigma": {"tpl123": ["module_cont", "Csigma", "180", "160"]}
+      },
+      "theta": {
+        "priority": 99,
+        "CW_2_eta_theta5sq": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "180", "160"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module_cont", "CW_theta5sq_eta_2", "180", "160"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map_cont", "CW_2_eta", "CW_2_eta_theta5sq", "180", "160"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map_cont", "CW_theta5sq_eta_2", "CW_eta_2", "180", "160"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map_cont", "CW_2_eta_theta5sq", "S0", "180", "160"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto_cont", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "180", "160"]}
+      },
+      "linear": {
+        "priority": 99,
+        "3-cell": {
+          "CW_2_eta": {"tpl123": ["module_cont", "CW_2_eta", "180", "160"]},
+          "CW_eta_2": {"tpl123": ["module_cont", "CW_eta_2", "180", "160"]},
+          "CW_sigma_2sigma": {"tpl123": ["module_cont", "CW_sigma_2sigma", "180", "160"]},
+          "CW_2sigma_sigma": {"tpl123": ["module_cont", "CW_2sigma_sigma", "180", "160"]},
+
+          "Csigma__CW_sigma_2sigma": {"tpl123": ["map_cont", "Csigma", "CW_sigma_2sigma", "180", "160"]},
+          "C2sigma__CW_2sigma_sigma": {"tpl123": ["map_cont", "C2sigma", "CW_2sigma_sigma", "180", "160"]},
+          "CW_sigma_2sigma__S0": {"tpl123": ["map_cont", "CW_sigma_2sigma", "S0", "180", "160"]},
+          "CW_sigma_2sigma__C2sigma_0": {"tpl123": ["map_vto_cont", "CW_sigma_2sigma", "C2sigma_0", "S0", "180", "160"]}
+        },
+        "4-cell": {
+        },
+        "5-cell": {
+          "CW_nu_eta_2_etasigma": {"tpl123": ["module_cont", "CW_nu_eta_2_etasigma", "180", "160"]},
+          "CW_nu_eta_2_etasigma__S0": {"tpl123": ["map_cont", "CW_nu_eta_2_etasigma", "S0", "180", "160"]},
+          "CW_nu_eta_2_etasigma__Cetasigma_0": {"tpl123": ["map_vto_cont", "CW_nu_eta_2_etasigma", "Cetasigma_0", "S0", "180", "160"]},
+          "CW_nu_eta_2__CW_nu_eta_2_etasigma": {"tpl123": ["map_cont", "CW_nu_eta_2", "CW_nu_eta_2_etasigma", "180", "160"]},
+
+          "CW_etasigma_2_eta_nu": {"tpl123": ["module_cont", "CW_etasigma_2_eta_nu", "180", "160"]},
+          "CW_etasigma_2_eta_nu__CW_2_eta_nu": {"tpl123": ["map_cont", "CW_etasigma_2_eta_nu", "CW_2_eta_nu", "180", "160"]}
+        },
+        "6-cell": {
+          "CW_sigma_nu_eta_2_etasigma": {"tpl123": ["module_cont", "CW_sigma_nu_eta_2_etasigma", "180", "160"]},
+          "CW_sigma_nu_eta_2__CW_sigma_nu_eta_2_etasigma": {"tpl123": ["map_cont", "CW_sigma_nu_eta_2", "CW_sigma_nu_eta_2_etasigma", "180", "160"]},
+          "CW_sigma_nu_eta_2_etasigma__CW_nu_eta_2_etasigma": {"tpl123": ["map_cont", "CW_sigma_nu_eta_2_etasigma", "CW_nu_eta_2_etasigma", "180", "160"]},
+
+          "CW_etasigma_2_eta_nu_sigma": {"tpl123": ["module_cont", "CW_etasigma_2_eta_nu_sigma", "180", "160"]},
+          "CW_etasigma_2_eta_nu__CW_etasigma_2_eta_nu_sigma": {"tpl123": ["map_cont", "CW_2_eta_nu_sigma", "CW_etasigma_2_eta_nu_sigma", "180", "160"]},
+          "CW_etasigma_2_eta_nu_sigma__CW_2_eta_nu_sigma": {"tpl123": ["map_cont", "CW_etasigma_2_eta_nu_sigma", "CW_2_eta_nu_sigma", "180", "160"]}
+        }
+      },
+      "Smash": {
+        "priority": 85,
+
+        "C2_Ceta": {"tpl123": ["module_cont", "C2_Ceta", "180", "160"]},
+        "C2_Cnu": {"tpl123": ["module_cont", "C2_Cnu", "180", "160"]},
+        "C2_Csigma": {"tpl123": ["module_cont", "C2_Csigma", "180", "160"]},
+        "Ceta_Cnu": {"tpl123": ["module_cont", "Ceta_Cnu", "180", "160"]},
+        "Ceta_Csigma": {"tpl123": ["module_cont", "Ceta_Csigma", "180", "160"]},
+        "Cnu_Csigma": {"tpl123": ["module_cont", "Cnu_Csigma", "180", "160"]},
+
+        "C2_Ceta_Cnu": {"tpl123": ["module_cont", "C2_Ceta_Cnu", "180", "160"]},
+        "C2_Ceta__C2_Ceta_Cnu": {"tpl123": ["map_cont", "C2_Ceta", "C2_Ceta_Cnu", "180", "160"]},
+        "C2_Cnu__C2_Ceta_Cnu": {"tpl123": ["map_cont", "C2_Cnu", "C2_Ceta_Cnu", "180", "160"]},
+        "Ceta_Cnu__C2_Ceta_Cnu": {"tpl123": ["map_cont", "Ceta_Cnu", "C2_Ceta_Cnu", "180", "160"]},
+        "C2_Ceta_Cnu__C2_Ceta": {"tpl123": ["map_cont", "C2_Ceta_Cnu", "C2_Ceta", "180", "160"]},
+        "C2_Ceta_Cnu__C2_Cnu": {"tpl123": ["map_cont", "C2_Ceta_Cnu", "C2_Cnu", "180", "160"]},
+        "C2_Ceta_Cnu__Ceta_Cnu": {"tpl123": ["map_cont", "C2_Ceta_Cnu", "Ceta_Cnu", "180", "160"]},
+
+        "C2_C2": {"tpl123": ["module_cont", "C2_C2", "180", "160"]},
+        "C2__C2_C2": {"tpl123": ["map_cont", "C2", "C2_C2", "180", "160"]},
+        "C2_C2__C2": {"tpl123": ["map_cont", "C2_C2", "C2", "180", "160"]},
+
+        "Ceta_Ceta": {"tpl123": ["module_cont", "Ceta_Ceta", "180", "160"]},
+        "Ceta__Ceta_Ceta": {"tpl123": ["map_cont", "Ceta", "Ceta_Ceta", "180", "160"]},
+        "Ceta_Ceta__Ceta": {"tpl123": ["map_cont", "Ceta_Ceta", "Ceta", "180", "160"]},
+
+
+        "Cnu_Cnu": {"tpl123": ["module_cont", "Cnu_Cnu", "180", "160"]},
+        "Cnu__Cnu_Cnu": {"tpl123": ["map_cont", "Cnu", "Cnu_Cnu", "180", "160"]},
+        "Cnu_Cnu__Cnu": {"tpl123": ["map_cont", "Cnu_Cnu", "Cnu", "180", "160"]},
+
+        "Csigma_Csigma": {"tpl123": ["module_cont", "Csigma_Csigma", "180", "160"]},
+        "Csigma__Csigma_Csigma": {"tpl123": ["map_cont", "Csigma", "Csigma_Csigma", "180", "160"]},
+        "Csigma_Csigma__Csigma": {"tpl123": ["map_cont", "Csigma_Csigma", "Csigma", "180", "160"]},
+        "Csigma_Csigma__CW_sigma_2sigma": {"tpl123": ["map_cont", "Csigma_Csigma", "CW_sigma_2sigma", "180", "160"]}
+      },
+      "RP": {
+        "priority": 94,
+        "RP1_4": {"tpl123": ["module_cont", "RP1_4", "180", "160"]},
+        "RP3_6": {"tpl123": ["module_cont", "RP3_6", "180", "160"]},
+        "RP1_4__RP2_4": {"tpl123": ["map_cont", "RP1_4", "RP2_4", "180", "160"]},
+        "RP3_5__RP3_6": {"tpl123": ["map_cont", "RP3_5", "RP3_6", "180", "160"]},
+        "CW_2_eta__Q_RP1_6": {"tpl123": ["map_vto_cont", "CW_2_eta", "Q_RP1_6", "CW_eta_2", "180", "160"]}
+      },
+      "tmf": {
+        "priority": 90,
+        "tmf": {"tpl123": ["ring_cont", "tmf", "180", "160"]},
+        "tmf_C2": {"tpl123": ["module_tmf_cont", "tmf_C2", "180", "160"]},
+        "tmf_Ceta": {"tpl123": ["module_tmf_cont", "tmf_Ceta", "180", "160"]},
+        "tmf_Cnu": {"tpl123": ["module_tmf_cont", "tmf_Cnu", "180", "160"]},
+        "tmf_C2_Ceta": {"tpl123": ["module_tmf_cont", "tmf_C2_Ceta", "180", "160"]},
+        "tmf_C2_Cnu": {"tpl123": ["module_tmf_cont", "tmf_C2_Cnu", "180", "160"]},
+        "tmf_Ceta_Cnu": {"tpl123": ["module_tmf_cont", "tmf_Ceta_Cnu", "180", "160"]},
+        "tmf_C2_Ceta_Cnu": {"tpl123": ["module_tmf_cont", "tmf_C2_Ceta_Cnu", "180", "160"]},
+        "tmf_CW_2_V_eta": {"tpl123": ["module_tmf_cont", "tmf_CW_2_V_eta", "180", "160"]},
+        "tmf_CW_eta_V_nu": {"tpl123": ["module_tmf_cont", "tmf_CW_eta_V_nu", "180", "160"]},
+
+        "C2_Ceta__tmf_C2_Ceta": {"tpl123": ["map_cont", "C2_Ceta", "tmf_C2_Ceta", "180", "160"]},
+        "C2_Cnu__tmf_C2_Cnu": {"tpl123": ["map_cont", "C2_Cnu", "tmf_C2_Cnu", "180", "160"]},
+        "Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map_cont", "Ceta_Cnu", "tmf_Ceta_Cnu", "180", "160"]},
+        "C2_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "C2_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "180", "160"]},
+
+        "tmf_C2__tmf_CW_2_V_eta": {"tpl123": ["map_cont", "tmf_C2", "tmf_CW_2_V_eta", "180", "160"]},
+        "tmf_Ceta__tmf_C2__tmf_CW_2_V_eta": {"tpl123": ["map_cont", "tmf_Ceta", "tmf_C2", "180", "160"]},
+        "tmf_Ceta__tmf_CW_eta_V_nu": {"tpl123": ["map_cont", "tmf_Ceta", "tmf_CW_eta_V_nu", "180", "160"]},
+        "tmf_Cnu__tmf_CW_eta_V_nu": {"tpl123": ["map_cont", "tmf_Cnu", "tmf_CW_eta_V_nu", "180", "160"]},
+        "tmf_CW_2_V_eta__tmf_C2_Ceta": {"tpl123": ["map_cont", "tmf_CW_2_V_eta", "tmf_C2_Ceta", "180", "160"]},
+        "tmf_CW_eta_V_nu__tmf_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_CW_eta_V_nu", "tmf_Ceta_Cnu", "180", "160"]},
+        "tmf_C2_Ceta__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta", "tmf_C2_Ceta_Cnu", "180", "160"]},
+        "tmf_C2_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Cnu", "tmf_C2_Ceta_Cnu", "180", "160"]},
+        "tmf_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "180", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Ceta": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_C2_Ceta", "180", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_C2_Cnu", "180", "160"]},
+        "tmf_C2_Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_Ceta_Cnu", "180", "160"]}
+      },
+      "others": {
+        "priority": 83,
+        "Z": {"tpl123": ["module_cont", "Z", "180", "160"]}
+      }
+    },
+    "200": {
+      "theta": {
+        "priority": 90,
+        "CW_2_eta_theta5sq": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "200", "180"]},
+        "CW_theta5sq_eta_2": {"tpl123": ["module_cont", "CW_theta5sq_eta_2", "200", "180"]},
+
+        "CW_2_eta__CW_2_eta_theta5sq": {"tpl123": ["map_cont", "CW_2_eta", "CW_2_eta_theta5sq", "200", "180"]},
+        "CW_theta5sq_eta_2__CW_eta_2": {"tpl123": ["map_cont", "CW_theta5sq_eta_2", "CW_eta_2", "200", "180"]},
+        "CW_2_eta_theta5sq__S0": {"tpl123": ["map_cont", "CW_2_eta_theta5sq", "S0", "200", "180"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0": {"tpl123": ["map_vto_cont", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "200", "180"]}
+      },
+      "tmf": {
+        "priority": 90,
+        "tmf": {"tpl123": ["ring_cont", "tmf", "200", "180"]},
+        "tmf_C2": {"tpl123": ["module_tmf_cont", "tmf_C2", "200", "180"]},
+        "tmf_Ceta": {"tpl123": ["module_tmf_cont", "tmf_Ceta", "200", "180"]},
+        "tmf_Cnu": {"tpl123": ["module_tmf_cont", "tmf_Cnu", "200", "180"]},
+        "tmf_C2_Ceta": {"tpl123": ["module_tmf_cont", "tmf_C2_Ceta", "200", "180"]},
+        "tmf_C2_Cnu": {"tpl123": ["module_tmf_cont", "tmf_C2_Cnu", "200", "180"]},
+        "tmf_Ceta_Cnu": {"tpl123": ["module_tmf_cont", "tmf_Ceta_Cnu", "200", "180"]},
+        "tmf_C2_Ceta_Cnu": {"tpl123": ["module_tmf_cont", "tmf_C2_Ceta_Cnu", "200", "180"]},
+
+        "C2_Ceta__tmf_C2_Ceta": {"tpl123": ["map_cont", "C2_Ceta", "tmf_C2_Ceta", "200", "180"]},
+        "C2_Cnu__tmf_C2_Cnu": {"tpl123": ["map_cont", "C2_Cnu", "tmf_C2_Cnu", "200", "180"]},
+        "Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map_cont", "Ceta_Cnu", "tmf_Ceta_Cnu", "200", "180"]},
+        "C2_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "C2_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "200", "180"]},
+
+        "tmf_C2_Ceta__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta", "tmf_C2_Ceta_Cnu", "200", "180"]},
+        "tmf_C2_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Cnu", "tmf_C2_Ceta_Cnu", "200", "180"]},
+        "tmf_Ceta_Cnu__tmf_C2_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_Ceta_Cnu", "tmf_C2_Ceta_Cnu", "200", "180"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Ceta": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_C2_Ceta", "200", "180"]},
+        "tmf_C2_Ceta_Cnu__tmf_C2_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_C2_Cnu", "200", "180"]},
+        "tmf_C2_Ceta_Cnu__tmf_Ceta_Cnu": {"tpl123": ["map_cont", "tmf_C2_Ceta_Cnu", "tmf_Ceta_Cnu", "200", "180"]}
+      }
+    },
+    "200+": {
+      "theta": {
+        "priority": 99,
+        "CW_2_eta_theta5sq@220": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "220", "200"]},
+        "CW_2_eta_theta5sq__S0@220": {"tpl123": ["map_cont", "CW_2_eta_theta5sq", "S0", "220", "200"]},
+        "CW_2_eta_theta5sq__Ctheta5sq_0@220": {"tpl123": ["map_vto_cont", "CW_2_eta_theta5sq", "Ctheta5sq_0", "S0", "220", "200"]},
+
+        "CW_2_eta_theta5sq@240": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "240", "220"]},
+        "CW_2_eta_theta5sq@260": {"tpl123": ["module_cont", "CW_2_eta_theta5sq", "260", "240"]}
+      }
+    }
+  }
+}

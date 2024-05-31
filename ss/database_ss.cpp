@@ -52,7 +52,7 @@ void DBSS::save_cofseq(const std::string& table, const CofSeq& cofseq) const
             auto& node = cofseq.nodes_cofseq[iC].front();
             auto degs = OrderDegsV2(node);
             for (const auto& deg : degs) {
-                auto& basis_ss_d = ut::GetRecentValue(cofseq.nodes_cofseq[iC], deg);
+                const auto& basis_ss_d = ut::GetRecentValue(cofseq.nodes_cofseq[iC], deg);
                 for (size_t i = 0; i < basis_ss_d.basis.size(); ++i)
                     stmt.bind_and_step((int)iC, myio::Serialize(basis_ss_d.basis[i]), SerializeDiff(basis_ss_d.diffs[i]), basis_ss_d.levels[i], deg.s, deg.t);
             }
@@ -116,8 +116,8 @@ void DBSS::save_pi_def(const std::string& table_prefix, const std::vector<EnumDe
         std::string name;
         if (mons) {
             name = mons.data[0].Str();
-            for (size_t i = 1; i < mons.data.size(); ++i)
-                name += "," + mons.data[i].Str();
+            for (size_t j = 1; j < mons.data.size(); ++j)
+                name += "," + mons.data[j].Str();
         }
         stmt.bind_and_step((int)i, (int)pi_gen_defs[i], myio::Serialize(map_ids), myio::Serialize(mons), name, myio::Serialize(fils));
     }
@@ -171,7 +171,6 @@ std::array<Staircases, 3> DBSS::load_cofseq(const std::string& table) const
         node_cofseq[index][deg].diffs.push_back(std::move(diff));
         node_cofseq[index][deg].basis.push_back(std::move(base));
         node_cofseq[index][deg].levels.push_back(level);
-
     }
     return node_cofseq;
 }
@@ -224,7 +223,6 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
     std::map<AdamsDeg, Staircase> nodes_ss;
 
     /* fill nodes_ss */
-    int prev_t = 0;
     for (auto& [d, basis_d] : basis) {
         for (int i = 0; i < (int)basis_d.size(); ++i) {
             nodes_ss[d].basis.push_back({i});
@@ -255,11 +253,11 @@ void generate_ss(const std::string& name, const std::string& path, bool isRing, 
 
 int main_reset_ss(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_ss {}\n", diagram_name);
@@ -270,9 +268,9 @@ int main_reset_ss(int argc, char** argv, int& index, const char* desc)
         for (size_t i = 0; i < names.size(); ++i)
             generate_ss(names[i], paths[i], isRing[i]);
 
-        auto flag = DeduceFlag::no_op;
-        Diagram diagram(diagram_name, flag);
-        //int count = diagram.DeduceTrivialDiffs(flag);
+        auto flag = SSFlag::no_op;
+        Diagram diagram(diagram_name, flag, true, true);
+        // int count = diagram.DeduceTrivialDiffs(flag);
         diagram.save(diagram_name, flag);
 
         Logger::DeleteFromLog();
@@ -287,15 +285,15 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {{"diagram", &diagram_name}};
     myio::CmdArg1d op_args = {};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_cofseq {}\n", diagram_name);
     if (myio::UserConfirm()) {
         //// Remove files
-        Diagram diagram(diagram_name, DeduceFlag::cofseq);
+        Diagram diagram(diagram_name, SSFlag::cofseq);
         // int count = diagram.DeduceTrivialCofSeqDiffs();
-        diagram.save(diagram_name, DeduceFlag::cofseq);
+        diagram.save(diagram_name, SSFlag::cofseq);
     }
 
     return 0;
@@ -303,11 +301,11 @@ int main_reset_cofseq(int argc, char** argv, int& index, const char* desc)
 
 int main_reset_pi(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string diagram_name;
 
-    myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    myio::CmdArg1d args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     fmt::print("Confirm to reset_pi {}\n", diagram_name);

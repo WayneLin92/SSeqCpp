@@ -1,4 +1,4 @@
-add_executable(ss main.h pigroebner.h mylog.h basis.cpp database_ss.cpp add_diff.cpp pigroebner.cpp add_ext.cpp deduce.cpp ss.cpp diagram.cpp main.cpp homotopy.cpp htpy_def.cpp config.cpp migrate.cpp mylog.cpp staircase.cpp plot.cpp cofseq.cpp utility.cpp)
+add_executable(ss main.h pigroebner.h mylog.h basis.cpp database_ss.cpp add_diff.cpp pigroebner.cpp add_ext.cpp deduce.cpp ss.cpp diagram.cpp main.cpp homotopy.cpp htpy_def.cpp loadsave.cpp migrate.cpp mylog.cpp staircase.cpp plot.cpp cofseq.cpp utility.cpp)
 target_compile_features(ss PRIVATE cxx_std_17)
 target_include_directories(ss PRIVATE ../include ../thirdparty/nlohmann_json ../thirdparty/fmt)
 target_link_libraries(ss PRIVATE algebras fmt)

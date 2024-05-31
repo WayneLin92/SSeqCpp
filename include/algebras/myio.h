@@ -1,12 +1,13 @@
 #ifndef MYIO_H
 #define MYIO_H
 
+#include "json.h"
 #include <cstring>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <sstream>
 #include <variant>
 #include <vector>
-#include "json.h"
 
 namespace myio {
 
@@ -15,8 +16,24 @@ using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 using string1d = std::vector<std::string>;
 
+std::vector<std::string> split(const std::string& str, char delim);
+/* split comma-delimited string */
+inline std::vector<std::string> split(const std::string& str)
+{
+    return split(str, ',');
+}
 
-template <typename FwdIt, typename FnStr> //// Deprecate
+inline bool starts_with(const std::string& str, std::string_view start)
+{
+    return str.size() >= start.size() && str.compare(0, start.size(), start) == 0;
+}
+
+inline bool ends_with(const std::string& str, std::string_view end)
+{
+    return str.size() >= end.size() && str.compare(str.size() - end.size(), end.size(), end) == 0;
+}
+
+template <typename FwdIt, typename FnStr>                                                                                            //// Deprecate
 std::string TplStrCont(const char* left, const char* sep, const char* right, const char* empty, FwdIt first, FwdIt last, FnStr str)  // TODO: make a performant version
 {
     std::string result;
@@ -135,11 +152,6 @@ bool FileExists(const std::string& filename);
 void AssertFileExists(const std::string& filename);
 void AssertFolderExists(const std::string& foldername);
 
-struct COUT_FLUSH
-{
-    constexpr COUT_FLUSH() {}
-};
-
 /*********************************************************
                  Command line utilities
  *********************************************************/
@@ -147,17 +159,17 @@ struct COUT_FLUSH
 struct CmdArg
 {
     const char* name;
-    std::variant<int*, double*, std::string*, std::vector<std::string>*, std::map<std::string, std::vector<std::string>>*> value;
+    std::variant<int*, double*, std::string*, std::vector<int>*, std::vector<std::string>*, std::map<std::string, std::vector<std::string>>*> value;
     std::string StrValue();
 };
 using CmdArg1d = std::vector<CmdArg>;
 
-int LoadCmdArgs(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args);
+int ParseArguments(int argc, char** argv, int& index, const char* program, const char* description, const char* version, CmdArg1d& args, CmdArg1d& op_args);
 
 /* Return true if user inputs Y; Return false if user inputs N */
 bool UserConfirm();
 
-using MainFnType = int(*)(int, char**, int&, const char*);
+using MainFnType = int (*)(int, char**, int&, const char*);
 
 struct SubCmdArg
 {
@@ -167,22 +179,31 @@ struct SubCmdArg
 };
 using SubCmdArg1d = std::vector<SubCmdArg>;
 
-int LoadSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
+int ParseSubCmd(int argc, char** argv, int& index, const char* program, const char* description, const char* version, SubCmdArg1d& cmds);
 
 /*********************************************************
                      json
  *********************************************************/
 nlohmann::json load_json(const std::string& file_name);
 
-}  // namespace myio
+inline int get(const nlohmann::json& js, std::string key, int default_)
+{
+    return js.contains(key) ? js.at(key).get<int>() : default_;
+}
 
+inline std::string get(const nlohmann::json& js, std::string key, const std::string& default_)
+{
+    return js.contains(key) ? js.at(key).get<std::string>() : default_;
+}
+
+}  // namespace myio
 
 /*********************************************************
                     Formatters
  *********************************************************/
 
-template <>
-struct fmt::formatter<myio::COUT_FLUSH>
+template <typename T>
+struct fmt::formatter<T, char, std::enable_if_t<std::is_same_v<decltype(T().Str()), std::string>>>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext& ctx)
@@ -191,13 +212,10 @@ struct fmt::formatter<myio::COUT_FLUSH>
     }
 
     template <typename FormatContext>
-    auto format(const myio::COUT_FLUSH reason, FormatContext& ctx)
+    auto format(const T& x, FormatContext& ctx)
     {
-        fflush(stdout);
-        return fmt::format_to(ctx.out(), "");
+        return fmt::format_to(ctx.out(), "{}", x.Str());
     }
 };
-
-
 
 #endif /* MYIO_H */

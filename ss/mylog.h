@@ -10,17 +10,24 @@ enum class EnumReason : uint32_t
     manual,    /* By other source of knowledge */
     degree,    /* For degree reason */
     deduce,    /* By deduction */
+    dd_cof,    /* By deduction in cofseq */
+    dd_cof_p,  /* ss permanent cycle by deduction in cofseq */
     nat,       /* By naturality */
+    synnat,    /* By naturality of synthetic */
+    synext,    /* By naturality of synthetic */
+    synext_p,  /* Permanent cycle by synthetic */
     deduce_xx, /* By deduction of d(xy) and d(x^2) */
     deduce_xy, /* By deduction of d(xy) and d(x^2) */
     deduce_fx, /* By deduction of d(xy) and d(x^2) */
+    comm,      /* By commutativity */
     def,       /* By definition */
-    cofseq_b,  /* ss Boundary from cofseq logic */
+    cofseq_b,  /* ss Boundary from zero cofseq */
     try1,      /* Try dx=? */
     try2,      /* Try d?=y */
     migrate,   /* Migration */
+    d2,        /* By Adams d2 computation */
 };
-constexpr std::array REASONS = {"manual", "degree", "deduce", "nat", "deduce_xx", "deduce_xy", "deduce_fx", "def", "cofseq_b", "try1", "try2", "migrate"};
+constexpr std::array REASONS = {"manual", "degree", "deduce", "dd_cof", "dd_cof_p", "nat", "synnat", "synext", "synext_p", "deduce_xx", "deduce_xy", "deduce_fx", "comm", "def", "cofseq_b", "try1", "try2", "migrate", "d2"};
 inline const char* INDENT = "          ";
 
 class DbLog : public myio::Database
@@ -72,19 +79,20 @@ public:
     static void RollBackToCheckpoint();
 
     static void LogDiff(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
+    static void LogDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r);
     static void LogNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r);
     static void LogDiffInv(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, alg::AdamsDeg deg_dx, const alg::int1d& x, const alg::int1d& dx, int r);
-    static void LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx);
-    static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Poly& Einf);
-    static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf);
-    static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel);
-    static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel);
-    static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel1, const algZ::Poly& rel2);
-    static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel1, const algZ::Mod& rel2);
-    static void LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx);
-    static void LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx1, const algZ::Poly& fx2);
-    static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Poly& m, const algZ::Poly& hm1, const algZ::Poly& hm2);
-    static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2);
+    // static void LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx);
+    //static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Poly& Einf);
+    //static void LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf);
+    //static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel);
+    //static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel);
+    //static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel1, const algZ::Poly& rel2);
+    //static void LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel1, const algZ::Mod& rel2);
+    //static void LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx);
+    //static void LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx1, const algZ::Poly& fx2);
+    //static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Poly& m, const algZ::Poly& hm1, const algZ::Poly& hm2);
+    //static void LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2);
 
     static void LogSSException(int depth, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx, int r, unsigned code, alg::AdamsDeg deg_leibniz, const alg::int1d* a_leibniz);
     static void LogSSSSException(int depth, unsigned code);

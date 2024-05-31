@@ -166,9 +166,9 @@ void GetImageLeads(const std::vector<T1>& x, const std::vector<T2>& fx, const GB
     }
 }
 
-int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
-{
-    int count_homotopy = 0;
+//int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
+//{
+//    int count_homotopy = 0;
 
     /* multiplicative structures */
     //{ /* sphere */
@@ -224,8 +224,8 @@ int Diagram::DefineDependenceInExtensions(int stem_min, int stem_max, int depth)
     //    AddPiRelsCof(iCof, std::move(new_rels));
     //}
 
-    return count_homotopy;
-}
+//    return count_homotopy;
+//}
 
 void ReduceIndeterminancyId(algZ::Poly1d& indeterminancy, const GenConstraint& constraint, const algZ::Groebner& gb)
 {
@@ -243,7 +243,7 @@ void FilterIndeterminancy(algZ::Poly1d& indeterminancy, const std::vector<GenCon
         ReduceIndeterminancyId(indeterminancy, gc, gb);
 }
 
-void ReduceIndeterminancyId(algZ::Mod1d& indeterminancy, const GenConstraint& constraint, const algZ::Groebner& gb, const algZ::GroebnerMod& gbm)
+void ReduceIndeterminancyId(algZ::Mod1d& indeterminancy, const GenConstraint& constraint, const algZ::GroebnerMod& gbm)
 {
     algZ::Mod1d m_by_ind;
     for (auto& b : indeterminancy)
@@ -253,8 +253,8 @@ void ReduceIndeterminancyId(algZ::Mod1d& indeterminancy, const GenConstraint& co
     indeterminancy = std::move(kernel);
 }
 
-void ReduceIndeterminancyQ(algZ::Mod1d& indeterminancy, const GenConstraint& constraint, const algZ::Groebner& gb, const ModSp& ssCof)
-{
+//void ReduceIndeterminancyQ(algZ::Mod1d& indeterminancy, const GenConstraint& constraint, const algZ::Groebner& gb, const ModSp& ssCof)
+//{
     /*algZ::Poly1d q_m_by_ind;
     for (auto& b : indeterminancy) {
         auto q = algZ::subs(ssCof.pi_gb.Reduce(algZ::Poly(constraint.m) * b), ssCof.nodes_pi_qt.back(), ssCof.pi_gb.v_degs());
@@ -264,23 +264,23 @@ void ReduceIndeterminancyQ(algZ::Mod1d& indeterminancy, const GenConstraint& con
     algZ::Mod1d kernel;
     GetKernel(indeterminancy, q_m_by_ind, ssCof.pi_gb, gb, constraint.O, kernel);
     indeterminancy = std::move(kernel);*/
-}
+//}
 
-void FilterIndeterminancy(algZ::Mod1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb, const ModSp& ssCof)
-{
-    for (auto& gc : constraints) {
-        if (gc.map_index == 0)
-            ReduceIndeterminancyId(indeterminancy, gc, gb, ssCof.pi_gb);
-        else if (gc.map_index == 1)
-            ReduceIndeterminancyQ(indeterminancy, gc, gb, ssCof);
-        else
-            throw MyException(0xf095ff26U, "Unknown map_index");
-    }
-}
+//void FilterIndeterminancy(algZ::Mod1d& indeterminancy, const std::vector<GenConstraint>& constraints, const algZ::Groebner& gb, const ModSp& ssCof)
+//{
+//    for (auto& gc : constraints) {
+//        if (gc.map_index == 0)
+//            ReduceIndeterminancyId(indeterminancy, gc, ssCof.pi_gb);
+//        else if (gc.map_index == 1)
+//            ReduceIndeterminancyQ(indeterminancy, gc, gb, ssCof);
+//        else
+//            throw MyException(0xf095ff26U, "Unknown map_index");
+//    }
+//}
 
-int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth)
-{
-    int count_homotopy = 0;
+//int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem_max_mult, int depth)
+//{
+//    int count_homotopy = 0;
 
     //algZ::Poly tmp;
     //algZ::Mod tmpm;
@@ -498,8 +498,8 @@ int Diagram::DefineDependenceInExtensionsV2(int stem_min, int stem_max, int stem
     //    }
     //}
 
-    return count_homotopy;
-}
+//    return count_homotopy;
+//}
 
 int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
 {
@@ -508,16 +508,16 @@ int main_deduce_ext_def(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::pi | DeduceFlag::pi_def;
+    SSFlag flag = SSFlag::pi | SSFlag::pi_def;
     Diagram diagram(diagram_name, flag);
 
     try {
         try {
-            diagram.DeduceTrivialExtensions(0);
-            diagram.DefineDependenceInExtensions(stem_min, stem_max, 0);
+            //diagram.DeduceTrivialExtensions(0);
+            //diagram.DefineDependenceInExtensions(stem_min, stem_max, 0);
             diagram.SimplifyPiRels();
             diagram.save(diagram_name, flag);
         }
@@ -548,17 +548,17 @@ int main_deduce_ext_def2(int argc, char** argv, int& index, const char* desc)
 
     myio::CmdArg1d args = {};
     myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"stem_max_mult", &stem_max_mult}, {"diagram", &diagram_name}};
-    if (int error = myio::LoadCmdArgs(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
-    DeduceFlag flag = DeduceFlag::pi | DeduceFlag::pi_def;
+    SSFlag flag = SSFlag::pi | SSFlag::pi_def;
     Diagram diagram(diagram_name, flag);
 
     try {
         try {
-            int count_ss = 0, count_homotopy = 0;
-            diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
-            diagram.DefineDependenceInExtensionsV2(stem_min, stem_max, stem_max_mult, 0);
+            //int count_ss = 0, count_homotopy = 0;
+            //diagram.SyncHomotopy(AdamsDeg(0, 0), count_ss, count_homotopy, 0);
+            //diagram.DefineDependenceInExtensionsV2(stem_min, stem_max, stem_max_mult, 0);
             diagram.SimplifyPiRels();
             diagram.save(diagram_name, flag);
         }

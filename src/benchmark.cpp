@@ -1,6 +1,7 @@
 #include "benchmark.h"
 #include "myio.h"
 #include "utility.h"
+#include <fmt/format.h>
 #include <fmt/color.h>
 
 namespace bench {
@@ -20,8 +21,10 @@ Timer::~Timer()
 {
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed = end - start_;
-    if (!bPrinted_)
+    if (!bPrinted_) {
         fmt::print(fmt::fg(fmt::color::green), "Time: {}s ({})\n", elapsed.count(), ut::get_time());
+        fflush(stdout);
+    }
 }
 
 void Timer::print(const char* msg)

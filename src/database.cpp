@@ -1,4 +1,5 @@
 #include "database.h"
+#include <fmt/format.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>

@@ -80,7 +80,7 @@ void Logger::SetOutDeduce(const char* filename)
 
 std::string Logger::GetCmd(int argc, char** argv)
 {
-    return fmt::format("cmd: {}\nLogging start at {}", fmt::join(argv, argv + argc, " "), ut::get_time());
+    return fmt::format("cmd: {}\nLogging start at {}\n", fmt::join(argv, argv + argc, " "), ut::get_time());
 }
 
 void Logger::LogCmd(int argc, char** argv)
@@ -141,6 +141,14 @@ void Logger::LogDiff(int depth, EnumReason reason, const std::string& name, alg:
     db_deduce_.InsertDiff(depth, reason, name, deg_x, x, dx, r);
 }
 
+void Logger::LogDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, const alg::int1d& dx, int r)
+{
+    std::string_view indent(INDENT, depth * 2);
+    if (depth == 0)
+        fmt::print(fmt::fg(fmt::color::gray), "{}{} {} d_{}{}={}\n", indent, name, deg_x, r, x, dx);
+    db_deduce_.InsertNullDiff(depth, name, deg_x, x, r);
+}
+
 void Logger::LogNullDiff(int depth, const std::string& name, alg::AdamsDeg deg_x, const alg::int1d& x, int r)
 {
     std::string_view indent(INDENT, depth * 2);
@@ -157,8 +165,8 @@ void Logger::LogDiffInv(int depth, EnumReason reason, const std::string& name, a
     db_deduce_.InsertDiff(depth, reason, name, deg_x, x, dx, r);
 }
 
-void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx)
-{
+//void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_dx, const alg::int1d& dx)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {} is a boundary\n", indent, GetReason(reason), name, deg_dx, dx);
@@ -168,10 +176,10 @@ void Logger::LogDiffBoun(int depth, EnumReason reason, const std::string& name, 
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf)
-{
+//void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Mod& Einf)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} x_{} detected by {}\n", indent, GetReason(reason), name, deg, gen_id, Einf);
@@ -181,10 +189,10 @@ void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Poly& Einf)
-{
+//void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg, size_t gen_id, const alg2::Poly& Einf)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} x_{} detected by {}\n", indent, GetReason(reason), name, deg, gen_id, Einf);
@@ -194,10 +202,10 @@ void Logger::LogHtpyGen(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel)
-{
+//void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}=0\n", indent, GetReason(reason), name, deg_rel, rel);
@@ -207,10 +215,10 @@ void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel)
-{
+//void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}=0\n", indent, GetReason(reason), name, deg_rel, rel);
@@ -220,10 +228,10 @@ void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel1, const algZ::Poly& rel2)
-{
+//void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Poly& rel1, const algZ::Poly& rel2)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {} --> {}\n", indent, GetReason(reason), name, deg_rel, rel1, rel2);
@@ -233,10 +241,10 @@ void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel1, const algZ::Mod& rel2)
-{
+//void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_rel, const algZ::Mod& rel1, const algZ::Mod& rel2)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {} --> {}\n", indent, GetReason(reason), name, deg_rel, rel1, rel2);
@@ -246,10 +254,10 @@ void Logger::LogHtpyRel(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx)
-{
+//void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}(v_{})={}\n", indent, GetReason(reason), name, deg_x, f, gen_id, fx);
@@ -259,10 +267,10 @@ void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx1, const algZ::Poly& fx2)
-{
+//void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const std::string& f, size_t gen_id, const algZ::Poly& fx1, const algZ::Poly& fx2)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}(v_{}) = {} --> {}\n", indent, GetReason(reason), name, deg_x, f, gen_id, fx1, fx2);
@@ -272,10 +280,10 @@ void Logger::LogHtpyMap(int depth, EnumReason reason, const std::string& name, a
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Poly& m, const algZ::Poly& hm1, const algZ::Poly& hm2)
-{
+//void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Poly& m, const algZ::Poly& hm1, const algZ::Poly& hm2)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{} = {} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
@@ -285,10 +293,10 @@ void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, 
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
 
-void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2)
-{
+//void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, alg::AdamsDeg deg_x, const algZ::Poly& h, const algZ::Mod& m, const algZ::Mod& hm1, const algZ::Mod& hm2)
+//{
     /*std::string_view indent(INDENT, depth * 2);
     line_.clear();
     fmt::format_to(std::back_inserter(line_), "{}{} - {} {} {}*{} = {} --> {}\n", indent, GetReason(reason), name, deg_x, h, m, hm1, hm2);
@@ -298,4 +306,4 @@ void Logger::LogHtpyProd(int depth, EnumReason reason, const std::string& name, 
     }
     else
         fmt::format_to(std::back_inserter(out_), "{}", line_);*/
-}
+//}
