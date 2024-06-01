@@ -18452,7 +18452,7 @@ class serializer
                     for (auto i = val.m_value.array->cbegin();
                             i != val.m_value.array->cend() - 1; ++i)
                     {
-                        dump_v2(*i, false, ensure_ascii, indent_step, current_indent);
+                        dump_v2(*i, true, ensure_ascii, indent_step, current_indent);
                         if (pretty_print)
                             o->write_characters(", ", 2);
                         else
@@ -18461,7 +18461,7 @@ class serializer
 
                     // last element
                     JSON_ASSERT(!val.m_value.array->empty());
-                    dump_v2(val.m_value.array->back(), false, ensure_ascii, indent_step, current_indent);
+                    dump_v2(val.m_value.array->back(), true, ensure_ascii, indent_step, current_indent);
 
                     o->write_character(']');
                 }

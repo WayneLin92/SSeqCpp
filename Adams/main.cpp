@@ -5,6 +5,7 @@
 #include <iostream>
 
 int main_cellstructure(int, char**, int&, const char*);
+int main_smash(int, char**, int&, const char*);
 int main_res(int, char**, int&, const char*);
 int main_d2(int, char**, int&, const char*);
 int main_map_res(int, char**, int&, const char*);
@@ -33,7 +34,8 @@ int main(int argc, char** argv)
 {
     bench::Timer timer;
     myio::SubCmdArg1d subcmds = {
-        {"cellstructure", "Compute the cell structure of a ring", main_cellstructure},
+        {"cellstructure", "Compute the cell structure of a spectra", main_cellstructure},
+		{"smash", "Compute the cohomology definition of the smash product of two spectra", main_smash},
         {"res", "Compute a minimal A-resolution", main_res},
         {"d2", "Compute Adams d2 differentials", main_d2},
         {"map_res", "Compute a chain map between resolutions", main_map_res},

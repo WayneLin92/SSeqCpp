@@ -458,7 +458,7 @@ int main_plot_ss(int argc, char** argv, int& index, const char* desc)
         /* unknown diff lines */
         js["nds"] = json::array();
         for (auto& [deg, sc] : nodes_ss.front()) {
-            if (deg.stem() <= 126) {
+            if (deg.stem() <= 140) {
                 for (size_t i = 0; i < sc.levels.size(); ++i) {
                     int src = deg2id.at(deg) + (int)i;
                     if (sc.levels[i] > 9000 && sc.diffs[i] == NULL_DIFF) {
@@ -686,7 +686,7 @@ int main_plot_cofseq(int argc, char** argv, int& index, const char* desc)
             /* unknown diff lines */
             jsi["nds"] = json::array();
             for (auto& [deg, sc] : nodes_cofseq.front()) {
-                if (deg.stem() <= 126) {
+                if (deg.stem() <= 140) {
                     for (size_t i = 0; i < sc.levels.size(); ++i) {
                         int src = deg2id_cofseq.at(deg) + (int)i;
                         if (sc.levels[i] > 9000 && sc.diffs[i] == NULL_DIFF) {

@@ -1,10 +1,15 @@
 #include "steenrodR.h"
+#include "main.h"
+#include "algebras/myio.h"
+#include "algebras/database.h"
+#include <fmt/format.h>
 #include <array>
 #include <vector>
 
-namespace steenrodR{
+namespace steenrodR {
 
 using ArrMB = std::array<uint32_t, XI_MAX>;
+
 /* Return the maximum number `result` such that
 ** `result <= upper_bound` and `result & mask == 0`
 */
@@ -125,6 +130,18 @@ void MulMilnor(const ArrMB& R, const ArrMB& S, std::vector<ArrMB>& result_app)
 
 
 
-int main_test(int, char**, int&, const char*) {
+int main_test(int argc, char** argv, int& index, const char* desc) {
+    std::vector<int> R, S;
+    int a = -1, b = -2;
+
+    myio::CmdArg1d args = {{"R", &R}, {"S", &S}, {"a", &a}};
+    myio::CmdArg1d op_args = {{"b", &b}};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    fmt::print("R={}\n", myio::Serialize(R));
+    fmt::print("S={}\n", myio::Serialize(S));
+    fmt::print("a={}, b={}\n", a, b);
+
     return 0;
 }

@@ -271,6 +271,13 @@ int IndexOf(const std::vector<T>& vec, FnEq fnEq)
     return it != vec.end() ? int(it - vec.begin()) : -1;
 }
 
+template <typename T>
+int IndexOfInSorted(const std::vector<T>& sorted, const T& key)
+{
+	auto it = std::lower_bound(sorted.begin(), sorted.end(), key);
+	return it != sorted.end() && *it == key ? int(it - sorted.begin()) : -1;
+}
+
 /* The container `map` maps a key to a collection of type T */
 template <typename T>
 T& get(std::vector<T>& map, size_t k)
@@ -374,6 +381,19 @@ inline int popcount(unsigned int i)
 }
 
 inline int popcount(uint64_t i)
+{
+#if defined(_MSC_VER)
+    return std::_Popcount(i);
+#elif defined(__GNUC__)
+    return __builtin_popcountll(i);
+#elif defined(__clang__)
+    return std::__popcountll(i);
+#else
+    return std::__popcountll(i);
+#endif
+}
+
+inline int popcount(uint8_t i)
 {
 #if defined(_MSC_VER)
     return std::_Popcount(i);

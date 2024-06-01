@@ -555,30 +555,45 @@ void ExportAdamsD2(std::string_view cw)
     dbE2.end_transaction();
 }
 
-void ExportFreeModAdamsE2(std::string_view mod, std::string_view ring, const alg2::int1d& cells, int t_trunc, int stem_trunc)
+void ExportFreeModAdamsE2(std::string_view mod, const nlohmann::json& summands, const nlohmann::json& rings_json, int t_trunc)
 {
     using namespace alg2;
 
-    const std::string db_ring = fmt::format("{}_AdamsSS.db", ring);
-    const std::string table_ring = fmt::format("{}_AdamsE2", ring);
-    myio::AssertFileExists(db_ring);
+    auto cw1 = summands[0][0].get<std::string>();
+    int c1 = summands[0][1].get<int>();
+    const std::string db_cw1 = fmt::format("{}_AdamsSS.db", cw1);
+    const std::string table_cw1 = fmt::format("{}_AdamsE2", cw1);
+    myio::AssertFileExists(db_cw1);
+
+    auto cw2 = summands[1][0].get<std::string>();
+    int c2 = summands[1][1].get<int>();
+    const std::string db_cw2 = fmt::format("{}_AdamsSS.db", cw2);
+    const std::string table_cw2 = fmt::format("{}_AdamsE2", cw2);
+    myio::AssertFileExists(db_cw2);
 
     std::string db_out = fmt::format("{}_AdamsSS.db", mod);
     std::string table_out = fmt::format("{}_AdamsE2", mod);
 
-    MyDB dbRing(db_ring);
-    int t_max_ring = get_db_t_max(dbRing);
-    if (t_trunc > t_max_ring) {
-        t_trunc = t_max_ring;
-        fmt::print("t_max is truncated to {}\n", t_max_ring);
+    MyDB dbCw1(db_cw1);
+    int t_max_cw1 = get_db_t_max(dbCw1);
+    if (t_trunc > t_max_cw1 + c1) {
+        t_trunc = t_max_cw1;
+        fmt::print("t_max is truncated to {}\n", t_max_cw1);
+    }
+
+    MyDB dbCw2(db_cw2);
+    int t_max_cw2 = get_db_t_max(dbCw2);
+    if (t_trunc > t_max_cw2 + c2) {
+        t_trunc = t_max_cw2;
+        fmt::print("t_max is truncated to {}\n", t_max_cw2);
     }
 
     AdamsDeg1d v_degs;
-    for (int i : cells)
-        v_degs.push_back(AdamsDeg(0, i));
+    /*for (int i : cells)
+        v_degs.push_back(AdamsDeg(0, i));*/
 
-    auto ring_basis = dbRing.load_basis(table_ring);
-    auto ring_basis_repr = dbRing.load_basis_repr(table_ring);
+    auto ring_basis = dbCw1.load_basis(table_cw1);
+    auto ring_basis_repr = dbCw1.load_basis_repr(table_cw1);
 
     std::map<AdamsDeg, MMod1d> basis;
 
@@ -592,8 +607,6 @@ void ExportFreeModAdamsE2(std::string_view mod, std::string_view ring, const alg
                 auto p2 = ring_basis.lower_bound(AdamsDeg{0, t1 + 1});
                 for (auto p = p1; p != p2; ++p) {
                     auto deg_mon = p->first + v_degs[gen_id];
-                    if (deg_mon.stem() > stem_trunc)
-                        continue;
                     for (size_t i = 0; i < p->second.size(); ++i) {
                         MMod m = MMod(p->second[i], (uint32_t)gen_id);
                         basis[deg_mon].push_back(m);
@@ -1093,14 +1106,8 @@ int main_export_mod(int argc, char** argv, int& index, const char* desc)
         auto& cws = js.at("CW_complexes");
         if (cws.contains(mod)) {
             auto& cw_json = cws.at(mod);
-            if (cw_json.contains("free")) {
-                alg::int1d cells;
-                for (auto& c : cw_json.at("cells_gen"))
-                    cells.push_back(c.get<int>());
-                ExportFreeModAdamsE2(mod, ring, cells, t_max, stem_max);
-                return 0;
-            }
-            else if (cw_json.contains("summands")) {
+            if (cw_json.contains("summands")) {
+                ExportFreeModAdamsE2(mod, cw_json.at("summands"), js.at("rings"), t_max);
 				Export2Cell(mod, ring, t_max, stem_max);
 				return 0;
             }

@@ -1,3 +1,4 @@
+#include "algebras/linalg.h"
 #include "algebras/myio.h"
 #include "groebner_res.h"
 #include <fmt/core.h>
@@ -589,6 +590,7 @@ int IsFphi_n(const std::string& cw)
     return match[0].matched ? std::stoi(match[1].str()) : 0;
 }
 
+// TODO: write myio::parse to parse a string to assign value to variables
 void ParseFP(const std::string& cw, int& hopf, int& n1, int& n2)
 {
     std::regex words_regex("^(R|C|H)P(m|)(\\d+)_(m|)(\\d+)$"); /* match example: CP1_4 */
@@ -902,6 +904,18 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
                 return -2;
             for (size_t i = 0; i < images_json.size(); ++i)
                 images.push_back(cell2Mod(coh_from, images_json[i]));
+
+            /* Verify the map */
+            Cohomology coh_to;
+            GetCohFromJson(js, to, t_max, coh_to);
+            Groebner gb_from(t_max, {}, coh_from.v_degs);
+            gb_from.AddRels(coh_from.rels, t_max);
+            for (const auto& rel : coh_to.rels) {
+                if (gb_from.Reduce(subs(rel, images))) {
+                    fmt::print("the map is not an A-module homomorphism");
+                    return 2;
+                }
+            }
         }
         else if (map_json.contains("total")) {
             fil = 1;
@@ -1093,20 +1107,98 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     }
 }
 
-int1d SteenrodMod2Indices(const Mod& x, const MMod1d& basis)
+int1d SteenrodMod2Indices(Mod x, const MMod1d& basis)
 {
     int1d result;
-    for (const MMod& mon : x.data) {
-        auto p = std::lower_bound(basis.begin(), basis.end(), mon);
-#ifndef NDEBUG
-        if (p == basis.end() || mon < (*p)) {
-            std::cerr << "MyException(0x62885502U): Index not found\n";
-            throw MyException(0x62885502U, "Index not found");
+    Mod tmp;
+    size_t j = 0;
+    for (int i = 0; i < (int)basis.size() && j < x.data.size(); ++i) {
+        if (x.data[j] == basis[i]) {
+            result.push_back(i);
+            ++j;
         }
-#endif
-        result.push_back(int(p - basis.begin()));
     }
+#ifndef NDEBUG
+    if (j < (int)x.data.size()) {
+        fmt::print("MyException(0xfd3d2814): Index not found\n");
+        throw MyException(0xfd3d2814, "Index not found");
+    }
+#endif
     return result;
+}
+
+int1d SteenrodMod2Indices(Mod x, const MMod1d& basis, const int2d& inv)
+{
+    int1d result;
+    Mod tmp;
+    size_t j = 0;
+    for (int i = 0; i < (int)basis.size() && j < x.data.size(); ++i) {
+        if (x.data[j] == basis[i]) {
+            result = lina::add(result, inv[i]);
+            ++j;
+        }
+    }
+#ifndef NDEBUG
+    if (j < (int)x.data.size()) {
+        fmt::print("MyException(0xfd3d2814): Index not found\n");
+        throw MyException(0xfd3d2814, "Index not found");
+    }
+#endif
+    return result;
+}
+
+Mod SteenrodIndices2Mod(const int1d& indices, const MMod1d& basis)
+{
+    Mod result;
+    for (int i : indices)
+        result += basis[i];
+    return result;
+}
+
+void GenerateCells(const int1d& v_degs, const Groebner& gb, int t_max, MMod2d& mbasis, int3d& basis, int3d& inv)
+{
+    Mod tmp;
+    for (size_t i = 0; i < v_degs.size(); ++i) {
+        if (v_degs[i] > t_max)
+            break;
+        ut::get(basis, v_degs[i]).push_back({(int)ut::get(mbasis, v_degs[i]).size()});
+        ut::get(mbasis, v_degs[i]).push_back(MMod({}, i));
+    }
+    Mod1d basis_t_tri;
+    Mod1d basis_t;
+    for (int t = 0; t <= t_max; ++t) {
+        basis_t_tri.clear();
+        basis_t.clear();
+        for (int n = 1; n <= t; n <<= 1) {
+            auto m = MMilnor::Sq(n);
+            int t1 = t - n;
+            if (t1 >= (int)mbasis.size())
+                continue;
+            for (const auto& b : mbasis[t1]) {
+                auto b_new = gb.Reduce(m * b);
+                auto b_new1 = b_new;
+                for (auto& b_t : basis_t_tri)
+                    if (ut::has(b_new1.data, b_t.GetLead()))
+                        b_new1.iaddP(b_t, tmp);
+                if (b_new1) {
+                    // fmt::print("m={}, b={}, b_new={}\n", m, b, b_new);
+                    ut::get(mbasis, t).push_back(b_new1.GetLead());
+                    basis_t_tri.push_back(b_new1);
+                    basis_t.push_back(b_new);
+                }
+            }
+        }
+        if (t < (int)mbasis.size()) {
+            std::sort(mbasis[t].begin(), mbasis[t].end());
+            for (auto& b : basis_t)
+                ut::get(basis, (size_t)t).push_back(SteenrodMod2Indices(b, mbasis[t]));
+            int2d image, kernel, g;
+            lina::SetLinearMap(basis[t], image, kernel, g);
+            ut::get(inv, (size_t)t) = {};
+            for (int i = 0; i < (int)image.size(); ++i)
+                inv[t].push_back(lina::GetImage(image, g, {i}));
+        }
+    }
 }
 
 /* Generate cell structure from generators and relations */
@@ -1114,38 +1206,18 @@ void GenerateCellStructure(const int1d& v_degs, const Mod1d& rels, int t_max)
 {
     Groebner gb(t_max, {}, v_degs);
     gb.AddRels(rels, t_max);
-    MMod2d basis;
-    for (size_t i = 0; i < v_degs.size(); ++i) {
-        if (v_degs[i] > t_max)
-            break;
-        ut::get(basis, v_degs[i]).push_back(MMod({}, i));
-    }
-    for (int t = 0; t <= t_max; ++t) {
-        for (size_t i = 0; i < MMILNOR_E_BITS; ++i) {
-            auto m = MMilnor::FromIndex(i);
-            int tGen = MMILNOR_GEN_DEG[i];
-            int t1 = t - tGen;
-            if (t1 < 0)
-                break;
-            for (const MMod& m1 : basis[t1]) {
-                if (m1.m().begin() != m1.m().end() && *m1.m().begin() <= i)
-                    continue;
-                auto m_new = MMod(m1.m().mulLF(m), m1.v());
-                if (gb.IsBasis(m_new)) {
-                    ut::get(basis, (size_t)t).push_back(m_new);
-                }
-            }
-        }
-    }
+    MMod2d mbasis;
+    int3d basis, inv;
+    GenerateCells(v_degs, gb, t_max, mbasis, basis, inv);
+
     json js = "{\"cells_gen\": [], \"cells\": [], \"operations\": []}"_json;
     for (size_t t = 0; t < basis.size(); ++t) {
-        std::sort(basis[t].begin(), basis[t].end());
         for (size_t i = 0; i < basis[t].size(); ++i) {
             js.at("cells").push_back(t);
-            fmt::print("t={}, {}\n", t, basis[t][i]);
+            // fmt::print("t={}, {}\n", t, SteenrodIndices2Mod(basis[t][i], mbasis[t]));
         }
-        if (basis[t].size())
-            fmt::print("\n");
+        // if (basis[t].size())
+        // fmt::print("\n");
     }
     for (int d : v_degs) {
         if (d > t_max)
@@ -1154,8 +1226,11 @@ void GenerateCellStructure(const int1d& v_degs, const Mod1d& rels, int t_max)
     }
     for (size_t t = 0; t < basis.size(); ++t) {
         for (size_t i = 0; i < basis[t].size(); ++i) {
+            Mod basis_t_i;
+            for (int j : basis[t][i])
+                basis_t_i.data.push_back(mbasis[t][j]);
             for (size_t j = 1; j + t < basis.size(); j <<= 1) {
-                auto y = MMilnor::Sq((uint32_t)j) * basis[t][i];
+                auto y = MMilnor::Sq((uint32_t)j) * basis_t_i;
                 y = gb.Reduce(std::move(y));
                 int t_y = int(j + t);
                 if (y) {
@@ -1168,7 +1243,8 @@ void GenerateCellStructure(const int1d& v_degs, const Mod1d& rels, int t_max)
                         }
                     }
                     else {
-                        int1d iy = SteenrodMod2Indices(y, basis[t_y]);
+                        int1d iy = SteenrodMod2Indices(y, mbasis[t_y], inv[t_y]);
+
                         iy.insert(iy.begin(), t_y);
                         if (basis[t].size() == 1) {
                             js.at("operations").push_back({t, iy});
@@ -1182,6 +1258,142 @@ void GenerateCellStructure(const int1d& v_degs, const Mod1d& rels, int t_max)
         }
     }
     fmt::print("{}\n", js.dump(2));
+}
+
+struct SmashBasis
+{
+    size_t t1, t2, i1, i2;
+    bool operator<(const SmashBasis& rhs) const
+    {
+        if (t1 != rhs.t1)
+            return t1 < rhs.t1;
+        if (i1 != rhs.i1)
+            return i1 < rhs.i1;
+        return i2 < rhs.i2;
+    }
+    bool operator==(const SmashBasis& rhs) const
+    {
+        return t1 == rhs.t1 && i1 == rhs.i1 && i2 == rhs.i2;
+    }
+};
+using SmashBasis1d = std::vector<SmashBasis>;
+using SmashBasis2d = std::vector<SmashBasis1d>;
+
+struct SmashGenDeg
+{
+    size_t t, index;
+    bool operator<(const SmashGenDeg& rhs) const
+    {
+        return t < rhs.t || (t == rhs.t && index < rhs.index);
+    }
+    bool operator==(const SmashGenDeg& rhs) const
+    {
+        return t == rhs.t && index == rhs.index;
+    }
+};
+using SmashGenDeg1d = std::vector<SmashGenDeg>;
+
+/**
+ * Sort the sequence and each time remove a pair of identical elements
+ */
+void SortMod2(SmashBasis1d& data)
+{
+    std::sort(data.begin(), data.end());
+    for (size_t i = 0; i + 1 < data.size(); ++i)
+        if (data[i] == data[i + 1]) {
+            data[i].t1 = ~0ull;
+        }
+    ut::RemoveIf(data, [](const SmashBasis& m) { return m.t1 == ~0ull; });
+}
+
+/* Generate cell structure from generators and relations */
+void GenerateSmash(const int1d& v_degs1, const Mod1d& rels1, const int1d& v_degs2, const Mod1d& rels2, int t_max)
+{
+    MMod2d mbasis1, mbasis2;
+    int3d basis1, basis2, inv1, inv2;
+    Groebner gb1(t_max, {}, v_degs1);
+    gb1.AddRels(rels1, t_max);
+    GenerateCells(v_degs1, gb1, t_max, mbasis1, basis1, inv1);
+    Groebner gb2(t_max, {}, v_degs2);
+    gb2.AddRels(rels2, t_max);
+    GenerateCells(v_degs2, gb2, t_max, mbasis2, basis2, inv2);
+
+    SmashBasis2d basis_smash;
+    SmashGenDeg1d gen_degs_smash;
+    std::vector<std::pair<size_t, size_t>> indices;
+    for (size_t t = 0; t < (size_t)t_max; ++t) {
+        for (size_t t1 = 0; t1 < basis1.size(); ++t1) {
+            if (t < t1)
+                break;
+            size_t t2 = t - t1;
+            for (size_t i1 = 0; i1 < ut::get(basis1, t1).size(); ++i1) {
+                for (size_t i2 = 0; i2 < ut::get(basis2, t2).size(); ++i2) {
+                    gen_degs_smash.push_back({t, ut::get(basis_smash, t).size()});
+                    basis_smash[t].push_back({t1, t2, i1, i2});
+                }
+            }
+        }
+        if (t < basis_smash.size())
+            std::sort(basis_smash[t].begin(), basis_smash[t].end());
+    }
+
+    Cohomology coh_smash;
+    Mod tmp;
+    SmashBasis1d op;
+    size1d op_indices;
+    for (size_t i = 0; i < gen_degs_smash.size(); ++i) {
+        const auto& smash_m = basis_smash[gen_degs_smash[i].t][gen_degs_smash[i].index];
+        const auto& m1 = mbasis1[smash_m.t1][smash_m.i1];
+        const auto& m2 = mbasis2[smash_m.t2][smash_m.i2];
+
+        for (int j = 0; (1 << j) + (int)gen_degs_smash[i].t <= t_max; ++j) {
+            Mod rel = MMilnor::P(j, j + 1) * MMod(MMilnor(), i);
+
+            op.clear();
+            op_indices.clear();
+            for (int k1 = 0; k1 <= (1 << j); ++k1) {
+                int k2 = (1 << j) - k1;
+                auto sqk1m1 = MMilnor::Sq((uint32_t)k1) * m1;
+                sqk1m1 = gb1.Reduce(std::move(sqk1m1));
+                auto sqk2m2 = MMilnor::Sq((uint32_t)k2) * m2;
+                sqk2m2 = gb2.Reduce(std::move(sqk2m2));
+
+                int t1 = (int)smash_m.t1 + k1;
+                int t2 = (int)smash_m.t2 + k2;
+                if (t1 < mbasis1.size() && t2 < mbasis2.size()) {
+                    int1d i1s = SteenrodMod2Indices(sqk1m1, mbasis1[t1]);
+                    int1d i2s = SteenrodMod2Indices(sqk2m2, mbasis2[t2]);
+                    for (int i1 : i1s)
+                        for (int i2 : i2s)
+                            op.push_back({(size_t)t1, (size_t)t2, (size_t)i1, (size_t)i2});
+                }
+            }
+            SortMod2(op);
+            for (auto& m : op) {
+                int index = ut::IndexOfInSorted(basis_smash[size_t(m.t1 + m.t2)], m);
+                MyException::Assert(index != -1, "index != -1");
+                int index1 = ut::IndexOf(gen_degs_smash, SmashGenDeg{m.t1 + m.t2, (size_t)index});
+                MyException::Assert(index1 != -1, "index1 != -1");
+                op_indices.push_back(size_t(index1));
+            }
+
+            for (size_t index : op_indices)
+                rel.iaddP(MMod(MMilnor(), index), tmp);
+            coh_smash.rels.push_back(std::move(rel));
+        }
+    }
+    for (auto& d : gen_degs_smash)
+        coh_smash.v_degs.push_back((int)d.t);
+    Groebner gb_smash(t_max, {}, coh_smash.v_degs);
+    gb_smash.AddRels(coh_smash.rels, t_max, coh_smash.min_rels);
+    gb_smash.MinimizeOrderedGensRels(coh_smash.cells, coh_smash.min_rels);
+
+    coh_smash.v_degs = gb_smash.v_degs();
+    coh_smash.rels.clear();
+    for (int i : coh_smash.min_rels)
+        coh_smash.rels.push_back(gb_smash.data()[i]);
+
+    GenerateCellStructure(coh_smash.v_degs, coh_smash.rels, t_max);
 }
 
 extern const char* PROGRAM;
@@ -1201,5 +1413,24 @@ int main_cellstructure(int argc, char** argv, int& index, const char* desc)
     Mod1d rels;
     GetCoh(v_degs, rels, t_max, cw);
     GenerateCellStructure(v_degs, rels, t_max);
+    return 0;
+}
+
+int main_smash(int argc, char** argv, int& index, const char* desc)
+{
+    std::string cw1, cw2;
+    int t_max = 100;
+
+    myio::CmdArg1d args = {{"cw1", &cw1}, {"cw2", &cw2}, {"t_max", &t_max}};
+    myio::CmdArg1d op_args = {};
+    if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
+        return error;
+
+    int1d v_degs1, v_degs2;
+    Mod1d rels1, rels2;
+    GetCoh(v_degs1, rels1, t_max, cw1);
+    GetCoh(v_degs2, rels2, t_max, cw2);
+
+    GenerateSmash(v_degs1, rels1, v_degs2, rels2, t_max);
     return 0;
 }
