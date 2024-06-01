@@ -185,7 +185,7 @@ void MulMilnorV2(const std::array<uint32_t, XI_MAX>& R, const std::array<uint32_
     {
         for (size_t j = 1; j < N - i_max; ++j)
             XS[i_max * nCol + j] = S[j - 1];
-        for (size_t j = std::max(1ull, N - i_max); j <= N - i_min; ++j)
+        for (size_t j = std::max(1ul, N - i_max); j <= N - i_min; ++j)
             XS[(N - j) * nCol + j] = S[j - 1];
     }
     {
