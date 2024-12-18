@@ -7,6 +7,7 @@
 #include <iterator>
 #include <string>
 #include <vector>
+#include <array>
 
 #ifndef __unix__
 #ifndef _MSC_VER
@@ -18,90 +19,6 @@
  * The namespace `ut` provides basic utility functions
  */
 namespace ut {
-
-/*
- * A "random access" iterator of [begin, end) generated on the fly.
- */
-class Range
-{
-public:
-    class iterator
-    {
-        friend class Range;
-
-    private:
-        size_t i_;
-
-    public:
-        using iterator_category = std::random_access_iterator_tag;
-        using value_type = size_t;
-        using difference_type = size_t;
-        using pointer = size_t*;
-        using reference = size_t;
-
-    public:
-        iterator() : i_(0) {}
-
-        size_t operator*() const
-        {
-            return i_;
-        }
-        const iterator& operator++()
-        {
-            ++i_;
-            return *this;
-        }
-        iterator operator++(int)
-        {
-            iterator copy(*this);
-            ++i_;
-            return copy;
-        }
-        bool operator==(const iterator& other) const
-        {
-            return i_ == other.i_;
-        }
-        bool operator!=(const iterator& other) const
-        {
-            return i_ != other.i_;
-        }
-        bool operator<(const iterator& other) const
-        {
-            return i_ < other.i_;
-        }
-        iterator operator+(size_t other) const
-        {
-            return iterator(i_ + other);
-        }
-        size_t operator[](size_t other) const
-        {
-            return i_ + other;
-        }
-        size_t operator-(const iterator& other) const
-        {
-            return i_ - other.i_;
-        }
-
-    protected:
-        iterator(size_t start) : i_(start) {}
-    };
-
-private:
-    iterator begin_;
-    iterator end_;
-
-public:
-    Range(size_t begin, size_t end) : begin_(begin), end_(end) {}
-
-    iterator begin() const
-    {
-        return begin_;
-    }
-    iterator end() const
-    {
-        return end_;
-    }
-};
 
 /**
  * Create the int array 1, 2, ..., n
@@ -127,7 +44,86 @@ inline std::vector<size_t> size_t_range(size_t n)
     return result;
 }
 
-/**
+template <typename T, size_t N>
+class vector
+{
+protected:
+    std::array<T, N> data_;
+    size_t size_ = 0;
+
+public:
+    constexpr auto size() const
+    {
+        return size_;
+    }
+    auto begin() const
+    {
+        return data_.begin();
+    }
+    auto end() const
+    {
+        return data_.begin() + size_;
+    }
+    auto rbegin() const
+    {
+        return data_.rbegin() + N - size_;
+    }
+    auto rend() const
+    {
+        return data_.rend();
+    }
+    auto& operator[](size_t i) const
+    {
+        return data_[i];
+    }
+    auto& front() const
+    {
+        return data_[0];
+    }
+    auto& front()
+    {
+        return data_[0];
+    }
+    auto& back() const
+    {
+        return data_[size_ - 1];
+    }
+    auto& back()
+    {
+        return data_[size_ - 1];
+    }
+    auto& operator[](size_t i)
+    {
+#ifdef MYDEBUG
+        if (i >= size_) {
+            printf("ut::vector out of scope\n");
+            throw "DEBUG";
+        }
+#endif
+        return data_[i];
+    }
+
+    void push_back(T p)
+    {
+        if (size_ >= N) {
+            printf("ut::vector overflow\n");
+            // throw "DEBUG";
+            std::exit(1974285);
+        }
+        data_[size_++] = std::move(p);
+    }
+    void pop_back()
+    {
+        --size_;
+    }
+    void clear()
+    {
+        size_ = 0;
+    }
+};
+
+// TODO: Deprecated. Use ut::get instead
+/*
  * emulate std::map<int, T> by a vector
  * T should be a type easy to copy
  */
@@ -154,7 +150,7 @@ struct map_seq
     }
 };
 
-/**
+/** TODO: Deprecated. Use ut::get instead
  * emulate std::map<(int, int), T> by a 2d vector
  * T should be a type easy to copy
  */
@@ -180,6 +176,92 @@ struct map_seq2d
     T at(size_t i, size_t j) const
     {
         return (*this)(i, j);
+    }
+};
+
+/* An iterator adapter for 2d data */
+using IJ = std::pair<size_t, size_t>;
+template <typename Cont2d>
+class Iter2d
+{
+private:
+    Cont2d* pData;
+
+public:
+    class iterator
+    {
+        friend class Iter2d;
+
+    private:
+        const Cont2d* pData;
+        IJ p;
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = IJ;
+        using pointer = IJ;
+        using reference = IJ;
+        using difference_type = std::ptrdiff_t;
+
+    public:
+        /* needs to be default contructible to be compatible with std::ranges */
+        iterator() : pData(nullptr), p({0, 0}) {}
+
+        reference operator*() const
+        {
+            return p;
+        }
+        iterator& operator++()
+        {
+            if (++p.second < (*pData)[p.first].size())
+                return *this;
+            while (++p.first < pData->size() && (*pData)[p.first].empty())
+                ;
+            p.second = 0;
+            if (p.first >= pData->size())
+                p.first = size_t(-1);
+            return *this;
+        }
+        iterator operator++(int)
+        {
+            iterator copy(*this);
+            ++(*this);
+            return copy;
+        }
+        auto operator==(const iterator& rhs) const
+        {
+            return p == rhs.p;
+        }
+        auto operator!=(const iterator& rhs) const
+        {
+            return p != rhs.p;
+        }
+
+    protected:
+        iterator(const Cont2d* pData) : pData(pData), p({0, 0})
+        {
+            while (p.first < pData->size() && (*pData)[p.first].empty())
+                ++p.first;
+            if (p.first >= pData->size())
+                p.first = size_t(-1);
+        }
+
+        iterator(size_t pData_size) : pData(nullptr), p({pData_size, 0}) {}
+    };
+
+    Iter2d(Cont2d* pData) : pData(pData) {}
+
+    iterator begin() const
+    {
+        return iterator(pData);
+    }
+
+    /* As we access the elements by indices,
+     * we allow the container to be extended during iteration.
+     */
+    iterator end() const
+    {
+        return iterator(size_t(-1));
     }
 };
 
@@ -222,7 +304,7 @@ void copy(std::vector<T>& tmp, std::vector<T>& dest)
     }
 }
 
-/* The container `map` maps a key to a collection of type T */
+/* The container `vec` maps a key to a collection of type T */
 template <typename T>
 void extend(std::vector<T>& vec, size_t sz)
 {
@@ -248,7 +330,7 @@ bool has(const T& map, const K& key)
     return map.find(key) != map.end();
 }
 
-template <typename Maps, typename K>
+template <typename Maps, typename K> //// TODO: Remove
 const auto& GetRecentValue(Maps& maps, const K& key)
 {
     for (auto p = maps.rbegin(); p != maps.rend(); ++p)
@@ -274,8 +356,8 @@ int IndexOf(const std::vector<T>& vec, FnEq fnEq)
 template <typename T>
 int IndexOfInSorted(const std::vector<T>& sorted, const T& key)
 {
-	auto it = std::lower_bound(sorted.begin(), sorted.end(), key);
-	return it != sorted.end() && *it == key ? int(it - sorted.begin()) : -1;
+    auto it = std::lower_bound(sorted.begin(), sorted.end(), key);
+    return it != sorted.end() && *it == key ? int(it - sorted.begin()) : -1;
 }
 
 /* The container `map` maps a key to a collection of type T */
@@ -334,9 +416,9 @@ inline std::string get_time(const std::string& fmt = "%F %T")
 
 /* If n = 2^k1 + ... + 2^kn,
  * return the array k1, ..., kn. */
-inline std::vector<int> two_exp(unsigned n)
+inline ut::vector<int, 32> two_exp(unsigned n)
 {
-    std::vector<int> result;
+    ut::vector<int, 32> result;
     int k = 0;
     while (n > 0) {
         if (n & 1)
@@ -416,22 +498,30 @@ void for_each_seq(size_t n, Fn f)
         f(i);
 }
 
+
+
 /**
  * For i=0,...,n-1, execute f(i) in parallel.
  */
-template <typename Fn>
-void for_each_par128(size_t n, Fn f)
+template <size_t NumThreads, typename Fn>
+void for_each_par(size_t n, Fn f)
 {
     if (n == 0)
         return;
 
-    static constexpr size_t THREADS_MAX = 128;
     std::vector<std::future<void>> futures;
-    size_t nThreads = std::min(THREADS_MAX, n);
+    size_t nThreads = std::min(NumThreads, n);
     for (size_t t = 0; t < nThreads; ++t)
         futures.push_back(std::async(std::launch::async, [&f, t, n]() {
-            for (size_t i = t; i < n; i += THREADS_MAX)
-                f(i);
+            /* If the threads throw exceptions the program exits with return value 1111 */
+            try {
+                for (size_t i = t; i < n; i += NumThreads)
+                    f(i);
+            }
+            catch (const std::exception& e) {
+                printf("Exception in for_each_par: %s\n", e.what());
+                std::exit(1111);
+            }
         }));
     for (auto& fu : futures)
         fu.wait();
@@ -443,55 +533,16 @@ void for_each_par128(size_t n, Fn f)
 template <typename Fn>
 void for_each_par32(size_t n, Fn f)
 {
-    if (n == 0)
-        return;
-
-    static constexpr size_t THREADS_MAX = 32;
-    std::vector<std::future<void>> futures;
-    size_t nThreads = std::min(THREADS_MAX, n);
-    for (size_t t = 0; t < nThreads; ++t)
-        futures.push_back(std::async(std::launch::async, [&f, t, n]() {
-            for (size_t i = t; i < n; i += THREADS_MAX)
-                f(i);
-        }));
-    for (auto& fu : futures)
-        fu.wait();
+    for_each_par<32>(n, f);
 }
 
 /**
- * For 0<=i<j<n, execute f(i,j) in parallel.
+ * For i=0,...,n-1, execute f(i) in parallel.
  */
 template <typename Fn>
-void for_each_pair_par(size_t n, Fn f)
+void for_each_par128(size_t n, Fn f)
 {
-    if (n < 2)
-        return;
-
-    static constexpr size_t THREADS_MAX = 128;
-    std::vector<std::future<void>> futures;
-    const size_t m = (n + 1) / 2;
-    const size_t m1 = (n % 2 == 0) ? m : m - 1;
-    size_t nThreads = std::min(THREADS_MAX, m1);
-    for (size_t k = 0; k < 2 * m - 1; ++k) {
-        for (size_t t = 0; t < nThreads; ++t) {
-            futures.push_back(std::async(std::launch::async, [&f, t, m1, k, m]() {
-                for (size_t i = k + 1 + t; i <= k + m1; i += THREADS_MAX) {
-                    if (i == k + m)
-                        f(k, 2 * m - 1);
-                    else {
-                        size_t ii = i % (2 * m - 1);
-                        size_t jj = (2 * k + (2 * m - 1) - ii) % (2 * m - 1);
-                        if (ii > jj)
-                            std::swap(ii, jj);
-                        f(ii, jj);
-                    }
-                }
-            }));
-        }
-        for (auto& f : futures)
-            f.wait();
-        futures.clear();
-    }
+    for_each_par<128>(n, f);
 }
 
 }  // namespace ut

@@ -7,6 +7,9 @@ namespace myio {
 
 using namespace alg2;
 
+/*****************************************************
+ *             Serialization and Deserialization
+ *****************************************************/
 inline std::string Serialize(const Mon& mon)
 {
     return StrCont("", ",", "", "", mon, [](GE p) { return std::to_string(p.g()) + "," + std::to_string(p.e()); });
@@ -84,9 +87,12 @@ algZ::MMod Deserialize<algZ::MMod>(const std::string& str);
 template <>
 algZ::Mod Deserialize<algZ::Mod>(const std::string& str);
 
+
+
 /*****************************************************
  *             class DbAdamsSS
  *****************************************************/
+
 class DbAdamsSS : public myio::Database
 {
     using Statement = myio::Statement;
@@ -164,9 +170,9 @@ public:
     std::vector<std::string> load_gen_names(const std::string& table_prefix) const;
     Poly1d load_gb(const std::string& table_prefix, int t_max) const;
     Mod1d load_gb_mod(const std::string& table_prefix, int t_max) const;
-    std::map<AdamsDeg, Mon1d> load_basis(const std::string& table_prefix) const;
+    BasisMon load_basis(const std::string& table_prefix) const;
     std::map<AdamsDeg, int2d> load_basis_d2(const std::string& table_prefix) const;
-    std::map<AdamsDeg, MMod1d> load_basis_mod(const std::string& table_prefix) const;
+    BasisMMod load_basis_mod(const std::string& table_prefix) const;
 
 public:
     void save_pi_generators(const std::string& table_prefix, const AdamsDeg1d& gen_degs, const Poly1d& gen_Einf) const;

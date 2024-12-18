@@ -471,7 +471,7 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
 {
     int d_trunc = deg_trunc();
     if (t_max > d_trunc)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
     Poly tmp;
 
     /* Calculate the degrees of `rels` and group them by degree */
@@ -488,7 +488,7 @@ void Groebner::AddRels(Poly1d rels, int t_max, const ut::map_seq2d<int, 0>& poss
         int next_d = criticals_.NextD();
         if (next_d != -1 && next_d < t) {
             if (next_d < t - 1)
-                throw MyException(0xc3b447bcU, "buffer_min_pairs_ contains degree < t - 1");
+                throw ErrorIdMsg(0xc3b447bcU, "buffer_min_pairs_ contains degree < t - 1");
             --t;
         }
 
@@ -812,7 +812,7 @@ Mod GroebnerMod::Reduce(Mod x) const
             else if (sign == -1)
                 x.iaddmulP(q, data_[gbmod_index], tmpm1, pGb_->gen_2tor_degs());
             else
-                throw MyException(0x8dd4cebcU, "Something is wrong.");
+                throw ErrorIdMsg(0x8dd4cebcU, "Something is wrong.");
         }
         else {
             int gb_index = pGb_->IndexOfDivisibleLeading(x.data[index].m, eff_min);
@@ -825,7 +825,7 @@ Mod GroebnerMod::Reduce(Mod x) const
                 else if (sign == -1)
                     x.iaddmulP(q, Mod(pGb_->data()[gb_index], v, 0), tmpm1, pGb_->gen_2tor_degs());
                 else
-                    throw MyException(0x3e2f96c0U, "Something is wrong.");
+                    throw ErrorIdMsg(0x3e2f96c0U, "Something is wrong.");
             }
             else
                 ++index;
@@ -854,7 +854,7 @@ Mod GroebnerMod::ReduceForGbRel(Mod x) const
             else if (sign == -1)
                 x.iaddmulP(q, data_[gbmod_index], tmpm1, pGb_->gen_2tor_degs());
             else
-                throw MyException(0x8dd4cebcU, "Something is wrong.");
+                throw ErrorIdMsg(0x8dd4cebcU, "Something is wrong.");
         }
         else {
             int gb_index = pGb_->IndexOfDivisibleLeading(x.data[index].m, eff_min);
@@ -867,7 +867,7 @@ Mod GroebnerMod::ReduceForGbRel(Mod x) const
                 else if (sign == -1)
                     x.iaddmulP(q, Mod(pGb_->data()[gb_index], v, 0), tmpm1, pGb_->gen_2tor_degs());
                 else
-                    throw MyException(0x3e2f96c0U, "Something is wrong.");
+                    throw ErrorIdMsg(0x3e2f96c0U, "Something is wrong.");
             }
             else {
                 if (index > 0 && MultipleOf(x.data[index], x.data[0])) {
@@ -903,7 +903,7 @@ Mod GroebnerMod::ReduceV2(Mod x) const
             else if (sign == -1)
                 x.iaddmulP(q, data_[gbmod_index], tmpm1, pGb_->gen_2tor_degs());
             else
-                throw MyException(0x8dd4cebcU, "Something is wrong.");
+                throw ErrorIdMsg(0x8dd4cebcU, "Something is wrong.");
         }
         else if (gb_index != -1) {
             Mon q = div_unsigned(x.data[index].m, pGb_->data()[gb_index].GetLead()); /* q has extra filtration from v */
@@ -914,7 +914,7 @@ Mod GroebnerMod::ReduceV2(Mod x) const
             else if (sign == -1)
                 x.iaddmulP(q, Mod(pGb_->data()[gb_index], v, 0), tmpm1, pGb_->gen_2tor_degs());
             else
-                throw MyException(0x3e2f96c0U, "Something is wrong.");
+                throw ErrorIdMsg(0x3e2f96c0U, "Something is wrong.");
         }
         else
             ++index;
@@ -923,10 +923,10 @@ Mod GroebnerMod::ReduceV2(Mod x) const
 }
 
 template <typename T, typename... T1>
-T&& debug_hook(T&& rel, T1&&... args)
+T&& debug_hook(T&& rel, std::string_view fmt, T1&&... args)
 {
     if (rel.Str() == "x_{22}x_{40}v_0+2x_1x_{162}v_0+O(9)") {
-        fmt::print(args...);
+        fmt::print(fmt::runtime(fmt), args...);
         //__debugbreak();
     }
     return rel;
@@ -936,7 +936,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
 {
     int d_trunc = deg_trunc();
     if (t_max > d_trunc)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
     if (old_pGb_size_ != pGb_->leads_.size()) {
         criticals_.AddToBuffersX(pGb_->leads_, pGb_->data_O_, leads_, data_O_, pGb_->gen_degs(), v_degs_, old_pGb_size_);
         old_pGb_size_ = pGb_->leads_.size();
@@ -957,7 +957,7 @@ void GroebnerMod::AddRels(Mod1d rels, int t_max, const ut::map_seq2d<int, 0>& po
         int next_stem = criticals_.NextD();
         if (next_stem != -1 && next_stem < t) {
             if (next_stem < t - 1)
-                throw MyException(0x3dc040d6U, "buffer_min_pairs_ contains degree < t - 1");
+                throw ErrorIdMsg(0x3dc040d6U, "buffer_min_pairs_ contains degree < t - 1");
             --t;
         }
 

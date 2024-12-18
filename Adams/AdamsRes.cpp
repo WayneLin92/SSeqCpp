@@ -15,6 +15,11 @@ void ResolveV2(const Mod1d& rels, const int1d& v_degs, int t_trunc, int stem_tru
     auto gb = AdamsRes::load(db_filename, tablename, t_trunc, stem_trunc);
     Resolve(gb, rels, v_degs, t_trunc, stem_trunc, db_filename, tablename);
 
+    //for (size_t i = 0; i < 5; ++i) {////
+    //    for (size_t j = 0; j < gb.data()[i].size(); ++j)
+    //        fmt::print("i={}, j={}, x1={}, x2={}\n", i, j, gb.data()[i][j].x1, gb.data()[i][j].x2);
+    //}
+
     std::cout << "gb.dim_Ext()=" << gb.dim_Ext() << '\n';
     std::cout << "gb.dim_Gb()=" << gb.dim_Gb() << '\n';
 }

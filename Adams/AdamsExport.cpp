@@ -318,7 +318,7 @@ void ExportRingAdamsE2(std::string_view ring, int t_trunc, int stem_trunc)
         fmt::print("size_basis={}\n", size_basis);
         fmt::print("size_E2_res={}\n", size_E2_res);
         fmt::print("Error: sizes of bases do not match.");
-        throw MyException(0x8334a2c1U, "Error: sizes of bases do not match.");
+        throw ErrorIdMsg(0x8334a2c1U, "Error: sizes of bases do not match.");
     }
 
     /* Save the results */
@@ -381,10 +381,12 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     auto ring_basis = dbRing.load_basis(table_ring);
     auto ring_basis_repr = dbRing.load_basis_repr(table_ring);
 
-    std::map<AdamsDeg, Mod1d> gbm;
+    std::map<AdamsDeg, Mod1d> gbm; // TODO: use Basis<> instead
     Mon2d leads;
     std::map<AdamsDeg, MMod1d> basis;
     std::map<AdamsDeg, int2d> repr;
+
+    Mon1d empty_Mon1d;
 
     /* Add new basis */
     for (int t = 0; t <= t_trunc; ++t) {
@@ -396,17 +398,17 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
             auto repr_g = gen_reprs[gen_id];
             int t1 = t - v_degs[gen_id].t;
             if (t1 >= 0) {
-                auto p1 = ring_basis.lower_bound(AdamsDeg{0, t1});
-                auto p2 = ring_basis.lower_bound(AdamsDeg{0, t1 + 1});
-                for (auto p = p1; p != p2; ++p) {
-                    auto deg_mon = p->first + v_degs[gen_id];
+                for (int s1 = 0; s1 <= t1; ++s1) {
+                    auto d1 = AdamsDeg(s1, t1);
+                    auto deg_mon = d1 + v_degs[gen_id];
                     if (deg_mon.stem() > stem_trunc)
                         continue;
-                    for (size_t i = 0; i < p->second.size(); ++i) {
-                        MMod m = MMod(p->second[i], (uint32_t)gen_id);
+                    auto& basis_d1 = ring_basis.at(d1, empty_Mon1d);
+                    for (size_t i = 0; i < basis_d1.size(); ++i) {
+                        MMod m = MMod(basis_d1[i], (uint32_t)gen_id);
                         if (size_t(gen_id) >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&m](const Mon& _m) { return divisible(_m, m.m); })) {
                             basis_new[deg_mon].push_back(m);
-                            auto repr_mon = mul(map_h, repr_g, ring_basis_repr.at(p->first)[i]);
+                            auto repr_mon = mul(map_h, repr_g, ring_basis_repr.at(d1)[i]);
                             repr_new[deg_mon].push_back(std::move(repr_mon));
                         }
                     }
@@ -458,7 +460,7 @@ void ExportModAdamsE2(std::string_view mod, std::string_view ring, int t_trunc, 
     if (size_basis != size_t(size_E2)) {
         std::cout << "size_basis=" << size_basis << '\n';
         std::cout << "size_E2=" << size_E2 << '\n';
-        throw MyException(0x571c8119U, "Error: sizes of bases do not match.");
+        throw ErrorIdMsg(0x571c8119U, "Error: sizes of bases do not match.");
     }
 
     /* Save the results */
@@ -555,7 +557,7 @@ void ExportAdamsD2(std::string_view cw)
     dbE2.end_transaction();
 }
 
-void ExportFreeModAdamsE2(std::string_view mod, const nlohmann::json& summands, const nlohmann::json& rings_json, int t_trunc)
+void ExportFreeModAdamsE2(std::string_view mod, const nlohmann::json& summands, const nlohmann::json&, int t_trunc)
 {
     using namespace alg2;
 
@@ -597,18 +599,19 @@ void ExportFreeModAdamsE2(std::string_view mod, const nlohmann::json& summands, 
 
     std::map<AdamsDeg, MMod1d> basis;
 
+    Mon1d empty_Mon1d;
     /* Add new basis */
     for (int t = 0; t <= t_trunc; ++t) {
         /* Consider all possible basis in degree t */
         for (size_t gen_id = v_degs.size(); gen_id-- > 0;) {
             int t1 = t - v_degs[gen_id].t;
             if (t1 >= 0) {
-                auto p1 = ring_basis.lower_bound(AdamsDeg{0, t1});
-                auto p2 = ring_basis.lower_bound(AdamsDeg{0, t1 + 1});
-                for (auto p = p1; p != p2; ++p) {
-                    auto deg_mon = p->first + v_degs[gen_id];
-                    for (size_t i = 0; i < p->second.size(); ++i) {
-                        MMod m = MMod(p->second[i], (uint32_t)gen_id);
+                for (int s1 = 0; s1 <= t1; ++s1) {
+                    auto d1 = AdamsDeg(s1, t1);
+                    auto deg_mon = d1 + v_degs[gen_id];
+                    auto& basis_d1 = ring_basis.at(d1, empty_Mon1d);
+                    for (size_t i = 0; i < basis_d1.size(); ++i) {
+                        MMod m = MMod(basis_d1[i], (uint32_t)gen_id);
                         basis[deg_mon].push_back(m);
                     }
                 }
@@ -669,7 +672,7 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
     try { /* For compatibility */
         fil = dbResMap.get_int("select value from version where id=651971502");
     }
-    catch (MyException&) {
+    catch (ErrorIdMsg&) {
     }
     int sus = dbResMap.get_int("select value from version where id=1585932889"); /* cw1->Sigma^sus cw2 */
 
@@ -709,17 +712,18 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
     if (ut::has(RING_SPECTRA, to)) {
         auto basis2 = dbCw2.load_basis(table_cw2);
         auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
+        Mon1d emptyMon1d;
         Poly1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
                 images.push_back(Poly::Gen(uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
-                if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
+                const auto& basis2_d = basis2.at(d, emptyMon1d);
+                if (basis2_d.empty() || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;
                 }
-                const auto& basis2_d = basis2.at(d);
                 const int2d& r = basis_repr2.at(d);
                 int2d image, _k, g;
                 lina::SetLinearMap(r, image, _k, g);
@@ -731,17 +735,18 @@ void ExportMapAdamsE2(std::string_view cw1, std::string_view cw2, int t_trunc)
     else {
         auto basis2 = dbCw2.load_basis_mod(table_cw2);
         auto basis_repr2 = dbCw2.load_basis_repr(table_cw2);
+        MMod1d emptyMMod1d;
         Mod1d images;
         for (size_t i = 0; i < gen_reprs1.size(); ++i) {
             if (ut::has(out_of_region, (int)i))
                 images.push_back(MMod(Mon(), uint32_t(-1)));
             else {
                 AdamsDeg d = gen_degs[i] + AdamsDeg(fil, fil - sus);
-                if (!ut::has(basis2, d) || !ut::has(map_h, gen_reprs1[i])) {
+                const auto& basis2_d = basis2.at(d, emptyMMod1d);
+                if (basis2_d.empty() || !ut::has(map_h, gen_reprs1[i])) {
                     images.push_back({});
                     continue;
                 }
-                const auto& basis2_d = basis2.at(d);
                 const int2d& r = basis_repr2.at(d);
                 int2d image, _k, g;
                 lina::SetLinearMap(r, image, _k, g);
@@ -781,7 +786,7 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             table1 = fmt::format("map_AdamsE2_{}", match[1].str());
         else {
             fmt::print("filename={} not supported.\n", db_map1);
-            throw MyException(0x248b04b, "File name is not supported.");
+            throw ErrorIdMsg(0x248b04b, "File name is not supported.");
         }
         images1 = dbMap1.get_column_from_str<Poly>(table1, "map", "ORDER BY id", myio::Deserialize<Poly>);
     }
@@ -796,7 +801,7 @@ void ExportMapSumAdamsE2(const std::string& cw1, const std::string& cw2, const s
             table2 = fmt::format("map_AdamsE2_{}", match[1].str());
         else {
             fmt::print("filename={} not supported.\n", db_map2);
-            throw MyException(0xa833c7c4, "File name is not supported.");
+            throw ErrorIdMsg(0xa833c7c4, "File name is not supported.");
         }
         images2 = dbMap2.get_column_from_str<Poly>(table2, "map", "ORDER BY id", myio::Deserialize<Poly>);
     }
@@ -985,6 +990,7 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
     Mon2d leads;
     std::map<AdamsDeg, MMod1d> basis;
     std::map<AdamsDeg, int2d> repr;
+    Mon1d empty_Mon1d;
 
     /* Add new basis */
     for (int t = 0; t <= t_trunc; ++t) {
@@ -996,17 +1002,17 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
             auto repr_g = gen_reprs[gen_id];
             int t1 = t - v_degs[gen_id].t;
             if (t1 >= 0) {
-                auto p1 = S0_basis.lower_bound(AdamsDeg{0, t1});
-                auto p2 = S0_basis.lower_bound(AdamsDeg{0, t1 + 1});
-                for (auto p = p1; p != p2; ++p) {
-                    auto deg_mon = p->first + v_degs[gen_id];
+                for (int s1 = 0; s1 <= t1; ++s1) {
+                    auto d1 = AdamsDeg(s1, t1);
+                    auto deg_mon = d1 + v_degs[gen_id];
                     if (deg_mon.stem() > stem_trunc)
                         continue;
-                    for (size_t i = 0; i < p->second.size(); ++i) {
-                        MMod m = MMod(p->second[i], (uint32_t)gen_id);
+                    auto& basis_d1 = S0_basis.at(d1, empty_Mon1d);
+                    for (size_t i = 0; i < basis_d1.size(); ++i) {
+                        MMod m = MMod(basis_d1[i], (uint32_t)gen_id);
                         if (size_t(gen_id) >= leads.size() || std::none_of(leads[gen_id].begin(), leads[gen_id].end(), [&m](const Mon& _m) { return divisible(_m, m.m); })) {
                             basis_new[deg_mon].push_back(m);
-                            auto repr_mon = mul(map_h, repr_g, S0_basis_repr.at(p->first)[i]);
+                            auto repr_mon = mul(map_h, repr_g, S0_basis_repr.at(d1)[i]);
                             repr_new[deg_mon].push_back(std::move(repr_mon));
                         }
                     }
@@ -1058,7 +1064,7 @@ void Export2Cell(std::string_view cw, std::string_view ring, int t_trunc, int st
     if (size_basis != size_t(size_E2)) {
         std::cout << "size_basis=" << size_basis << '\n';
         std::cout << "size_E2=" << size_E2 << '\n';
-        throw MyException(0x571c8119U, "Error: sizes of bases do not match.");
+        throw ErrorIdMsg(0x571c8119U, "Error: sizes of bases do not match.");
     }
 
     /* Save the results */

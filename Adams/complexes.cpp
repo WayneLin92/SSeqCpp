@@ -164,7 +164,7 @@ constexpr inline int N_MAX_RP = 261;
 
 int Period_RP(int n)
 {
-    MyException::Assert(n >= 0, "n >= 0 in phi(n)");
+    ErrorIdMsg::Assert(n >= 0, "n >= 0 in phi(n)");
     int phi = (n / 8) * 4, residue = n % 8;
     if (residue <= 1)
         phi += residue;
@@ -202,7 +202,7 @@ void Coh_P(int1d& v_degs, Mod1d& rels, Mod1d& cells, int1d& min_rels, int n1, in
         i_max = 2;
     else {
         fmt::print("over={} not supported\n", over);
-        throw MyException(0x87fe2a2b, "over not supported.");
+        throw ErrorIdMsg(0x87fe2a2b, "over not supported.");
     }
 
     int1d v_degs2;
@@ -423,7 +423,7 @@ int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomolo
             else {
                 int1d arr = op[0].get<std::vector<int>>();
                 c0 = arr[0];
-                MyException::Assert(arr[1] < coh.num_cells.at(c0), "arr[1] < cells.at(c0)");
+                ErrorIdMsg::Assert(arr[1] < coh.num_cells.at(c0), "arr[1] < cells.at(c0)");
                 i0 = coh.indices_cells.at(c0) + arr[1];
             }
             int c1;
@@ -436,13 +436,13 @@ int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomolo
                 int1d arr = op[1].get<std::vector<int>>();
                 c1 = arr[0];
                 for (size_t i = 1; i < arr.size(); ++i) {
-                    MyException::Assert(arr[i] < coh.num_cells.at(c1), "arr[i] < cells.at(c1)");
+                    ErrorIdMsg::Assert(arr[i] < coh.num_cells.at(c1), "arr[i] < cells.at(c1)");
                     i1s.push_back(coh.indices_cells.at(c1) + arr[i]);
                 }
             }
 
             int n = c1 - c0;
-            MyException::Assert(!(n & (n - 1)), "n is a power of 2");
+            ErrorIdMsg::Assert(!(n & (n - 1)), "n is a power of 2");
             for (int i1 : i1s)
                 ops[i0][n].push_back(i1);
         }
@@ -482,7 +482,7 @@ int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomolo
                 cells_gen_v2.push_back(gen_degs[i]);
         ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
         ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
-        MyException::Assert(cells_gen == cells_gen_v2, fmt::format("cells_gen == cells_gen_v2 = {}", Serialize(cells_gen_v2)));
+        ErrorIdMsg::Assert(cells_gen == cells_gen_v2, fmt::format("cells_gen == cells_gen_v2 = {}", Serialize(cells_gen_v2)));
 
         coh.v_degs = gb.v_degs();
         ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
@@ -612,8 +612,8 @@ void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
     int hopf1, hopf2, n1, n2, m1, m2;
     ParseFP(cw1, hopf1, n1, n2);
     ParseFP(cw2, hopf2, m1, m2);
-    MyException::Assert(n1 <= n2 && m1 <= m2, "n1 < n2 && m1 < m2");
-    MyException::Assert(hopf1 == hopf2 || hopf1 + 1 == hopf2, "hopf1 == hopf2 || hopf1 + 1 == hopf2");
+    ErrorIdMsg::Assert(n1 <= n2 && m1 <= m2, "n1 < n2 && m1 < m2");
+    ErrorIdMsg::Assert(hopf1 == hopf2 || hopf1 + 1 == hopf2, "hopf1 == hopf2 || hopf1 + 1 == hopf2");
     int n1_ = n1, n2_ = n2;
     int m1_ = m1, m2_ = m2;
     std::string field1 = hopf1 == 0 ? "R" : (hopf1 == 1 ? "C" : "H");
@@ -680,7 +680,7 @@ void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         /*# Compute map */
 
         if (n1 == m1) { /*## subcomplex */
-            MyException::Assert(n2 < m2, "n2 < m2");
+            ErrorIdMsg::Assert(n2 < m2, "n2 < m2");
 
             int1d v_degs_n, tmp_ind1d;
             Mod1d tmp, tmp1;
@@ -697,7 +697,7 @@ void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
             return;
         }
         else if (n2 == m2) { /*## quotient complex */
-            MyException::Assert(n1 < m1, "n1 < m1");
+            ErrorIdMsg::Assert(n1 < m1, "n1 < m1");
 
             int1d v_degs_n, tmp_ind1d;
             Mod1d cell_reduced_n, tmp, tmp1;
@@ -739,11 +739,11 @@ void GetCohMapFP2FP(const std::string& cw1, const std::string& cw2, std::string&
         }
         else {
             fmt::print("The map between FP is not supported\n");
-            throw MyException(0x31dd0ad6, "The map between FP is not supported");
+            throw ErrorIdMsg(0x31dd0ad6, "The map between FP is not supported");
         }
     }
     else if (hopf2 == hopf1 + 1) {
-        MyException::Assert(n1 == 2 * m1 - 1 && n2 == 2 * m2, "n1 == 2 * m1 - 1 && n2 == 2 * m2");
+        ErrorIdMsg::Assert(n1 == 2 * m1 - 1 && n2 == 2 * m2, "n1 == 2 * m1 - 1 && n2 == 2 * m2");
 
         int1d v_degs_n, tmp_ind1d;
         Mod1d cell_reduced_n, tmp, tmp1;
@@ -797,7 +797,7 @@ int GetCoh(int1d& v_degs, Mod1d& rels, int d_max, const std::string& cw)
         int hopf, n1, n2;
         ParseFP(match[2].str(), hopf, n1, n2);
         std::string field = match[3].str();
-        MyException::Assert(n1 + 1 < n2, "n1 + 1 < n2");
+        ErrorIdMsg::Assert(n1 + 1 < n2, "n1 + 1 < n2");
         if (field == "R") {
             int n1_ = n1, n2_ = n2;
             normalize_RP(n1, n2, n1_, n2_);
@@ -1103,7 +1103,7 @@ void SetCohMap(const std::string& cw1, const std::string& cw2, std::string& from
     std::string name = fmt::format("{}__{}", cw1, cw2);
     if (int error = GetCohMapFromJson(name, from, to, images, sus, fil)) {
         fmt::print("Error({}) - map not supported.\n", error);
-        throw MyException(0x8636b4b2, "map not supported.");
+        throw ErrorIdMsg(0x8636b4b2, "map not supported.");
     }
 }
 
@@ -1121,7 +1121,7 @@ int1d SteenrodMod2Indices(Mod x, const MMod1d& basis)
 #ifndef NDEBUG
     if (j < (int)x.data.size()) {
         fmt::print("MyException(0xfd3d2814): Index not found\n");
-        throw MyException(0xfd3d2814, "Index not found");
+        throw ErrorIdMsg(0xfd3d2814, "Index not found");
     }
 #endif
     return result;
@@ -1141,7 +1141,7 @@ int1d SteenrodMod2Indices(Mod x, const MMod1d& basis, const int2d& inv)
 #ifndef NDEBUG
     if (j < (int)x.data.size()) {
         fmt::print("MyException(0xfd3d2814): Index not found\n");
-        throw MyException(0xfd3d2814, "Index not found");
+        throw ErrorIdMsg(0xfd3d2814, "Index not found");
     }
 #endif
     return result;
@@ -1371,9 +1371,9 @@ void GenerateSmash(const int1d& v_degs1, const Mod1d& rels1, const int1d& v_degs
             SortMod2(op);
             for (auto& m : op) {
                 int index = ut::IndexOfInSorted(basis_smash[size_t(m.t1 + m.t2)], m);
-                MyException::Assert(index != -1, "index != -1");
+                ErrorIdMsg::Assert(index != -1, "index != -1");
                 int index1 = ut::IndexOf(gen_degs_smash, SmashGenDeg{m.t1 + m.t2, (size_t)index});
-                MyException::Assert(index1 != -1, "index1 != -1");
+                ErrorIdMsg::Assert(index1 != -1, "index1 != -1");
                 op_indices.push_back(size_t(index1));
             }
 

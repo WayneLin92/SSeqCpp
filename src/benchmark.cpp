@@ -19,12 +19,14 @@ Timer::Timer() : bPrinted_(false)
 
 Timer::~Timer()
 {
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed = end - start_;
     if (!bPrinted_) {
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed = end - start_;
         fmt::print(fmt::fg(fmt::color::green), "Time: {}s ({})\n", elapsed.count(), ut::get_time());
-        fflush(stdout);
+        if (elapsed.count() > 30.0)
+            fmt::print("\a");
     }
+    fflush(stdout);
 }
 
 void Timer::print(const char* msg)

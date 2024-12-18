@@ -10,7 +10,7 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
 
 #ifndef NDEBUG
     if (x.empty())
-        throw MyException(0xfe35902dU, "BUG: triangularize()");
+        throw ErrorIdMsg(0xfe35902dU, "BUG: triangularize()");
 #endif
 
     size_t i = i_insert;
@@ -50,7 +50,7 @@ void triangularize(Staircase& sc, size_t i_insert, int1d x, int1d dx, int level,
         }
 #ifndef NDEBUG
         if (sc.basis[i].empty())
-            throw MyException(0xfe35902dU, "BUG: triangularize()");
+            throw ErrorIdMsg(0xfe35902dU, "BUG: triangularize()");
 #endif
     }
 }
@@ -103,9 +103,31 @@ bool IsZeroOnLevel(const Staircase& sc, const int1d& x, int level)
 /**
  * Apply the change of the staircase to the current history
  */
-void Diagram::UpdateStaircase(Staircases1d& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image)
+void Category::UpdateStaircase(SSNodes& nodes_ss, AdamsDeg deg, const Staircase& sc_i, size_t i_insert, const int1d& x, const int1d& dx, int level, int1d& image, int& level_image)
 {
-    if (nodes_ss.back().find(deg) == nodes_ss.back().end())
+    if (!nodes_ss.back().has(deg))
         nodes_ss.back()[deg] = sc_i;
+    else
+        nodes_ss.back().MarkModified(deg);
     triangularize(nodes_ss.back()[deg], i_insert, x, dx, level, image, level_image);
+}
+
+std::string Staircase::Str() const
+{
+    std::string result;
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i] < LEVEL_MAX / 2) {
+            if (diffs[i] == NULL_DIFF)
+                fmt::format_to(std::back_inserter(result), "[{}]=d_{}[?]\n", myio::Serialize(basis[i]), levels[i]);
+            else
+                fmt::format_to(std::back_inserter(result), "[{}]=d_{}[{}]\n", myio::Serialize(basis[i]), levels[i], myio::Serialize(diffs[i]));
+        }
+        else {
+            if (diffs[i] == NULL_DIFF)
+                fmt::format_to(std::back_inserter(result), "d_{}[{}]=[?]\n", LEVEL_MAX - levels[i], myio::Serialize(basis[i]));
+            else
+                fmt::format_to(std::back_inserter(result), "d_{}[{}]=[{}]\n", LEVEL_MAX - levels[i], myio::Serialize(basis[i]), myio::Serialize(diffs[i]));
+        }
+    }
+    return result;
 }

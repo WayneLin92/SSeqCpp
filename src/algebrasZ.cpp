@@ -265,7 +265,7 @@ int1d Poly2Indices(const Poly& poly, const Mon1d& basis)
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifndef NDEBUG
         if (p == basis.end() || mon < (*p)) {
-            throw MyException(0x57f14e21U, "Index not found");
+            throw ErrorIdMsg(0x57f14e21U, "Index not found");
         }
 #endif
         result.push_back(int(p - basis.begin()));
@@ -433,7 +433,7 @@ int1d Mod2Indices(const Mod& x, const MMod1d& basis)
 #ifndef NDEBUG
         if (p == basis.end() || mon < (*p)) {
             std::cerr << "MyException(0x62885502U): Index not found\n";
-            throw MyException(0x62885502U, "Index not found");
+            throw ErrorIdMsg(0x62885502U, "Index not found");
         }
 #endif
         result.push_back(uint32_t(p - basis.begin()));

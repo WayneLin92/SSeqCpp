@@ -62,7 +62,7 @@ public:
             buffer_min_pairs_.erase(buffer_min_pairs_.begin());
         }
         else if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first < d)
-            throw MyException(0x3321786aU, "buffer_min_pairs_ contains degree < d");
+            throw ErrorIdMsg(0x3321786aU, "buffer_min_pairs_ contains degree < d");
         return result;
     }
     int NextD() const

@@ -453,7 +453,7 @@ public:
                         drop_column("S0_Adams_res_generators", "id");
                         add_column("S0_Adams_res_generators", "id INTEGER");
                     }
-                    catch (MyException&) {
+                    catch (ErrorIdMsg&) {
                     }
                     {
                         Statement stmt(*this, "UPDATE S0_Adams_res_generators SET id=?1, oldid=?2 WHERE rowid=?3;");
@@ -469,7 +469,7 @@ public:
                 fmt::print("DbRes Converted to version=1\n");
                 std::fflush(stdout);
             }
-            catch (MyException&) {
+            catch (ErrorIdMsg&) {
                 return false;
             }
         }
@@ -674,7 +674,7 @@ void DbResVersionConvert(const char* db_filename)
     DbAdamsRes db(db_filename);
     if (!db.ConvertVersion()) {
         fmt::print("Version conversion failed.\n");
-        throw MyException(0xeb8fef62, "Version conversion failed.");
+        throw ErrorIdMsg(0xeb8fef62, "Version conversion failed.");
     }
 }
 
@@ -682,7 +682,7 @@ void Resolve(AdamsRes& gb, const Mod1d& rels, const int1d& v_degs, int t_max, in
 {
     int t_trunc = gb.t_trunc();
     if (t_max > t_trunc)
-        throw MyException(0xb2474e19U, "t_max is bigger than the truncation degree.");
+        throw ErrorIdMsg(0xb2474e19U, "t_max is bigger than the truncation degree.");
     Mod tmp_Mod;
 
     DbResVersionConvert(db_filename.c_str());

@@ -120,7 +120,7 @@ public:
                 fmt::print("DbResProd Converted to version=1\n");
                 std::fflush(stdout);
             }
-            catch (MyException&) {
+            catch (ErrorIdMsg&) {
                 return false;
             }
         }
@@ -359,7 +359,7 @@ void compute_products(int t_trunc, const std::string& ring)  ////TODO: abstract 
     int old_t_max_prod = get_db_t_max(dbProd);
     if (!dbProd.ConvertVersion(dbRes)) {
         fmt::print("Version conversion failed.\n");
-        throw MyException(0xeb8fef62, "Version conversion failed.");
+        throw ErrorIdMsg(0xeb8fef62, "Version conversion failed.");
     }
     dbRes.disconnect();
     dbProd.create_tables(table_out);
@@ -539,7 +539,7 @@ void compute_mod_products(int t_trunc, const std::string& mod, const std::string
     int old_t_max_prod = get_db_t_max(dbProd);
     if (!dbProd.ConvertVersion(dbResRing)) {
         fmt::print("Version conversion failed.\n");
-        throw MyException(0xeb8fef62, "Version conversion failed.");
+        throw ErrorIdMsg(0xeb8fef62, "Version conversion failed.");
     }
     if (dbProd.has_table(table_mod + "_generators") && !dbProd.has_table(table_out + "_generators")) {
         constexpr std::array<std::string_view, 3> postfixes = {"generators", "products", "products_time"};
@@ -700,9 +700,9 @@ void compute_map_res(const std::string& cw1, const std::string& cw2, int t_trunc
     try {
         dbMap.get_str("select value from version where id=446174262"); /* from */
     }
-    catch (MyException&) {
+    catch (ErrorIdMsg&) {
         fmt::print("Map version should be >= 3");
-        throw MyException(0x7102b177U, "Map version should be >= 3");
+        throw ErrorIdMsg(0x7102b177U, "Map version should be >= 3");
     }
 
     auto from = dbMap.get_str("select value from version where id=446174262");

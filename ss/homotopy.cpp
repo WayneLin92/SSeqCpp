@@ -26,7 +26,7 @@ int2d QuotientSpace(const int2d& spaceV, const int2d& spaceW)
             quotient.push_back(std::move(v1));
     }
     if (quotient.size() != dimQuo)
-        throw MyException(0x72715463U, "W is not a subspace of V!\n");
+        throw ErrorIdMsg(0x72715463U, "W is not a subspace of V!\n");
     return quotient;
 }
 
@@ -267,7 +267,7 @@ void CountByS(std::vector<T>& cont, ut::map_seq<int, 0>& num_leads)
         ++num_leads[x.GetLead().fil()];
 }
 
-const PiBase* Diagram::GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDeg deg)
+const PiBase* Category::GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDeg deg)
 {
     for (auto p = nodes_pi_basis.rbegin(); p != nodes_pi_basis.rend(); ++p)
         if (p->find(deg) != p->end())
@@ -275,7 +275,7 @@ const PiBase* Diagram::GetRecentPiBasis(const PiBasis1d& nodes_pi_basis, AdamsDe
     return nullptr;
 }
 
-const PiBaseMod* Diagram::GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, AdamsDeg deg)
+const PiBaseMod* Category::GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, AdamsDeg deg)
 {
     for (auto p = nodes_pi_basis.rbegin(); p != nodes_pi_basis.rend(); ++p)
         if (p->find(deg) != p->end())
@@ -283,10 +283,10 @@ const PiBaseMod* Diagram::GetRecentPiBasis(const PiBasisMod1d& nodes_pi_basis, A
     return nullptr;
 }
 
-int PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
+int PossEinf(const SSNodes& nodes_ss, AdamsDeg deg)
 {
-    if (ut::has(nodes_ss.front(), deg)) {
-        const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    if (nodes_ss.front().has(deg)) {
+        const auto& sc = nodes_ss.GetRecentSc(deg);
         size_t i_start_perm = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);
         return int(i_stable - i_start_perm);
@@ -294,16 +294,16 @@ int PossEinf(const Staircases1d& nodes_ss, AdamsDeg deg)
     return 0;
 }
 
-void Diagram::UpdatePossEinf(const Staircases1d& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf)
+void Category::UpdatePossEinf(const SSNodes& nodes_ss, ut::map_seq2d<int, 0>& basis_ss_possEinf)  //// TODO: improve
 {
-    for (auto& [deg, _] : nodes_ss.front())
+    for (AdamsDeg deg : nodes_ss.front().degs())
         basis_ss_possEinf(deg.stem(), deg.s) = PossEinf(nodes_ss, deg);
 }
 
-int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg)  //// TODO: improve
+int PossMoreEinf(const SSNodes& nodes_ss, AdamsDeg deg)  //// TODO: improve
 {
-    if (ut::has(nodes_ss.front(), deg)) {
-        const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+    if (nodes_ss.front().has(deg)) {
+        const auto& sc = nodes_ss.GetRecentSc(deg);
         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg, LEVEL_PERM + 1);
         return int(i_stable - i_end_perm);
@@ -311,7 +311,7 @@ int PossMoreEinf(const Staircases1d& nodes_ss, AdamsDeg deg)  //// TODO: improve
     return 0;
 }
 
-void Diagram::PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1d& isSingle) const
+void Category::PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1d& isSingle) const
 {
     auto& ring = rings_[iRing];
     for (int i = 0; i <= ring.t_max; ++i) {
@@ -319,7 +319,7 @@ void Diagram::PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1
         O2s.push_back(ring.t_max - i + 1);
         isSingle.push_back(0);
     }
-    for (auto& [deg, _] : ring.nodes_ss.front()) {
+    for (AdamsDeg deg : ring.degs_ss) {
         if (int num = PossMoreEinf(ring.nodes_ss, deg)) {
             if (deg.s < O1s[deg.stem()]) {
                 O2s[deg.stem()] = O1s[deg.stem()];
@@ -337,7 +337,7 @@ void Diagram::PossMoreEinfFirstS_Ring(size_t iRing, int1d& O1s, int1d& O2s, int1
     }
 }
 
-void Diagram::PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d& isSingle) const
+void Category::PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d& isSingle) const
 {
     auto& Mod = modules_[iMod];
     for (int i = 0; i <= Mod.t_max; ++i) {
@@ -345,7 +345,7 @@ void Diagram::PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d&
         O2s.push_back(Mod.t_max - i + 1);
         isSingle.push_back(0);
     }
-    for (auto& [deg, _] : Mod.nodes_ss.front()) {
+    for (AdamsDeg deg : Mod.degs_ss) {
         if (int num = PossMoreEinf(Mod.nodes_ss, deg)) {
             if (deg.s < O1s[deg.stem()]) {
                 O2s[deg.stem()] = O1s[deg.stem()];
@@ -363,17 +363,17 @@ void Diagram::PossMoreEinfFirstS_Mod(size_t iMod, int1d& O1s, int1d& O2s, int1d&
     }
 }
 
-int Diagram::ExtendRelRing(size_t iRing, int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const
+int Category::ExtendRelRing(size_t iRing, int stem, const algZ::Poly& rel, algZ::Poly& rel_extended) const
 {
     return ExtendRel(rings_[iRing].basis_ss_possEinf, stem, rings_[iRing].t_max, rel, rel_extended);
 }
 
-int Diagram::ExtendRelMod(size_t iMod, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const
+int Category::ExtendRelMod(size_t iMod, int stem, const algZ::Mod& rel, algZ::Mod& rel_extended) const
 {
     return ExtendRel(modules_[iMod].basis_ss_possEinf, stem, modules_[iMod].t_max, rel, rel_extended);
 }
 
-int Diagram::ExtendRelRing(size_t iRing, int stem, algZ::Poly& rel) const
+int Category::ExtendRelRing(size_t iRing, int stem, algZ::Poly& rel) const
 {
     if (rel) {
         algZ::Poly rel1;
@@ -385,7 +385,7 @@ int Diagram::ExtendRelRing(size_t iRing, int stem, algZ::Poly& rel) const
     return 0;
 }
 
-int Diagram::ExtendRelMod(size_t iMod, int stem, algZ::Mod& rel) const
+int Category::ExtendRelMod(size_t iMod, int stem, algZ::Mod& rel) const
 {
     if (rel) {
         algZ::Mod rel1;
@@ -397,7 +397,7 @@ int Diagram::ExtendRelMod(size_t iMod, int stem, algZ::Mod& rel) const
     return 0;
 }
 
-int Diagram::ExtendRelRingV2(size_t iRing, int stem, algZ::Poly& rel, ut::map_seq<int, 0>& num_leads) const
+int Category::ExtendRelRingV2(size_t iRing, int stem, algZ::Poly& rel, ut::map_seq<int, 0>& num_leads) const
 {
     if (rel) {
         algZ::Poly rel1;
@@ -409,7 +409,7 @@ int Diagram::ExtendRelRingV2(size_t iRing, int stem, algZ::Poly& rel, ut::map_se
     return 0;
 }
 
-int Diagram::ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::map_seq<int, 0>& num_leads) const
+int Category::ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::map_seq<int, 0>& num_leads) const
 {
     if (rel) {
         algZ::Mod rel1;
@@ -421,7 +421,7 @@ int Diagram::ExtendRelCofV2(size_t iCof, int stem, algZ::Mod& rel, ut::map_seq<i
     return 0;
 }
 
-int2d Diagram::GetRingGbEinf(size_t iRing, AdamsDeg deg) const
+int2d Category::GetRingGbEinf(size_t iRing, AdamsDeg deg) const
 {
     auto& ring = rings_[iRing];
     auto& gb = ring.gb;
@@ -445,7 +445,7 @@ int2d Diagram::GetRingGbEinf(size_t iRing, AdamsDeg deg) const
     return result;
 }
 
-int2d Diagram::GetModuleGbEinf(size_t iMod, AdamsDeg deg) const
+int2d Category::GetModuleGbEinf(size_t iMod, AdamsDeg deg) const
 {
     auto& mod = modules_[iMod];
     auto& ring = rings_[mod.iRing];
@@ -470,7 +470,7 @@ int2d Diagram::GetModuleGbEinf(size_t iMod, AdamsDeg deg) const
     return result;
 }
 
-std::map<AdamsDeg, int2d> Diagram::GetRingGbEinf(size_t iRing) const
+std::map<AdamsDeg, int2d> Category::GetRingGbEinf(size_t iRing) const
 {
     std::map<AdamsDeg, int2d> result;
     for (auto& [deg, _] : rings_[iRing].pi_gb.leads_group_by_deg())
@@ -478,7 +478,7 @@ std::map<AdamsDeg, int2d> Diagram::GetRingGbEinf(size_t iRing) const
     return result;
 }
 
-std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
+std::map<AdamsDeg, int2d> Category::GetModuleGbEinf(size_t iMod) const
 {
     std::map<AdamsDeg, int2d> result;
     for (auto& [deg, _] : modules_[iMod].pi_gb.leads_group_by_deg())
@@ -486,11 +486,11 @@ std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
     return result;
 }
 
-// void Diagram::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)  //// TODO: correct this
+// void Category::SetPermanentCycle(int depth, size_t iMod, AdamsDeg deg_x)  //// TODO: correct this
 //{
 //     auto& nodes_ss = modules_[iMod].nodes_ss;
 //     if (nodes_ss.front().find(deg_x) != nodes_ss.front().end()) {
-//         const auto& sc = ut::GetRecentValue(nodes_ss, deg_x);
+//         const auto& sc = nodes_ss.GetRecentSc(deg_x);
 //         size_t i_end_perm = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
 //         size_t i_stable = GetFirstIndexOfFixedLevels(nodes_ss, deg_x, LEVEL_PERM + 1);
 //         if (i_stable - i_end_perm == 1) {
@@ -514,7 +514,7 @@ std::map<AdamsDeg, int2d> Diagram::GetModuleGbEinf(size_t iMod) const
 //     }
 // }
 
-void Diagram::AddPiRelsRing(size_t iRing, algZ::Poly1d rels)
+void Category::AddPiRelsRing(size_t iRing, algZ::Poly1d rels)
 {
     auto& ring = rings_[iRing];
     ring.pi_gb.AddRels(std::move(rels), ring.t_max, ring.basis_ss_possEinf);
@@ -523,7 +523,7 @@ void Diagram::AddPiRelsRing(size_t iRing, algZ::Poly1d rels)
     ////TODO: add pi_maps
 }
 
-void Diagram::AddPiRelsCof(size_t iMod, algZ::Mod1d rels)
+void Category::AddPiRelsCof(size_t iMod, algZ::Mod1d rels)
 {
     auto& mod = modules_[iMod];
     mod.pi_gb.AddRels(std::move(rels), mod.t_max, mod.basis_ss_possEinf);
@@ -537,7 +537,7 @@ void Diagram::AddPiRelsCof(size_t iMod, algZ::Mod1d rels)
     AddPiRelsRing(std::move(relsS0));*/
 }
 
-// void Diagram::AddPiRelsByNat(size_t iMap)
+// void Category::AddPiRelsByNat(size_t iMap)
 //{
 //     algZ::Poly1d relsS0;
 //     for (auto& rel : modules_[iCof].pi_gb.data()) {
@@ -549,7 +549,7 @@ void Diagram::AddPiRelsCof(size_t iMod, algZ::Mod1d rels)
 //     AddPiRelsRing(std::move(relsS0));
 // }
 
-algZ::Mon1d Diagram::GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis)
+algZ::Mon1d Category::GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis)
 {
     algZ::Mon1d result;
     for (size_t gen_id = 0; gen_id < gb.gen_degs().size(); ++gen_id) {
@@ -568,7 +568,7 @@ algZ::Mon1d Diagram::GenBasis(const algZ::Groebner& gb, AdamsDeg deg, const PiBa
     return result;
 }
 
-algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis)
+algZ::MMod1d Category::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const PiBasis1d& nodes_pi_basis)
 {
     algZ::MMod1d result;
     auto& v_degs = gb.v_degs();
@@ -585,7 +585,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
     return result;
 }
 
-// void Diagram::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
+// void Category::SyncS0Homotopy(AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
 //{
 //  int t_max = rings_.t_max;
 //  auto& gb = rings_.gb;
@@ -623,7 +623,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //            auto& basis_d = basis.at(deg);
 //            int2d projs;
 //            {
-//                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+//                const auto& sc = nodes_ss.GetRecentSc(deg);
 //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
 //                for (auto& m : pi_basis_d) {
 //                    int1d proj = Poly2Indices(gb.Reduce(Proj(m, pi_gen_Einf)), basis_d);
@@ -655,7 +655,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //            /* Add new generators in homotopy */
 //            int2d Einf;
 //            {
-//                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+//                const auto& sc = nodes_ss.GetRecentSc(deg);
 //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
 //                size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
 //                for (size_t i = first_PC; i < last_PC; ++i)
@@ -701,7 +701,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //    UpdatePossEinf(rings_.nodes_ss, rings_.basis_ss_possEinf);
 //}
 
-// void Diagram::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
+// void Category::SyncCofHomotopy(int iCof, AdamsDeg deg_min, int& count_ss, int& count_homotopy, int depth)
 //{
 //  auto& ssCof = modules_[iCof];
 //  int t_max = ssCof.t_max;
@@ -741,7 +741,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //            auto& basis_d = basis.at(deg);
 //            int2d projs;
 //            {
-//                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+//                const auto& sc = nodes_ss.GetRecentSc(deg);
 //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
 //                for (auto& m : pi_basis_d) {
 //                    int1d proj = Mod2Indices(gb.Reduce(Proj(m, rings_.pi_gen_Einf, pi_gen_Einf)), basis_d);
@@ -773,7 +773,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //            /* Add new generators in homotopy */
 //            int2d Einf;
 //            {
-//                const auto& sc = ut::GetRecentValue(nodes_ss, deg);
+//                const auto& sc = nodes_ss.GetRecentSc(deg);
 //                size_t first_PC = GetFirstIndexOnLevel(sc, LEVEL_MAX / 2);
 //                size_t last_PC = GetFirstIndexOnLevel(sc, LEVEL_PERM + 1);
 //                for (size_t i = first_PC; i < last_PC; ++i)
@@ -830,7 +830,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //    UpdatePossEinf(ssCof.nodes_ss, ssCof.basis_ss_possEinf);
 //}
 
-// int Diagram::DeduceTrivialExtensions(int depth)
+// int Category::DeduceTrivialExtensions(int depth)
 //{
 //     int count_homotopy = 0;
 
@@ -925,7 +925,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //        algZ::Mod2d new_rels_Cofs(modules_.size());
 //        algZ::Poly tmp;
 //        algZ::Mod tmpm;
-//        for (auto& [deg, _] : nodes_pi_basis.front()) {
+//        for (auto [deg, _] : nodes_pi_basis.front()) {
 //            for (auto& m : GetRecentPiBasis(nodes_pi_basis, deg)->nodes_pi_basis) {
 //                for (uint32_t gen_id = 0; gen_id < 4; ++gen_id) { /* Warning: in general gen_id might be incorrect */
 //                    AdamsDeg deg_prod = deg + rings_.pi_gb.gen_degs()[gen_id];
@@ -969,7 +969,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //        const int t_max = ssCof.t_max;
 //        algZ::Mod1d new_rels_cof;
 //        algZ::Mod tmp;
-//        for (auto& [deg, _] : nodes_pi_basis.front()) {
+//        for (auto [deg, _] : nodes_pi_basis.front()) {
 //            for (auto& m : GetRecentPiBasis(nodes_pi_basis, deg)->nodes_pi_basis) {
 //                for (uint32_t gen_id = 0; gen_id < 4; ++gen_id) {
 //                    AdamsDeg deg_prod = deg + rings_.pi_gb.gen_degs()[gen_id];
@@ -999,7 +999,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //    return count_homotopy;
 //}
 
-// int Diagram::DeduceExtensions2tor()
+// int Category::DeduceExtensions2tor()
 //{
 //     int count_homotopy = 0;
 //{
@@ -1094,7 +1094,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //    return 0;
 //}
 
-// int Diagram::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, int depth)
+// int Category::DeduceExtensionsByExactness(int stem_min_para, int stem_max_para, int depth)
 //{
 //     int count_htpy = 0;
 
@@ -1519,7 +1519,7 @@ algZ::MMod1d Diagram::GenBasis(const algZ::GroebnerMod& gb, AdamsDeg deg, const 
 //    return count_htpy;
 //}
 
-// unsigned Diagram::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag)
+// unsigned Category::TryExtS0(algZ::Poly rel, AdamsDeg deg_change, int depth, SSFlag flag)
 //{
 //     AddNode(flag);
 //     unsigned error = 0;
@@ -1542,7 +1542,7 @@ catch (SSException& e) {
 //    return error;
 //}
 
-// unsigned Diagram::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag)
+// unsigned Category::TryExtCof(size_t iCof, algZ::Mod rel, AdamsDeg deg_change, int depth, SSFlag flag)
 //{
 //     AddNode(flag);
 //     unsigned error = 0;
@@ -1566,7 +1566,7 @@ PopNode(flag);*/
 //    return error;
 //}
 
-// unsigned Diagram::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag)
+// unsigned Category::TryExtQ(size_t iCof, size_t gen_id, algZ::Poly q, AdamsDeg deg_change, int depth, SSFlag flag)
 //{
 //     AddNode(flag);
 //     unsigned error = 0;
@@ -1590,7 +1590,7 @@ PopNode(flag);*/
 //     return error;
 // }
 
-// void Diagram::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, SSFlag flag)
+// void Category::DeduceExtensions(int stem_min, int stem_max, int& count_ss, int& count_htpy, int depth, SSFlag flag)
 //{
 //  SyncHomotopy(AdamsDeg(0, 0), count_ss, count_htpy, depth);
 //  count_htpy += DeduceTrivialExtensions(depth);
@@ -1890,12 +1890,12 @@ PopNode(flag);*/
 
 int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string cat_name = "default";
     int stem_min = 0, stem_max = 30;
     std::vector<std::string> strFlags;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"diagram", &diagram_name}, {"flags...", &strFlags}};
+    myio::CmdArg1d op_args = {{"stem_min", &stem_min}, {"stem_max", &stem_max}, {"category", &cat_name}, {"flags...", &strFlags}};
     if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
@@ -1905,29 +1905,27 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
     //      flag = flag | SSFlag::pi_exact;
     //}
 
-    Diagram diagram(diagram_name, flag);
+    Category category(cat_name, "", flag);
 
     try {
-        int count_ss = 0, count_homotopy = 0;
         try {
-            // diagram.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
+            // category.DeduceExtensions(stem_min, stem_max, count_ss, count_homotopy, 0, flag);
         }
         catch (InteruptAndSaveException&) {
         }
-        diagram.SimplifyPiRels();
-        /*std::cout << "S0 pi_gb.size()=" << diagram.GetRings().pi_gb.data().size() << '\n';
-        for (size_t iMod = 0; iMod < diagram.GetModules().size(); ++iMod)
-            std::cout << diagram.GetModules()[iMod].name << " pi_gb.size()=" << diagram.GetModules()[iMod].pi_gb.data().size() << '\n';*/
+        category.SimplifyPiRels();
+        /*std::cout << "S0 pi_gb.size()=" << category.GetRings().pi_gb.data().size() << '\n';
+        for (size_t iMod = 0; iMod < category.GetModules().size(); ++iMod)
+            std::cout << category.GetModules()[iMod].name << " pi_gb.size()=" << category.GetModules()[iMod].pi_gb.data().size() << '\n';*/
 
-        diagram.save(diagram_name, flag);
-        Logger::LogSummary("Changed differentials", count_ss);
-        Logger::LogSummary("Changed homotopy", count_homotopy);
+        category.SaveNodes(cat_name, "", true, flag);
+        category.PrintSummary();
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
     }
-    catch (MyException& e) {
+    catch (ErrorIdMsg& e) {
         std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
     }
 #endif
@@ -1940,27 +1938,27 @@ int main_deduce_ext(int argc, char** argv, int& index, const char* desc)
 
 int main_deduce_ext_2tor(int argc, char** argv, int& index, const char* desc)
 {
-    std::string diagram_name = "default";
+    std::string cat_name = "default";
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"diagram", &diagram_name}};
+    myio::CmdArg1d op_args = {{"category", &cat_name}};
     if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
 
     SSFlag flag = SSFlag::pi;
-    Diagram diagram(diagram_name, flag);
+    Category category(cat_name, "", flag);
 
     try {
-        // diagram.DeduceExtensions2tor();
-        diagram.SimplifyPiRels();
+        // category.DeduceExtensions2tor();
+        category.SimplifyPiRels();
 
-        diagram.save(diagram_name, flag);
+        category.SaveNodes(cat_name, "", true, flag);
     }
 #ifdef MYDEPLOY
     catch (SSException& e) {
         std::cerr << "Error code " << std::hex << e.id() << ": " << e.what() << '\n';
     }
-    catch (MyException& e) {
+    catch (ErrorIdMsg& e) {
         std::cerr << "MyError " << std::hex << e.id() << ": " << e.what() << '\n';
     }
 #endif

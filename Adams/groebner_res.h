@@ -123,7 +123,7 @@ struct DataMRes
     {
 #ifndef NDEBUG
         if (!rhs.valid_x2m())
-            throw MyException(0x2ae8baa3U, "Add only when rhs.x2m is valid");
+            throw ErrorIdMsg(0x2ae8baa3U, "Add only when rhs.x2m is valid");
 #endif
         if (valid_x2m() && fil == rhs.fil)
             x2m.iaddP(rhs.x2m, tmp_Mod);

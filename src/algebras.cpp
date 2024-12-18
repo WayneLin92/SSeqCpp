@@ -80,7 +80,7 @@ Mon operator/(const Mon& mon1, const Mon& mon2)
             result.push_back(*k++);
 #ifndef NDEBUG /* DEBUG */
         else if (k->g_raw() < l->g_raw())
-            throw MyException(0x1227de8e, "mon1/mon2 not divisible!\n");
+            throw ErrorIdMsg(0x1227de8e, "mon1/mon2 not divisible!\n");
 #endif
         else if (k->e() > l->e()) {
             result.push_back(GE(k->data - l->e_masked()));
@@ -98,12 +98,12 @@ Mon operator/(const Mon& mon1, const Mon& mon2)
             ++l;
         }
         else
-            throw MyException(0xa9c74ef9, "mon1/mon2 not divisible!\n");
+            throw ErrorIdMsg(0xa9c74ef9, "mon1/mon2 not divisible!\n");
 #endif
     }
 #ifndef NDEBUG /* DEBUG */
     if (l != mon2.end())
-        throw MyException(0x6cdd66bd, "mon1/mon2 not divisible!\n");
+        throw ErrorIdMsg(0x6cdd66bd, "mon1/mon2 not divisible!\n");
     else
 #endif
         result.insert(k, mon1.end());
@@ -148,7 +148,7 @@ int log(const Mon& mon1, const Mon& mon2)
 {
     if (!mon2) {
         /* log with 0 base */
-        throw MyException(0x88dc0b9bU, "Log with base 1");
+        throw ErrorIdMsg(0x88dc0b9bU, "Log with base 1");
     }
     int q = -1;
 
@@ -320,7 +320,7 @@ int1d Poly2Indices(const Poly& poly, const Mon1d& basis)
         auto p = std::lower_bound(basis.begin(), basis.end(), mon);
 #ifdef MYDEBUG
         if (p == basis.end() || mon < (*p)) {
-            throw MyException(0x57f14e21U, "Index not found");
+            throw ErrorIdMsg(0x57f14e21U, "Index not found");
         }
 #endif
         result.push_back(int(p - basis.begin()));
@@ -386,7 +386,7 @@ int1d Mod2Indices(const Mod& x, const MMod1d& basis)
 #ifndef NDEBUG
         if (p == basis.end() || mon < (*p)) {
             std::cerr << "MyException(0xc3389529U): Index not found\n";
-            throw MyException(0xc3389529U, "Index not found");
+            throw ErrorIdMsg(0xc3389529U, "Index not found");
         }
 #endif
         result.push_back(int(p - basis.begin()));

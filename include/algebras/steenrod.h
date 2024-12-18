@@ -234,7 +234,7 @@ public:
     {
 #ifndef NDEBUG /* DEBUG */
         if (gcdLF(rhs))
-            throw MyException(0x170c454aU, "gcd(m1,m2)!=1");
+            throw ErrorIdMsg(0x170c454aU, "gcd(m1,m2)!=1");
 #endif
         return MMilnor(((data_ | rhs.data_) & MMILNOR_MASK_E) | (w_raw() + rhs.w_raw()));
     }
@@ -243,7 +243,7 @@ public:
     {
 #ifndef NDEBUG /* DEBUG */
         if (!rhs.divisibleLF(*this))
-            throw MyException(0x7ed0a8U, "Not divisible: m1 / m2");
+            throw ErrorIdMsg(0x7ed0a8U, "Not divisible: m1 / m2");
 #endif
         return MMilnor(((data_ ^ rhs.data_) & MMILNOR_MASK_E) | (w_raw() - rhs.w_raw()));
     }
@@ -493,7 +493,7 @@ public:
     {
 #ifndef NDEBUG /* DEBUG */
         if (v_raw() != rhs.v_raw())
-            throw MyException(0x3bc29cceU, "use MMod::divisible only when the two v's agree.");
+            throw ErrorIdMsg(0x3bc29cceU, "use MMod::divisible only when the two v's agree.");
 #endif
         uint64_t e1 = e();
         uint64_t e2 = rhs.e();
@@ -503,7 +503,7 @@ public:
     {
 #ifndef NDEBUG /* DEBUG */
         if (!rhs.divisibleLF(*this))
-            throw MyException(0x4357a92cU, "Not divisible: lhs / rhs");
+            throw ErrorIdMsg(0x4357a92cU, "Not divisible: lhs / rhs");
 #endif
         return MMilnor(((data_ ^ rhs.data_) & MMILNOR_MASK_E) | (w_raw() - rhs.w_raw()));
     }
@@ -548,7 +548,7 @@ struct Mod
     {
 #ifndef NDEBUG
         if (data.empty())
-            throw MyException(0x900cee0fU, "Trying to GetLead() for empty Mod.");
+            throw ErrorIdMsg(0x900cee0fU, "Trying to GetLead() for empty Mod.");
 #endif
         return data[0];
     }

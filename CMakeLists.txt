@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.11)
 
 project(
-    AlgTop
-    VERSION 3.2.1
-    DESCRIPTION "Algebraic Topology based on Groebner Bases"
+    SSeqCpp
+    VERSION 1.0.1
+    DESCRIPTION "Spectral sequences in C++"
     LANGUAGES C CXX
 )
 
 set(BUILD_DOXYGEN OFF)
+
+
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINK_FLAGS_RELEASE} /DEBUG")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+endif()
 
 # The compiled library code is here
 add_subdirectory(src)
@@ -15,14 +22,10 @@ add_subdirectory(src)
 # Only do these if this is the main project, and not if it is included through add_subdirectory
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Optionally set things like CMAKE_CXX_STANDARD, CMAKE_POSITION_INDEPENDENT_CODE here
-    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD 20)
 
     # Let's ensure -std=c++xx instead of -std=g++xx
     set(CMAKE_CXX_EXTENSIONS OFF)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_LINK_FLAGS_RELEASE} /DEBUG")
-    endif()
 
     # Support folders in IDEs
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -34,16 +37,17 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Testing
     include(CTest)
 
+    add_subdirectory(thirdparty/fmt)
+    add_subdirectory(thirdparty/sqlite3)
+
     # The executable code is here
     add_subdirectory(ss)
     # add_subdirectory(MayE2)
     # add_subdirectory(MayE4)
     add_subdirectory(Adams)
-    add_subdirectory(AdamsR)
-    add_subdirectory(Adamsp)
+    # add_subdirectory(AdamsR)
+    # add_subdirectory(Adamsp)
     # add_subdirectory(tests)
-    add_subdirectory(thirdparty/fmt)
-    add_subdirectory(thirdparty/sqlite3)
 
     # Docs only available if this is the main app
     find_package(Doxygen)

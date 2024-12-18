@@ -15,22 +15,6 @@ void create_db_version(const myio::Database& db)
     db.execute_cmd("CREATE TABLE IF NOT EXISTS version (id INTEGER PRIMARY KEY, name TEXT, value);");
 }
 
-int get_db_metadata_int(const myio::Database& db, std::string_view key)
-{
-    try {
-        if (db.has_table("version")) {
-            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
-                return db.get_int(fmt::format("select value from version where name=\"{}\"", key));
-            else
-                return -1;
-        }
-    }
-    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
-        return -3;
-    }
-    return -2;
-}
-
 int get_db_metadata_int_v2(const myio::Database& db, std::string_view key, int& result)
 {
     try {
@@ -43,31 +27,15 @@ int get_db_metadata_int_v2(const myio::Database& db, std::string_view key, int& 
                 return -1;
         }
     }
-    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
+    catch (ErrorIdMsg&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
         return -3;
     }
     return -2;
 }
 
-std::string get_db_metadata_str(const myio::Database& db, std::string_view key)
-{
-    try {
-        if (db.has_table("version")) {
-            if (db.get_int(fmt::format("select count(*) from version where name=\"{}\"", key)) > 0)
-                return db.get_str(fmt::format("select value from version where name=\"{}\"", key));
-            else
-                return "Error: key not found";
-        }
-    }
-    catch (MyException&) { /* db.has_table("version") could throw an error when the database is locked or corupted */
-        return "Error: database is locked or corrupted";
-    }
-    return "Error: database has no version table";
-}
-
 int get_db_t_max(const myio::Database& db)
 {
-    return get_db_metadata_int(db, "t_max");
+    return db.get_metadata_int("t_max");
 }
 
 int get_db_fil(const myio::Database& db, int& result)
@@ -82,12 +50,12 @@ int get_db_sus(const myio::Database& db, int& result)
 
 int get_db_d2_t_max(const myio::Database& db)
 {
-    return get_db_metadata_int(db, "d2_t_max");
+    return db.get_metadata_int("d2_t_max");
 }
 
 int get_db_timestamp(const myio::Database& db)
 {
-    return get_db_metadata_int(db, "timestamp");
+    return db.get_metadata_int("timestamp");
 }
 
 void set_db_t_max(const myio::Database& db, int t_max)
@@ -227,15 +195,15 @@ void UtStatus(const std::string& dir, int num)
         spectra_widths[4] = std::max(spectra_widths[4], t_maxes[3].size());
         spectra_widths[5] = std::max(spectra_widths[5], t_maxes[4].size());
     }
-    auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3],
+    const auto fs = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", spectra_widths[0], spectra_widths[1], spectra_widths[2], spectra_widths[3],
                           spectra_widths[4], spectra_widths[5]);
-    fmt::print(fs, light_red, "spectra", light_red, "res", light_red, "prod", light_red, "exp", light_red, "d2", light_red, "expd2");
-    fmt::print(fs, white, "-------", white, "---", white, "----", white, "---", white, "--", white, "-----");
+    fmt::print(fmt::runtime(fs), light_red, "spectra", light_red, "res", light_red, "prod", light_red, "exp", light_red, "d2", light_red, "expd2");
+    fmt::print(fmt::runtime(fs), white, "-------", white, "---", white, "----", white, "---", white, "--", white, "-----");
     for (size_t i = 0; i < i_max; ++i) {
         auto& cw = names_spectra[i];
         auto& t_maxes = table_spectra.at(cw);
         const auto& colors = table_color_spectra[cw];
-        fmt::print(fs, white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2], colors[3], t_maxes[3], colors[4], t_maxes[4]);
+        fmt::print(fmt::runtime(fs), white, cw, colors[0], t_maxes[0], colors[1], t_maxes[1], colors[2], t_maxes[2], colors[3], t_maxes[3], colors[4], t_maxes[4]);
     }
     fmt::print("------------------------------------------------------------\n");
 
@@ -249,13 +217,13 @@ void UtStatus(const std::string& dir, int num)
         maps_widths[2] = std::max(maps_widths[2], t_maxes[1].size());
     }
     auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
-    fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "export");
-    fmt::print(fs_map, white, "---", white, "---", white, "------");
+    fmt::print(fmt::runtime(fs_map), light_red, "map", light_red, "res", light_red, "export");
+    fmt::print(fmt::runtime(fs_map), white, "---", white, "---", white, "------");
     for (size_t i = 0; i < i_max; ++i) {
         auto& name = names_maps[i];
         auto& t_maxes = table_maps.at(name);
         const auto& colors = table_color_maps[name];
-        fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
+        fmt::print(fmt::runtime(fs_map), white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
     }
     fmt::print("----------------------------------------------\n");
 }
@@ -314,12 +282,12 @@ void UtVerifyStatus(const std::string& dir, bool sorted)
         maps_widths[2] = std::max(maps_widths[2], t_maxes[1].size());
     }
     auto fs_map = fmt::format("| {{}}{{:{}}}\033[0m | {{}}{{:>{}}}\033[0m | {{}}{{:>{}}}\033[0m |\n", maps_widths[0], maps_widths[1], maps_widths[2]);
-    fmt::print(fs_map, light_red, "map", light_red, "res", light_red, "verify");
-    fmt::print(fs_map, white, "---", white, "---", white, "------");
+    fmt::print(fmt::runtime(fs_map), light_red, "map", light_red, "res", light_red, "verify");
+    fmt::print(fmt::runtime(fs_map), white, "---", white, "---", white, "------");
     for (auto& name : names_maps) {
         auto& t_maxes = table_maps.at(name);
         const auto& colors = table_color_maps[name];
-        fmt::print(fs_map, white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
+        fmt::print(fmt::runtime(fs_map), white, name, colors[0], t_maxes[0], colors[1], t_maxes[1]);
     }
     fmt::print("----------------------------------------------\n");
 }
@@ -502,11 +470,11 @@ void UtPrintSSJson(const std::string& dir)
                 else
                     table_maps[name] = {t_max, index};
                 std::string tpl = "{{ \"name\": \"{}\", \"display\": \"{} -> {}\", \"path\": \"{}\", \"from\": \"{}\", \"to\": \"{}\"{}{}, \"t_max\": {} }},\n";
-                outputs.push_back(fmt::format(tpl, name, match[1].str(), match[2].str(), filename, from, to, str_sus, str_fil, t_max));  ////
+                outputs.push_back(fmt::format(fmt::runtime(tpl), name, match[1].str(), match[2].str(), filename, from, to, str_sus, str_fil, t_max));  ////
                 paths.push_back(filename);
                 ++index;
             }
-            catch (MyException&) {
+            catch (ErrorIdMsg&) {
                 fmt::print("Keep {}\n", filename);
             }
         }
@@ -534,7 +502,7 @@ void UtAddFromTo(const std::string& dir)
                 try {
                     db.get_str("select value from version where id=446174262"); /* from */
                 }
-                catch (MyException&) {
+                catch (ErrorIdMsg&) {
                     myio::Statement stmt(db, "INSERT INTO version (id, name, value) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");
                     stmt.bind_and_step(446174262, std::string("from"), match[1].str());
                     stmt.bind_and_step(1713085477, std::string("to"), match[2].str());
@@ -556,20 +524,13 @@ void UtAddTMax(const std::string& db_filename, int t_max)
 
 int main_status(int argc, char** argv, int& index, const char* desc)
 {
-    std::map<std::string, std::vector<std::string>> options;
+    std::string dir = ".";
+    int num = -1;
 
     myio::CmdArg1d args = {};
-    myio::CmdArg1d op_args = {{"options", &options}};
+    myio::CmdArg1d op_args = {{"dir", &dir}, {"num", &num}};
     if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
-
-    std::string dir = ".";
-    if (ut::has(options, "dir"))
-		dir = options.at("dir")[0];
-
-    int num = -1;
-    if (ut::has(options, "n"))
-        num = std::stoi(options.at("n")[0]);
 
     UtStatus(dir, num);
     return 0;

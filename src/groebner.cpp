@@ -82,6 +82,193 @@ void detail::MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2
         m1.insert(l, lead2.end());
 }
 
+void detail::Trie::insert(const Mon& m, size_t index)
+{
+    uint32_t iGen = 1, iNode = (m[0].g() % NUM_ROOT), iLeaf = NEG;
+    /* Find the prefix m[0:iGen] with iGen as big as possible */
+    for (; iGen < m.size(); ++iGen) {
+        if (auto iNode1 = nodes[iNode].children[m[iGen].g() % NUM_CHILDREN]; iNode1 != NEG) {
+            if (iNode1 & BIT_LEAF) {
+                iLeaf = iNode1 ^ BIT_LEAF;
+                break;
+            }
+            else
+                iNode = iNode1;
+        }
+        else
+            break;
+    }
+    if (iLeaf != NEG) {
+        if (iGen < m.size() - 1) {
+            auto next_iNode = (uint32_t)nodes.size();
+            nodes[iNode].children[m[iGen++].g() % NUM_CHILDREN] = next_iNode;
+            nodes.push_back({});
+            nodes.back().indices = std::move(leaves[iLeaf].indices);
+            iNode = next_iNode;
+        }
+        else {
+            leaves[iLeaf].indices.push_back((uint32_t)index);
+            return;
+        }
+    }
+    else if (iGen == m.size()) {
+        nodes[iNode].indices.push_back((uint32_t)index);
+        return;
+    }
+    for (; iGen < m.size() - 1; ++iGen) {
+        auto next_iNode = (uint32_t)nodes.size();
+        nodes[iNode].children[m[iGen].g() % NUM_CHILDREN] = next_iNode;
+        nodes.push_back({});
+        iNode = next_iNode;
+    }
+    {
+        nodes[iNode].children[m[iGen].g() % NUM_CHILDREN] = (uint32_t)leaves.size() | BIT_LEAF;
+        leaves.push_back({});
+        leaves.back().indices.push_back((uint32_t)index);
+    }
+}
+
+void detail::Trie::insert(const MMod& m, size_t index)
+{
+    uint32_t iGen = 0, iNode = (m.v % NUM_ROOT), iLeaf = NEG;
+    /* Find the prefix v+m[0:iGen] with iGen as big as possible */
+    for (; iGen != m.m.size(); ++iGen) {
+        if (auto iNode1 = nodes[iNode].children[m.m[iGen].g() % NUM_CHILDREN]; iNode1 != NEG) {
+            if (iNode1 & BIT_LEAF) {
+                iLeaf = iNode1 ^ BIT_LEAF;
+                break;
+            }
+            else
+                iNode = iNode1;
+        }
+        else
+            break;
+    }
+    if (iLeaf != NEG) {
+        if (iGen < m.m.size() - 1) {
+            auto next_iNode = (uint32_t)nodes.size();
+            nodes[iNode].children[m.m[iGen++].g() % NUM_CHILDREN] = next_iNode;
+            nodes.push_back({});
+            nodes.back().indices = std::move(leaves[iLeaf].indices);
+            iNode = next_iNode;
+        }
+        else {
+            leaves[iLeaf].indices.push_back((uint32_t)index);
+            return;
+        }
+    }
+    else if (iGen == m.m.size()) {
+        nodes[iNode].indices.push_back((uint32_t)index);
+        return;
+    }
+    for (; iGen != m.m.size() - 1; ++iGen) {
+        auto next_iNode = (uint32_t)nodes.size();
+        nodes[iNode].children[m.m[iGen].g() % NUM_CHILDREN] = next_iNode;
+        nodes.push_back({});
+        iNode = next_iNode;
+    }
+    {
+        nodes[iNode].children[m.m[iGen].g() % NUM_CHILDREN] = (uint32_t)leaves.size() | BIT_LEAF;
+        leaves.push_back({});
+        leaves.back().indices.push_back((uint32_t)index);
+    }
+}
+
+int detail::Trie::IndexOfDivisibleLeading(const Mon& m, uint32_t iGen, uint32_t iNode, const Mon1d& leads) const
+{
+    for (; iGen != m.size(); ++iGen) {
+        uint32_t next_iNode = iNode == NEG ? (m[iGen].g() % NUM_ROOT) : nodes[iNode].children[m[iGen].g() % NUM_CHILDREN];
+        if (next_iNode != NEG) {
+            if (next_iNode & BIT_LEAF) {
+                next_iNode ^= BIT_LEAF;
+                for (uint32_t k : leaves[next_iNode].indices) {
+                    if (divisible(leads[k], m))
+                        return k;
+                }
+            }
+            else {
+                for (uint32_t k : nodes[next_iNode].indices) {
+                    if (divisible(leads[k], m))
+                        return k;
+                }
+                
+                {// Recursive unroll
+                    auto iGen1 = iGen + 1;
+                    auto iNode1 = next_iNode;
+                    for (; iGen1 != m.size(); ++iGen1) {
+                        uint32_t next_iNode1 = nodes[iNode1].children[m[iGen1].g() % NUM_CHILDREN];
+                        if (next_iNode1 != NEG) {
+                            if (next_iNode1 & BIT_LEAF) {
+                                next_iNode1 ^= BIT_LEAF;
+                                for (uint32_t k : leaves[next_iNode1].indices) {
+                                    if (divisible(leads[k], m))
+                                        return k;
+                                }
+                            }
+                            else {
+                                for (uint32_t k : nodes[next_iNode1].indices) {
+                                    if (divisible(leads[k], m))
+                                        return k;
+                                }
+                                if (auto k = IndexOfDivisibleLeading(m, iGen1 + 1, next_iNode1, leads); k != -1)
+                                    return k;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+int detail::Trie::IndexOfDivisibleLeading(const MMod& m, uint32_t iGen, uint32_t iNode, const MMod1d& leads) const
+{
+    for (; iGen != m.m.size(); ++iGen) {
+        uint32_t next_iNode = nodes[iNode].children[m.m[iGen].g() % NUM_CHILDREN];
+        if (next_iNode != NEG) {
+            if (next_iNode & BIT_LEAF) {
+                next_iNode ^= BIT_LEAF;
+                for (uint32_t k : leaves[next_iNode].indices) {
+                    if (leads[k].v == m.v && divisible(leads[k].m, m.m))
+                        return k;
+                }
+            }
+            else {
+                for (uint32_t k : nodes[next_iNode].indices) {
+                    if (leads[k].v == m.v && divisible(leads[k].m, m.m))
+                        return k;
+                }
+                {//Recursive unroll
+                    auto iGen1 = iGen + 1;
+                    auto iNode1 = next_iNode;
+                    for (; iGen1 != m.m.size(); ++iGen1) {
+                        uint32_t next_iNode1 = nodes[iNode1].children[m.m[iGen1].g() % NUM_CHILDREN];
+                        if (next_iNode1 != NEG) {
+                            if (next_iNode1 & BIT_LEAF) {
+                                next_iNode1 ^= BIT_LEAF;
+                                for (uint32_t k : leaves[next_iNode1].indices) {
+                                    if (leads[k].v == m.v && divisible(leads[k].m, m.m))
+                                        return k;
+                                }
+                            }
+                            else {
+                                for (uint32_t k : nodes[next_iNode1].indices) {
+                                    if (leads[k].v == m.v && divisible(leads[k].m, m.m))
+                                        return k;
+                                }
+                                if (auto k = IndexOfDivisibleLeading(m, iGen1 + 1, next_iNode1, leads); k != -1)
+                                    return k;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return -1;
+}
+
 void CriPair::SetFromLM(CriPair& result, const Mon& lead1, const Mon& lead2, int i, int j)
 {
     detail::MutualQuotient(result.m1, result.m2, lead1, lead2);
@@ -166,7 +353,7 @@ void GbCriPairs::Minimize(const Mon1d& leads, int d)
             }
 #ifndef NDEBUG
             if (c == end)
-                throw MyException(0xfa5db14U, "Should not happen because gb_ is groebner");
+                throw ErrorIdMsg(0xfa5db14U, "Should not happen because gb_ is groebner");
 #endif
         }
     }
@@ -230,7 +417,7 @@ void GbCriPairs::Minimize(const Mon1d& leadsx, const MMod1d& leads, int d)
             }
 #ifndef NDEBUG
             if (c == end)
-                throw MyException(0xbcf149e1U, "Should not happen because gb_ is groebner");
+                throw ErrorIdMsg(0xbcf149e1U, "Should not happen because gb_ is groebner");
 #endif
         }
     }
@@ -385,29 +572,12 @@ Groebner::Groebner(int deg_trunc, int1d gen_degs, Poly1d data, bool bDynamic) : 
 {
     for (int i = 0; i < (int)data_.size(); ++i) {
         leads_.push_back(data_[i].GetLead());
-        traces_.push_back(data_[i].GetLead().Trace());
-        indices_[Key(data_[i].GetLead())].push_back(i);
+        traces_.push_back(leads_.back().Trace());
+        // indices_[Key(data_[i].GetLead())].push_back(i);
+        indices_.insert(leads_.back(), i);
     }
     if (bDynamic)
         criticals_.init(leads_, traces_, gen_degs_, deg_trunc + 1);
-}
-
-int Groebner::IndexOfDivisibleLeading(const Mon& mon) const
-{
-    auto t = mon.Trace();
-    for (int i = 0; i < (int)mon.size(); ++i) {
-        for (int j = -1; j < i; ++j) {
-            auto key = TypeIndexKey{mon[i].g() + (j == -1 ? 0 : ((mon[j].g() + 1) << 16))};
-            auto p = indices_.find(key);
-            if (p != indices_.end()) {
-                for (int k : p->second) {
-                    if (divisible(leads_[k], mon, traces_[k], t))
-                        return k;
-                }
-            }
-        }
-    }
-    return -1;
 }
 
 void Groebner::ReduceP(Poly& poly, Poly& tmp_prod, Poly& tmp) const
@@ -440,7 +610,7 @@ void Groebner::AddRels(const Poly1d& rels, int deg_max, int1d& min_rels)
 
     int d_trunc = deg_trunc();
     if (deg_max > d_trunc)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, PPoly1d> rels_graded;
@@ -487,7 +657,8 @@ void Groebner::AddRels(const Poly1d& rels, int deg_max, int1d& min_rels)
     }
 }
 
-void Groebner::AddRels(const Poly1d& rels, int deg) {
+void Groebner::AddRels(const Poly1d& rels, int deg)
+{
     int1d min_rels;
     AddRels(rels, deg, min_rels);
 }
@@ -527,26 +698,10 @@ GroebnerMod::GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d
     for (int i = 0; i < (int)data_.size(); ++i) {
         leads_.push_back(data_[i].GetLead());
         traces_.push_back(data_[i].GetLead().m.Trace());
-        indices_[Key(data_[i].GetLead())].push_back(i);
+        indices_.insert(leads_[i], i);
     }
     if (bDynamic)
         criticals_.init(pGb_->leads_, leads_, pGb_->gen_degs(), v_degs_, deg_trunc + 1);
-}
-
-int GroebnerMod::IndexOfDivisibleLeading(const MMod& mon) const
-{
-    auto t = mon.m.Trace();
-    for (int i = -1; i < (int)mon.m.size(); ++i) {
-        auto key = TypeIndexKey{mon.v + (i == -1 ? 0 : ((mon.m[i].g() + 1) << 16))};
-        auto p = indices_.find(key);
-        if (p != indices_.end()) {
-            for (int k : p->second) {
-                if (divisible(leads_[k].m, mon.m, traces_[k], t))
-                    return k;
-            }
-        }
-    }
-    return -1;
 }
 
 void GroebnerMod::ReduceP(Mod& poly, Poly& poly_tmp, Mod& mod_tmp1, Mod& mod_tmp2) const
@@ -566,7 +721,7 @@ void GroebnerMod::ReduceP(Mod& poly, Poly& poly_tmp, Mod& mod_tmp1, Mod& mod_tmp
                 mulP(pGb_->data()[gb_index], q, poly_tmp);
                 mod_tmp1.data.clear();
                 for (const Mon& m : poly_tmp.data)
-                    mod_tmp1.data.emplace_back(m, poly.data[index].v); 
+                    mod_tmp1.data.emplace_back(m, poly.data[index].v);
                 poly.iaddP(mod_tmp1, mod_tmp2);
             }
             else
@@ -591,7 +746,7 @@ void GroebnerMod::AddRels(const Mod1d& rels, int deg_max)
 
     int d_trunc = deg_trunc();
     if (deg_max > d_trunc)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, PMod1d> rels_graded;
@@ -635,7 +790,7 @@ void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max)
 {
     int d_trunc = deg_trunc();
     if (deg_max > d_trunc)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
 
     Mod tmp1, tmp2;
 
@@ -653,7 +808,7 @@ void GroebnerMod::ToSubMod(const Mod1d& rels, int deg_max)
         if (rels[i]) {
             int d = GetDeg(rels[i].GetLead().m, pGb_->gen_degs()) + v_degs_[(size_t)rels[i].GetLead().v + rels_size];
             if (!rels_graded.empty() && d < rels_graded.rbegin()->first)
-                throw MyException(0x39b4cfd4U, "rels is not ordered.");
+                throw ErrorIdMsg(0x39b4cfd4U, "rels is not ordered.");
             if (d <= deg_max) {
                 Mod rel = rels[i];
                 v_degs_[i] = d;

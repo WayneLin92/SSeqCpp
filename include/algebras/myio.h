@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fmt/core.h>
 #include <fmt/format.h>
+#include <source_location>
 #include <sstream>
 #include <variant>
 #include <vector>
@@ -16,21 +17,11 @@ using int2d = std::vector<int1d>;
 using int3d = std::vector<int2d>;
 using string1d = std::vector<std::string>;
 
-std::vector<std::string> split(const std::string& str, char delim);
+string1d split(const std::string& str, char delim);
 /* split comma-delimited string */
-inline std::vector<std::string> split(const std::string& str)
+inline string1d split(const std::string& str)
 {
     return split(str, ',');
-}
-
-inline bool starts_with(const std::string& str, std::string_view start)
-{
-    return str.size() >= start.size() && str.compare(0, start.size(), start) == 0;
-}
-
-inline bool ends_with(const std::string& str, std::string_view end)
-{
-    return str.size() >= end.size() && str.compare(str.size() - end.size(), end.size(), end) == 0;
 }
 
 template <typename FwdIt, typename FnStr>                                                                                            //// Deprecate
@@ -80,77 +71,15 @@ inline std::istream& operator>>(std::istream& sin, const char* pattern)
     return sin;
 }
 
-/* Load container from an istream */
-template <typename Container>
-void load_vector(std::istream& sin, Container& cont, const char* left, const char* sep, const char* right)
-{
-    cont.clear();
-    sin >> std::ws;
-    consume(sin, left);
-    typename Container::value_type ele;
-    while (sin.good()) {
-        sin >> ele;
-        cont.push_back(ele);
-        sin >> std::ws;
-        consume(sin, sep);
-    }
-    if (sin.bad()) {
-        sin.clear();
-        consume(sin, right);
-    }
-}
-
-/* Load the container from an istream */
-template <typename Container, typename _Fn_load>
-void load_vector(std::istream& sin, Container& cont, const char* left, const char* sep, const char* right, _Fn_load load)
-{
-    cont.clear();
-    sin >> std::ws;
-    consume(sin, left);
-    typename Container::value_type ele;
-    while (sin.good()) {
-        load(sin, ele);
-        cont.push_back(std::move(ele));
-        sin >> std::ws;
-        consume(sin, sep);
-    }
-    if (sin.bad()) {
-        sin.clear();
-        consume(sin, right);
-    }
-}
-
-inline void load_array(std::istream& sin, int1d& a)
-{
-    load_vector(sin, a, "(", ",", ")");
-}
-inline void load_array2d(std::istream& sin, int2d& a)
-{
-    load_vector(sin, a, "[", ",", "]", load_array);
-}
-inline void load_array3d(std::istream& sin, int3d& a)
-{
-    load_vector(sin, a, "{", ",", "}", load_array2d);
-}
-inline std::istream& operator>>(std::istream& sin, int1d& a)
-{
-    load_array(sin, a);
-    return sin;
-}
-inline std::istream& operator>>(std::istream& sin, int2d& a)
-{
-    load_array2d(sin, a);
-    return sin;
-}
-inline std::istream& operator>>(std::istream& sin, int3d& a)
-{
-    load_array3d(sin, a);
-    return sin;
-}
+/*********************************************************
+                        Files
+ *********************************************************/
 
 bool FileExists(const std::string& filename);
-void AssertFileExists(const std::string& filename);
-void AssertFolderExists(const std::string& foldername);
+void AssertFileExists(const std::string& filename, const std::source_location location = std::source_location::current());
+void AssertFolderExists(const std::string& foldername, const std::source_location location = std::source_location::current());
+std::string load_text(const std::string& file_name);
+void save_text(const std::string& file_name, const std::string& text);
 
 /*********************************************************
                  Command line utilities
@@ -159,7 +88,7 @@ void AssertFolderExists(const std::string& foldername);
 struct CmdArg
 {
     const char* name;
-    std::variant<int*, double*, std::string*, std::vector<int>*, std::vector<std::string>*, std::map<std::string, std::vector<std::string>>*> value;
+    std::variant<int*, bool*, double*, std::string*, std::vector<int>*, string1d*> value;
     std::string StrValue();
 };
 using CmdArg1d = std::vector<CmdArg>;
@@ -199,20 +128,84 @@ inline std::string get(const nlohmann::json& js, std::string key, const std::str
 }  // namespace myio
 
 /*********************************************************
+                 Custom format string
+----------------------------------------------------------
+ * Example:
+ \begin{equation}
+ <arg>
+ \end{equation}
+ *********************************************************/
+constexpr size_t Count(const std::string_view str, const std::string_view arg)
+{
+    size_t occurrences = 0;
+    std::string::size_type pos = 0;
+    while ((pos = str.find(arg, pos)) != std::string::npos) {
+        ++occurrences;
+        pos += arg.length();
+    }
+    return occurrences;
+}
+
+constexpr size_t FmtLen(const std::string_view str, const std::string_view arg)
+{
+    auto num_leftbrace = Count(str, "{");
+    auto num_rightbrace = Count(str, "}");
+    if (num_leftbrace != num_rightbrace)
+        return 1 / size_t(num_leftbrace == num_rightbrace);
+    auto num_args = Count(str, arg);
+    return str.size() + num_leftbrace * 2 + num_args * 2 + 1 - num_args * arg.length();
+}
+
+template <size_t N>
+constexpr std::array<char, N> ToFmtStr(const std::string_view str, const std::string_view arg)
+{
+    std::array<char, N> fmt_str;
+    for (size_t i = 0, j = 0; i < str.size(); ++i) {
+        if (str[i] == '{') {
+            fmt_str[j++] = '{';
+            fmt_str[j++] = '{';
+        }
+        else if (str[i] == '}') {
+            fmt_str[j++] = '}';
+            fmt_str[j++] = '}';
+        }
+        else if (str.substr(i, arg.size()) == arg) {
+            fmt_str[j++] = '{';
+            fmt_str[j++] = '}';
+            i += arg.size() - 1;
+        }
+        else
+            fmt_str[j++] = str[i];
+    }
+    fmt_str[N - 1] = '\0';
+    return fmt_str;
+}
+template <size_t N>
+constexpr std::string_view FmtView(const std::array<char, N>& arr)
+{
+    return std::string_view(arr.data(), N - 1);
+}
+#define MYFMT(Fmt, MyFmt)                                                         \
+    constexpr auto MyFmt##Arr = ToFmtStr<FmtLen(MyFmt, "<arg>")>(MyFmt, "<arg>"); \
+    constexpr auto Fmt = FmtView(MyFmt##Arr);
+
+
+/*********************************************************
                     Formatters
  *********************************************************/
 
+/* This enables formatting for classes with Str() method */
 template <typename T>
 struct fmt::formatter<T, char, std::enable_if_t<std::is_same_v<decltype(T().Str()), std::string>>>
 {
     template <typename ParseContext>
-    constexpr auto parse(ParseContext& ctx)
+    constexpr auto parse(ParseContext& ctx) const
     {
         return ctx.begin();
     }
 
     template <typename FormatContext>
-    auto format(const T& x, FormatContext& ctx)
+    auto format(const T& x, FormatContext& ctx) const
     {
         return fmt::format_to(ctx.out(), "{}", x.Str());
     }

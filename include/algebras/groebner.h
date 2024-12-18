@@ -8,7 +8,6 @@
 #include "algebras.h"
 #include <map>
 #include <unordered_set>
-#include <unordered_map>
 
 /* extension of namespace alg in algebras.h */
 namespace alg2 {
@@ -27,6 +26,58 @@ namespace detail {
     int DegTLCM(const Mon& mon1, const Mon& mon2, const AdamsDeg1d& gen_degs);
 
     void MutualQuotient(Mon& m1, Mon& m2, const Mon& lead1, const Mon& lead2);
+
+    inline constexpr size_t NUM_INDICES = 6;
+    inline constexpr size_t NUM_CHILDREN = 1024;
+    inline constexpr size_t NUM_ROOT = NUM_CHILDREN;
+    inline constexpr uint32_t NEG = ~uint32_t(0);
+    inline constexpr uint32_t BIT_LEAF = uint32_t(1) << 31;
+    struct TrieNode
+    {
+        ut::vector<uint32_t, NUM_INDICES> indices;
+        std::array<uint32_t, NUM_CHILDREN> children;
+
+        TrieNode()
+        {
+            std::fill(children.begin(), children.end(), NEG);
+        }
+    };
+    struct TrieLeaf
+    {
+        ut::vector<uint32_t, NUM_INDICES> indices;
+    };
+
+    /* This is a prefix tree for finding divisible leadings */
+    class Trie
+    {
+    private:
+        std::vector<TrieNode> nodes;
+        std::vector<TrieLeaf> leaves;
+
+    public:
+        Trie()
+        {
+            nodes.resize(NUM_ROOT);
+        }
+
+        void insert(const Mon& m, size_t index);
+        void insert(const MMod& m, size_t index);
+
+    private:
+        int IndexOfDivisibleLeading(const Mon& m, uint32_t iGen, uint32_t iNode, const Mon1d& leads) const;
+        int IndexOfDivisibleLeading(const MMod& m, uint32_t iGen, uint32_t iNode, const MMod1d& leads) const;
+
+    public:
+        int IndexOfDivisibleLeading(const Mon& m, const Mon1d& leads) const
+        {
+            return IndexOfDivisibleLeading(m, 0, NEG, leads);
+        }
+
+        int IndexOfDivisibleLeading(const MMod& m, const MMod1d& leads) const
+		{
+            return IndexOfDivisibleLeading(m, 0, (m.v % NUM_ROOT), leads);
+		}
+    };
 }  // namespace detail
 
 class Groebner;
@@ -39,8 +90,7 @@ struct CriPair
 {
     uint32_t i1 = NULL_INDEX32, i2 = NULL_INDEX32;
     Mon m1, m2;
-
-    MonTrace trace_m2 = 0; /* = Trace(m2) */
+    MonTrace trace_m2 = 0;
 
     /* Compute the pair for two leading monomials. */
     CriPair() = default;
@@ -80,7 +130,7 @@ public:
             buffer_min_pairs_.erase(buffer_min_pairs_.begin());
         }
         else if (!buffer_min_pairs_.empty() && buffer_min_pairs_.begin()->first < d)
-            throw MyException(0x3321786aU, "buffer_min_pairs_ contains degree < d");
+            throw ErrorIdMsg(0x3321786aU, "buffer_min_pairs_ contains degree < d");
         return result;
     }
     bool empty() const
@@ -104,17 +154,15 @@ public:
 class Groebner
 {
 private:
-    using TypeIndexKey = uint32_t;
-    using TypeIndices = std::unordered_map<TypeIndexKey, int1d>;
     friend class GroebnerMod;
 
 private:
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Poly1d data_;
-    Mon1d leads_;         /* Leading monomials */
-    MonTrace1d traces_;   /* Cache for fast divisibility test */
-    TypeIndices indices_; /* Cache for fast divisibility test */
+    Mon1d leads_;          /* Leading monomials */
+    MonTrace1d traces_;    /* Cache for fast divisibility test */
+    detail::Trie indices_; /* Cache for fast divisibility test */
 
     int1d gen_degs_; /* degree of generators */
 
@@ -124,12 +172,6 @@ public:
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
     Groebner(int deg_trunc, int1d gen_degs, Poly1d data, bool bDynamic = false);
-
-private:
-    static TypeIndexKey Key(const Mon& lead)
-    {
-        return TypeIndexKey{lead.back().g() + (lead.size() == 1 ? 0 : ((lead[size_t(lead.size() - 2)].g() + 1) << 16))};
-    }
 
 public: /* Getters and Setters */
     const GbCriPairs& gb_pairs() const
@@ -162,7 +204,7 @@ public: /* Getters and Setters */
 
         leads_.push_back(m);
         traces_.push_back(m.Trace());
-        indices_[Key(m)].push_back((int)data_.size());
+        indices_.insert(m, data_.size());
         data_.push_back(std::move(g));
     }
     bool operator==(const Groebner& rhs) const
@@ -200,7 +242,10 @@ public:
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeading(const Mon& mon) const;
+    int IndexOfDivisibleLeading(const Mon& mon) const
+    {
+        return indices_.IndexOfDivisibleLeading(mon, leads_);
+    }
 
     /* Inplace reduction */
     void ReduceP(Poly& poly, Poly& tmp1, Poly& tmp2) const;
@@ -268,17 +313,13 @@ inline Poly subsMGb(const Poly& poly, const Groebner& gb, const std::vector<Poly
 class GroebnerMod
 {
 private:
-    using TypeIndexKey = uint32_t;
-    using TypeIndices = std::unordered_map<TypeIndexKey, int1d>;
-
-private:
     const Groebner* pGb_;
     GbCriPairs criticals_; /* Groebner basis of critical pairs */
 
     Mod1d data_;
-    MMod1d leads_;        /* Leading monomials */
-    MonTrace1d traces_;   /* Cache for fast divisibility test */
-    TypeIndices indices_; /* Cache for fast divisibility test */
+    MMod1d leads_;      /* Leading monomials */
+    MonTrace1d traces_; /* Cache for fast divisibility test */
+    detail::Trie indices_; /* Cache for fast divisibility test */
 
     int1d v_degs_; /* degree of generators of modules */
 
@@ -288,12 +329,6 @@ public:
 
     /* Initialize from `polys` which already forms a Groebner basis. The instance will be in const mode. */
     GroebnerMod(const Groebner* pGb, int deg_trunc, int1d v_degs, Mod1d polys, bool bDynamic = false);
-
-private:
-    static TypeIndexKey Key(const MMod& lead)
-    {
-        return TypeIndexKey{lead.v + (lead.m.size() > 0 ? ((lead.m.back().g() + 1) << 16) : 0)};
-    }
 
 public:  ////
     /**
@@ -333,7 +368,7 @@ public: /* Getters and Setters */
 
         leads_.push_back(m);
         traces_.push_back(m.m.Trace());
-        indices_[Key(m)].push_back((int)data_.size());
+        indices_.insert(m, data_.size());
         data_.push_back(std::move(g));
     }
     bool operator==(const GroebnerMod& rhs) const
@@ -366,7 +401,10 @@ public:
     }
 
     /* Return -1 if not found */
-    int IndexOfDivisibleLeading(const MMod& mon) const;
+    int IndexOfDivisibleLeading(const MMod& mon) const
+    {
+        return indices_.IndexOfDivisibleLeading(mon, leads_);
+    }
 
     void ReduceP(Mod& poly, Poly& tmp1, Mod& tmp2, Mod& tmp3) const;
     Mod Reduce(Mod poly) const;

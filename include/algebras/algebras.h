@@ -78,14 +78,7 @@ struct MayDeg
         v -= rhs.v;
         return *this;
     };
-    bool operator==(const MayDeg& rhs) const
-    {
-        return v == rhs.v && s == rhs.s && t == rhs.t;
-    };
-    bool operator!=(const MayDeg& rhs) const
-    {
-        return t != rhs.t || s != rhs.s || v != rhs.v;
-    };
+    bool operator==(const MayDeg& rhs) const = default;
     MayDeg operator*(int rhs) const
     {
         return MayDeg{s * rhs, t * rhs, v * rhs};
@@ -147,14 +140,7 @@ struct AdamsDeg
         t -= rhs.t;
         return *this;
     };
-    bool operator==(const AdamsDeg& rhs) const
-    {
-        return s == rhs.s && t == rhs.t;
-    };
-    bool operator!=(const AdamsDeg& rhs) const
-    {
-        return !operator==(rhs);
-    };
+    bool operator==(const AdamsDeg& rhs) const = default;
     constexpr AdamsDeg operator*(int rhs) const
     {
         return AdamsDeg{s * rhs, t * rhs};
@@ -165,10 +151,6 @@ struct AdamsDeg
         return *this - rhs * q;
     };
     std::string Str() const
-    {
-        return '(' + std::to_string(s) + ',' + std::to_string(t) + ')';
-    }
-    std::string StrAdams() const
     {
         return '(' + std::to_string(stem()) + ',' + std::to_string(s) + ')';
     }
@@ -303,7 +285,7 @@ public:
     {
 #ifndef NDEBUG
         if (size_ == 0)
-            throw MyException(0xfebc8802U, "Calling front() on empty");
+            throw ErrorIdMsg(0xfebc8802U, "Calling front() on empty");
 #endif
         return data_[0];
     }
@@ -312,7 +294,7 @@ public:
     {
 #ifndef NDEBUG
         if (size_ == 0)
-            throw MyException(0xfebc8802U, "Calling back() on empty");
+            throw ErrorIdMsg(0xfebc8802U, "Calling back() on empty");
 #endif
         return data_[size_t(size_ - 1)];
     }
@@ -338,8 +320,9 @@ public:
     void push_back(GE p)
     {
         if (size_ >= MONSIZE) {
-            std::cout << "Mon overflow" << std::endl;
-            throw MyException(0x9b96a118U, "Mon overflow");
+            throw RunTimeError("alg2::Mon overflow");
+            /*printf("alg2::Mon overflow\n");
+            std::exit(79018145);*/
         }
         data_[size_++] = p;
     }
@@ -455,7 +438,7 @@ struct Poly
     {
 #ifndef NDEBUG /* DEBUG */
         if (data.empty())
-            throw MyException(0x21eab89e, "Trying to get leading monomial from zero poly.");
+            throw ErrorIdMsg(0x21eab89e, "Trying to get leading monomial from zero poly.");
 #endif
         return data.front();
     }
@@ -698,7 +681,7 @@ struct Mod
     {
 #ifndef NDEBUG
         if (data.empty())
-            throw MyException(0x488793f0U, "Trying to GetLead() for empty Mod.");
+            throw ErrorIdMsg(0x488793f0U, "Trying to GetLead() for empty Mod.");
 #endif
         return data[0];
     }
@@ -795,7 +778,7 @@ void Alg2IndicesP(const Alg& alg, const std::vector<TypeMon>& basis, int1d& resu
         auto p = std::lower_bound(basis.begin(), basis.end(), m);
 #ifdef MYDEBUG
         if (p == basis.end() || m < (*p)) {
-            throw MyException(0x57f14e21U, "Index not found");
+            throw ErrorIdMsg(0x57f14e21U, "Index not found");
         }
 #endif
         result.push_back(int(p - basis.begin()));
@@ -828,7 +811,45 @@ void Indices2AlgP(const int1d& indices, const Basis& basis, AdamsDeg deg, Alg& r
 		Indices2AlgP(indices, basis.at(deg), result);
 }
 
+template <typename T>
+class Basis
+{
+private:
+    std::vector<std::vector<T>> data_;
 
+public:
+    bool has(AdamsDeg deg) const {
+        int n = deg.stem();
+        return n < (int)data_.size() && deg.s < (int)data_[n].size();
+    }
+    auto& at(AdamsDeg deg) const
+    {
+        return data_[deg.stem()][deg.s];
+    }
+    auto& at(AdamsDeg deg, const T& default_) const
+    {
+        auto n = deg.stem();
+        if (n >= (int)data_.size() || deg.s >= (int)data_[n].size())
+            return default_;
+        return data_[deg.stem()][deg.s];
+    }
+    auto& operator[](AdamsDeg deg)
+    {
+        return ut::get(ut::get(data_, deg.stem()), deg.s);
+    }
+
+    AdamsDeg1d degs() const
+    {
+        AdamsDeg1d result;
+        for (int n = 0; n < (int)data_.size(); ++n)
+            for (int s = 0; s < (int)data_[n].size(); ++s)
+                result.push_back(AdamsDeg(s, n + s));
+        return result;
+    }
+};
+
+using BasisMon = Basis<Mon1d>;
+using BasisMMod = Basis<MMod1d>;
 
 }  // namespace alg2
 

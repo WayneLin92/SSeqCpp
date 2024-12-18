@@ -84,7 +84,7 @@ void CriMilnors::Minimize(const MMod1d& leads, int t)
             }
 #ifndef NDEBUG
             if (c == end)
-                throw MyException(0xfa5db14U, "Should not happen because gb_ is groebner");
+                throw ErrorIdMsg(0xfa5db14U, "Should not happen because gb_ is groebner");
 #endif
         }
     }
@@ -271,7 +271,7 @@ void Groebner::AddRels(const Mod1d& rels, int deg_max, int1d& min_rels)
     Mod tmp1, tmp2;
 
     if (deg_max > d_trunc_)
-        throw MyException(0x42e4ce5dU, "deg is bigger than the truncation degree.");
+        throw ErrorIdMsg(0x42e4ce5dU, "deg is bigger than the truncation degree.");
 
     /* Calculate the degrees of `rels` and group them by degree */
     std::map<int, PMod1d> rels_graded;

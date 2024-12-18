@@ -136,7 +136,7 @@ bool IsAdamsRunning(const std::string& cmd_prefix)
                     if (std::regex_search(line, match, is_Adams); match[0].matched) {
                         auto cmd = myio::join(" ", myio::split(line, '\0'));
                         cmd = cmd.substr(0, cmd.size() - 1);
-                        if (filename_pid != this_pid && myio::starts_with(cmd, cmd_prefix)) {
+                        if (filename_pid != this_pid && cmd.starts_with(cmd_prefix)) {
                             /* Get the working dir of pid in linux */
                             std::string filenameCwd = fmt::format("{}/cwd", filepath);
                             if (std::filesystem::read_symlink(filenameCwd) == std::filesystem::current_path())
@@ -155,7 +155,7 @@ std::map<std::string, json::json_pointer> GetTasks(const json& js)
     std::map<std::string, json::json_pointer> tasks;
     auto tasks_flat = js.at("tasks").flatten();
     for (auto it : tasks_flat.items()) {
-        if (myio::ends_with(it.key(), "cmd")) {
+        if (it.key().starts_with("cmd")) {
             auto ptr = json::json_pointer(it.key()).parent_pointer();
             tasks[ptr.back()] = ptr;
         }
@@ -190,7 +190,7 @@ void tpl_expand(nlohmann::json& js)
         std::vector<std::string> params;
         for (auto& k : tpl)
             params.push_back(k.get<std::string>());
-        MyException::Assert(!params.empty(), "params should be nonempty");
+        ErrorIdMsg::Assert(!params.empty(), "params should be nonempty");
         if (js_templates.contains(params[0])) {
             auto& template_ = js_templates.at(params[0]);
             template_str = template_.at("json").dump();
@@ -202,7 +202,7 @@ void tpl_expand(nlohmann::json& js)
         }
         else {
             fmt::print("Template {} not found\n", params[0]);
-            throw MyException(0xb1583f9e, "template not found");
+            throw ErrorIdMsg(0xb1583f9e, "template not found");
         }
     }
 
@@ -227,7 +227,7 @@ void tpl_expand(nlohmann::json& js)
         std::vector<std::string> params;
         for (auto& k : tpl)
             params.push_back(k.get<std::string>());
-        MyException::Assert(!params.empty(), "params should be nonempty");
+        ErrorIdMsg::Assert(!params.empty(), "params should be nonempty");
         if (js_templates.contains(params[0])) {
             auto& template_ = js_templates.at(params[0]);
             template_str = template_.at("parse").get<std::string>();
@@ -239,7 +239,7 @@ void tpl_expand(nlohmann::json& js)
         }
         else {
             fmt::print("Template {} not found\n", params[0]);
-            throw MyException(0xb1583f9e, "template not found");
+            throw ErrorIdMsg(0xb1583f9e, "template not found");
         }
     }
 }
@@ -288,9 +288,7 @@ std::vector<std::string> GetPreparedTasks(const json& js, const std::map<std::st
     return prepared_tasks;
 }
 
-int get_db_t_max(const myio::Database& db);
-int get_db_metadata_int(const myio::Database& db, std::string_view key);
-std::string get_db_metadata_str(const myio::Database& db, std::string_view key);
+int get_db_t_max(const myio::Database& db);  // TODO: Remove this
 
 bool IsFinished(const std::smatch& match, const char* postfix)
 {
@@ -333,11 +331,11 @@ bool IsFinished(const std::string& task)
             t_max_map = get_db_t_max(db);
             if (t_max_map == -3)
                 return false;
-            sus = get_db_metadata_int(db, "suspension");
-            fil = get_db_metadata_int(db, "filtration");
-            from = get_db_metadata_str(db, "from");
-            to = get_db_metadata_str(db, "to");
-            if (myio::starts_with(from, "Error:") || myio::starts_with(to, "Error:"))
+            sus = db.get_metadata_int("suspension");
+            fil = db.get_metadata_int("filtration");
+            from = db.get_metadata_str("from");
+            to = db.get_metadata_str("to");
+            if (from.starts_with("Error:") || to.starts_with("Error:"))
                 return false;
         }
         {
@@ -372,11 +370,11 @@ bool IsFinished(const std::string& task)
             t_max_map = get_db_t_max(db);
             if (t_max_map == -3)
                 return false;
-            sus = get_db_metadata_int(db, "suspension");
-            fil = get_db_metadata_int(db, "filtration");
-            from = get_db_metadata_str(db, "from");
-            to = get_db_metadata_str(db, "to");
-            if (myio::starts_with(from, "Error:") || myio::starts_with(to, "Error:"))
+            sus = db.get_metadata_int("suspension");
+            fil = db.get_metadata_int("filtration");
+            from = db.get_metadata_str("from");
+            to = db.get_metadata_str("to");
+            if (from.starts_with("Error:") || to.starts_with("Error:"))
                 return false;
         }
         {
@@ -446,7 +444,7 @@ void SchedulerKillScheduler()
     auto running_adams = GetRunningAdams();
     fmt::print("Killing the following tasks:\n");
     for (auto& [cmd, pid] : running_adams) {
-        if (myio::starts_with(cmd, "./Adams scheduler loop")) {
+        if (cmd.starts_with("./Adams scheduler loop")) {
             if (int error = system(fmt::format("kill {}", pid).c_str()))
                 fmt::print("  Error ({}): failed to kill {}\n", error, pid);
             else
@@ -484,11 +482,11 @@ void update_finished_tasks(const std::vector<std::string>& finished_tasks)
 std::unordered_set<std::string> ConvertToTaskName(const std::map<std::string, std::string>& running_adams)
 {
     std::unordered_set<std::string> result;
-    std::regex is_Adams_res_regex("^./Adams res (\\w+) ([0-9]+)$"); /* match example: ./Adams res S0 200 */
-    std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams prod S0 200 */
+    std::regex is_Adams_res_regex("^./Adams res (\\w+) ([0-9]+)$");                            /* match example: ./Adams res S0 200 */
+    std::regex is_Adams_prod_regex("^./Adams prod(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$");     /* match example: ./Adams prod S0 200 */
     std::regex is_Adams_export_regex("^./Adams export(?:_mod|) (\\w+)(?:\\s\\w+|) ([0-9]+)$"); /* match example: ./Adams export S0 200 */
-    std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
-    std::regex is_Adams_export_map_regex("^./Adams export_map (\\w+) (\\w+) ([0-9]+)$"); /* match example: ./Adams map_res C2 S0 200 */
+    std::regex is_Adams_map_res_regex("^./Adams map_res (\\w+) (\\w+) ([0-9]+)$");             /* match example: ./Adams map_res C2 S0 200 */
+    std::regex is_Adams_export_map_regex("^./Adams export_map (\\w+) (\\w+) ([0-9]+)$");       /* match example: ./Adams map_res C2 S0 200 */
     std::smatch match;
     for (auto& [cmd, pid] : running_adams) {
         if (std::regex_search(cmd, match, is_Adams_res_regex); match[0].matched)
@@ -515,19 +513,18 @@ int SchedulerRunOnce(const json& js)
     uint64_t disk_available = GetDiskAvailable();
     fmt::print("Disk available: {:.0f} GB\n\n", disk_available / 1.074e9);
 
-
     auto running_adams = GetRunningAdams();
     auto num_tasks_limit = myio::get(js, "num_tasks_limit", 64);
     if (running_adams.size() > num_tasks_limit) {
-		fmt::print("Too many tasks running. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
-		if (int error = system(fmt::format("kill {}", running_adams.begin()->second).c_str()))
-			return error;
-		return 0;
+        fmt::print("Too many tasks running. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
+        if (int error = system(fmt::format("kill {}", running_adams.begin()->second).c_str()))
+            return error;
+        return 0;
     }
     else if (running_adams.size() == num_tasks_limit) {
-		fmt::print("Too many tasks running. No new task added.\n");
-		return 0;
-	}
+        fmt::print("Too many tasks running. No new task added.\n");
+        return 0;
+    }
     if (mem_usage > js.at("MEM_limit")) {
         if (running_adams.size() > 0) {
             fmt::print("Memory usage exceeds limit. kill {} ({})\n", running_adams.begin()->second, running_adams.begin()->first);
@@ -570,7 +567,7 @@ int SchedulerRunOnce(const json& js)
     bool nohup_task = false;
     for (auto& task : prepared_tasks) {
         auto cmd = js.at("tasks").at(tasks.at(task)).at("cmd").get<std::string>();
-        if (!myio::starts_with(cmd, "nohup")) {
+        if (!cmd.starts_with("nohup")) {
             fmt::print("Run: {}\n", cmd);
             std::fflush(stdout);
             if (int error = system(cmd.c_str()))
@@ -654,7 +651,7 @@ int main_scheduler_loop(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {};
     if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
-        
+
 /* Prevent double run on linux */
 #ifdef __linux__
     if (IsAdamsRunning(fmt::format("./Adams scheduler loop"))) {
@@ -704,6 +701,8 @@ int main_test(int argc, char** argv, int& index, const char* desc)
     myio::CmdArg1d op_args = {};
     if (int error = myio::ParseArguments(argc, argv, index, PROGRAM, desc, VERSION, args, op_args))
         return error;
+
+    MyException::Assert(0, "Test");
 
     fmt::print("IsAdamsRunning({}) = {}\n", cmd_prefix, IsAdamsRunning(cmd_prefix));
     return 0;

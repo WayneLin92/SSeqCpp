@@ -4,13 +4,14 @@
 #include <fmt/format.h>
 
 inline const char* PROGRAM = "Adams";
-inline const char* VERSION = "Version:\n  3.5.0 (2024-04-02)";
+inline const char* VERSION = "1.0.1";
 inline constexpr int DB_ADAMS_VERSION = 3;
 inline constexpr std::string_view DB_VERSION_NOTES_2 = "Add t_max in version table. Change products table.";
 inline constexpr std::string_view DB_VERSION_NOTES = "Add fil,from,to in version table of maps.";
 
 void DbResVersionConvert(const char* db_filename);
-namespace myio {
+namespace myio
+{
 class Database;
 }
 void create_db_version(const myio::Database& db);

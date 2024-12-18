@@ -13,12 +13,12 @@ int get_db_t_verified(const myio::Database& db)
             try {
                 return db.get_int("select value from version where id=1121750147");
             }
-            catch (MyException&) {
+            catch (ErrorIdMsg&) {
                 return -1;
             }
         }
     }
-    catch (MyException&) {
+    catch (ErrorIdMsg&) {
         return -3;
     }
     return -2;
@@ -104,7 +104,7 @@ void verify_map(const std::string& cw1, const std::string& cw2)
     try { /* For compatibility */
         fil = dbMap.get_int("select value from version where id=651971502");
     }
-    catch (MyException&) {
+    catch (ErrorIdMsg&) {
     }
     const int sus = dbMap.get_int("select value from version where id=1585932889");
     myio::Statement stmt_verify(dbMap, "INSERT INTO version (id, name, value) VALUES (1121750147, \"verified\", ?1) ON CONFLICT(id) DO UPDATE SET value=excluded.value;");

@@ -14,8 +14,8 @@
 
 struct sqlite3;
 struct sqlite3_stmt;
-#define MYSQLITE_ROW 100
-#define MYSQLITE3_TEXT 3
+inline constexpr int MYSQLITE_ROW = 100;
+inline constexpr int MYSQLITE3_TEXT = 3;
 
 namespace ut {
 
@@ -53,7 +53,7 @@ inline std::string Serialize(const int1d& arr)
 template <typename T>
 T Deserialize(const std::string& str)
 {
-    throw MyException(0xb5c7695cU, "Must use a specialization");
+    throw ErrorIdMsg(0xb5c7695cU, "Must use a specialization");
 }
 
 template <>
@@ -94,6 +94,7 @@ public:
     }
 
     [[nodiscard]] int step() const;
+    void reset() const;
 
 private:
     /***** suger template bind functions *****/
@@ -174,6 +175,9 @@ public:
     virtual ~Database();
     void open(std::string filename);
     void disconnect();
+    explicit operator bool() const {
+        return conn_;
+    }
 
 public:
     void sqlite3_prepare(const char* zSql, sqlite3_stmt** ppStmt) const;
@@ -236,7 +240,9 @@ public:
 public:
     int get_int(const std::string& sql) const;
     int get_int(const std::string& sql, int default_) const;
+    int get_metadata_int(std::string_view key) const;
     std::string get_str(const std::string& sql) const;
+    std::string get_metadata_str(std::string_view key) const;
     std::vector<int> get_column_int(const std::string& table_name, const std::string& column_name, const std::string& conditions) const;
 
     /*
@@ -293,6 +299,7 @@ public:
             stmt.bind_and_step(map(column[i]), (int)i);
     }
 };
+
 }  // namespace myio
 
 #endif /* DATABASE_H */

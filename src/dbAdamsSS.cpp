@@ -77,7 +77,7 @@ MMod Deserialize<MMod>(const std::string& str)
     Mon m;
     int v = -1;
     if (str.empty())
-        throw MyException(0x2fb9914bU, "Cannot initialize MMod with an empty string.");
+        throw ErrorIdMsg(0x2fb9914bU, "Cannot initialize MMod with an empty string.");
     std::stringstream ss(str);
     while (ss.good()) {
         int gen, exp;
@@ -148,7 +148,7 @@ algZ::Mon MonToMonZ(const Mon& m)
         }
         if (fil == -1) {
             std::cout << "Incorrect input for algZ::Mon: " << m << '\n';
-            throw MyException(0x3944e4aeU, "Incorrect input for algZ::Mon");
+            throw ErrorIdMsg(0x3944e4aeU, "Incorrect input for algZ::Mon");
         }
         result = algZ::Mon(c, mm, fil);
     }
@@ -330,9 +330,9 @@ Mod1d DbAdamsSS::load_gb_mod(const std::string& table_prefix, int t_max) const
     return result;
 }
 
-std::map<AdamsDeg, Mon1d> DbAdamsSS::load_basis(const std::string& table_prefix) const
+BasisMon DbAdamsSS::load_basis(const std::string& table_prefix) const
 {
-    std::map<AdamsDeg, Mon1d> result;
+    BasisMon result;
     Statement stmt(*this, "SELECT s, t, mon FROM " + table_prefix + "_basis ORDER BY id");
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {
@@ -358,9 +358,9 @@ std::map<AdamsDeg, int2d> DbAdamsSS::load_basis_d2(const std::string& table_pref
     return result;
 }
 
-std::map<AdamsDeg, MMod1d> DbAdamsSS::load_basis_mod(const std::string& table_prefix) const
+BasisMMod DbAdamsSS::load_basis_mod(const std::string& table_prefix) const
 {
-    std::map<AdamsDeg, MMod1d> result;
+    BasisMMod result;
     Statement stmt(*this, "SELECT s, t, mon FROM " + table_prefix + "_basis ORDER BY id");
     int count = 0;
     while (stmt.step() == MYSQLITE_ROW) {

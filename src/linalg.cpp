@@ -87,7 +87,7 @@ void SetLinearMap(const int2d& fx, int2d& image, int2d& kernel, int2d& g)
 {
 #ifdef MYDEBUG
     if (!is_sorted(fx))
-        throw MyException(0x98e11820U, "fx is not sorted");
+        throw ErrorIdMsg(0x98e11820U, "fx is not sorted");
 #endif
     /* f(g[i]) = image[i] */
     for (size_t i = 0; i < fx.size(); ++i) {
@@ -133,7 +133,7 @@ void SetLinearMapV2(const int1d& x, const int2d& fx, int2d& image, int2d& kernel
 {
 #ifdef MYDEBUG
     if (!is_sorted(fx))
-        throw MyException(0xad97b098U, "fx is not sorted");
+        throw ErrorIdMsg(0xad97b098U, "fx is not sorted");
 #endif
     /* f(g[i]) = image[i] */
     for (size_t i = 0; i < fx.size(); ++i) {
@@ -168,7 +168,7 @@ void SetLinearMapV3(const int2d& x, const int2d& fx, int2d& domain, int2d& f, in
         }
         if (src.empty()) {
             if (!tgt.empty())
-                throw MyException(0x67b8b67dU, "conflicting linear map definition");
+                throw ErrorIdMsg(0x67b8b67dU, "conflicting linear map definition");
         }
         else {
             domain.push_back(src);
@@ -199,7 +199,7 @@ int1d GetImage(int2dIt spaceV_first, int2dIt spaceV_last, int2dIt f_first, int1d
         }
 #ifdef MYDEBUG
     if (!v.empty()) {
-        throw MyException(0x6a4fe8a1U, "v is not in spaceV");
+        throw ErrorIdMsg(0x6a4fe8a1U, "v is not in spaceV");
     }
 #endif
     return result;
@@ -216,7 +216,7 @@ int1d GetInvImage(const int2d& spaceV, int1d v)
     }
 #ifdef MYDEBUG
     if (!v.empty())
-        throw MyException(0x1a4ef6d8U, "GetInvImage not well defined");
+        throw ErrorIdMsg(0x1a4ef6d8U, "GetInvImage not well defined");
 #endif
     return result;
 }

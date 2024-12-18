@@ -55,7 +55,7 @@ public:
     {
 #ifndef NDEBUG
         if (index == 0)
-            throw MyException(0xa5b6f1a6U, "index=0 should be reserved for the coefficient 2");
+            throw ErrorIdMsg(0xa5b6f1a6U, "index=0 should be reserved for the coefficient 2");
 #endif
         return Mon(1, GE(index, 2 | FLAG_ODD_EXP), fil * 2 + 1);
     }
@@ -224,7 +224,7 @@ inline Mon div_unsigned(const Mon& mon1, const Mon& mon2)
 {
 #ifndef NDEBUG /* DEBUG */
     if (mon1.c() < mon2.c() || mon1.fil() < mon2.fil())
-        throw MyException(0x32112d9eU, "mon1/mon2 not divisible!\n");
+        throw ErrorIdMsg(0x32112d9eU, "mon1/mon2 not divisible!\n");
 #endif
     return Mon(mon1.c() - mon2.c(), mon1.m() / mon2.m(), mon1.fil() - mon2.fil());
 }
@@ -303,7 +303,7 @@ struct Poly
     {
 #ifndef NDEBUG /* DEBUG */
         if (data.empty())
-            throw MyException(0x612c2027U, "Trying to get leading monomial from zero poly.");
+            throw ErrorIdMsg(0x612c2027U, "Trying to get leading monomial from zero poly.");
 #endif
         return data.front();
     }
@@ -570,7 +570,7 @@ struct Mod
     {
 #ifndef NDEBUG
         if (data.empty())
-            throw MyException(0x24b0f95cU, "Trying to GetLead() for empty Mod.");
+            throw ErrorIdMsg(0x24b0f95cU, "Trying to GetLead() for empty Mod.");
 #endif
         return data[0];
     }
