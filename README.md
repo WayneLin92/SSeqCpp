@@ -1,5 +1,5 @@
 # SSeqCpp
-This is a cross platform project to compute and manage databases of spectral sequences based. The main programming language is C++. Recently we used this project to solve the Last Kervaire Invariant Problem. See [Zenodo](https://zenodo.org/record/14475507) for detail.
+This is a cross platform project to compute and manage databases of spectral sequences based. The main programming language is C++. Recently we used this project to solve [the Last Kervaire Invariant Problem](https://arxiv.org/abs/2412.10879). See [Zenodo](https://zenodo.org/record/14475507) for more detail on the programming part.
 
 ## Adams
 This project computes E2-page data of Adams spectral sequences at the prime 2. Compile this project and you can find an executable file `Adams` in the `build/bin` folder.
@@ -129,6 +129,11 @@ For a map $X\to \sum^k Y$, the value for `images` should be a list of images of 
 ## ss
 This project propagates Adams differentials and extensions among CW spectra. Compile this project and you can find an executable file `ss` in the `build/bin` folder.
 
+Features:
+* The program can deduce Adams differentials and extensions and produced proofs for the results.
+* If the program is terminated by the user or the system or due to a power failure, the database files including the logging of proofs will remain the state before this run. This feature is due to the design of the modern database system [sqlite3](https://www.sqlite.org/).
+* The program can generate plots for Adams differentials and extensions along cofiber sequences. The plots are actually webpages written in javascript. These webpages can generate latex tikz code for the plots if the user take a screenshot via the webpage.
+
 After the user calculates a collection of Adams $E_2$ data using the `Adams` program, the user should place all the database files (containing `AdamsSS` in the name) in a folder next to the executable file `ss`. The folder name should not contain any space. We call this folder a *category* if it contains a configuration file `ss.json` describing the objects and maps that `ss` should consider.
 
 A configuration file `ss.json` inside a category looks like the following.
@@ -210,5 +215,7 @@ To generate plots for the extensions along cofiber sequences:
 ```
 To view the plots, open the file `plot.html` in the folder `dir_website_ss` by a browser. You can add parameters to the url to control the display of the plots. For example, `plot.html?data=Ceta` will show the plots for the Adams spectral sequence of `Ceta`, while `plot.html?data=Ceta__S0` will show the map $C\eta\to S^2$.
 
+The reader can find plots we generate for [the Last Kervaire Invariant Problem](https://arxiv.org/abs/2412.10879) on this [webpage](https://waynelin92.github.io/ss/kervaire.html).
+
 ## Adamsp
-This project aims to compute the Adams spectral sequences at odd primes $p$. It adapts many algorithms from the `Adams` project. The main contributor to this project is [Yu Zhang](https://github.com/yuzhangmath).
+This project aims to compute the Adams spectral sequences at odd primes $p$. It adapts some algorithms from the `Adams` project. The main contributor to this project is [Yu Zhang](https://github.com/yuzhangmath).
