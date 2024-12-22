@@ -165,7 +165,7 @@ SSRet Category::DeduceTrivialCofDiffs(SSFlag flag)  //// TODO: skip if there is 
     SSRet rt;
     while (true) {
         SSRet rt1;
-        for (size_t index = 0; index < rings_.size(); ++index) {
+        for (size_t index = 0; index < cofseqs_.size(); ++index) {
             if (rt1 += DeduceTrivialCofDiffs(index, flag))
                 return rt1;
         }
