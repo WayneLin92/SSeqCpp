@@ -1,10 +1,10 @@
 # SSeqCpp
-This is a cross platform project to compute and manage databases of spectral sequences based. The main programming language is C++. Recently we used this project to solve [the Last Kervaire Invariant Problem](https://arxiv.org/abs/2412.10879). See [Zenodo](https://zenodo.org/record/14475507) for more detail on the programming part.
+This is a cross platform project to compute and manage databases of spectral sequences. The main programming language is C++. Recently we used this project to solve [the Last Kervaire Invariant Problem](https://arxiv.org/abs/2412.10879). See [Zenodo](https://zenodo.org/record/14475507) for more details on the programming part.
 
 ## Adams
 This project computes E2-page data of Adams spectral sequences at the prime 2. Compile this project and you can find an executable file `Adams` in the `build/bin` folder.
 
-Features: This program is very robust in design. The output of the program will remain valid if
+Features: This program is very robust by design. The output of the program will remain valid if
 * there is a power failure during the computation,
 * the program is terminated by the user or the system,
 * two instances of the program are trying to write to the same file at the same time.
@@ -72,12 +72,12 @@ It outputs a database file `map_Adams_res_X__Y.db`.
 
 To export the map on E2-pages:
 ```bash
-./Adams export_mod X Y 100
+./Adams export_map X Y 100
 ```
 It outputs a database file `map_AdamsSS_X__Y.db`.
 
 ### Custom definitions
-The program has built-in support for spectra `S0`, `tmf` and stunted projective spaces `RPm_n`, `CPm_n`, `HPm_n`. The user can define their own spectra and maps in a file `Adams.json`. It should be placed in the same folder as the executable file. The format of the file is as follows:
+The program has built-in support for spectra `S0`, `tmf` and stunted projective spaces `RPm_n`, `CPm_n`, `HPm_n`. The user can define their own spectra and maps in a file `Adams.json`. If a spectrum `X` is defined then the smash product $tmf\wedge X$ is automatically defined recognized as `tmf_X`. The definition file `Adams.json` should be placed in the same folder as the executable file. The format of the file is as follows:
 ```json
 {
   "CW_complexes": {
