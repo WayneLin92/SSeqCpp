@@ -911,7 +911,8 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             Groebner gb_from(t_max, {}, coh_from.v_degs);
             gb_from.AddRels(coh_from.rels, t_max);
             for (const auto& rel : coh_to.rels) {
-                if (gb_from.Reduce(subs(rel, images))) {
+                int deg_f_rel = rel.GetLead().deg_m() + coh_to.v_degs[rel.GetLead().v()] + sus;
+                if (deg_f_rel <= MAP_T_MAX && gb_from.Reduce(subs(rel, images))) {
                     fmt::print("the map is not an A-module homomorphism");
                     return 2;
                 }
@@ -934,11 +935,16 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             Groebner gb(t_max, {}, coh_total.v_degs);
             gb.AddRels(coh_total.rels, t_max);
 
+            std::string tmp1, tmp2;
+            int sus_q, fil_q;
+            Mod1d images_q;
+            GetCohMapFromJson(fmt::format("{}__{}", total, from), tmp1, tmp2, images_q, sus_q, fil_q);
+
             int1d cells_from;
             for (auto& c : cws.at(from).at("cells"))
                 cells_from.push_back(c.get<int>());
 
-            Mod1d sub_lift;
+            Mod1d sub_lift;  // TODO: Compute this without specifying it in json
             if (map_json.contains("sub_lift")) {
                 for (auto& i : map_json.at("sub_lift")) {
                     if (i.is_array()) {
@@ -950,35 +956,29 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
                         sub_lift.push_back(steenrod::MMod({}, i.get<int>()));
                 }
             }
-            Mod1d quo_lift;
-            if (map_json.contains("quo_lift")) {
-                for (auto& i : map_json.at("quo_lift")) {
-                    if (i.is_array()) {
-                        if (i.size())
-                            return -9;
-                        quo_lift.push_back({});
-                    }
-                    else
-                        quo_lift.push_back(steenrod::MMod({}, i.get<int>()));
-                }
-            }
 
             for (int i : coh_to.min_rels) {
                 steenrod::Mod rel0 = gb_to.data()[i];
                 Mod rel = sub_lift.empty() ? rel0 : subs(rel0, sub_lift);
                 rel = gb.Reduce(std::move(rel));
                 if (rel) {
-                    if (quo_lift.empty()) {
-                        int rel_deg = rel0.GetLead().deg_m() + coh_to.v_degs[rel0.GetLead().v()];
-                        int index = ut::IndexOf(cells_from, rel_deg + sus - 1);  ////
-                        if (index == -1)
-                            return -6;
-                        if (index >= (int)coh_from.cells.size())
-                            return -7;
-                        images.push_back(coh_from.cells[index]);
+                    int c = rel.GetLead().deg_m() + coh_total.v_degs[rel.GetLead().v()] - sus_q;
+                    int j_max = 1 << coh_from.num_cells[c];
+                    Mod x;
+                    int j = 1;
+                    for (; j < j_max; ++j) {  // TODO: Use linear algebra
+                        x.data.clear();
+                        for (int je : ut::two_exp((uint32_t)j))
+                            x += coh_from.cells[coh_from.indices_cells[c] + je];
+                        auto y = subs(x, images_q);
+                        y = gb.Reduce(std::move(y));
+                        if (y == rel) {
+                            images.push_back(x);
+                            break;
+                        }
                     }
-                    else {
-                        return -404;
+                    if (j == j_max) {
+                        return -6;
                     }
                 }
                 else

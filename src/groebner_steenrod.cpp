@@ -339,7 +339,7 @@ void Groebner::MinimizeOrderedGensRels(Mod1d& cells, int1d& min_rels)
     for (size_t i = 0; i < gb_.size(); ++i) {
         if (!gb_[i].GetLead().m()) {
             redundant_vs.push_back(gb_[i].GetLead().v());
-            ut::get(cells, gb_[i].GetLead().v()) = gb_[i] + gb_[i].GetLead();
+            ut::get(cells, gb_[i].GetLead().v()) = Reduce(gb_[i] + gb_[i].GetLead());
         }
         else {
             map_rel_ind[(int)i] = (int)data.size();
