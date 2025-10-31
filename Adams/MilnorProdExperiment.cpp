@@ -1,6 +1,7 @@
 #include<vector>
 #include<array>
 #include<iostream>
+#include<fstream>
 
 const int CACHE_SIZE = 193;
 const int MATRIX_SIZE = 7;
@@ -121,6 +122,33 @@ std::array<uint8_t,MATRIX_SIZE> convert_to_packed(std::array<std::array<bool, MA
     return result;
 }
 
+void write_cache(std::array<std::vector<std::array<std::array<bool, MATRIX_SIZE>, MATRIX_SIZE> >, CACHE_SIZE> cache, std::string filename) {
+    std::ofstream outfile(filename, std::ios::binary);
+
+    if (!outfile) {
+        std::cout << "Error opening file" << std::endl;
+    }
+
+    for (int i = 0; i < CACHE_SIZE; ++i) {
+
+        auto chunk = cache[i];
+        int size = chunk.size();
+        
+        outfile.write(reinterpret_cast<const char*>(&i), sizeof(i));
+        outfile.write(reinterpret_cast<const char*>(&size), sizeof(size));
+
+        for (int j = 0; j < chunk.size(); ++j) {
+        
+            std::array<uint8_t, MATRIX_SIZE> triangle = 
+                convert_to_packed(chunk[j]);
+            outfile.write(reinterpret_cast<const char*>(triangle.data()), 
+                    triangle.size());
+        }
+    }
+
+    outfile.close();
+}
+
 int main()
 {
 
@@ -149,5 +177,6 @@ int main()
         std::cout << std::to_string(static_cast<int>(sample[i])) << std::endl;
         // std::cout << (sample[i] == 0) << std::endl;
     }
-}
 
+    write_cache(cache, "cachedata/milnor.cache");
+}
