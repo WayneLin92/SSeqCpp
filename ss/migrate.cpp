@@ -19,7 +19,7 @@ SSRet Migrate(const Category& category1, Category& category2, SSFlag flag)
 
         auto& nodes_ss1 = category1.GetNodesSS(iCw1);
         auto& degs_ss1 = category1.GetSSDegs(iCw1);
-        auto& nodes_ss2 = category2.GetNodesSS(iCw1);
+        auto& nodes_ss2 = category2.GetNodesSS(iCw2);
 
         int t_max2 = nodes_ss2.front().t_max();
         for (AdamsDeg deg : degs_ss1) {

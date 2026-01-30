@@ -395,8 +395,11 @@ Category::Category(const std::string& cat_root, const std::string& ckpt_name, SS
                     throw ErrorIdMsg(0x839393b2, "File name is not supported.");
                 }
 
-                if (auto ifrom = GetIndexCwByName(from); ifrom.isRing()) {
-                    auto ito = GetIndexCwByName(to);
+                auto ifrom = GetIndexCwByName(from);
+                ErrorIdMsg::Assert(~ifrom.index, fmt::format("map={}: cannot find from={}.", path, from));
+                auto ito = GetIndexCwByName(to);
+                ErrorIdMsg::Assert(~ito.index, fmt::format("map={}: cannot find from={}.", path, to));
+                if (ifrom.isRing()) {
                     ErrorIdMsg::Assert(ifrom && ifrom.isRing(), fmt::format("Need ifrom && ifrom.isRing(). from={}", from));
                     ErrorIdMsg::Assert(ito && ito.isRing(), fmt::format("Need ito && ito.isRing(). to={}", to));
                     auto images = db.get_column_from_str<Poly>(table, "map", "ORDER BY id", myio::Deserialize<Poly>);
@@ -405,7 +408,7 @@ Category::Category(const std::string& cat_root, const std::string& ckpt_name, SS
                     rings_[ito.index].ind_maps_prev.push_back(maps_.size());
                 }
                 else {
-                    if (auto ito = GetIndexCwByName(to); ito.isRing()) {
+                    if (ito.isRing()) {
                         ErrorIdMsg::Assert(bool(ifrom), fmt::format("Cannot find from=", from));
                         ErrorIdMsg::Assert(bool(ito), fmt::format("Cannot find to={}", to));
                         auto images = db.get_column_from_str<Poly>(table, "map", "", myio::Deserialize<Poly>);
