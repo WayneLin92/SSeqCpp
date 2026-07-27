@@ -482,7 +482,8 @@ int GetCohFromJson(const json& js, const std::string& name_, int t_max, Cohomolo
                 cells_gen_v2.push_back(gen_degs[i]);
         ut::RemoveIf(cells_gen, [t_max](int n) { return n > t_max; });
         ut::RemoveIf(cells_gen_v2, [t_max](int n) { return n > t_max; });
-        ErrorIdMsg::Assert(cells_gen == cells_gen_v2, fmt::format("cells_gen == cells_gen_v2 = {}", Serialize(cells_gen_v2)));
+        if (ring == "S0")
+            ErrorIdMsg::Assert(cells_gen == cells_gen_v2, fmt::format("cells_gen == cells_gen_v2 = {}", Serialize(cells_gen_v2)));
 
         coh.v_degs = gb.v_degs();
         ut::RemoveIf(coh.v_degs, [t_max](int i) { return i > t_max; });
@@ -902,8 +903,9 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             auto& images_json = map_json.at("images");
             if (images_json.size() != cells_gen_to.size())
                 return -2;
+            Mod1d images1;
             for (size_t i = 0; i < images_json.size(); ++i)
-                images.push_back(cell2Mod(coh_from, images_json[i]));
+                images1.push_back(cell2Mod(coh_from, images_json[i]));
 
             /* Verify the map */
             Cohomology coh_to;
@@ -912,9 +914,36 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             gb_from.AddRels(coh_from.rels, t_max);
             for (const auto& rel : coh_to.rels) {
                 int deg_f_rel = rel.GetLead().deg_m() + coh_to.v_degs[rel.GetLead().v()] + sus;
-                if (deg_f_rel <= MAP_T_MAX && gb_from.Reduce(subs(rel, images))) {
+                if (deg_f_rel <= MAP_T_MAX && gb_from.Reduce(subs(rel, images1))) {
                     fmt::print("the map is not an A-module homomorphism");
                     return 2;
+                }
+            }
+
+            if (ring == "S0") {
+                images = std::move(images1);
+            }
+            else {
+                Cohomology coh_to_;
+                GetCohFromJson(js, to_, t_max, coh_to_);
+                if (coh_to_.v_degs.size() == cells_gen_to.size()) {
+                    images = std::move(images1);
+                }
+                else { // temporary fix for from that has at most one cell in target degree
+                    std::map<int, int> gen_count;
+                    Cohomology coh_from_;
+                    GetCohFromJson(js, from_, t_max, coh_from_);
+                    for (size_t i = 0; i < coh_to_.v_degs.size(); ++i) {
+                        // Compute the image of [coh_to_.v_degs[i], count]
+                        json js_src = int1d{coh_to_.v_degs[i], gen_count[coh_to_.v_degs[i]]++};
+                        auto src = cell2Mod(coh_to, js_src);
+                        auto image = gb_from.Reduce(subs(src, images1));
+                        if (image) {
+                            MyException::Assert(coh_from_.num_cells[coh_to_.v_degs[i] + sus] == 1, "Currently only support `from` that has at most one cell in target degree");
+                            images.push_back(coh_from_.cells[size_t(coh_from_.indices_cells.at(coh_to_.v_degs[i] + sus))]);
+                            fmt::print("The image of {} is {}:{}\n", js_src.dump(), coh_to_.v_degs[i] + sus, images.back());
+                        }
+                    }
                 }
             }
         }
