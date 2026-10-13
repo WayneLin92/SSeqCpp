@@ -444,15 +444,21 @@ Category::Category(const std::string& cat_root, const std::string& ckpt_name, SS
             maps_.push_back(std::move(map));
         }
 
+        /* Set permanent cycles due to maps given by a factor.
+         * A map from a ring is x -> x * factor with factor in `to`; a map from a module is x -> factor * x
+         * with factor in the base ring of `from`. Either way the factor detects an element of homotopy, so
+         * it is a permanent cycle. The Leibniz rule then makes factor * x a permanent cycle whenever x is,
+         * which the cofseq needs before it sets d(x) = factor * x. (This used to be done only for maps from S0.) */
         for (auto& json_map : json_maps) {
-            std::string from = json_map.at("from");
-            if (from == "S0" && json_map.contains("factor")) {
-                std::string to = json_map.at("to");
+            if (json_map.contains("factor")) {
+                auto ifrom = GetIndexCwByName(json_map.at("from").get<std::string>());
+                auto ito = GetIndexCwByName(json_map.at("to").get<std::string>());
+                auto iFactor = ifrom.isRing() ? ito : IndexRing(modules_[ifrom.index].iRing);
                 auto& strt_factor = json_map.at("factor");
                 int stem = strt_factor[0], s = strt_factor[1];
                 int1d factor = strt_factor[2].is_number() ? int1d{strt_factor[2].get<int>()} : strt_factor[2].get<int1d>();
                 AdamsDeg deg_factor(s, stem + s);
-                if (auto rt = SetCwDiffGlobal(GetIndexCwByName(to), deg_factor, factor, int1d{}, R_PERM - 1, false, flags))
+                if (auto rt = SetCwDiffGlobal(iFactor, deg_factor, factor, int1d{}, R_PERM - 1, false, flags))
                     throw RunTimeError(fmt::format("Failed to SetCwDiffGlobal(). map={}.", json_map.at("name").get<std::string>()));
             }
         }
