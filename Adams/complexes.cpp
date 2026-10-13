@@ -886,10 +886,18 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
         auto& map_json = maps.at(name);
         auto from = map_json.at("from").get<std::string>();
         auto to = map_json.at("to").get<std::string>();
-        from_ = from == "S0" ? ring : fmt::format("{}{}", ring, from);
-        to_ = to == "S0" ? ring : fmt::format("{}{}", ring, to);
+        /* The name of ring ∧ X; tmf ∧ S0 is tmf itself (not "tmf_"). Over S0 the names are unchanged. */
+        auto smash_name = [&ring](const std::string& cw) -> std::string {
+            if (cw == "S0")
+                return ring.empty() ? std::string() : std::string("tmf");
+            return ring + cw;
+        };
+        from_ = smash_name(from);
+        to_ = smash_name(to);
         if (to_.empty())
             to_ = "S0";
+        /* GetCohFromJson knows tmf ∧ X as "tmf_X"; for tmf itself that is "tmf_S0" */
+        auto coh_name = [](const std::string& cw) -> std::string { return cw == "tmf" ? std::string("tmf_S0") : cw; };
         sus = myio::get(map_json, "sus", 0);
         images = {};
         if (map_json.contains("images")) {
@@ -925,14 +933,14 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
             }
             else {
                 Cohomology coh_to_;
-                GetCohFromJson(js, to_, t_max, coh_to_);
+                GetCohFromJson(js, coh_name(to_), t_max, coh_to_);
                 if (coh_to_.v_degs.size() == cells_gen_to.size()) {
                     images = std::move(images1);
                 }
                 else { // temporary fix for from that has at most one cell in target degree
                     std::map<int, int> gen_count;
                     Cohomology coh_from_;
-                    GetCohFromJson(js, from_, t_max, coh_from_);
+                    GetCohFromJson(js, coh_name(from_), t_max, coh_from_);
                     for (size_t i = 0; i < coh_to_.v_degs.size(); ++i) {
                         // Compute the image of [coh_to_.v_degs[i], count]
                         json js_src = int1d{coh_to_.v_degs[i], gen_count[coh_to_.v_degs[i]]++};
