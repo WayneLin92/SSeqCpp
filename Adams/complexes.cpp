@@ -950,17 +950,21 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
         else if (map_json.contains("total")) {
             fil = 1;
             std::string total = map_json.at("total");
+            /* Over tmf the resolution of tmf_X is built from the A(2)-relations of X, and the images below
+             * are indexed by these relations, so use the ring-prefixed cohomologies (A-relations such as
+             * Sq^8 x = 0 would shift the indices). */
+            auto ring_name = [&ring](const std::string& x) { return ring.empty() ? x : (x == "S0" ? std::string("tmf_S0") : ring + x); };
 
             Cohomology coh_to;
-            GetCohFromJson(js, to, t_max, coh_to);
+            GetCohFromJson(js, ring_name(to), t_max, coh_to);
             Groebner gb_to(t_max, {}, coh_to.v_degs);
             gb_to.AddRels(coh_to.rels, t_max);
 
             Cohomology coh_from;
-            GetCohFromJson(js, from, t_max, coh_from);
+            GetCohFromJson(js, ring_name(from), t_max, coh_from);
 
             Cohomology coh_total;
-            GetCohFromJson(js, total, t_max, coh_total);
+            GetCohFromJson(js, ring_name(total), t_max, coh_total);
             Groebner gb(t_max, {}, coh_total.v_degs);
             gb.AddRels(coh_total.rels, t_max);
 
