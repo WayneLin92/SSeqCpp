@@ -889,7 +889,7 @@ int GetCohMapFromJson(const std::string& name_, std::string& from_, std::string&
         /* The name of ring ∧ X; tmf ∧ S0 is tmf itself (not "tmf_"). Over S0 the names are unchanged. */
         auto smash_name = [&ring](const std::string& cw) -> std::string {
             if (cw == "S0")
-                return ring.empty() ? std::string() : std::string("tmf");
+                return ring.empty() ? "S0" : ring.substr(0, rings.size() - 1);
             return ring + cw;
         };
         from_ = smash_name(from);
